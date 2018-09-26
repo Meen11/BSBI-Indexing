@@ -1,0 +1,1090 @@
+udp calculus rigorous semantics real networking andrei serjantov peter sewell keith wansbrough computer laboratory university cambridge serjantov peter sewell keith cl cam ac uk www cl cam ac uk users pes july 
+network programming notoriously hard understand deal variety protocols ip icmp udp tcp concurrency packet loss host failure timeouts complex sockets interface protocols subtle portability issues 
+behavioural properties operating systems network documented 
+issues addressed process calculus distributed algorithm communities remains wide gulf captured semantic models required precise understanding behaviour practical distributed programs protocols 
+demonstrate preliminary way gulf bridged 
+give operational model socket programming substantial fraction udp icmp including loss failure 
+model validated experiment actual systems 
+tied particular programming language language equipped operational semantics system calls give language binding ocaml fragment 
+illustrate model small network programs 
+table contents udp calculus andrei serjantov peter sewell keith wansbrough 
+background problem 
+contribution 
+experimental semantics 
+overview 
+background networks protocols informally 
+background sockets interface informally 
+choices model 
+structuring model language independence 
+really easy 
+udp model 
+statics types values judgements 
+messages 
+hosts threads 
+interfaces 
+sockets 
+sockets interface 
+networks 
+dynamics interaction 
+thread host interaction 
+host network interaction 
+host console interaction 
+host lts semantics 
+thread ltss language independence 
+network operational semantics 
+overview host semantics 
+example message transmission 
+example message reception 
+ports privileged ephemeral unused 
+message delivery net 
+return fast call 
+message delivery net 
+wildcard ip addresses 
+icmp generation 
+asynchronous errors 
+local errors 
+errors nondeterminism 
+loopback 
+console interaction 
+thread termination 
+select timeout 
+message size 
+loss 
+outqueue 
+
+matching lookup 
+lib design thin abstraction layer 
+udp calculus iii socket options flags lib design 
+ip addressing loopback 
+interfaces 
+sanity properties 
+model detailed operational semantics 
+socket 
+bind 
+connect 
+disconnect 
+
+
+sendto 
+recvfrom 
+close 
+select 
+
+console io 
+conversions 
+
+
+exit 
+ret 
+delivery 
+
+syntax 
+typing 
+operational semantics 
+sanity properties 
+implementation 
+validation 
+
+limitations 
+abstraction 
+
+examples 
+single sender 
+single heartbeat 
+related 
+
+de nition 
+syntax 
+typing 
+operational semantics 
+sanity properties 
+implementation mli 
+single sender state spaces 
+iv andrei serjantov peter sewell keith wansbrough udp calculus background problem distributed applications consist concurrently executing systems interacting network communication 
+ubiquitous writing reliable code remains challenging 
+fundamentally concurrency introduces classic problematic diculties nondeterminism large state spaces deadlocks races 
+additional diculties arise intrinsic properties networks communication asynchronous lossy hosts subject failure 
+communication abstractions provided standard protocols ip icmp udp tcp necessarily complex simple message passing streams 
+programmer understand protocols inter machine communication disciplines library interface 
+standard networking library sockets interface csr iee lying applications protocol endpoint code machine programmer deal visible interface subtle relationship underlying protocols 
+relationship behaviour sockets interface precisely described varies implementations 
+provide rigorous understanding issues requires precise mathematical models behaviour distributed systems 
+models improve informal understanding system building underpin proofs robustness security properties particular programs support design proof implementation higher level distributed abstractions 
+previous theories distributed algorithms process calculi developed models reasoning techniques concurrency failure models generally idealised knowledge address sockets interface behaviour visible ignore interesting aspects core protocols support reasoning executable code 
+protocols sockets interface worth detailed attention implemented machines underlie higher level services including providing resilience failure attack 
+contribution give model provides rigorous understanding sockets interface udp realistic networks 
+add operational semantics programming language ml fragment allowing reasoning executable distributed programs 
+carefully chosen useful fragment sockets interface built thin layer abstraction focussing udp starting point constructed experimentally validated operational semantics covers concurrency asynchrony failure loss developed language independent semantic idioms interaction application thread host os network instantiated model semantics executable fragment ocaml exercised semantics proving properties small example distributed programs 
+taken provide theorists sockets udp programming 
+experimental semantics key goal provide clear close correspondence semantics behaviour actual systems 
+achieve alter extant widely deployed os networking code choose fragment model add thin regularising layer 
+systems complex analyse derive accurate semantics consider body machine code hardware logic embedded operating systems machines network cards routers 
+forced invent appropriate level abstraction express semantics experimentally determine validate semantics 
+call activity experimental semantics 
+andrei serjantov peter sewell keith wansbrough case semantics expressed level system calls communicate application language operating system sockets code 
+initially relevant natural language documentation man pages rfcs pos pos bra posix standard iee standard ste ste inspection sources linux implementation 
+validated semantics combination ad hoc automated testing writing code interacted sockets interface described ways con rming resulting behaviour corresponded model 
+date semantics validated linux implementation fact red hat distribution kernel version glibc 
+intend automated test scripts identify di erences bsd windows operating systems possible picking useful common core 
+overview remainder section give brief informal networks protocols ip udp icmp sockets interface 
+discuss choice include model structure highlight subtleties understood reliable programming 
+sections describe model making subtleties precise 
+section outlines programming language adopt expressing distributed programs fragment ocaml 
+details standard deferred appendices section discusses experimental setup validation 
+semantics illustrated small examples section 
+discuss related conclude sections 
+background networks protocols informally level abstraction model network consists number machines connected combination lans 
+ethernets routers discuss remainder model relates actual systems 
+machine ip addresses bit values 
+internet protocol ip allows machine send messages ip datagrams specifying destination ip addresses 
+ip datagrams form ip body source destination addresses 
+implementation ip consisting routers network protocol endpoint code machines responsible delivering datagram correct machine 
+routing network topology depict network fact test network 
+routing network topology depict network fact test network 
+delivery asynchronous unreliable ip provide acknowledgments datagrams received retransmit lost messages 
+udp user datagram protocol thin layer ip provides multiplexing 
+associates set ports machine udp datagram ip udp ps ps data ip datagram body form udp ps ps data containing source destination port short sequence bytes data icmp internet control message protocol thin layer ip dealing control error messages 
+concerned relating udp ip icmp port unreach ps ps ip icmp host unreach ps ps udp calculus linux win kurt linux win alan emil john linux ip icmp port unreach ip udp rst may generated machine receiving udp datagram unexpected port second generated routers receiving datagrams 
+tcp transmission control protocol thicker layer ip provides bidirectional stream communication ow control retransmission lost data 
+networked applications built tcp udp consider 
+protocol endpoint code machine implementing depicted lib de ne 
+udp icmp tcp ip lib interface device interface sockets background sockets interface informally show application programs interact udp endpoint code machines give simplest possible example programs communicating single udp datagram 
+describe small part sockets interface informally presenting crude intuition behaviour 
+sender receiver programs respectively 
+written typographic conventions automatically applied executable code 
+es er port int ip string fd socket connect fd print flush sending sendto fd hello false port int ip string fd socket bind fd print flush ready recvfrom fd false print flush andrei serjantov peter sewell keith wansbrough constructors option types 
+example involves types fd le descriptors ip ip addresses port ports library calls socket fd bind fd ip port 
+connect fd ip port 
+sendto fd ip port string bool 
+recvfrom fd bool ip port string port int int port ip string string ip print flush string 
+calls may raise exceptions indicating variety errors 
+sender program run alan de nes port ip address fact machine kurt creates new socket 
+socket consists assorted data maintained os including identi er le descriptor bound fd pair local remote pairs ip address port 
+matching incoming datagrams addressing outgoing datagrams 
+program sets remote pair socket connect sends udp datagram fd body hello 
+receiver run kurt de nes ip address port creates new socket fd sets local pair fd permit reception datagrams sent prints ready 
+blocks waiting datagram received socket prints datagram body 
+run alan kurt respectively started rst failure machine network single udp datagram sent machine 
+choices model 
+address issues support desired rigorous understanding model satisfy criteria 
+
+clear relationship albeit necessarily informal goes actual systems suciently accurate reasoning model provide assurances behaviour systems 
+essential include various failures occur 
+
+cover large fragment network protocols sockets interface allow interesting distributed algorithms expressed 
+particular want provide information failure possible programmer support failure aware algorithms 
+
+tension model simple possible reasoning tractable 
+full range network protocols os interactions large standards semantic de nitions 
+starting point choose address unicast udp associated part icmp single thread control machine network 
+choose fragment sockets interface useful programming circumstances deal sockets interface view message loss host failure various local errors 
+simplicity deal despite importance 
+tcp associated icmp messages broadcast multicast udp communication multithreaded machines inter thread communication io primitives choose minimally print exit udp calculus persistent storage network partition especially machines intermittent connections dns ipv protocols machine recon guration privileged operations 
+changing ip addresses modelling implementation ip routing fragmentation lower levels ethernet arp aim support reasoning distributed applications algorithms ip implementations low level network protocols 
+standard sockets interface language library 
+avoid dealing irrelevant complexities interface weak typing explicit memory management introduce thin abstraction layer providing clean strongly typed view clean interface omitting redundancy 
+lib interface de ned shown diagram 
+describe interleaving semantics 
+anticipate straightforward add fairness constraints required reasoning non trivial examples intend investigate lightweight timing annotations precise properties examples involving time outs 
+model intended quantitative probabilistic reasoning 
+quality service issues 
+may provide useful model reasoning forms malicious attack 
+networks malicious hosts network topology deal 
+blocking system calls key aspect sockets programming natural deal sequential threads concurrent programming language language level parallelism blocking system calls block entire runtime 
+structuring model language independence want reason executable implementations distributed algorithms expressed programming language modelling language 
+wish single language behaviour sockets interface network orthogonal programming language express computation machine 
+factor model allowing threads arbitrary labelled transition systems ltss certain form 
+extend operational semantics variety languages labelled transitions library calls returns programs denote ltss values sockets interface simple types involving callbacks straightforward 
+fragment ocaml functions exceptions 
+allows example programs executed change linking module providing thin layer abstraction lib ocaml sockets library turn implemented library 
+convenient able describe partial systems example consider interactions collection threads rest system allow hosts threads syntactically separated 
+networks consist parallel composition ip datagrams hosts state giving host ip addresses states sockets threads state lts 
+precise de nition uses grammar 
+empty parallel composition ip ip datagram transit 
+host host state 
+thread host state host semantics heart model outlined 
+behaviour networks de ned structural operational semantics sos combining ltss hosts andrei serjantov peter sewell keith wansbrough threads process calculus techniques give direct operational semantics complex encoding existing calculus 
+really easy informal introductions protocols sockets interface xx give deceptively simple view 
+real network programming take account captured model 
+ip addresses ports zero values special meanings treated roughly wildcards arguments bind connect socket states 
+ip port types non zero ip addresses ports option types ip port zero values may occur 
+
+system call interactions thread host weakly coupled interactions host network 
+messages may arrive machine processed bu ered network hardware os time 
+sendto recvfrom calls block queue space send message message arrives respectively 
+select allows blocking number le descriptors ready reading writing speci ed time elapsed 
+communication hosts asynchronous due bu ering physical media 
+
+machines fail messages lost reordered duplicated 
+bu ering potential loss points operating system network cards network routers 
+udp provides little error detection recovery 
+udp datagrams typically contain checksum assuming checksum perfect corrupted datagrams discarded 
+interestingly remote failure detected machine receiving udp datagram addressed port associated socket may send back icmp message 
+asynchronously set error ag originating socket giving rise error blocked library call 
+
+local errors possible example just considering bind port may privileged range ip address may belong machine os may run resources le descriptor may identify socket 
+reported exceptions may caught handled 
+
+machines ip address fact machine may interfaces primary ip address possibly alias ip addresses 
+typically interface correspond hardware device machine loopback interface echoes messages back 
+
+sockets interface includes assorted functionality library calls socket options udp calculus udp model introduce udp calculus model network sockets interface udp 
+section gives basic structure de nitions explanation important points 
+heart model detailed operational semantic rules hosts section 
+section presents static structure model section explains interactions parts model section illustrates host semantics means key rules section discusses sanity results 
+part speak model actual systems coincide points abstraction modelling choice discussed 
+section arranged tutorial order strict bottom order de nitions index provided document 
+statics types values judgements model largely built types shown values composed constructors con constructors polymorphic 
+constructor natural number arity non empty set sequences length plus arity types sequences written arrows 
+values terms arity equations nite set equality set types typing judgement de ned rule tn addition number invariants messages interface descriptor sets socket descriptors hosts expressed judgements msg ok ifd set ok socket ok ifds host ok de ned strengthen associated typing statements 
+main formation judgement networks form network 
+notation typically tm range values types ip port error int ps es tms values types ip port error int 
+list append operation written write nil list abuse notation writing 
+list comprehensions 
+set write orderings obvious set lists 
+messages ip datagrams may carry udp icmp payload values type msg forms 
+ip udp ps ps data ip icmp port unreach ps ps ip icmp host unreach ps ps ip ip source destination ip addresses 
+udp datagrams contain source destination port ps port ps port string octets data string 
+unusual cases ports may zero see port simply port 
+icmp datagrams andrei serjantov peter sewell keith wansbrough int bool string unit type tn tuple list list optional type err error void empty type fd le descriptor ip ip address port port error os error interface descriptor socket options tl set nite set body ip datagram msg ip datagram ifd interface descriptor table entry ags ags socket descriptor table entry socket socket descriptor table entry unique identi er host os view thread host single host clauses annotated tl form language types 
+values passed thread host os language type 
+fig 
+
+types contain source destination ip addresses ports udp datagram generated ip ps ps port 
+expect reasonable icmp enforce 
+maximum size data see 
+de ne ip body msg ok ip body msg body udp ps ps data implies size data 
+certain pathological ip addresses messages containing described martian de ne predicate martian 
+certain contexts addresses appear de ne ip body msg oq ok ip body msg ok martian body icmp port unreach ps ps data fi martian body icmp host unreach 
+hosts threads separate running machine parts host representing machine operating system thread representing application program controlling 
+threads explained 
+host form host ifds oq oqf host set ifds ifd set interfaces set ip addresses 
+interfaces explained xx assume hosts loopback interface 
+write ifds mean ip address interfaces ifds 
+operating system udp calculus partition con language constructors int true false bool octet sequence string mix tn tn nil list list list ok err fail error err ip port fd fd fd lo eth eth error non language constructors ip ip ip msg udp port port string icmp host unreach ip port ip port icmp port unreach ip port ip port host ifd set socket list msg list bool host sock fd ip port ip port error ags msg list socket ip set ip ifd run term tl sendto fd ip port string recvfrom fd select fd list fd list int print string flags bool bool ags alan kurt elements set written fv vng 
+tl subscript usually elided 
+fig 
+
+constructors andrei serjantov peter sewell keith wansbrough view thread state stored thread may running run terminated term waiting os return call 
+case os may return value fast system call ret thread may blocked waiting slow system call complete sendto recvfrom select print 
+host current list sockets socket list 
+outqueue queue outbound ip messages oq msg list oqf bool oq list messages oqf set queue full see 
+host invariant host host ok requires interface set ifds sockets messages outqueue oq satisfy respective invariants outqueue oq empty outqueue full ag oqf false host thread state sensible sockets share le descriptor 
+de ned rule ifds ifd set ok socket list sock sock socket ok ifds oq msg list oq msg oq ok oqf bool oq oqf false sendto fd ips data fd ips fd ps fd recvfrom fd fd ps fd select readseq writeseq tms readseq writeseq tm tms tm sock sock sock sock host ifds oq oqf host ok sock socket socket list de ne sock fd fd map sock fd ps ps es mq socket list repeated fd take fd 
+convenience de ne classes contexts build host builds socket list host ifds oq oqf host ifds oq host oq oqf implicit typing constraints contexts typed instantiations 
+de ne socks socket hole fully 
+abuse notation writing sock sock socks 
+useful pick host thread states speci single fd op sendto data recvfrom udp calculus de ne giving run language type 
+gives type values returned thread 
+lifted hosts obvious way 
+run run tl sendto err recvfrom ip port string err select fd list fd list err print err term void interfaces host set ifds interfaces form iset ifd interface identi er unique host iset ip set set ip addresses interface ip primary ip address iset 
+abuse notation writing ifds iset suppose host loopback interface impose number sanity conditions de ning ifds ifd set ok 
+sockets central abstraction sockets interface socket 
+represents communication endpoint specifying local remote pair ip address udp port parts protocol implementation state 
+form sock fd ps ps es mq socket uniquely identi ed host le descriptor fd fd 
+note le descriptors closed sockets may reused 
+local remote address port pairs ip ps port ip ps port respectively wildcards may occur 
+tuples lling details outgoing messages matching incoming messages determine socket delivered 
+asynchronous error conditions store pending error error ag es error 
+assortment socket parameters stored ags 
+elements ags flags bc ra bc bool ra bool record socket options 
+mq msg list queue incoming messages delivered socket received application 
+de ne helper functions manipulating ags flags bc bc flags ra ra flags ra bc flags bc ra flags bc ra flags bc ra socket invariant sock fd ps ps es mq socket ok ifds parametric ifds requires components typed sock fd ps ps es mq socket tuple ps ps forms andrei serjantov peter sewell keith wansbrough ifds messages mq sensible mq msg ok martian tuple mq nil es 
+sockets interface library interface de nes form interactions thread host specifying system calls thread 
+library interface consists set calls pair language types need polymorphic library calls 
+take library interface lib shown consisting sockets interface basic os operations 
+sockets interface socket fd err bind fd ip port 
+err connect fd ip port 
+err disconnect fd 
+err fd 
+ip port err fd 
+ip port err sendto fd ip port string bool 
+err recvfrom fd bool 
+ip port string err fd error err fd bool err fd bool 
+err close fd 
+err select fd list fd list int 
+fd list fd list err port int int port err ip string string ip err 
+ip ip list list err basic operating system operations print flush string 
+err exit void fig 
+
+library interface lib sockets interface calls return value type err thread ok fail unix error error 
+language binding may map error returns exceptions binding 
+approximate meanings sockets interface calls follows 
+calling socket creates new socket returning le descriptor calls refer 
+local remote ip port pairs set bind connect disconnect examined 
+udp datagram sent sendto fd ips data 
+destination address may speci ed explicitly ips left socket determine ips 
+data simply string octets 
+bool speci es call return immediately outqueue full block datagram queued 
+udp datagram received recvfrom fd 
+message available message queue mq socket fd returned originating ip address port 
+call return immediately true block false 
+socket may pending error state 
+set asynchronously arriving icmp message 
+various calls return error explicitly examined cleared 
+udp calculus alan 
+host host thread alan 
+alan 
+ok alan 
+console hello alan 
+ip alan 
+sendto alan 
+ip ip kurt udp hello ip alan icmp port unreach network fig 
+
+thread host network sockets number options accessed 
+option allows ports reused di erent sockets 
+option ects delivery icmp messages unconnected sockets 
+calling select readseq writeseq tm block sockets readseq message ready reading writeseq ready writing time tm elapses error occurs 
+returns sublists ready 
+non blocking variant select readseq writeseq returns immediately 
+socket closed close fd interfaces host examined 
+include injections port int ip string constructing values types port ip 
+need injections corresponding projections omitted 
+useful pick operations speci single fd fd fd op fd element de ned 
+op bind ps connect ps disconnect opt opt sendto data nb recvfrom nb close andrei serjantov peter sewell keith wansbrough discuss design lib xx 
+networks network term grammar parallel composition ip datagrams hosts threads 
+describe partial systems allow hosts threads split apart 
+association expressed shared names purely semantic devices confused ip addresses dns names 
+ranges thread labelled transition systems de ned confused error 
+formation judgement network 
+uses judgements msg ok host ok impose invariants ensures host identi ers ip addresses repeated 
+network ip msg ok ip network host host ok 
+host network thread lts 
+network network 
+host 
+host 
+
+
+host 
+host 
+host disjoint addr host host network disjoint addr de ned respectively 
+empty network network 
+valid message msg ok typed maximum size network 
+valid host thread tagged network 
+networks may combined sets host tags disjoint sets thread tags disjoint threads hosts sharing tag step non loopback host ip addresses disjoint 
+note structure messages transit represent ip datagrams network bu ered routers travelling physical links 
+dynamics interaction threads hosts network labelled transition systems interact means ccs style synchronisations 
+shows network alan 
+alan 
+host ip alan kurt udp hello ip kurt alan icmp port unreach possible interactions showing host lts labels 
+host thread linked pre transitions messages network bare messages tied particular host ip addresses contained source destination elds 
+shall see host thread ltss de ned pre xes added lifted network sos 
+thread host interaction interaction thread associated host system calls call return modelled ccs style synchronisations 
+thread system call tl tl lib argument tl example sendto 
+operating system may return value tl example ok 
+udp calculus diagram host alan 
+sendto alan 
+ok part call return synchronisations respectively 
+example socket fd err xed thread host may transitions thread host socket host ifds run oq oqf socket socket ret fd err host ifds ret ok fd oq oqf ok fd ok fd fd host ifds run oq oqf thread states see reduction context store component elided 
+host states component run states system call executing ret states system call executing just return thread 
+invocations system calls may fast slow ste 
+fast calls return quickly slow calls block inde nitely example message arrives 
+labelled transitions form host states di er 
+host state component run states system call executing 
+fast system call takes ret immediately perform transition back run state 
+slow system call introduces additional host states intermediate blocked states 
+example blocking receive state messages queued socket fd host transitions host ifds run oq oqf recvfrom fd false host ifds recvfrom fd oq oqf message delivered network host ifds recvfrom fd oq oqf ok data host ifds run oq oqf host recvfrom fd blocked state details 
+absence slow calls model system calls single transitions carrying argument return values pairs 
+host network interaction host interacts network sending receiving ip datagrams alan 
+ip alan 
+ip gure respectively 
+host interacts network asynchronously interactions thread host transitions independent host thread state 
+example may transitions output host input host respectively 
+host network host ifds oq ip body oqf ip body ip body host ifds oq oqf ip body host ifds oq oqf ip body ip body ip body host ifds oq oqf andrei serjantov peter sewell keith wansbrough host console interaction host may emit strings console transitions form alan 
+console hello 
+provides minimal way observe behaviour network examining output console 
+example may transitions 
+thread host print flush host ifds run oq oqf print flush print flush ret err host ifds print oq oqf console host ifds ret ok oq oqf ok ok host ifds run oq oqf host lts semantics collecting interactions host lts labels tl tl lib tl call tl tl return ip ip msg ok message receipt ip ip msg ok message send console string console output internal action states host host host transition relation de ned rules illustrated 
+relation containing host host instance rule host host ok 
+number properties transition relation stated theorem shows transitions preserve host host ok thread ltss language independence interactions thread os essentially independent programming language thread written exchange values simple types language types 
+thread syntactic program particular language take arbitrary labelled transition system labels straightforward extend operational semantics variety languages de ne lts 
+take thread lts set states initial state transition relation labels tl tl lib tl tl tl axioms imposed give accurate model sew 
+system calls deterministic thread er invoke multiple system calls simultaneously 
+making system call thread prepared input possible return values subsequent behaviour function value 
+threads may internal nondeterminism 
+thread progress terminated invoking udp calculus exit system call return type void 
+require reachable states partitioned sets call dom lib thread just system call thread waiting response language type tl tau thread computing internally 
+call tl tl lib tl 
+tl tl prog 
+tau prog prog def tau dom lib call partition unique exists 
+de nition allows internal nondeterminism 
+occurs semantics technical reasons fresh chosen nondeterministically important regarding semantics concurrent language pict pt join thread lts natural operational semantics gives loose speci cation language level processes scheduled 
+host host thread lts de ne prog run tl tl deal thread ltss generated operational semantics expressions ranged confuse thread lts 
+de nition thread lts lib interface include notion marshalling sendto recvfrom calls allow strings 
+marshalling addressed language semantics 
+wished deal values extensible types 
+new channel names cryptographic keys de nition thread lts extended renaming structure lines cs 
+network operational semantics de ne sos glue things making precise synchronisations threads hosts network datagrams described informally 
+labels network threads hosts crash machine failure tagged host identi ers 
+
+crash crash crash 
+crash crash 
+crash transitions network de ned rules structural congruence de ned associativity commutativity identity axioms 
+andrei serjantov peter sewell keith wansbrough host host ok thread lts network 
+usual label write label set labels 
+
+
+
+
+
+ip ip ip 
+ip 
+
+par 
+crash 
+host crash 
+
+par 
+ip drop 
+ip ip dup 
+host 
+crash host crash 
+
+crash host crash network interesting topological structure 
+receive new datagram deliver datagram rules similar honda tokoro asynchronous calculus ht 
+par rules force synchronisations host thread share name 
+ip datagrams arrive order lost nitely duplicated 
+re ordering built rst lines rules kinds failure add rules drop dup host crash 
+interesting constrained 
+fairness timing assumptions 
+hosts fail variety ways 
+consider simplest crash failure mul 
+host failure model richer directions allowing restart checkpointing non volatile state allowing network partitions disconnections single machines allowing byzantine failure 
+worth noting delivery ip datagram host consumes datagram accurate model allowed hosts share ip addresses 
+note datagrams ip addresses belong host garbage collected 
+overview host semantics explain main points host semantics illustrating host transition axioms 
+udp calculus example message transmission outlining host transitions involved successful execution single datagram example 
+combined system revisited 
+consider transitions sender host alan running host ifds alan run false port int ip string oki socket ok fd host ifds alan run sock fd false connect fd ok host ifds alan run sock fd false print flush sending host ifds alan print hello sock fd false console sending ok host ifds alan run sock fd false sendto fd hello false ok host ifds alan run sock fd false host ifds alan run sock fd false exit host ifds alan term false fd fd flags false false ip udp sending 
+socket creates new socket connect sets remote ip address port sendto constructs ip datagram adds host outqueue delivery rule outputs network 
+connect call lls socket local ip address port see 
+exit sockets created thread closed single thread model covers sockets 
+just trace errors incoming messages output occur step earlier 
+transitions invocations returns library routines interactions thread program apart console output console sending output network message rst pairs transitions potential interactions thread derivable rules convert port convert ip socket connect sendto ret transitions call print flush resulting console output console sending 
+call sendto return output message network derivable delivery interaction thread exit thread ltss includes complementary sequences transitions console network interactions console additional internal transitions computation steps 
+andrei serjantov peter sewell keith wansbrough example message reception show host transitions involved run receiver 
+host ifds kurt run false port int ip string oki socket ok fd host run sock fd bind fd ok host run sock fd print flush ready host print ready console ready host ret ok ok host run recvfrom fd false host recvfrom fd host recvfrom fd sock fd ok hello host run sock fd print flush hello host print hello console hello ok host run exit host term fd fd flags false false 
+transitions invocations returns library routines apart input label receiving datagram network console outputs console ready console hello 
+ports privileged ephemeral unused ports host partitioned privileged ephemeral rest sets implementation dependent linux defaults 
+unused ports host subset occur local port sockets unused unused sock bind local port socket explicit non privileged value 
+example request os choose unused port set ephemeral ports 
+done invoking bind port argument bind rule bind succeed ifds run sock fd es mq bind fd ifds ret ok sock fd es mq unused ephemeral ifds reduce syntactic clutter rules de ne classes contexts build host 
+ranges contexts form host oq oqf socket list context form context forms de ned 
+unused function lifted obvious way 
+rule requires ip address udp calculus host 
+occur connect connects socket local port bound disconnect sendto recvfrom function 
+ps ps fp unused ephemeral message delivery net simplest case sending udp datagram involves host transitions constructs datagram adds host outqueue takes outqueue outputs network 
+host transition axioms 
+sendto succeed host ifds run sock fd ps ps mq oq oqf sendto fd ips data nb host ifds ret ok sock fd ps mq oq oqf ps oq oqf true ifds ips data ps oq oqf size data ips sendto socket list context allowing fd socket picked function provides nondeterministic choice unused ephemeral port local port socket bound function constructs datagram ips argument sendto ip addresses ports socket adds outqueue fails queue full length data ips argument socket specify destination ip address 
+delivery put udp icmp network oq host ifds oq oqf ip body host ifds oq oqf ip body oq oqf dequeue oq oqf loopback martian martian delivery dequeue function picks datagram outqueue nondeterministically resetting oqf ag checks datagram non martian source destination addresses bak see 
+outputs datagram network 
+return fast call invocation fast call 
+instance sendto rule host thread state form ret recording value returned thread ret 
+ret return value fast system call thread host ifds ret oq oqf host ifds run oq oqf message delivery net thread invokes recvfrom socket fd queued messages non blocking ag argument false thread block message arrives error kind occurs 
+andrei serjantov peter sewell keith wansbrough recvfrom block entering recvfrom state ifds run sock fd ps ps nil recvfrom fd false ifds recvfrom fd sock fd ps nil ps socks bind sendto local port socket automatically bound unused ephemeral port bound 
+udp datagram 
+ip udp ps ps data arrives host tuple ps ps matched host sockets determine datagram delivered 
+matching compares tuple sock ps ps giving score elements match treating socket elements wildcard 
+lookup function de ned takes list sockets datagram tuple ps ps returning set sockets maximal non zero scores 
+datagram delivered sockets adding socket message queue mq expressed basic delivery udp rule 
+delivery udp get udp network deliver matching socket host ifds oq oqf ip udp ps ps data host ifds sock fd ps ps es mq ip udp ps ps data oq oqf sock fd ps ps es mq lookup ps ps sock fd ps ps es mq iset ifds iset loopback martian loopback blocked recvfrom able complete recvfrom rule 
+recvfrom slow succeed ifds recvfrom fd sock fd ps ip udp ps ps data mq ok ps data ifds run sock fd ps mq wildcard ip addresses datagram ip body sent host source ip address lled 
+socket local ip address eld wildcard host ip addresses chosen fact primary ip address interface host local routing table speci es sending occurs sendto connect 
+model contain routing information take nondeterministic approximation distinguishing loopback non loopback addresses 
+de ne ifd set ip ip set iset loopback iset example connect udp calculus connect succeed necessary ifds run sock fd ps es mq connect fd ps ifds ret ok sock fd ps es mq ifds ps note ifds empty insist host ok invariant machines loopback interface interface 
+simplify treatment sendto ensuring returns nonempty set justi ed fact wish reason disconnected machines fact disconnected machines generate errors connect sendto 
+icmp generation udp datagram arrives host destination ip address host socket matches tuple ps ps host may may send icmp port unreach message back sender 
+dealt rule non loopback case 
+note icmp message added host outqueue oq put directly network 
+uses auxiliary function enqueue described 
+delivery udp get udp network generate icmp matching socket host ifds oq oqf ip udp ps ps data host ifds oq oqf ifds lookup ps ps oq oqf ok oq oqf true enqueue ip icmp port unreach ps ps oq oqf loopback martian loopback icmp generated linux kernel type icmp rate limiting control denial service attacks 
+take nondeterministic approximation 
+asynchronous errors icmp port unreach message arrives host matched sockets roughly way udp datagrams 
+matches socket typically send udp datagram generated icmp error reported thread 
+arrival processing icmp message asynchronous thread activity happens simply error ag es socket set case 
+delivery icmp get icmp network setting error matching socket host ifds oq oqf ip icmp unreach ps ps host ifds sock fd ps ps es mq oq oqf sock fd ps ps es mq sock fd ps ps es mq lookup ps ps ip icmp unreach ps ps ifds loopback martian es es host port 
+sanity constraints ip addresses involved behaviour di ers socket ag set 
+note un andrei serjantov peter sewell keith wansbrough matched generate new analogue delivery udp 
+error ag may cause subsequent fail returning error clearing ag example rule 
+sendto fail socket error state ifds run sock fd ps mq sendto fd ips data nb ifds ret fail sock fd ps mq error ag explicitly inspected cleared succeed ifds run sock fd ps ps es mq fd ifds ret sock fd ps ps mq local errors number sources error dealt 
+firstly straightforward erroneous parameters 
+call takes fd return le descriptor socket 
+bind port privileged port modulo ags ip address host socket non local port sendto destination socket unconnected data bigger see sendto recvfrom return non blocking ag argument set call block 
+secondly slow calls sendto recvfrom select return blocked state system call interrupted 
+model contain sources interrupts include nondeterministic rule allowing error occur intr slow intr system call interrupted host ifds op oq oqf fail host ifds run oq oqf op recvfrom select print expectation interesting reasoning depend assumption occur 
+thirdly pathological cases os exhausted resource 
+call socket return open les le table ows calls return os run space bu ers 
+modelled purely nondeterministic rules example udp calculus op bad fail space ifds run sock fd ps ps es mq op fd ifds ret fail socket ok ifds fd op ranges class invocations calls single fd argument de ned 
+note rule allows socket state change arbitrarily wish specify exactly system call failures may occur expect os return socket initial state application program depend resulting socket state 
+expect interesting reasoning depend assumption errors occur 
+included model application may catch order clean 
+deal possibility ephemeral ports exhausted bind connect disconnect sendto 
+test machines occur resources exhausted rst include rules ensure semantics get stuck 
+returned error chosen 
+errors nondeterminism cases multiple error conditions hold chosen give loose speci cation nondeterministically allowing 
+particular implementation take priority depending os code sequenced vary applications depend particular priority order 
+roughly various success rules disjoint fail rules fail rules overlap 
+precise theorem page 
+error cases allow socket state changed nondeterministically actual result depends details os coding wish applications depend 
+loopback datagram sent loopback address loopback echoed back reaching network 
+typically uses loopback address localhost ifd set ok condition xes primary address unique loopback interface machine 
+model loopback number additional delivery rules delivery loopback essentially compositions delivery delivery rules 
+example rule delivery loopback udp get loopback udp oq deliver matching socket host ifds oq oqf host ifds sock fd ps ps es mq ip udp ps ps data oq oqf ip udp ps ps data oq oqf dequeue oq oqf loopback sock fd ps ps es mq sock fd ps ps es mq lookup ps ps loopback localhost ifds removes loopback udp host outqueue delivers matching socket single step 
+analogue delivery composed delivery udp see 
+loopback conditions various rules ensures ip packets generated touch network 
+means reordered duplicated lost actual systems os drop lack space 
+andrei serjantov peter sewell keith wansbrough console interaction minimal form stdio add print host labelled transitions console strings generated rule console print print string console print console ret ok adding input straightforward require dealing fact user input events key presses mouse events occur time 
+sew host state extended bu er events 
+thread termination thread terminate calling exit void host return 
+termination sockets closed 
+exit exit host ifds run oq oqf exit host ifds term oq oqf correct idealised machine sockets opened thread 
+note fact sockets closed termination may observed machines receive icmp port unreach messages associated ports 
+treat unix return codes ocaml exit allows unix return code speci ed wish model details 
+select timeout said calling select readseq writeseq tm block sockets readseq message ready reading writeseq ready writing time tm elapses error occurs 
+untimed interleaving semantics timeout modelled faithfully allow timer decrement nondeterministically select slow timeout decrement select readseq writeseq tm oqf select readseq writeseq tm oqf tm readseq fd fd readseq sock fd ps ps es mq mq nil es writeseq fd fd writeseq oqf false sock fd ps ps es mq readseq nil writeseq nil message size maximum size data udp datagram octets xed ip udp protocols 
+msg ok network socket ok host ok judgements require udp ps ps data network socket queues outqueue size data 
+calls sendto larger data return error error condition applies 
+general guaranteed large datagrams handled protocol endpoint code ste linux implementation appears 
+separate issue fragmentation typically physical link handle packets certain size octets ethernet 
+implementation ip involves sender possibly routers fragmenting datagrams packets small transmitted receiver reassembling 
+increases potential loss large datagram udp calculus fragments arrive successfully time window datagram reassembled 
+routers may simply drop large packets 
+level abstraction covered drop loss rule 
+loss drop loss rule 
+ip covers di erent circumstances packet loss entirely network 
+due routers choosing drop noise collisions physical medium 
+packet loss entirely receiver 
+due device full network module backlog queue full socket message queue full discussed receive bu er size checksum failures various points 
+succeeding fragments lost receiver receive close time 
+outqueue call sendto block fail nb ag argument set space enqueue message 
+linux implementation socket variable length virtual bu er size settable messages outqueue charged bu er socket sent message sent socket space socket virtual bu er 
+choose model exactly follows host outqueue oq associated outqueue full ag oqf oqf initially false indicating space outqueue 
+message placed outqueue oqf may nondeterministically set true 
+message removed outqueue oqf may nondeterministically set false message outqueue oqf deterministically set false 
+oqf set calls sendto block fail 
+oqf set generated discarded 
+maintain host ok invariant oq oqf false 
+sendto delivery rules express auxiliary functions enqueue msg msg list bool 
+msg list bool bool set dequeue msg list bool 
+msg msg list bool set enqueue function takes message enqueue current oq oqf returns set oq oqf ok triples oq oqf resulting outqueue ok true message enqueued false 
+dequeue function takes current outqueue returns set oq oqf triples rst element oq resulting outqueue ag oqf set empty current outqueue empty 
+functions de ned enqueue oq true oq true false enqueue oq false oq oqf true oqf trueg dequeue nil oqf fg dequeue oq oqf oq oqf oqf oqf oq nil falseg modelling additional network card bu ering 
+andrei serjantov peter sewell keith wansbrough auxiliary function sendto rules construct ip datagram enqueue outqueue 
+type ifd set ip port string ip port ip port msg list bool 
+msg list bool bool set mapping ifds ips data ps ps oq oqf set triples oq oqf ok 
+called ips ps returns nonempty set depends fact enqueue return nonempty sets 
+takes host ifds ips data part sendto arguments ps ps part relevant socket ps original ps result necessary outqueue oq output ag oqf returns set possible outcomes 
+outcome triple new oq new oqf bool 
+bool true room outqueue msg false 
+case oq oq oqf oqf true de nition enqueue 
+ifds data ps oq oqf enqueue ip udp ps data oq oqf ifds data oq oqf ifds enqueue ip udp data oq oqf ifds data ps oq oqf enqueue ip udp data oq oqf rst case udp datagram zero destination port generated ips ps may surprising occur 
+expect udp datagram case taken primary ip address interface sending local address socket 
+ifds enqueue ip udp data oq oqf 
+note sendto fd data nb connected socket 
+ps works ste posix speci es give 
+matching lookup various points tuple ps ps matched host sockets determine socket match closely 
+delivery udp 
+de ne matching function returning score match follows 
+match ps ps match ps ps ps match ps ps ps match ps ps ps match ps ps ps ps de ne score lookup score sock fd ps ps es mq ps ps match ps ps ps ps lookup ps ps sock score sock ps ps sock score sock ps ps score sock ps ps udp calculus lookup function returns set maximal non zero scoring sockets may empty 
+chosen nondeterministically rules lookup take arbitrary element 
+linux implementation sockets kept hash chain resolves nondeterminism 
+details complex sockets added bind time rst time expect applications depend behaviour choose model 
+lib design thin abstraction layer choice udp functionality deal decision intricacies parameter passing design lib largely straightforward 
+small points remain lib abstracts system calls underlying bind disconnect ensure socket states accurate abstraction actual os datastructures 
+details comments rules bind disconnect 
+omit send recv simply trivial wrappers sendto recvfrom 
+arbitrarily ignore sendmsg 
+useful principle lib design stateless application combine lib standard sockets library non lib functionality required 
+socket options flags lib design considered socket level socket options de ned linux 
+implement irrelevant fragment udp duplicate behaviour obtainable means attach filter detach filter broadcast check priority type options relevant tcp debug keepalive linger 
+implement interesting sol ip socket option ip ip appears similar functionality ip ip options ste pp 
+options set ioctl ags passed send receive mentioned omitted similar reasons 
+options implement follows 
+semantics follows linux stated 
+bsd compatibility icmp received socket connected bsd semantics bra ignore 
+linux normally delivers message just connected socket 
+ects de ned hard errors icmp port unreach icmp host unreach sockets ip option set 
+bsd semantics may obtained setting default false sunos sunos 
+provide socket option element ags component sock structure 
+socket errors reading error socket option gets clears current socket error 
+writing possible 
+provide system call fd error err see 
+send receive bu er size send receive bu er sizes may read written socket options 
+modelling options fully calculus complicate semantics annoying ways receive bu er limit socket message queue way send bu er involve tagging message outqueue owning socket charging purposes 
+implement nondeterministically full outqueue described ignore receive queue entirely andrei serjantov peter sewell keith wansbrough considering part network modelled drop network packet dropping rule 
+note means assumption drop occur proving properties algorithm lossless network hypothesis reasonable host message queue lls 
+address reuse normal circumstances tuples ps ps distinct sockets may overlap incoming message match sense match socket 
+may overridden sockets participating overlap socket option set 
+constraint enforced bind time 
+provide socket option element ags component sock structure 
+packet information doing virtual hosting want know destination address receiving interface incoming packet 
+ste pp suggests sol ip options ip ip 
+linux available setting ip option causes control message placed message header message received socket containing remote source address receiving interface 
+may obtained 
+calculus messages socket message queue tagged receiving interface considered suciently awkward linux obtain ip information unrealistic return information recvfrom call 
+semantics contains information permit extended recvfrom call de ned providing information thread 
+de ne extension 
+non blocking ways potentially blocking operations send receive non blocking returning linux aliased block 
+ioctl socket le descriptor may set subsequent operations block alternatively individual sends receives may set msg ag 
+provide functionality adding ag sendto recvfrom requesting non blocking operation call 
+non blocking ag ect delivery necessary store ag socket 
+interface information ways obtain information host interfaces 
+ioctl routing sockets 
+abstracting away details exactly obtain information simply add system call 
+ip ip list list 
+ip addressing loopback dotted decimal notation ip addresses writing 
+
+trailing zero components omitted allowing 
+denote 
+address zero signi cant bits write set addresses agree signi cant bits 
+classes ip addresses special meaning 
+pick loopback addresses loopback ip set datagrams echoed internally conventional element localhost loopback pathological martian addresses bak 
+take crude martian addresses de ning sets bad addresses fact sources destinations treated di erently broadcast multicast involved 
+multicast martian multicast udp calculus lifted de nition martian ip datagram 
+martian ip udp fi martian martian ip icmp unreach ps ps fi martian similarly de ne predicate picks ip datagrams containing position loopback address 
+loopback ip udp fi loopback loopback ip icmp unreach ps ps fi loopback assume ip addresses datagrams network host queues non zero expressing ip ip type message constructor ip 
+entirely true start host may need send messages zero source address zero destinations forbidden ste 
+interfaces ifds iset say ifds ifd set ok 
+ifds ifd set 
+
+ds distinct 
+
+primary ip associated ip set 
+iset 
+ips ip set agree set bits 
+iset 
+ips appearing ifds distinct 
+iset iset 
+exactly loopback interface 
+iset loopback localhost 
+non loopback interface 
+iset loopback 
+interfaces non martian addresses 
+iset martian hosts disjoint ip addresses satisfy predicate disjoint addr host host iset iset loopback sanity properties section gives type preservation progress theorems model result 
+states roughly system call host state call succeeds exactly rule applies fails error rules may competition 
+combination progress result thread lts axioms network sos rules exclude pathological deadlocks 
+de ne host thread state classes subsets follows overloading identi ers run term sendto recvfrom select print values corresponding forms ret tl err tl err fail error op sendto recvfrom select print andrei serjantov peter sewell keith wansbrough classes lifted hosts subsets host obvious way 
+host ifds oq oqf host ifds oq oqf range hosts range host labels 
+theorem axiom classi cation 
+host transition axioms may partitioned follows transition type state label state rules run succeed run op enter run term run fail run ret run op run op fail run op fail run op fail run console print console print select select ipv ipv accept ipv ipv emit succeed fail sets rules words rst rule description 
+set enter recvfrom select console print set loopback delivery 
+set accept set emit lines unchanged 
+proof 
+inspection axioms 
+theorem preservation typing host ok 
+suppose host ok 
+tl tl lib tl run tl host ok 
+ret op run host ok 
+host ok 
+ipv host ok 
+ipv host ok 
+console string host ok proof 
+inspection axioms 
+corollary 
+performs library call transition rst subsequent return transition typed tl tl lib 
+tl udp calculus range axiom names de ne extended transition relation labelled write theorem 
+suppose host ok 
+run host state system call exactly successful rule applies call fails fail rules may competition run tl tl tl exactly cases holds 
+succeed enter fail succeed enter fail 
+op host state exactly successful rule applies call fails rules may competition blocked op exactly cases holds 
+print select print select print select 
+host accept message destined exactly rule ip body msg ok ifds loopback accept ip body 
+oq contains message exactly rule deals oq nil emit note rst clauses exclude possibility intr rules 
+proof 
+inspection axioms observation success 
+enqueue determined solely oqf theorem progress 
+suppose host ok 
+host run host thread state typed library call may performed run tl tl lib tl 
+host ret host thread state unique value returned ret 
+host accept message destined ip body msg ok ifds loopback ip body proof 
+clauses follow theorem clause immediate theorem ret axiom 
+theorem absence pathological host thread deadlocks 
+host ok thread lts 
+
+
+proof 
+immediate consequence previous results thread lts axioms 
+theorem preservation network 
+network network proof 
+induction derivations 
+andrei serjantov peter sewell keith wansbrough model detailed operational semantics socket socket succeed host ifds run oq oqf socket host ifds ret sock fd flags false false nil oq oqf fd bsd flags true false socket bad fail le descriptors le table space run socket ret fail errors open les file table ow 
+bind bind succeed ifds run sock fd es mq bind fd ifds ret ok sock fd es mq unused ephemeral bind succeed ifds run sock fd es mq bind fd ifds ret ok sock fd es mq unused ephemeral ifds bind succeed ifds run sock fd es mq bind fd ifds ret ok sock fd es mq privileged sock fd ps ps es mq ps true note doesn get chosen datagram sent ste 
+udp calculus bind succeed ifds run sock fd es mq bind fd ifds ret ok sock fd es mq ifds privileged sock fd ps ps es mq ps true bind failures assume unsuccessful bind leaves socket state unchanged 
+linux bind wins bind bind bind wins bind 
+choose specify see 
+want add ifds bind ifds privileged bind bind wins 
+express replace sock fd ps ps es mq bind bind bind sock fd es mq 
+bind fail don access port ifds run sock fd ps ps es mq bind fd ifds ret fail sock fd ps ps es mq privileged linux written sock choose violate tidy socket invariant 
+socket placed delivery list hide letting wrapper test local port return local bind fail port ifds run sock fd ps ps es mq bind fd ifds ret fail sock fd ps ps es mq sock fd ps ps es mq ps true bind ps fail ip addresses ifds run sock fd ps ps es mq bind fd ps ifds ret fail sock fd ps ps es mq ifds bind ps fail socket non port ifds run sock fd ps es mq bind fd ps ifds ret fail sock fd ps es mq andrei serjantov peter sewell keith wansbrough bind fail ephemeral ports left ifds run sock fd es mq bind fd ifds ret fail sock fd es mq unused ephemeral error awkward test test machines run les socket ephemeral ports exhausted 
+error set speculative 
+connect type connect forbids ip address 
+practice requests loopback transmission ect 
+connect succeed necessary ifds run sock fd ps es mq connect fd ps ifds ret ok sock fd ps es mq ifds ps connect succeed ifds run sock fd ps es mq connect fd ps ifds ret ok sock fd ps es mq connect fail ephemeral ports left ifds run sock fd es mq connect fd ps ifds ret fail unused ephemeral socket ok ifds fd see bind rule leaves socket indeterminate state want specify exactly called 
+disconnect disconnect library connect af 
+ste suggests architectures give successful disconnect hide wrapper 
+disconnect succeed ifds run sock fd ps es mq disconnect fd ifds ret ok sock fd es mq udp calculus note leaves local port place surprisingly 
+disconnect succeed ifds run sock fd es mq disconnect fd ifds ret ok sock fd es mq unused ephemeral may surprising resulting state receive msgs disconnect fail ephemeral ports left ifds run sock fd es mq disconnect fd ifds ret fail unused ephemeral socket ok ifds fd see connect succeed ifds run sock fd ps ps es mq fd ifds ret ok ps sock fd ps ps es mq see comment bind 
+involves thin wrapper system call get system call return 
+ps case rule covers weird linux behaviour failing bind due 
+succeed ifds run sock fd ps ps es mq fd ifds ret ok ps sock fd ps ps es mq involves thin wrapper system call get return 
+library sol socket error 
+succeed ifds run sock fd ps ps es mq fd ifds ret sock fd ps ps mq andrei serjantov peter sewell keith wansbrough succeed ifds run sock fd ps ps es mq fd opt ifds ret ok sock fd ps ps es mq opt opt succeed ifds run sock fd ps ps es mq fd opt ifds ret ok sock fd ps ps es mq opt opt sendto passing second argument sendto corresponds giving sendto null pointer cf ste 
+typing prohibits passing ip address port 
+practice guess passing zero ip sends loopback presumably passing zero port yields error 
+omit send simply trivial wrapper sendto 
+arbitrarily ignoring sendmsg may useful functionality 
+sendto succeed host ifds run sock fd ps ps mq oq oqf sendto fd ips data nb host ifds ret ok sock fd ps mq oq oqf ps oq oqf true ifds ips data ps oq oqf size data ips sendto block entering sendto state host ifds run sock fd ps ps mq oq oqf sendto fd ips data false host ifds sendto fd ips data sock fd ps mq oq oqf ps oq oqf false ifds ips data ps oq oqf ips udp calculus sendto fail block host ifds run sock fd ps ps mq oq oqf sendto fd ips data true host ifds ret fail sock fd ps mq oq oqf ps oq oqf false ifds ips data ps oq oqf ips note linux aliased 
+sendto fail socket unconnected ifds run sock fd ps mq sendto fd data nb ifds ret fail sock fd mq ps socks ste states give 
+sendto fail socket error state ifds run sock fd ps mq sendto fd ips data nb ifds ret fail sock fd ps mq recall socket ok invariant error component local port 
+sendto fail data size big host ifds run sock fd ps ps es mq oq oqf sendto fd ips data nb host ifds ret fail sock fd ps ps es mq oq oqf size data ps fps image ps linux sendto takes precedence happen error state 
+normal state set error ag 
+happens sendto error ag set open 
+note ps ps nondeterministically size check may 
+linux unnecessary performed check 
+note nondeterministically allow message size check fail entry sendto exit 
+sendto fail ephemeral ports left host ifds run sock fd mq oq oqf sendto fd ips data nb host ifds ret fail oq oqf socket ok ifds fd see connect andrei serjantov peter sewell keith wansbrough sendto slow succeed host ifds sendto fd ips data sock fd ps ps mq oq oqf ok host ifds run sock fd ps ps mq oq oqf oq oqf true ifds ips data ps ps oq oqf size data note sendto state entered sendto rule ips host ok invariant 
+sendto slow fail socket entered error state host ifds sendto fd ips data sock fd ps ps mq oq oqf fail host ifds run sock fd ps ps mq oq oqf sendto slow fail data size big host ifds sendto fd ips data oq oqf fail host ifds run oq oqf size data rule leaves socket state unchanged 
+wish allow disturbed nondeterministically 
+recvfrom omit recv simply trivial wrapper recvfrom 
+arbitrarily ignoring provide useful functionality 
+return component message queue element suciently awkward obtain linux really wouldn want time 
+keep model support extended recvfrom 
+recvfrom succeed ifds run sock fd ps ip udp ps ps data mq recvfrom fd nb ifds ret ok ps data sock fd ps mq recvfrom block entering recvfrom state ifds run sock fd ps ps nil recvfrom fd false ifds recvfrom fd sock fd ps nil ps socks observed guessing ephemeral port 
+udp calculus recvfrom fail block ifds run sock fd ps ps nil recvfrom fd true ifds ret fail sock fd ps nil ps socks note linux aliased 
+recvfrom fail socket error state ifds run sock fd ps mq recvfrom fd nb ifds ret fail sock fd ps mq recvfrom fail ephemeral ports left ifds run sock fd nil recvfrom fd nb ifds ret fail socket ok ifds fd see connect recvfrom slow succeed ifds recvfrom fd sock fd ps ip udp ps ps data mq ok ps data ifds run sock fd ps mq note recvfrom state entered recvfrom rule ps host ok invariant 
+recvfrom slow fail socket entered error state ifds recvfrom fd sock fd ps mq fail ifds run sock fd ps mq close close succeed host ifds run sock fd ps ps es mq oq oqf close fd host ifds ret ok oq oqf select andrei serjantov peter sewell keith wansbrough select enter select state run select readseq writeseq tms select readseq writeseq tms readseq writeseq tms select fail timeout negative run select readseq writeseq tm ret fail tm select slow succeed fd ready select readseq writeseq tms oqf ok readseq writeseq run oqf readseq fd fd readseq sock fd ps ps es mq mq nil es writeseq fd fd writeseq oqf false sock fd ps ps es mq readseq nil writeseq nil note approximate treatment oqf sockets writable simultaneously 
+select slow succeed zero timeout select readseq writeseq oqf ok readseq writeseq run oqf readseq fd fd readseq sock fd ps ps es mq mq nil es writeseq fd fd writeseq oqf false sock fd ps ps es mq readseq nil writeseq nil select slow timeout decrement select readseq writeseq tm oqf select readseq writeseq tm oqf tm readseq fd fd readseq sock fd ps ps es mq mq nil es writeseq fd fd writeseq oqf false sock fd ps ps es mq readseq nil writeseq nil udp calculus succeed host ifds run oq oqf host ifds ret oki ist oq oqf ist orderings iset ifds orderings iset note returns interfaces arbitrary order time likewise aliases interface 
+wanted ifds iset lists 
+console io console print enter print state run print flush print console print print string console print console ret ok conversions convert port succeed run port int ret convert port fail run port int ret fail convert ip succeed run ip string ret oki valid non zero ip dotted quad value andrei serjantov peter sewell keith wansbrough convert ip fail run ip string ret fail valid non zero ip dotted quad fail fd le descriptor le descriptor socket may apply operations take fd argument beware doing case analysis operations 
+select fail fd socket le descriptor run select readseq writeseq tms ret fail fd readseq writeseq error bad le number 
+op fail fd socket le descriptor run op fd ret fail fd errors socket operation non socket bad le number 
+rules may apply operations take fd argument rule may apply operations may block beware doing case analysis operations 
+conservatively allow op fd select states 
+rules op fd op fd allow resulting socket state arbitrary expect failing operation may leave socket bad state 
+intr slow intr system call interrupted host ifds op oq oqf fail host ifds run oq oqf op recvfrom select print rule leaves socket state unchanged presume interrupt occurs coherent state 
+udp calculus socket bad fail space run socket ret fail errors space allocate space bu ers respectively 
+op bad fail space ifds run sock fd ps ps es mq op fd ifds ret fail socket ok ifds fd errors space allocate space bu ers respectively 
+op slow bad fail space ifds op fd sock fd ps ps es mq fail ifds run socket ok ifds fd errors space allocate space bu ers respectively 
+select slow bad fail space select fail run errors memory bu er space available 
+exit exit exit host ifds run oq oqf exit host ifds term oq oqf see 
+rule removes sockets matching unix behaviour supposing sockets machine created process 
+leaves oq oqf unchanged messages may delivered outwards 
+ret andrei serjantov peter sewell keith wansbrough ret return value fast system call thread host ifds ret oq oqf host ifds run oq oqf delivery delivery put udp icmp network oq host ifds oq oqf ip body host ifds oq oqf ip body oq oqf dequeue oq oqf loopback martian martian note dequeue gives empty set possible outcomes oq 
+delivery martian discard martian ip oq host ifds oq oqf host ifds oq oqf ip body oq oqf dequeue oq oqf martian rule speculative 
+note applies udp icmp loopback destinations 
+udp delivery udp get udp network deliver matching socket host ifds oq oqf ip udp ps ps data host ifds sock fd ps ps es mq ip udp ps ps data oq oqf sock fd ps ps es mq lookup ps ps sock fd ps ps es mq iset ifds iset loopback martian loopback udp calculus delivery udp get udp network generate icmp matching socket host ifds oq oqf ip udp ps ps data host ifds oq oqf ifds lookup ps ps oq oqf ok oq oqf true enqueue ip icmp port unreach ps ps oq oqf loopback martian loopback note icmp generation unreliable linux kernel type icmp rate limiting control denial service attacks 
+take nondeterministic approximation 
+note icmp dropped outqueue full ok false 
+delivery martian get martian ip network discard host ifds oq oqf ip host ifds oq oqf ifds loopback loopback ip martian ip garbage collection rule pull martian udp icmp network discard 
+icmp investigated happens icmp header source destination match embedded udp source destination supposing time matching done embedded data 
+port host delivery icmp get icmp network setting error matching socket host ifds oq oqf ip icmp unreach ps ps host ifds sock fd ps ps es mq oq oqf sock fd ps ps es mq sock fd ps ps es mq lookup ps ps ip icmp unreach ps ps ifds loopback martian es es sure destination address matching done add loopback check rule sensible 
+delivery icmp get icmp network drop matching socket host ifds oq oqf ip icmp unreach ps ps host ifds oq oqf ifds lookup ps ps ip icmp unreach ps ps loopback martian andrei serjantov peter sewell keith wansbrough loopback delivery loopback udp get loopback udp oq deliver matching socket host ifds oq oqf host ifds sock fd ps ps es mq ip udp ps ps data oq oqf ip udp ps ps data oq oqf dequeue oq oqf loopback sock fd ps ps es mq sock fd ps ps es mq lookup ps ps loopback localhost ifds note fi martian guaranteed invariants 
+delivery loopback udp get loopback udp oq generate loopback icmp matching socket host ifds oq oqf host ifds oq oqf ip udp ps ps data oq oqf dequeue oq oqf loopback lookup ps ps oq oqf ok enqueue ip icmp port unreach ps ps oq oqf dropped outqueue full ok ag ignored 
+note fi martian guaranteed invariants 
+delivery loopback icmp get loopback icmp oq deliver setting es matching socket host ifds oq oqf host ifds sock fd ps ps es mq oq oqf ip icmp port unreach ps ps oq oqf dequeue oq oqf loopback sock fd ps ps es mq sock fd ps ps es mq lookup ps ps es es note fi martian guaranteed invariants 
+delivery loopback icmp get loopback icmp oq drop socket matches host ifds oq oqf host ifds oq oqf ip icmp port unreach ps ps oq oqf dequeue oq oqf loopback lookup ps ps note fi martian guaranteed invariants 
+udp calculus designed sublanguage ocaml 
+semantics largely standard details appendix syntax types grammar marked tl err 
+ref exn nullary unary constructors language constructors arity udp error exn match failure string int int exn expressions matches patterns ref 
+done function rec function raise try err ret void pn standard line grammar 
+range calls library interface consisting err lib exit void 
+err expression waiting return value type err library call 
+value mapped value type raise exception 
+ret void placeholder terminated program invoked exit raised uncaught exception reduced value 
+typing typing rules standard simplicity allow polymorphism constructors bound identi ers 
+de ne judgements store stores nite partial functions identi ers values 
+say program expression contain occurrence ret operational semantics operational semantics de nes transition relation pairs expression store store stores elided 
+standard reduction axioms evaluation contexts evaluation order native code compiler transitions non labels take axioms lib err ok err fail raise udp error andrei serjantov peter sewell keith wansbrough closed evaluation contexts top level axioms exit terminated value unhandled exception exit ret void raise exit ret void sanity properties prove theorems stating types preserved transitions runtime errors occur semantics satis es thread lts axioms 
+implementation implemented ocaml module provides language types ocaml types err language constructors types error library 
+signature appendix example programs automatically typeset working code omitting open program concrete syntax writing unit lift lift star 
+unit lift lift star 
+typeset sugared lists 
+implemented automated check ocaml program lies 
+udp calculus validation develop validate host semantics set test network non routed ethernet subnet dedicated machines linux win accessible additional interface linux workstations 
+kurt john alan emil linux win routing linux win internet linux gives quiet predictable network able send receive datagrams observe behaviour various udp sockets implementations 
+cases mainly order generate signi cant delays sent datagrams wider internet 
+machines kurt john emil alan intel pentium 
+kurt alan run linux john emil run windows 
+workstation athlon running modi ed version linux 
+machines com network interface cards 
+tests written glibc sockets library 
+initially wrote large number ad hoc tests programs display results short sequences socket calls observed resulting network trac tcpdump utility 
+wrote daemon allowed remotely send receive udp datagrams test returned 
+certain hard test issues range ephemeral ports reliability icmp generation resolved inspecting linux kernel source code helped build intuition os view socket interaction 
+thoroughly validate semantics translated host operational semantics wrote automatic tool simulates model parallel real socket calls augmented wrapper providing tracing thin lib abstraction section 
+tests representatives cases semantic rules giving high level con dence model 
+helped greatly correctly stating subtle corners semantics hopefully determining semantics implementations win bsd relatively routine 
+limitations testing number limitations 
+test sockets library closed box internal socket state directly observable manipulable observations sockets interface 
+automated test framework relies heavily rst sequence socket bind connect put socket known state invoking socket call test nally testing state socket 
+udp messages indirectly generated sendto andrei serjantov peter sewell keith wansbrough tested recvfrom 
+means trust calls telling truth 
+gain con dence direct observation network tcpdump inspecting implementation source code available 
+testing limitations 
+clearly impossible exhaust cases possible port possible ip address possible le descriptor chose set representative values ports example chose privileged port bound port wildcard port arbitrary unbound port known unbound port 
+tcpdump allow inspect arbitrary packets wire way injecting arbitrary packets wire udp datagrams easily generated able generate icmp messages sending udp datagrams unbound ports known hosts test icmp host unreach behaviour 
+similarly unable generate martian loopback packets wire validate treatment 
+unable test bad errors running kernel memory ephemeral ports similarly details behaviour blocking calls slow returns interrupted system calls exact behaviour delivery loopback rules unobservable examining internal state multiple interfaces multiple ips interface 
+thoroughly test behaviour calls non socket le descriptors 
+look byzantine behaviour attempted send datagram port check datagrams ports example 
+loss rare single subnet far aware reordering duplication occur 
+test need extend tests routers probably internet isolated network 
+regard semantics de nitive interested hear discrepancies real system behaviour 
+abstraction model accurate possible fragment socket programming level abstraction chosen far untimed interleaving semantics 
+respects idealised 
+resource issues bound space usage purely nondeterministic semantics os allocation failures 
+simplify real full outqueue behaviour approximation treatment martian datagrams 
+assume unbounded integers perfect udp checksums atomic transitions subtle relationship detailed os process scheduling 
+model library call return host transitions atomic delivery transitions delivery transitions arbitrarily interleaved calls returns 
+tempting think calls returns occuring exactly control passed user library code de ned cycles 
+strictly accurate take account linux kernel takes locks scheduler operates 
+interesting develop precise statement sense model abstraction lower level model useful properties distributed infrastructures may depend details 
+untimed semantics restricts possible treatments message delivery 
+model asynchronous ensuring unrealistic message ordering properties consequently messages persist network delivered loss rule res 
+alternative synchronous model seriously awed 
+actual network ethernet connected machine interval packet passes interface order receive re ect details requires complex timed semantics 
+udp calculus attempt validate language semantics check evaluation order di ers native code generator bytecode interpreter ocaml binding test examples 
+case assume ocaml unix module trivial binding sockets interface module little 
+andrei serjantov peter sewell keith wansbrough examples single sender rst show possible traces single sender single receiver 
+state spaces transition relations illustrated appendix consider alan 
+alan 
+host ifds alan run false kurt 
+kurt 
+host ifds kurt run false discount rules modelling interrupted system calls os running le descriptors kernel memory intr rules 
+suppose loss drop may occur duplication dup host failure host crash 
+behaviour involves message ip alan kurt udp hello ephemeral successfully sent observable trace kurt 
+console ready alan 
+console sending kurt 
+console hello resulting state alan 
+ret void alan 
+host ifds alan term false kurt 
+ret void kurt 
+host ifds kurt term false possible hello received printed message arriving kurt kurt bind output ready giving trace alan 
+console sending kurt 
+console ready kurt 
+console hello state 
+message arrives kurt kurt bind discarded giving trace alan 
+console sending kurt 
+console ready alan state terminated kurt blocked recvfrom state 
+kurt may may generate icmp may may delivered alan time set socket error ag socket removed exit visible 
+observable traces message lost trace permutation 
+alan runs completion kurt remains blocked generated 
+udp calculus single heartbeat realistic example code simple heartbeat algorithm program checks status program think running part large application ea eb port int ip string fd socket bind fd connect fd print flush pinging sendto fd ping false fds select fd fds print flush dead try recvfrom fd false print flush udp print flush port int ip string fd socket bind fd connect fd print flush ready recvfrom fd false sendto fd ack false print flush done program run kurt displays ready console waits message alan known port responds ack message message arrives 
+program run alan displays pinging checks status remote machine kurt sending message known port 
+waits seconds response udp reply datagram icmp port unreach error 
+displays dead response udp datagram displays contents indicate kurt alive response icmp displays indicate kurt running responder thread 
+note print dead kurt really dead may initial datagram lost reply datagram icmp lost reply icmp generated 
+straightforward apply axioms determine thread lts behaviour program 
+may determine host response transition behaviour system 
+discount rules modelling interrupted system calls os running resources allow loss duplication failure 
+assuming run quiet network prove uncaught exceptions arise execution errors arise line apart recvfrom call error may return 
+means justi ed omitting error handling code show sendto recvfrom calls block 
+hand message duplication rule dup means block temporarily sendto call output queue lled icmp port unreach messages generated ping messages arriving bind call ping arrives bind 
+guaranteed system call fail 
+useful version repeat 
+easily expressible desired properties require fair timed semantics 
+sophisticated examples require multiple threads host thread dedicated protocol 
+andrei serjantov peter sewell keith wansbrough related mathematical underpinnings distributed systems carried elds distributed algorithms process calculi programming language semantics 
+distributed algorithms research developed sophisticated algorithms dealing failure proofs properties example io automata lynch lyn tla lamport lam 
+process calculi emphasised operational equivalences compositional descriptions processes systems dynamic local name generation calculi calculus milner parrow walker mpw 
+calculi dealt failure including ap rh bh 
+building process calculi number concurrent distributed programming languages designed associated semantic including occam facile cml pict jocaml nomadic pict inm rep pt ws 
+little deals core network protocols far aware addresses level abstraction sockets interface 
+support reasoning executable code adopts higher level abstraction 
+relevant discussed 
+ioa language language expressing io automata directly 
+proof tools compilation ongoing 
+allow reasoning executable sophisticated distributed algorithms interact network higher level abstractions sockets library modulo correctness compiler 
+ioa conventional programming languages aids reasoning may reduce applicability method 
+approach arts dam ad similar aim prove properties real concurrent programs written erlang 
+describe operational semantics subset erlang logic reasoning subset automated tool verify program satis es properties expressed logic 
+closely related implemented tcp ip ml part fox project ensemble system hay provides group communication facilities udp 
+implemented ocaml veri cation optimisations ensemble protocol endpoint code carried 
+involve semantics network ensemble underlying sockets implementation 
+lower level semantics active networks swi developed proofs routing algorithms 
+related monitoring protocol implementations tcp particular outside hosts 
+udp calculus described model gives rigorous understanding programming sockets udp validated actual systems 
+demonstrates operational treatment level network programming traditionally regarded scope formal semantics feasible 
+hope models giving precise behavioural descriptions albeit fragment full os library interfaces usefully complement usual informal descriptions 
+developing semantics required consider erroneous pathological cases may uncommon poorly understood may lead coding errors 
+model provides basis directions 
+firstly plan investigate veri cation interesting examples developing proof techniques build distributed algorithm process calculus communities 
+secondly plan extend model cover larger fragment network programming number ways considering machine support managing large de nitions certainly result 
+intend de ne language bindings 
+java fragment 
+incorporating fairness time required capture interesting properties algorithms 
+discussed plan apply validation tools operating systems identify common semantic core 
+address points listed especially aspects tcp multi threaded hosts 
+sewell funded royal society university research fellowship 
+serjantov wansbrough funded epsrc research grn wide area programming language semantics infrastructure design 
+andrei serjantov peter sewell keith wansbrough de nition syntax types clauses grammar marked tl err 
+ref exn nullary unary constructors language constructors arity udp error exn match failure string int int exn note language constructors arity arity equal 
+range calls library interface consisting err lib exit void 
+take operators ref ref ref ref 
+bool involving ref string write 
+examples require equality require operators 
+booleans integers strings omit 
+constructor arity constructor arity cons tuple lib operator identi er conditional done loop sequence function function application local de nition rec function recursive de nition raise raise exception try handle exception err await return os routine ret void terminated values values elements expressions marked expressions form function udp calculus matches patterns wildcard variable constructor arity constructor arity cons pn tuple typed pattern subject condition variables occuring pattern distinct 
+binding alpha equivalence obvious scoping constructs 
+note allow rebinding library functions operators contrary ocaml 
+syntactic categories relate follows 
+ocaml expr pattern pattern matching typing type environments nite partial functions identi ers types 
+write union asserting disjoint domain 
+say closed declares 
+dome ref stores nite partial functions identi ers values 
+typing judgements assumptions expression type assumptions type pattern matches type giving additional bindings store assumptions store formed typing rules 
+say program expression contain occurrence ret operational semantics program de ne thread lts labels de ned states store initial state empty transitions de ned 
+note store rule requires closed interested behaviour closed strictly transition relations de ned relations store arbitrary expression store satisfying rules 
+andrei serjantov peter sewell keith wansbrough list list en tn bool bool done function rec function ret void exn raise exn try err empty empty list list pn tn en store closed dome doms ref dome store fig 
+
+typing rules udp calculus evaluation contexts constructor arity raise try evaluation order chosen match native code compiler bytecode compiler 
+note tuples evaluated right left 
+matching de ne partial function match value pattern variables distinct giving set substitutions match fg match fv xg match match match fg match match match match match match vn pn match match vn pn match unde ned reduction axioms store component elided left right hand sides 
+true false done done function jp en match function jp en raise match failure match match de ned raise match failure match de ned rec function rec function raise raise try raise jp en match try jp en match de ned match de ned exists match de ned arbitrary value string int int exists jp st try jp match de ned string int int andrei serjantov peter sewell keith wansbrough note match failure rule introduces nondeterminism 
+ocaml implementation string int int gives position source le code want model precisely 
+rules operators ref 
+doms doms 
+
+doms true false note rule ref introduces nondeterminism 
+avoided working cyclic bindings choose simplicity 
+transitions labels closed reduction contexts input output transition axioms transition relations non labels containing closure axioms fv fv lib err ok err fail raise udp error reduction contexts exit ret void raise exit ret void closed reduction contexts 
+implementation user distinguish exit cases uncaught exception printed return status 
+return code varies exception choose model exactly 
+runtime errors termination iserr ftrue falseg iserr iserr forms function iserr doms iserr doms ret void iserr iserr udp calculus sanity properties lemma matching yields typed substitutions 
+match de ned dom match dom match lemma substitution 
+dom dom theorem type preservation 
+store store fv lib theorem absence runtime errors 
+store iserr range set transition axioms runtime error axioms termination axiom 
+lemma unique decomposition 
+expression state pair exists unique sequence evaluation contexts expression rule instance rule theorem thread lts 
+program lts satis es thread lts axioms 
+proof 
+sketch take partition states 
+call store exit call exit exit exit store store raise raise store err err err store ret void ret void ret void store forms err void tau states andrei serjantov peter sewell keith wansbrough implementation mli type fd type ip type port type error type type type type lift star lift type void exception udp error val socket unit fd val bind fd ip lift port lift unit val connect fd ip port lift unit val disconnect fd unit val fd ip lift port lift val fd ip lift port lift val sendto fd ip port lift string bool unit val recvfrom fd bool ip port lift string val fd error lift val fd bool val fd bool unit val close fd unit val select fd list fd list int lift fd list fd list val port int int port val ip string string ip val unit ip ip list list val print flush string unit val exit unit void select int measures microseconds 
+lib functionality implemented easy ocaml unix library get socket option 
+commented 
+add exceptions model 
+os ocaml unix library returns error raised 
+detected abstraction broken surprising way raised 
+exception unix error string exception string udp calculus single sender state spaces appendix illustrate state spaces host thread pairs single sender example 
+larger examples quickly impractical may convenient explicit symbolic characterisations state spaces 
+clearly con uent pairs reasoning methods take advantage 
+example quiet network hosts need consider incoming datagrams alan sent icmp coming back 
+looking part transition system alan 
+alan 
+host ifds alan run false host ifds alan run false console sending ret host ifds alan ret ok oqf host false host false host false host false ret void host ifds alan term oqf host false host false sock fd sock fd alan kurt sock fd alan kurt ip alan kurt udp hello ip kurt alan icmp port unreach alan kurt state components elided alan labelling 
+andrei serjantov peter sewell keith wansbrough receiver kurt 
+kurt 
+host ifds kurt run false transitions considering just single incoming message eliding state components kurt labelling 
+omit lack space 
+transitions received socket bound icmp generated initial state rst successors 
+ellipses 
+indicate blocks left right transitions 
+er host ifds kurt run oq oqf oqf oqf console ready console ready console ready console ready run recvfrom fd recvfrom fd ret recvfrom fd recvfrom fd run console hello sock fd sock fd kurt sock fd kurt sock fd kurt udp calculus ad thomas arts mads dam 
+verifying distributed database lookup manager written erlang 
+world congress formal methods pages 
+ap amadio prasad 
+localities failures 
+foundations software technology theoretical computer science volume lncs 
+springer verlag 
+bak baker 
+requirements ip version routers 
+internet engineering task force june 
+www ietf org rfc html 
+satish chandra peter mccann carl gunter 
+packets may come automata network monitoring 
+proc 
+popl january 
+bh martin berger kohei honda 
+phase commit protocol extended calculus 
+proceedings th international workshop expressiveness concurrency express 
+
+structured tcp standard ml 
+proceedings sigcomm 
+bra braden 
+requirements internet hosts communication layers std rfc 
+internet engineering task force october 
+www ietf org rfc html 
+cs gian luca cattani peter sewell 
+models name passing processes interleaving causal extended 
+proceedings lics th ieee symposium logic computer science santa barbara pages june 
+csr university california berkeley csrg 
+bsd 
+fournet georges gonthier jean jacques evy luc didier emy 
+calculus mobile agents 
+proceedings concur volume lncs pages 
+springer verlag august 
+garland lynch 
+ioa language specifying programming validating distributed systems 
+guide december 
+available nms 
+lcs mit edu garland ioa 
+hay mark hayden 
+ensemble system 
+phd thesis cornell university january 
+technical report tr 
+ht kohei honda mario tokoro 
+object calculus asynchronous communication 
+proceedings ecoop lncs pages july 
+iee ieee 
+information technology portable operating system interface posix part xx protocol independent interfaces pii 
+institute electrical electronics engineers march 
+inm inmos 
+occam manual 
+prentice hall 
+xavier leroy objective caml system release 
+inria april 
+available caml inria fr ocaml 
+lam leslie lamport 
+temporal logic actions 
+acm transactions programming languages systems may 
+lyn nancy lynch 
+distributed algorithms 
+morgan kaufmann 
+mpw milner parrow walker 
+calculus mobile processes parts ii 
+information computation 
+mul mullender 
+distributed systems 
+acm press 
+pos postel 
+user datagram protocol std rfc 
+internet engineering task force august 
+www ietf org rfc html 
+pos postel 
+internet protocol std rfc 
+internet engineering task force september 
+www ietf org rfc html 
+pt benjamin pierce david turner 
+pict programming language 
+proof language interaction essays honour robin milner 
+mit press 
+rep john reppy 
+cml higher order concurrent language 
+programming language design implementation pages 
+sigplan acm june 
+rh james matthew hennessy 
+distributed processes location failures 
+automata languages programming volume lncs pages bologna italy july 
+springer verlag 
+andrei serjantov peter sewell keith wansbrough sew peter sewell 
+implementations semantics concurrent programming language 
+proceedings concur 
+lncs pages 
+ste richard stevens 
+tcp ip illustrated protocols volume addison wesley professional computing series 
+addison wesley 
+ste richard stevens 
+unix network programming networking apis sockets volume 
+prentice hall second edition 
+swi project 
+www cis upenn edu 
+bent thomsen lone leth min kuo 
+facile tutorial 
+proceedings concur 
+lncs pages 
+springer verlag august 
+ws peter sewell 
+nomadic pict language infrastructure design mobile agents 
+ieee concurrency april june 
+index constructor type alan append bc bind blocking bool call close con connect constructor context conversion data datagram dequeue disconnect disjoint addr drop dup errors enqueue ephemeral err error error ag es eth exit fail false fast system call fd fd le descriptor flags ags fragmentation host host host host lts host ok host crash ifds icmp host unreach icmp port unreach icmp unreach ifd ifds ifd set ok ifds injection int integer interface ip ip ip string iset kurt lib library interface list list comprehension lo localhost lookup loopback loopback marshalling martian martian martian address match message message queue mq msg ok oq ok multicast name network network network operational semantics nil octet sequence ok op op andrei serjantov peter sewell keith wansbrough option type oq oqf orderings outqueue par partial system port port int print print flush privileged prog projection ps ra rate limiting recv recvfrom recvfrom ret ret return routing run score select select send send sendto sendto set slow system call sock socket socket socket list socket option socket ok sockets interface socks string synchronisation system call tau term thread thread lts tl tm tms transition relation host true tuple constructor tuple type type udp unit constructor unit type unused value void zero port 

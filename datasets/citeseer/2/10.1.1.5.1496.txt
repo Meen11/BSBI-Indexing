@@ -1,0 +1,439 @@
+transparent fault tolerant java virtual machine replication prominent approaches obtaining fault tolerance 
+implementing replication commodity hardware transparent fashion changing programming model challenges 
+deciding level implement replication ramifications development costs portability programs 
+difficulties lie coordination copies face non determinism 
+report implementation transparent fault tolerance virtual machine level java 
+describe design system performance results certain cases equivalent non replicated executions 
+discuss design decisions stemming implementing replication virtual machine level special considerations necessary order support symmetric multi processors smp 
+
+active replication prominent approaches obtaining fault tolerance :10.1.1.20.4762
+specifically replicated system involves running multiple copies program concurrently replicas crashes mask failure 
+main complications realizing fault tolerance active replication fact programs usually deterministic 
+particular program behavior influenced external events local clocks possibly local environment aspects process id scheduling memory management clearly attempt provide fault tolerant infrastructure handle inherent non determinism 
+author affiliated irisa inria rennes france roy friedman alon computer science department technion israel institute technology haifa israel roy alon cs technion ac il holy grail replication fault tolerance finding balance transparency replication application overhead replication imposes general tendency commodity hardware operating systems 
+transparency vital order render legacy applications fault tolerant order reduce costs developing maintaining fault tolerant systems 
+alas users willing pay small performance penalty sake fault tolerance 
+commodity hardware operating systems common requirement order reduce total costs economy scale avoid falling technology curve 
+discussed interesting issue directly related tradeoffs level replication implemented 
+option provide replication logic hardware 
+achieves transparency performance incurs huge hardware development costs complexity requires new implementation realization target architecture 
+option operating system level 
+operating systems extremely complex making hard provide correct replication semantics level 
+replication logic adjusted new version operating system 
+alternative expose replication semantics application possibly aid middleware 
+complicates application design maintenance increases probability bugs application developers experts fault tolerance address legacy applications 
+contrast approach proposed bressoud schneider allows replicating commodity system fully transparent manner hypervisor 
+hypervisor layer software implements virtual machine having instruction set architecture machine executes 
+hypervisor serves instruction level interceptor allowing add ieee 
+appeared proceedings nd ieee symposium reliable distributed systems srds 
+functionality transparent manner 
+implementing replication logic hypervisor level addresses main problems alternatives 
+hypervisor approach incurs performance overhead considerable benefits viewed viable solution 
+report ft jvm implementation fault tolerance virtual machine level java applies similar techniques hypervisor approach jikesrvm 
+addresses non malicious faults 
+describe design system alternatives considered detailed performance analysis system implemented 
+interesting complication encountered due multithreaded nature java particular running smps 
+main challenge solve resulting non determinism maintaining performance processor utilization 
+unique allow jit compilation modify jit compilation process way 
+virtual machine languages java common approach compelling 
+particular devoted realizing virtual machine case virtual machine languages exists 
+working virtual machine level need transfer non deterministic events related application wish fault tolerant events occur computer obtain substantially lower replication overhead 
+course relying virtual machine language limitation applies language 
+hand java gained popularity interesting solution works multiple hardware architectures operating systems 
+microsoft common language runtime clr provides language independent virtual machine making candidate research 
+clarity presentation discussion assumes primary backup 
+extended trivially number nodes node primary backups 
+case backups numbered event failure primary surviving backups chosen deterministically group membership service replace failed primary 
+
+system model assumptions assumptions behavior underlying system structures applications aim fault tolerant 
+example assume fail failures part processors failures easy identify failing processors byzantine 
+furthermore assume processors similar architecture primary dual cpu machine backup configuration 
+rely replicas house class files application 
+java applications executed ft jvm contain native methods invoke external commands java lang runtime exec method access non deterministic data information reach replication mechanism 
+access file disk assume file resides shared drive accessible replicas primary fail 
+smps assume data races application 
+assume accesses shared data guarded java synchronization constructs 
+assumptions required uniprocessors 
+environment variables accessed jvm replicated primary backup 
+primary fails backup different values variables takes assume execution proceed correctly 
+assume underlying application safely handle change environment variables values 
+
+virtual machine replication coordination 
+jikesrvm virtual machine chose extend jikesrvm jikes research virtual machine jalape 
+jikesrvm actively developed open source ia powerpc virtual machine 
+furthermore built way may adapted support interpreted languages java means implementation potentially support applications 
+outlines main components virtual machine 
+partially shaded modules indicate changes support fault tolerance changes discussed 
+replication module new component 
+jikesrvm written java 
+vm executes java code compiler compile new version 
+vm runs atop executable boot image contains bare essentials bootstrapping 
+native bootstrap code exists thin layer containing native magic methods access raw memory direct system calls performed data race defined concurrent access variable guarded lock 
+compiler jit dynamic class loading memory manager object allocation garbage collection runtime native layer magic operating system threads replica tion virtual processor scheduler locks 
+jikesrvm block diagram 
+shaded components modified 
+java code 
+modules written modules relevant replication lie runtime subsystem 
+discuss components relevant thread scheduling mechanisms 
+java threads jikesrvm mapped system threads 
+multiplexed virtual processors turn implemented pthreads 
+typically virtual processor corresponds physical processor system maximize computational power 
+difference core threads vm threads spawns application run top lie scheduling queues 
+technical reasons jikesrvm threads fully preemptive 
+just time jit compiler safe yield points jumps method jumps back edges construct loop 
+possible settings deciding safe yield point thread preempted 
+default configuration clock driven timeout interrupt yield take place safe yield point interrupt received 
+alternate deterministic configuration counter count safe yield points encountered yield reaching predetermined limit 
+refer sequence yield points represents maximum thread may proceed preempted time slice 
+thread scheduling algorithm triggered thread encounters quasi preemptive yield described response invocation yield sleep methods java lang object fact need deterministic scheduling 
+ability jikesrvm simply cheap way obtaining need log scheduling decision 
+method lang thread due blocking file network access 
+threads scheduled stored fifo queues 
+queues associated specific virtual processor exists load balancing mechanism transfer threads processors 
+scheduler checks availability select system call dependent threads scheduled turns ready threads 
+schedules idle thread 
+place scheduler invoked lock contention 
+higher level vm locking mechanisms rely processor lock primitive 
+processor locks encapsulated java objects field identifies virtual processor thread owns lock 
+lock acquired thread requesting lock yield 
+
+sources non determinism ways non deterministic behavior fork execution 
+set discover disable consistency may maintained minimal overhead 
+clearly clock driven scheduling source non determinism decided deterministic scheduler 
+scheduler concern actual scheduling choosing thread run 
+scheduling routine deterministic outside factors may different replicas 
+includes points threads wait receive input 
+input may arrive different point execution machines cause proceed different speeds different paths entirely 
+due external sources processor may load load balance probably different primary backup 
+multithreaded environment threads access shared data race conditions may ensue 
+race conditions course ruin deterministic behavior striving 
+uniprocessor problem solved deterministic scheduling 
+smp multiple threads may run concurrently deterministic scheduling 
+deal assuming program safe sense accesses shared data synchronized 
+access order shared variables governed order locks obtained released 
+forcefully duplicate order backup vms allowing thread lock object order occurred primary 
+environment specific attributes unique machine 
+system clock measures time milliseconds assumed synchro systems lead different behavior application relies clock example choosing random number 
+attributes may local environment variables unix system variables windows identity attributes host name machine ip address 
+
+design ft jvm changes jikesrvm support fault tolerant execution 
+disabled default configuration preemptive switching led clock timeouts choosing deterministic yield forced encountering yield points 
+yields originate application occurring counter reaches limit honored occur place primary backup 
+scheduler algorithm altered 
+jikesrvm original algorithm scheduling deterministic available schedule ready thread schedule regular ready thread threads wait may ready different points execution different replicas depending available particular system 
+decided check select certain predetermined intervals completed blocked thread reintroduced ready queues position primary backup 
+accomplish utilize concept frames adapt virtual machine level multithreaded smp executions 
+frame execution consecutive context switches frame ends predefined number context switches occur ready threads threads waiting locks 
+synchronous coordination replicas frame preamble allow consistent deterministic execution frame 
+point verified replicas completed previous frame safe proceed 
+thread tries perform operation blocked placed special waiting queue 
+start frame primary replica responsible actual execution performs file descriptors corresponding threads waiting queue 
+file descriptor completed task message created contains file descriptor id content operation case input data status code case output status additional advantage working level allows recognizing idle state 
+frames execute fixed number machine instructions instructions caused threads waiting code forwards message backup replica 
+backup incoming message buffer consulted threads listed scheduled run 
+similarly running smp execution frame primary lock acquired log lock id id locking thread send information backup 
+backup mechanism ensures threads obtain locks order primary 
+emphasize done smps uniprocessors deterministic scheduling ensure consistency 
+description solve problem timing threads reintroduced list runnable threads 
+thread allowed run backup non deterministic information depend executing frame arrived 
+illustrates synchronization protocol situation 
+force frame lag primary backup 
+particular allow new frame previous complete 
+guarantees relevant data arrive backup frame 
+signal backup data sent sending frame message 
+primary runs ahead backup may happen data arrive primary primary fails successfully sending data backup 
+exact data may longer available case backup reading different data input file modified read external source control 
+mitigate risk having primary immediately send data receiving operating system 
+furthermore size frame set startup order force frequent synchronizations primary backup 
+alteration jikesrvm functionality fetching environment specific data current time host name 
+identified system calls jvm primary pass backup asynchronous manner 
+backup system calls consults queue messages primary 
+replication engine independent component added jvm task coordinating messages primary backup 
+replication engine vm thread consists interfaces network interface peer jvm internal interface collect return non deterministic data modules 
+illustrates protocol synchronization primary backup 
+data sent backup transferred replication engine turn packages sends asynchronously 
+messages frame frame frame frame frame frame primary backup 
+frame synchronization protocol 
+messages containing information generated frame messages regarding lock acquisitions environment specific data sent execution 
+sent tcp guaranteed arrive order sent 
+frame reached message sent primary backup 
+backup reaches frame sends similar message primary 
+backup proceeds frame receiving primary message primary waits receiving frame message backup 
+replication engine backup responsible detecting failure primary backup 
+done monitoring network connection shared primary backup exchanging heartbeats 
+connection fails heartbeat timer expires general failure primary assumed backup switches recovery mode 
+mode current frame executed completion necessary information primary received 
+backup fails primary simply continues execution synchronizing backup 
+maintain changes described fulfill necessary conditions replica determinism subject system model assumptions described section 
+illustrate point informal step step description execution application 
+application said thread scheduled run 
+non deterministic events occur application thread proceeds manner primary backup 
+yields taken point execution explicitly call larger number nodes may better group communication toolkit 
+case multiple backups simple leader election protocol determine new primary 
+backups connect new primary frame 
+application implicitly way quasi preemptive nature scheduler 
+new threads spawned main thread creation occur point execution replicas new thread added queue scheduled point replicas 
+thread wait input may arrive unknown time moved special queue checked frame starts occur predefined points execution 
+checking thread receives input waiting scheduled run primary 
+notice sent backup thread respective replicas started point 
+external data collected thread primary performing operation fetching information system environment sent backup 
+backup simulates operation returns data primary 
+jvm run smp newly created threads moved virtual processors roundrobin deterministic fashion 
+cases threads contend shared lock order lock obtained primary recorded relayed backup 
+backup thread repeats execution allowed acquire lock log indicates thread line acquire lock 
+short delay enforced lock acquire retried 
+
+implementation hurdles faced difficulties maintaining determinism internal jvm operations control 
+operations invoked application threads run synchronously threads run cost part thread time slice 
+internal operations nondeterministic nature acquire global system locks control access global locks 
+behaviors affected application thread state resulted inconsistent runs 
+example jit compiler uses global hash table locked compilation 
+primary backup machines need identical jit compilation may occur different times 
+necessitated method thread switch counter application thread saved prior operations subsequently restored operation completed 
+example different behavior primary backup processing non deterministic data 
+primary take actions send data backup addition performing operation backup simply needs look corresponding message packet queues 
+re call scheduler bases scheduling decisions number operations performed thread 
+thread different tasks primary backup care taken scheduler different preemption decisions 
+technique saving counters disabling preemption correct behavior 
+disabling preemption oft occurring sideeffect deadlocks threads acquired global lock internal vm code release lock 
+access jit example access standard output 
+led judicious checks cases preemption disabled sure operation complete 
+
+garbage collection related problems additional area required special attention garbage collector 
+gc triggered allocation request fulfilled may occur different points primary backup different execution nature 
+existing behavior force yield thread requested allocation 
+yield happen primary backup vice versa care taken different scheduling decisions occur 
+solve problem yielding thread moved head queue rescheduled immediately gc thread completes original state restored hide unanticipated yield 
+solution smoothly ft jvm executed smp 
+relies assumption yielding thread run gc thread completed gc supposed non preemptive 
+multiple processors involved processor maintains gc thread threads conjunction 
+gc thread processor yield peer threads active 
+situation caused application threads scheduled time causing memory requests led unnecessary garbage collection 
+situation drastically reduced performance 
+fix disable access queues phases garbage collection queue keeps idle thread 
+sure idle thread request memory allocations interfere collection garbage 
+gc threads completed processors thread queues reactivated scheduling resume 
+
+performance analysis tested modified jvm dual processor ghz intel xeon machines gb running red hat linux kernel version connected mflops fft sor monte carlo sparse mat mult lu unmodified number context switches frame 
+java benchmarks mbps ethernet network 
+results described obtained running benchmark programs multiple times varying number context switches frame parameter ft jvm 
+variable dictates primary synchronizes backup waiting previous frame completion backup proceeding frame 
+parameter set low value forces synchronization occur frequently adding communication overhead 
+hand variable assigned high value synchronizations far greater data loss primary fails 
+section results show frequent synchronization example second achieve results competitive non replicated executions 
+shows performance system running benchmark suite 
+benchmark performs low compute intensive exercising jvm fast fourier transform approximation sparse matrix multiplication 
+replicated version jvm able equal performance frame size large 
+frame size context switches takes second complete achieved close results unmodified jvm 
+contrast cpu intensive benchmark shows compress benchmark specjvm suite performs lzw compression large file bound operation 
+amount data passed primary backup evident short frames force waiting data arrive proceeding frame 
+performance loss factor short frames 
+bound benchmark suite db fare 
+shows results 
+benchmark differs large time seconds time seconds number frames execution time number context switches frame 
+lzw compression bound benchmark number frames execution time failover failover approx 
+midway failover midway failover approx 
+number context switches frame 
+ray tracing benchmark forced failover primary mid execution number times accesses disk packets signifying events sent primary backup 
+profiled performance ft jvm raytracing application part specjvm benchmarks suite 
+benchmark raytrace yielded similar results benchmark seen 
+show results obtained manually aborting primary midway execution 
+backup replica continued execution primary new backup communicate 
+subsequently execution took time second half execution proceeded manner similar unreplicated execution 
+regardless value context switches frame parameter primary failure detected backup recovery begun time seconds number frames execution time number context switches frame 
+address book intensive benchmark time seconds cpu cpu approx 
+cpu cpu approx 
+processor unmodified number context switches frame processors unmodified 
+multithreaded ray tracing benchmark threads smp second 
+illustrates performance ray tracing benchmark test processors 
+raytracer mtrt utilizes threads maximize concurrency 
+seen running ft jvm processors yields better results single processor runs despite possibility contention overhead marshaling lock information backup 
+order gain insight portions replication cause overhead profiled benchmarks 
+ray tracing compute intensive lzw compression bound address book database intensive 
+results illustrated 
+application run time shows portion time dedicated executing target application 
+send queue bottleneck measures time percent time frame application run time send queue bottleneck waiting frame raytrace lzw address book number context switches frame 
+cost breakdown replicated execution various applications tween frame message generated sent 
+shows backlog messages sent backup 
+third indicator shows delay time frame sent primary time acknowledgment received 
+indicator shows lag backup small backup completed previous frame primary 
+evident type application affects performance replication 
+specifically application generates operations burdens replication engine messages lead larger delay sending backup 
+hand cpu bound applications ray tracing time spent primary mainly waiting receive acknowledgment frame message sent backup 
+cost significant number context switches frame grows 
+
+limitations noted section assumptions system model structure applications replicated enable guarantee consistency execution correct recovery failure 
+nature applications today assumptions seen rigid 
+example order support consistent runs smp assume shared data protected monitors application free data races 
+cases model fails enforce consistent state replicas may potentially lead inconsistencies failure 
+source non determinism come na tive methods called java application executed outside scope jvm 
+control progress executions guarantee actions performed primary execute way backup 
+scenario addressed partially solved 
+implementation currently replicate open sockets transparently recreate network connections new primary failure 
+limitation overcome sending control information backup tcp frame information 
+means accomplish studied 
+files opened primary failure re opened new primary 
+ft jvm currently support implementation straight forward information open files opened physically primary virtually backup recorded vm 
+basic elements file descriptor seek location updated state change file reading writing seeking 
+recovery previously opened files seek position restored 
+technique cases writes file different primary backup due environmental differences 
+example application dictates string written file location dependent computer name text file sorts data alphabetically 
+primary host name writes file head fails frame new backup host name repeat write add string tail file 
+results inconsistent behavior 
+
+related common methods implementing fault tolerance replication replicated state machine approach primary backup approach :10.1.1.20.4762
+refer replication targets providers services invoked client requests 
+model client requests sent replicas processing clients interfacing primary state changes sent backups 
+active replication provides near instant recovery primary backup resource efficient 
+state changes complex sent replicas primary server digest form active replication approach appropriate 
+case replicas individually process incoming requests 
+implementations focus need deterministic execution executions alike 
+achieved transactional means forcing tial order requests 
+examples reduce effectiveness multithreaded designs deal executions smp 
+related field deterministic replay executions execution recorded manner similar checkpoint restart emphasis preserving ordering execution replayed 
+technique typically debugging visualization context fault tolerance execute secondary machine failover primary server 
+focuses implementing replication virtual machine level application operating system 
+past replication typically built hardware operating system middleware 
+basis hypervisor approach detailed 
+fundamental difference fact significantly reduce communication overhead sending information relevant particular application replicated processes computer 
+furthermore filter send events required maintaining determinism replicas reporting interrupts asynchronous events 
+example concentrate events pertain application threads ignore events involve threads internal virtual machine 
+frames early threads waiting frames execute number instructions 
+application environment creates fail silent processes replicating processes 
+eliminates sources non determinism compares results computation replicas shutting replicated process replicas disagree 
+wraps nondeterministic system calls executed replica results pushed similar 
+provides hooks application register handlers application nondeterministic functions wraps communication outside world 
+main differences implement replication virtual machine level transparent pure java applications 
+handle thread scheduling multithreaded applications including smps 
+hand includes checks shutting replicas state diverges helping overcome byzantine failures 
+approach implementing fault tolerance jvm developed independently effort reported 
+explores ways controlling nondeterministic events recording order lock acquires sequence thread scheduling decisions multi threaded environment 
+provide hooks help control non determinism may arise calls native methods jvm control directly observe methods actions side effects 
+experimental results modifying sun java development kit jdk solaris reported 
+approach differs ways 
+jvm uses deterministic scheduler eliminates overhead keeping track thread scheduling decisions 
+approach jit compiler modifying 
+consequently results obtained jit results bytecode executions 
+specifically addressed issues related running jvm smp entails higher overhead synchronization greater utilization computational resources 
+execution time overhead imposed technique frames second smaller 
+result tighter synchronization primary backup fact obtain consistent scheduling logging scheduling decisions see section 
+implementation primary backup simultaneously execute program mentioned approach uses cold backup recovery information simply logged 
+case failure system recovers faster approach backup commences execution program checkpoint 
+hand recovery process accurate sense output functions testable idempotent ensure correct exactly semantics 
+guarantee idempotent output functions case functions called time frame primary fails typically second long vulnerable 
+
+report implementing fault tolerance virtual machine level java applying similar techniques hypervisor approach jikesrvm 
+describe design system alternatives considered performance obtained 
+main challenge solve resulting nondeterminism maintaining performance processor utilization 
+jikes research virtual machine 
+www ibm com developerworks oss jikesrvm 
+
+math nist gov 
+spec jvm 
+www org jvm 
+alpern attanasio barton burke cheng 
+choi cocchi fink grove hind hummel lieber litvinov mergen ngo russell sarkar serrano shepherd smith sreedhar srinivasan whaley 
+jalape virtual machine 
+ibm systems journal 
+amir 
+replication group communication partitioned network 
+phd thesis institute computer science hebrew university jerusalem 
+
+babao glu baker 
+communication infrastructure constructing reliable applications large scale distributed systems 
+technical report ublcs department computer science university bologna june 
+revised january 
+bartlett gray horst 
+fault tolerance tandem computer systems 
+avi kopetz laprie editors evolution fault tolerant computing volume dependable computing fault tolerant systems pages 
+springer verlag 
+birman joseph 
+exploiting virtual synchrony distributed systems 
+proc 
+th acm symp 
+operating systems principles pages december 
+birman 
+building secure reliable network applications 
+manning publishing prentice hall december 
+black low shrivastava 
+application programming environment fail silent processes 
+distributed systems engineering june 
+bressoud schneider 
+hypervisor base fault tolerance 
+proc 
+th acm symposium operating systems principles pages december 
+marzullo schneider toueg 
+primary backup approach 
+mullender editor distributed systems chapter pages 
+addison wesley nd edition 
+
+choi srinivasan 
+deterministic replay java multithreaded applications 
+proceedings acm sigmetrics symposium parallel distributed tools pages 
+chung huang wang 
+ip techniques hosting service cluster machines 
+proc 
+th world wide web conference april 
+macedo shrivastava 
+newtop fault tolerant group communication protocol 
+technical report computer science department university newcastle newcastle tyne united kingdom august 
+friedman birman keshav vogels 
+reliable time delay constrained cluster computing 
+united states patent may 
+friedman van renesse 
+strong weak virtual synchrony horus 
+proc 
+th symposium reliable distributed systems pages october 
+friedman 
+fast replicated state machines partitionable networks 
+proc 
+th symposium reliable distributed systems october 
+hayden 
+ensemble system 
+technical report tr department computer science cornell university january 
+jim nez peris mart nez ar 
+deterministic scheduling transactional multithreaded replicas 
+proceedings ieee symposium reliable distributed systems srds pages october 
+keidar dolev 
+totally ordered broadcast face network partitions 
+exploiting group communication replication partitionable networks 
+editor dependable network computing chapter pages 
+kluwer academic publications 
+srinivasan 
+choi 
+deterministic replay distributed java applications 
+proceedings th ieee international parallel distributed processing symposium pages 
+lamport 
+part time parliament 
+ieee transactions computer systems may 
+lamport shostak pease 
+byzantine generals problem 
+acm transactions programming languages systems july 
+major powell 
+overview operating system 
+proceedings usenix winter technical conference pages 
+felber schiper wilhelm 
+phoenix toolkit building fault tolerant distributed application large scale 
+technical report department informatique ecole polytechnique de lausanne july 
+alvisi vin 
+fault tolerant java virtual machine 
+international conference dependable systems networks pages june 
+narasimhan moser melliar smith 
+enforcing determinism consistent replication multithreaded corba applications 
+proceedings ieee symposium reliable distributed systems pages october 
+schneider 
+implementing fault tolerant services state machine approach tutorial 
+acm computing surveys december 
+van renesse birman maffeis :10.1.1.20.4762
+horus flexible group communication system 
+communications acm april 
+ver rodrigues 
+delta generic architecture dependable distributed computing 
+powell editor esprit research reports 
+springer verlag november 
+webber 
+architecture 
+st international symposium fault tolerant computing ftcs pages june 
+miller livny 
+process hijacking 
+proceedings eighth international symposium high performance distributed computing hpdc pages 

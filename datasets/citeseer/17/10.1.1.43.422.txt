@@ -1,0 +1,343 @@
+high performance cluster jvm presenting pure single system image michael factor avi ibm research laboratory haifa advanced technology center haifa israel phone fax email il ibm com schuster technion israel institute technology haifa israel email cs technion ac il cjvm java virtual machine jvm provides single system image traditional jvm executing distributed fashion nodes cluster 
+cjvm virtualizes cluster transparently distributing objects threads pure java application 
+aim cjvm obtain improved scalability java server applications distributing application cluster computing resources 
+cjvm architecture unique object model thread memory models described 
+article focus optimization techniques employed cjvm achieve high scalability 
+particular focus techniques enhance locality reducing amount communication generated cjvm 
+addition describe communication overhead reduced advantage java semantics 
+optimization techniques principles 
+employ large number simple optimizations address caching locality execution object migration 
+second take advantage java semantics common usage patterns implementing optimizations 
+third speculative optimizations advantage fact cjvm run time environment correct false speculations 
+demonstrated usefulness techniques large kloc java application achieving eciency node cluster 
+discusses various techniques reports results 
+cluster jvm cjvm implementation java virtual machine jvm executes distributed manner nodes cluster 
+goals building cjvm demonstrate jvm virtualize cluster presenting image single system pure java application extending write run promise java con nes single systems utilize cluster obtain signi cant performance advantage interesting class applications 
+existence cluster visible java application running top cjvm implementation cjvm cluster aware 
+implementation distributes objects threads created application nodes cluster 
+addition thread wishes remote object cjvm implementation supports remote access manner transparent application 
+architecture cjvm allows provide pure single system image 
+section relevant aspects architecture 
+bene want gain virtualizing cluster high performance java server applications concurrent daemons implemented java 
+started ort hypothesized conditions achieving scalability object oriented system transparently uses cluster 
+conditions include large combination simple optimizations optimizations address caching locality execution object migration 
+take account semantics language common usage patterns de ning implementing optimizations 
+build speculative analyses advantage fact run time system correct errors 
+emphasis cjvm demonstrates hypotheses focusing reducing amount communication 
+brie address reduce cost individual remote interaction 
+stated main mechanism reduce communication volume collection speculative optimizations leverage semantics java caching level class object eld locality method execution object placement including migration 
+attempt match type data element optimization answer expected access pattern java server applications 
+multiple advantages approach 
+tailoring optimizations expected behavior data type design policy achieve maximal locality instances type 
+second instances type eld di erent objects implement class learning memory access pattern exhibited gives strong indication 
+third speculative analyses take account actual execution sequence program just static call graph 
+fourth account semantics usage patterns java apply speculative optimizations areas provide payo nally large combination optimizations sensitive ectiveness particular optimization particular context 
+java thread java thread java thread java object java object java object java thread java object java thread java object java object java cjvm process object java thread java object compliant java virtual machine fast interconnection master master master proxy proxy java server application cluster node cluster node cjvm process cluster jvm section presents base architecture cjvm 
+performance optimizations introduced sections 
+section performance results large benchmark node cluster including breakdown impact optimizations 
+section relate cjvm works nal section 
+cjvm architecture section describes base architecture cjvm enables cjvm presents single system image java application 
+sections extend base architecture optimizations enable achieve high performance 
+shows basic approach 
+upper half shows threads objects java application seen programmer 
+traditional jvm 
+lower half shows objects threads java application distributed transparently java application nodes cluster implementation cjvm 
+take advantage cluster scalability thread objects placed nodes pluggable load balancing function 
+objects located threads creating see section 
+support distributed access objects cjvm uses master proxy paradigm 
+master node object node thread creating resides 
+proxy surrogate remote master object object accessed 
+cjvm objects masters proxies including regular instances arrays threads classes 
+proxy fundamental concept systems supporting location transparent access remote objects cjvm pushes idea step 
+smart proxies novel mechanism allowing multiple proxy implementations class ecient implementation determined object instance basis 
+key challenges cjvm single system image ssi giving application illusion single monolithic heap hiding distinction master proxy application 
+rst challenge met new memory model distributed heap 
+objects allocated local java heaps cluster nodes referenced locally regular java 
+passing object argument remote operation assigned unique global identi er locate corresponding proxy target node 
+cjvm object model addresses second challenge allowing multiple implementations master proxy single method coexist single class selecting instance object precise code execute method 
+thread accesses proxy basic approach method shipping 
+proxy transparently application redirects ow execution node object master copy located 
+basic approach enhanced class object speci caching replication policies described 
+cjvm memory model distributed heap bytecodes accesses heap putfield getfield modi ed determine data accessing located node bytecode executed located node 
+case remote bytecode access applied 
+treat eld level distributed memory 
+necessary ship method invoked proxy master node obtain correct behavior 
+code executed locally access elds object target method invocation result remote bytecode 
+cjvm remote method shipping viewed optimization replacing possibly remote bytecode accesses remote invocation 
+kinds methods executed master nodes synchronized methods native methods 
+locks obtained master execute synchronized methods master 
+native methods may native state visible cjvm available non master node 
+communication achieve high performance distributed system cjvm aspects addressed reducing cost remote interaction reducing amount remote interactions 
+bulk focuses second point 
+section brie describe reduce communication processing overhead advantage java semantics 
+mentioned implementation heap accessing bytecodes modi ed 
+bytecode implementation needs perform remote access basic mechanism 
+thread executing bytecodes sends message master node 
+master node high priority dispatcher thread receives message wakes service thread hands message resumes waiting message 
+service thread performs bytecode returns result waiting thread calling node 
+general case operation executed service thread may require class loading monitor locking stack traversal requesting node include message extra information increases message size latency 
+context switch mandated dispatcher service thread response incoming messages unacceptably slow lead deadlock 
+particular observe remote operations involve primitive types target master object read lead loading class monitor locking stack traversal node target master object located 
+speci cally operations non blocking respect jvm implementation 
+remote bytecodes optimize message passed describe remote operation optimize server side processing message 
+particular avoid passing information requesting thread handle messages dispatcher thread 
+reduces amount data transferred number context switches leading signi cant reduction latency seen client remote bytecode 
+numbers measured getfield primitive type show optimizations lead improvement latency implementation remote bytecode decreasing caching cjvm supports caching multiple levels granularity classes objects individual elds 
+environment java new classes created loaded impossible prove datum immutable 
+speculative decisions particular datum mutated 
+handle case speculation incorrect augment caching optimizations invalidation schemes 
+currently alternative update protocols relatively complicated protocols repetitive nature target java server applications implying access con icts caching optimization repeat 
+class level caching applied caching static variables accessing locally 
+static variables modi ed common usage declared final set class initialization read times 
+cjvm node caches static eld rst time remote access eld 
+master class receives remote request retrieve value class elds records fact eld cached node doing caching 
+subsequent operations eld executed locally 
+cached static variable updated replicas invalidated accesses directed node containing master class object 
+level objects cache readonly objects objects elds proved immutable object instantiated 
+need update invalidation protocol 
+read object passed remote node cjvm creates special proxy readonly proxy eld access operations applied locally 
+interesting example object level caching arrays referenced static nal variables 
+optimization clear example leveraging usage pattern language 
+semantics nal eld referencing java array array changes array elements modi ed 
+practice uncommon elements arrays modi ed 
+static elds invalidation protocol cases write array elements 
+rest section dedicated novel caching technique speculating speci individual elds mutated initialization caching instances class 
+field level caching read practice elds elds particular run program modi ed object containing proxy 
+de nition restrictive code mutability analysis reports eld mutable reachable code mutates eld code executed 
+addition language java allows dynamic loading code static analysis report eld mutable code loaded able mutate eld 
+considering mutations occur object shared support broader class programs theoretical mutability analysis support 
+long object threads single node presence mutations irrelevant caching 
+de ne eld read practice read locally 
+class loaded cjvm speculatively marks non static private elds belonging read objects 
+read locally eld modi ed cached invalidated losing read locally status 
+cjvm employs eld class approach read practice eld caching invalidation speci eld done instances class independent elds instances class 
+approach consistent object oriented programming methodology encourages programmer write code identically treats instances class 
+elds certain instance mutated highly mutated instances especially true repetitive applications target java server applications 
+approach requires minimal storage infrastructure support optimization class record elds currently read locally 
+read locally eld class invalidated putfield eld executed instance class proxy note holds regardless target putfield master proxy 
+invalidation protocol guarantee eld invalidated instances masters proxies class eld unmarked read locally master proxy class objects 
+nodes utilize class aware invalidation 
+done way guarantees java memory model respected 
+invalidation process contains phases 
+rst phase message sent master class object node master class object located sends invalidation request nodes class 
+order preserve java memory consistency model invalidation protocol embedded code putfield 
+putfield causes invalidation complete eld invalidated nodes new value eld written master instance object part invalidation process 
+words invalidation process applied atomically respect accesses eld 
+consequently invalidation process introduce interleaving bytecode instruction streams occur traditional jvm 
+address situation invalidation takes place parallel transferring elds master object caching newly created proxy 
+set elds considered read locally node master object di ers set elds considered read locally node new proxy thread proxy node may attempt access cached eld invalidated 
+solve version numbers 
+class version re ects number invalidations occurred elds class 
+eld version records version class eld invalidated eld version zero eld read locally 
+class eld versions stored class updated execute invalidation protocol read practice eld 
+important note nodes see sequence version numbers class serialize invalidations class allow single invalidation protocol class active time 
+elds object sent proxy message includes class version vector eld versions class 
+requester compares versions message versions class 
+versions di er waits class version advanced class version message prior unpacking elds object 
+algorithm transferring elds takes account versions shown appendix note elds read objects may viewed special case read practice elds 
+proved read cjvm uses di erent mechanism handle order reduce overhead 
+method shipping general rule cjvm executes methods node holding master copy object target method invocation 
+mentioned earlier cjvm essentially implements eld level dsm viewed zero th level locality optimization 
+leveraging fact encapsulation principle object oriented programming implies increase locality avoiding remote bytecodes executing method targeted particular object node object master state located 
+data needed execute method located node object proxy located 
+case method shipping adds needless overhead 
+cjvm di erent optimizations resolve method shipping class methods 
+static elds cached class proxies high chance class method accesses static elds nd locally 
+invoking class methods locally gain performance rare cases 
+stateless methods 
+methods local thread stack accessing heap java lang math min accepts integer parameters returns smaller safely executed proxy node 
+cjvm uses simple load time analysis detect methods 
+locally executable methods 
+methods heap accesses elds see executed locally data locally cached 
+things interesting invalidation read locally elds forces invalidation locally executable methods access particular eld invalidated 
+details omitted lack space see 
+optimizations apply method synchronized native described earlier synchronized native methods executed master node 
+object placement way improve locality place master copy object 
+currently cjvm uses heuristic optimizations focus object placement 
+rst factory methods aimed creating objects focusing objects created factory instance methods 
+second single chance looks migrating objects usage pattern thread creating initializing object exactly thread object overlap threads 
+optimizations speculative attempts leverage java semantics usage patterns 
+factory methods factory instance method method creates object returns methods associated common software design pattern thread factory proxy node remote invoke factory method factory master node master create object proxy return proxy invoke factory method object factory remote invocation thread factory proxy node factory master node possible remote accesses factory method invoke factory method master create object object factory factory methods unoptimized case upper part versus optimized case lower part 
+name 
+factory method strong evidence invoker method newly created object invokes method create object 
+sense locate object created factory method invoker method 
+cjvm special handling invoking factory method proxy factory object creates object located factory master object seen upper part 
+generally factory singleton design patterns combined threads share single factory object nodes accessing newly created objects proxies 
+basic approach solve problem shown bottom part execute factory methods invoked naturally locating object created invoker 
+de ne instance method method returns object creates returns object received result call factory method 
+support optimization includes identifying factory methods placing master copy object allocated factory method node factory method invoked 
+cjvm uses simple heuristic identify facto ry methods 
+heuristic executed code class loaded performs simple ow insensitive non conservative analysis bytecodes 
+speci cally track jvm stack variable contains value returned method 
+stores variable contain result executing bytecode allocate object new newarray return value call factory method identify factory method 
+note insensitive ow speci cation valid bytecodes ensures type variable point time de ned 
+appendix shows pseudo code analysis algorithm 
+places improved 
+instance code may storing object previously created store instruction immediately preceded invocation factory method object creation 
+report section simple heuristic inexpensive run time linear size code inexpensive implement sucient identify interesting factory methods improve placement large number objects 
+alternative means identifying factory methods escape analysis 
+escape analysis conservative static analysis technique determines objects shared threads 
+way determining factory methods extend escape analysis determine method calls return objects create directly indirectly escape 
+escape analysis allow ner degree distinction allowing determine method particular call site factory method 
+hand escape analysis stronger analysis need 
+de nition factory methods care thread may object trying optimize certain usage caller factory method 
+identifying factory methods need ensure master copy object created factory method located caller factory method 
+cjvm achieve invoking factory method locally 
+noted earlier local execution correct 
+alternative remotely invoke factory method migrate created object back invoking node 
+drawbacks alternative objects relatively high cost object migration multithreaded environment 
+single chance migration single chance migration heuristic attempt support usage pattern object goes non overlapping phases phase single thread uses object 
+concrete example usage pattern thread performs setup threads executing setup completed 
+key point note usage pattern sharing object 
+point time thread actively object 
+single chance migration speculative optimization guesses object ts design pattern migrates object node object second phase life 
+determine objects particular class pattern detect object concurrently accessed nodes nodes life invalidate optimization class 
+single chance migration optimization involves elements statically identify classes instances may candidates optimization dynamically prune list classes detecting objects shared threads di erent nodes detect remote service requests object class instances eligible optimization migrate object node created node thread object executing 
+want migrate objects code relatively encapsulated dependent objects may left node object created 
+code loaded perform simple analysis determine class code relatively encapsulated follows 
+focus arrays array involves large number memory accesses 
+array said encapsulated accessed code containing instance 
+class contains method uses non encapsulated array class relatively encapsulated instances marked non 
+migrate objects application de ned native methods way migrating detecting native state may methods 
+migrate objects 
+objects belonging classes marked ineligible candidates migration 
+object shared attempt perform remote operation object migrated migration instances object class marking class ineligible 
+way zero list accurately re ects usage objects program 
+migration works demand 
+process starts node receives object seen response remote request 
+node determines object class eligible migration 
+sends message master node object requesting object migrated 
+simple part migrating object transferring object state 
+hard part migrating object handling race occur object contrary speculation shared state object modi ed source node state copied 
+hard want lock synchronize writes state object putfield bytecodes copying object state purposes migration 
+solution uses phase approach combines inexpensive detection race heavyweight algorithm 
+detection consists check implementation putfield veri es local copy remains master actual modi cation 
+clearly rare cases check imply master moved case protocol check modi cation performed perform remotely 
+details omitted lack space 
+results section show set optimizations achieve perfor thread thread thread node node node node pbob architecture warehouse objects denoted light hexagons cached copies denoted gray hexagons 
+mance running unmodi ed version portable business object benchmark pbob 
+ibm portable business object benchmark pbob kernel business logic inspired benchmark 
+accordance tpc fair policy note pbob deviates tpc speci cation comparable ocial tpc result 
+chose pbob large kloc self contained pure java application depends java core apis 
+starts pbob main thread creates initializes warehouses composite objects 
+warehouse object consists objects representing customers stock items orders warehouses initialized main threads spawns threads warehouse total application threads 
+run time con guration parameters 
+initialization application enters recording phase threads concurrently execute transactions respective warehouses 
+transaction involves modi cations insertions deletions warehouse objects 
+application runs xed time terminates reporting throughput value total transactions minute tpm 
+tpm value indicates application performance higher tpm value higher performance key factor gaining scalability pbob cjvm maintaining high locality thread corresponding warehouse composite objects 
+want warehouses component objects cached threads working warehouses indicated gray hexagons 
+reduces quantity remote messages bottleneck occur warehouse objects accessed remotely single node 
+shows eciency pbob run warehouses thread warehouse node cluster 
+seen achieved eciency speedup results compared execution sun jdk implementation identical hardware 
+cases interpreter version take advantage jit 
+addition optimizations described results single con guration parameter placement single class instances 
+eciency performance pbob con gured warehouses thread warehouse node cluster 
+accompanies speedup results 
+shows cumulative impact optimizations discuss quantity remote operations 
+vertical axis represents number remote operations involved single average transaction applied thread located warehouse object 
+horizontal axis represents accumulated optimizations impact optimization added impact preceding ones 
+non optimized column re ects cjvm described section 
+includes caching string objects implemented di erently read objects include caching read objects shown second column 
+optimizations discussed optimizations related providing distributed implementations speci java classes changing interfaces 
+technical reasons column labeled read practice includes optimization caching elds locally executing stateless methods locally executing methods depending elds 
+shown optimizations excluding con guration parameter result reduction total amount remote messages non optimized cjvm version 
+impact optimization absolute 
+di erent order di erent application impact optimizations di erent 
+example application bene local invocation static methods static elds cached cluster nodes 
+local invocations static methods increase quantity remote operations due access remote static elds 
+cases multiple optimizations lead ect 
+example factory methods locally executable invoked locally due read practice optimization 
+potential impact optimization higher shown 
+mentioned single con guration parameter enables enhance locality single class objects currently able migrate 
+objects created pbob building warehouses multiple threads 
+expect apply migration mechanism broader range objects run time pro ling 
+interestingly non optimized version cjvm con guration parameter impact performance 
+words con guration parameter ective context optimizations 
+invalidation penalty measured number invalidation messages 
+experience shows overhead negligible consisting tens messages run pbob optimizations 
+related programmer point view tools infrastructure supporting java applications non optimized configuration parameter optimizations accumulated optimizations read cache static fields static methods single chance factory methods read practice cache static arrays impact optimizations number remote messages cluster range completely explicit solutions implicit solutions similar cjvm 
+explicit approaches assume architecture multiple jvms handling remote objects threads level java language external frameworks 
+frameworks little relevance cjvm various degrees don support transparent creation access remote class objects 
+lack space list projects related concept cjvm 
+hicks describe extension java specialized remote operations provided optional hooks programmer 
+remote objects handled implicitly 
+reduction consistency form smart caching applied instance methods execute node object allocated 
+notable system focuses transparent support remote objects java party 
+contrast cjvm programmers take care distinguish remote local method invocation argument passing convention di er 
+supporting monitoring objects interactions runtime schedules object migration enhance locality cjvm mainly relies smart caching policies 
+java dsm takes implicit approach level infrastructure 
+modi ed jvm heap implemented distributed shared memory 
+related system implementation jvm top objectbased distributed shared memory 
+uses object shipping model copy remote object brought accessing node 
+accessing node uses local cached copy written back server synchronization points 
+weakening memory model consistency fully compliant java memory model see chapter 
+jessica probably system common cjvm 
+cjvm jvm implementation virtualizes cluster presenting single system image java applications 
+jessica built top dsm cjvm focus thread migration purposes load balancing 
+terms architecture jessica closer jvm top infrastructure cluster aware jvm 
+jessica leverages semantics language achieve single system image cjvm performance jessica obtained low level usage neutral infrastructure large number speculative optimizations leverage java semantics usage 
+research cjvm cluster aware java virtual machine aims virtualize cluster presenting single system image pure java applications obtain high performance java server applications concurrent daemons 
+described met second goal high performance 
+large set optimizations addressing caching locality execution object placement 
+part speculative optimizations take account common object usage patterns extract ed analysis bytecodes knowledge java semantics 
+showed ect performance fairly large benchmark achieved eciency running node cluster 
+cjvm smart proxy mechanism infrastructure maintaining eld level consistency general frameworks implement locality protocols di erent levels granularity 
+process including optimizations memory access pattern statistics gathered running time enhanced static escape analyses memory model consistency protocols date information regarding cjvm status see homepage 
+cox dwarkadas keleher lu yu zwaenepoel 
+treadmarks shared memory computing networks workstations 
+ieee computer february 
+factor cjvm single system image jvm cluster international conference parallel processing september factor schuster field level caching cluster jvm preparation 
+escape analysis object languages 
+application java proc 
+oopsla pages november 
+holzle 
+removing unnecessary synchronization java proc 
+oopsla pages november 
+choi gupta serrano escape analysis java proc 
+oopsla pages november 
+freeman arnold 
+javaspaces tm principles patterns practice jini tm technology series 
+addison wesley pub 
+project url java sun com products javaspaces 
+gamma helm vlissides design patterns addison wesley 
+schuster 
+java consistency non operational characterizations java memory behavior 
+complete version technion tr cs november 
+preliminary version proc 
+intl 
+par 
+proc 
+symp march orlando pp 
+
+online version www cs technion ac il publications java ps 
+hicks jagannathan 
+moore 
+transparent communication distributed objects java 
+acm java grande conference pages june 
+www haifa il ibm com projects cjvm html www javasoft com www objectspace com voyager www tpc org cspec html iftode singh li 
+scope consistency bridge release consistency entry consistency 
+theory computing systems july august 
+ma 
+wang lau 
+jessica java enable single computing architecture international conference parallel distributed processing techniques applications pdpta june july monte carlo resort las vegas nevada usa joy gosling steele 
+java language speci cation chapter 
+addison wesley 
+macbeth hatcher 
+executing java threads parallel environment 
+ibm center advanced studies conference canada 
+philippsen zenger 
+transparent remote objects java 
+concurrency practice experience 
+william pugh 
+fixing java memory model 
+acm java grande conference pages june 
+whaley rinard 
+compositional pointer escape analysis java programs proc 
+oopsla pages november 
+yu cox 
+java dsm platform heterogeneous computing 
+acm workshop java science engineering computation june 
+pseudo code caching read practice fields requester send pulling req obj id message object master node wait response message elds remote version get version vector obj id local version local version remote version wait event object invalidation occurs wait field invalidation get version vector obj id local version unpacked elds remote vector unpack obj id elds remote vector master object get version vector obj id version get version obj id class pack elds obj id version pack elds obj id version send elds version pseudo code static analysis identify factory methods opcode method opcode current opcode processed opcode opcode sequential order opcode store variable returned method opcode null jj opcode new jj opcode jj opcode opc newarray continue far factory method opcode invokespecial jj opcode invokevirtual jj opcode invokestatic jj opcode invokeinterface char methodname name method invoked char signature signature method invoked opcode invokespecial strcmp methodname calling constructor 
+assume common code idiom duplicating newly created object calling constructor storing new object 
+signature methodname continue far factory method return factory method return factory method continue return factory method 

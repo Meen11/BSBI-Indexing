@@ -1,0 +1,204 @@
+active object object behavioral pattern concurrent programming greg douglas schmidt com schmidt cs wustl edu consortium department computer science austin tx washington university st louis submitted pattern languages programming conference monticello illinois september 
+describes active object pattern decouples method execution method invocation order access shared resource methods invoked different threads control 
+pattern commonly distributed systems requiring multi threaded servers 
+addition client applications windowing systems network browsers increasingly employing active objects enable concurrent asynchronous network operations 
+intent active object pattern decouples method execution method invocation order simplify synchronized access shared resource methods invoked different threads control 
+known concurrent object actor serializer 
+motivation illustrate active object pattern consider connection oriented gateway illustrated 
+gateway routes messages source processes destination processes distributed system 
+sources destinations communicate gateway tcp connections 
+internally gateway contains output handler objects 
+input handlers receive messages sources address fields message determine appropriate output handlers associated destination 
+output handler delivers message destination 
+connection oriented gateway communication sources destinations gateway tcp output handlers may encounter flow control transport layer 
+connection oriented protocols tcp flow control ensure fast producer send data faster slow consumer slow network buffer process data 
+provide prompt responsiveness handler object block prolonged periods time waiting flow control single connection destination 
+way ensure design gateway single threaded reactive state machine block input output connections 
+design typically combines reactor pattern non set message queues handler 
+reactor pattern non blocking sockets provide single threaded cooperative event loop model programming 
+reactor ok send ok receive events handler objects 
+handlers non blocking sends receives prevent gateway hanging 
+message queues handlers store messages fifo order delivered flow control 
+possible build robust single threaded gateways approach outlined 
+drawbacks associated approach complicated concurrent programming subtle programming required ensure output handlers gateway block routing messages destinations 
+misbehaving output connection cause entire gateway hang indefinitely 
+alleviate performance bottlenecks single threading take advantage parallelism available underlying hardware software platform 
+entire gateway runs single thread control possible transparently alleviate performance bottlenecks running system multi processor 
+convenient potentially efficient way develop connection oriented gateway active object pattern 
+pattern enables method execute different thread invoked method originally 
+handlers active objects gateway enables block independently adversely affecting input handlers 
+active object gateway design yields benefits simplify concurrent programming handler active object block thread control waiting flow control 
+output handler active object blocked due flow control input handler objects insert messages message queue associated handler 
+completing current send output handler active object dequeues message queue 
+sends message tcp connection destination blocking necessary 
+take advantage parallelism gateway transparently take advantage inherent concurrency input output handler improve performance multi processor platforms 
+example processing handlers execute concurrently handlers pass messages delivered 
+applicability active object pattern design concurrent program simplified concurrent programs simplified thread control object executes method decoupled thread control objects invoke methods multiple threads control require synchronized access shared data active object pattern shields applications low level synchronization mechanisms having acquire release locks explicitly 
+order method invocation differ order method invocation features implement task priorities concurrent programs 
+operations shared object relatively coarsegrained contrast operations fine grained synchronization data movement context switching overhead may high 
+structure structure active object pattern illustrated booch class diagram participants key participants active object pattern include client interface output handler interface presents typed method interface client applications 
+invocation method defined client interface triggers construction method object representing invocation context enqueued activation queue subsequent execution scheduler 
+method objects method call requires synchronized access shared resource object managed scheduler triggers construction method object 
+method object provides context information needed execute operation method invocation return invocation client interface 
+method object constructed possible queued activation synchronization conditions enforced scheduler prohibit execution time invocation 
+cases operation may result construction method object subject synchronization constraint operations const functions 
+operations executed directly overhead synchronization scheduling 
+scheduler method object scheduler manages activation queue see bullet contains method objects requiring execution 
+decision execute operation mutual exclusion condition synchronization constraints 
+part method activation method object run time binding current representation object similar providing pointer sequential method 
+method executed context representation 
+addition scheduler may contain variables represent synchronization state shared resource 
+variables may depend type synchronization mechanism required 
+example integral counters may count number read write requests 
+activation queue method object queue maintains list pending method invocations method objects created client interface 
+activation queue managed exclusively scheduler 
+scheduler determines order process methods synchronization scheme 
+resource representation output handler implementation represents shared resource modeled active object 
+representation may contain methods defined client interface 
+scheduler uses methods compute run time synchronization conditions depend state resource represented 
+example case message queue associated output handler predicates indicate queue empty full 
+result handle method invoked client interface may necessary return result handle caller method oneway 
+result handle allows eventual result value obtained scheduler finishes executing method 
+result handle may implemented various mechanisms provide type synchronized reply channel 
+particularly useful mechanism promise 
+synchronization object enforces write read synchronization futures described section 
+collaborations illustrates phases collaborations active object pattern 
+method object construction phase creates argument bindings method environment bindings run time thread stack 
+
+scheduling execution phase acquires mutual exclusion lock determines method object meet synchronization constraints bind current representation access update representation create result destroy method object 
+
+return result final phase binds result value result object 
+subsequently readers rendezvous evaluate obtain result value 
+eventually garbage collected 
+consequences active object pattern offers benefits enhance application concurrency reducing synchronization complexity especially objects communicate messages 
+leverage parallelism available hardware software platform active object pattern drawbacks potentially increases context switching data movement synchronization overhead may difficult debug programs containing active objects due concurrency non determinism scheduler 
+implementation active object pattern implemented variety ways 
+section discusses topics related implementing active object pattern 
+separation interface implementation synchronization policies active object pattern allows independent threads execution interleave access data modeled single object 
+broad class producer consumer reader writer problems suited model concurrency 
+example bounded buffer abstraction message queue output handler active objects described section allows dequeue operations 
+operations subject synchronization constraints guarantee serialized access shared resource depend state resource 
+common technique implement shared resource message queue uses single class methods acquire mutual exclusion mutex lock 
+code proceeds access resource subject conditional synchronization constraints operation message queue empty operation prohibited message queue full 
+class message queue public enqueue message 
+int enqueue message new msg mutex acquire full release lock wait space available 
+wait mutex release private mutex mutex condition mutex 
+drawback technique embeds synchronization code methods accesses message queue representation 
+inserting synchronization code methods class representing shared resource generally reuse representation derived class 
+problem commonly referred inheritance anomaly anomaly occurs inheriting class implementation incorporates explicit synchronization code part implementation shared abstraction 
+case synchronization requirements derived class conflict base class 
+synchronization policy embedded code base class methods derived class may able reuse methods 
+benefit gained reusing implementation base class lost 
+flexible implementation decouple synchronization code methods access update shared resource 
+design decouples synchronization code representation synchronized access applied 
+decoupling requires client interface defined separately solely cause construction method object method invocation 
+method object abstraction context closure operation 
+context includes argument values binding object operation applied result object code operation 
+method object constructed part invocation client interface object method object enqueued method activation queue 
+scheduler enforces particular synchronization policy behalf shared resource dispatch method object operation subject synchronization constraints required shared resource operation applied 
+section illustrates decoupled implementation approach 
+rendezvous return value policies rendezvous policy required active objects execute thread callers invoke methods 
+different implementations active object pattern choose different rendezvous return value policies 
+typical choices include synchronous waiting block caller synchronously active object accepts method call 
+pass return values back caller method finished executing 
+synchronous timed wait block certain amount time fail active object accept method call time 
+timeout zero scheme referred polling asynchronous queue method call return control caller immediately 
+method produces result value form mechanism provide synchronized access value 
+context active object pattern polymorphic pattern required asynchronous invocations return value caller 
+polymorphic allows parameterization eventual result type represented enforces necessary synchronization 
+method object computes result acquires lock updates result value type parameterize 
+readers result value currently blocked waiting result value awakened may concurrently access result value 
+object eventually garbage collected write context reader contexts longer hold 
+patterns support implementation active object pattern active object pattern requires set related patterns different forms synchronization mutual exclusion producer consumer readers writers reusable mechanisms implementing semaphores condition variables 
+reasonable expect set reusable synchronization building block patterns arise thorough study different forms synchronization patterns construction concurrent systems 
+sample code section presents sample code illustrates implementation active object pattern 
+example exploit capabilities active object conditional synchronization constraints 
+example depict concurrent execution polymorphic futures 
+steps define active object message queue handler objects gateway described section 
+step define single threaded queue abstraction implements bounded buffer internal representation circular array linked list 
+implementation concerned mutual exclusion condition synchronization 
+class presents interface queue type parameter corresponds type messages stored message queue template class class public void enqueue dequeue void bool empty void const bool full void const private internal resource representation 
+methods representation include code implements synchronization mutual exclusion 
+active object pattern synchronization remains external representation 
+approach facilitates specialization class representing resource avoiding inheritance anomaly described section 
+predicates empty full reflect internal state 
+scheduler evaluate synchronization conditions prior executing method resource instance 
+second step define scheduler enforces particular mutual exclusion condition synchronization constraints 
+constraints required ensure fair shared access 
+method represented class derived base class 
+base class defines pure methods redefined derived method class 
+type parameter provided template corresponds type message inserted removed 
+template class class protected class enqueue public public enqueue rep rep rep arg virtual bool guard void const synchronization constraint return rep full virtual void call void insert message message queue rep enqueue arg private rep arg class dequeue public public dequeue rep rep rep result bool guard void const synchronization constraint return rep empty virtual void call void bind removed message result object result rep dequeue private rep message result value result instances class enqueue dequeue inserted synchronization constraints public 
+constructors destructors void enqueue method new enqueue rep queue insert method dequeue void result method new dequeue rep result queue insert method return result predicates executed directly 
+bool empty void const return rep empty bool full void const return rep full protected rep queue dispatch method executes separate thread control client applications 
+searched selected corresponding condition evaluates true executed 
+virtual void dispatch void iterator queue queue 
+select method object guard true 
+queue remove call delete third step define client interface called applications 
+factory constructs instances methods sent subsequent execution 
+method returns result returned caller 
+caller may block immediately waiting complete 
+conversely caller may evaluate value point time implicit explicit type conversion object value typet 
+template class class public enum max size int size max size sched new size void enqueue sched enqueue return result asynchronous dequeue operation 
+dequeue void return sched dequeue bool empty void const sched empty bool full void const sched full private sched result evaluated immediately possibly causing caller block 
+example gateway output handler running separate thread may choose block new messages arrive input handlers 
+specialized gateway 
+typedef message queue message queue 
+type conversion message result causes thread block pending result dequeue operation 
+message msg dequeue transmit message destination 
+sendmessage msg alternatively evaluation return result active object method invocation delayed 
+example messages available immediately output handler may store return value perform bookkeeping tasks exchanging keepalive messages sure destination active 
+done various tasks may choose block message arrives handler follows block message dequeue 
+evaluate implicit type conversion may block result available 
+message msg known uses active object pattern commonly distributed systems requiring multi threaded servers 
+addition active object pattern increasingly finding client applications windowing systems network browsers employ multiple active objects enable concurrent asynchronous network operations 
+gateway example section communication services portion motorola iridium project 
+output handler objects iridium gateways implemented active objects simplify concurrent programming improve performance multi processors 
+active object version iridium gateway uses pre emptive multi tasking capabilities provided solaris threads 
+earlier version iridium gateway reactive implementation described section 
+reactive design relied cooperative event loop driven dispatcher single thread 
+design difficult implement perform active object version multi processor platforms 
+active object pattern implement actors 
+actor consists set instance variables behaviors react messages sent actor actors 
+messages sent actor queued actor message queue simple model executed order arrival current behavior 
+behavior replacement behavior execute message possibly behavior completed execution 
+variations simple model allow messages message queue executed criteria arrival order 
+active object pattern implement actors scheduler corresponds actor scheduling mechanism method objects correspond behaviors defined actor resource representation set instance variables collectively represent state actor 
+client interface simply mechanism send message actor 
+related patterns mutual exclusion mutex pattern simple locking pattern occur slightly different forms spin lock semaphore subtle semantics recursive mutexes priority mutexes 
+consumer producer condition synchronization pattern common synchronization pattern occurs synchronization resource related fact synchronization condition dependent state resource 
+reader writer condition synchronization pattern common synchronization pattern occurs synchronization mechanism dependent state resource 
+readers writers synchronization mechanism implemented independent type resource requiring reader writer synchronization 
+pattern describes typed result value requires write read synchronization 
+caller blocks depends result value computed 
+pattern hybrid pattern partly reader writer condition synchronization pattern producer consumer synchronization pattern 
+half sync half async pattern architectural pattern decouples synchronous asynchronous system simplify concurrent programming effort degrading execution efficiency 
+pattern typically uses active object pattern implement synchronous task layer reactor pattern implement asynchronous task layer 
+schmidt system reusable design patterns motorola iridium communication software theory practice object systems special issue patterns pattern languages ed wiley sons 
+schmidt reactor object behavioral pattern concurrent event demultiplexing event handler dispatching pattern languages program design coplien schmidt eds reading ma addison wesley 
+schmidt suda measuring performance parallel message process architectures proceedings conference computer communications info com boston ma ieee april 
+halstead jr multilisp language concurrent symbolic computation acm trans systems vol 
+pp 
+oct 
+liskov shrira promises linguistic support efficient asynchronous procedure calls distributed systems proceedingsof sigplan conferenceon programming language design implementation pp 
+june 
+kafura polymorphic class function type concurrent object oriented programming forthcoming 
+www cs utexas edu users papers futures ps 
+america inheritance subtyping parallel object oriented language ecoop conference proceedings pp 
+springer verlag 
+kafura lee inheritance actor concurrent object oriented languages ecoop conference proceedings pp 
+cambridge university press 
+matsuoka yonezawa analysis inheritance anomaly concurrent object oriented languages oops messenger 
+papathomas concurrency issues object oriented languages object oriented development tsichritzis ed pp 
+centre universitaire informatique university geneva 
+kleiman barton faulkner smith stein weeks williams multiprocessing 
+multithreading sunos kernel proceedingsof summer usenix conference san antonio texas june 
+agha model concurrent computation distributed systems 
+mit press 
+tomlinson singh inheritance synchronization enabled sets oopsla conference proceedings pp 
+oct 
+kafura act class library concurrent programming actors object oriented programming pp 
+october 
+schmidt cranor half sync half async architectural pattern efficient structured concurrent submitted proceedings nd annual conference pattern languages programs monticello illinois pp 
+september 
+

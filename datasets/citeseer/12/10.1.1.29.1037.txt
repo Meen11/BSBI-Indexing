@@ -1,0 +1,324 @@
+stackghost hardware facilitated stack protection mike purdue edu mike engineering computer network ecn purdue edu conventional security exploits relied overwriting saved return pointer stack hijack path execution 
+sun microsystem sparc processor architecture able implement kernel modification transparently automatically guard applications return pointers 
+implementation called stackghost openbsd acts ghost machine 
+stackghost advances exploit prevention protects application run system knowledge require source binary modification 
+document methods devised preserve system explore performance ramifications stackghost 
+presents simple elegant solution infamous bu er overflow primitive format string attacks 
+security exploits traditionally overwritten function saved return address 
+attacker direct flow execution arbitrary instruction stream invoked vulnerable function tries return control caller 
+advantages nuances sun microsystem sparc processor architecture able engineer kernel modification openbsd help safeguard return address 
+kernel modification performs transparent automatic atomic operations return address written stack function transfers execution back saved return address 
+knowledge bu er overflows relevance security exploits occur prerequisite understanding 
+section describes architectural issues involved stackghost 
+section details implementation 
+section describes performance ects 
+section acknowledges limitations 
+section hypothesizes architectures 
+section describes related research 
+section presents 
+architectural issues conventional function calls bulk operations performed call function conventional architecture 
+function parameters saved stack 
+caller registers saved stack prevent corruption callee 
+instruction address saved called function return back finished 
+execution transfered function 
+function completes task jumps back return address saved stack 
+sparc function calls register windows sparc architecture designed overhead associated saving registers stack conventional function call believed large significant warrant architectural changes speed process 
+wasting valuable cpu cycles copy register data stack sparc architects attempted provide hardware mechanisms ensure function call gets private set registers duration function 
+function completes previous set registers return existence cases interaction stack whatsoever 
+normal execution sparc processor visible general purpose integer registers 
+registers divided groups sort data contain sparc application binary interface abi global registers data common function calls 
+input registers incoming function parameters including frame pointer return pointer 
+local registers general 
+output registers parameters deeper called functions return value deeper function calls stack pointer saved program counter jump link 
+groups input locals output comprise register window 
+function called allocates new window specific 
+global registers shared old new windows meaning modification global data callee visible caller 
+callee receives new group local registers new set output registers registers accessible calling function 
+caller output registers rotated input registers called function 
+changes callee input registers visible caller changes caller output group registers 
+register window overlap way parameters passed function usually interaction stack 
+caller code need put parameters output registers call function 
+called function access caller output registers input registers 
+return values reverse process called function leaves return value particular input register reverts output register caller soon function returns 
+nested function calls create chain linked register windows 
+function call group global registers group local registers private 
+output registers function input registers second deeper function called outputs second inputs third 
+obviously trend go forever 
+register window involves registers input local output third shared calling function thirds need allocated processor 
+global registers shifted 
+processor limited number registers available modern sparc processors provide windows eventually registers reclaimed 
+job reclaiming registers falls operating system 
+number allowable windows exceeded occur program exhibiting deeply nested recursive functions register window overflow interrupt generated 
+os respond copying oldest register window stack relocate register window return control execution program knowing missed beat 
+eventually deeply nested functions program start complete caller registers need fetched 
+processor generate register window underflow interrupt force os restore previously saved registers 
+os interaction provides basic hardware primitives needed stackghost operation 
+conventional function call architecture feasible way os automatically examine critical areas stack written 
+os ultimately charge registers written stack sparc architecture possible take extreme precautions ensure security critical data return address frame pointer 
+memory alignment stackghost takes advantage sparc architectural feature 
+instructions aligned byte boundary 
+hardware traps interrupts alignment fault handler kernel kills process 
+revisit architectural requirement enhance attack detection algorithm 
+implementation beauty stackghost doesn operate function call 
+stackghost needs invoked deep function call sequences recursive programs program overflows underflows register windows interact stack 
+program performs shallow function call sequences stackghost may invoked write register windows stack 
+hardware ultimately responsibility decide register window needs written read stack 
+decision occurs processor automatically invokes overflow underflow handlers stackghost process 
+maximize security orded stackghost mechanism needs prevent corrupt return address exploiting program needs detect corruption return pointer 
+unfortunately guarantee 
+order corrupt return pointer exploit system return pointer pointed carefully back exploit code 
+reversible transform applied legitimate return address result written process stack 
+return pointer needs accessed reverse transform applied access completes 
+value saved stack computation real return address 
+retrieve real value inverse computation calculated 
+attacker know transform key transform predictably ect execution 
+ways transparently detect corrupt return pointer 
+function transform function 
+sparc processor requires instructions aligned bit word boundary lower bits instruction address zero 
+transform invert significant bits 
+corrupt return pointer stack detected bits set time inverse transform 
+sparc processor take care detection hardware cause alignment trap 
+corrupt return pointer detected keeping return address stack 
+time return pointer saved program stack handler keep copy memory accessible process return address stack 
+corrupt return pointer detected function tries return location saved return stack 
+kernel xor cookie trivial incarnation return pointer protection consists xoring fixed cookie return pointer 
+xoring cookie pointer saved stack popped preserves legitimate pointer distort attack 
+setting significant bits cookie xor inhibits exploit detect corrupt return pointer 
+attacker know set stack corrupt return pointer cause alignment fault attacker gets lucky 
+state tried interaction remainder cookie hinder predictable operation corrupted return pointer 
+kernel xor cookie built openbsd adding dozen assembler instructions 
+sign extended bit cookie built kernel immediate operand cost extra instruction window pushed instruction window popped 
+kernel xor cookie trivially defeated 
+constant process system 
+cookie determined attacker able run arbitrary programs 
+priori knowledge cookie attacker large shell code sled slide main exploit code 
+kernel xor cookie competent attacker 
+process xor cookie safer alternative kernel xor cookie di erent random cookie process 
+cookie stored process control block pcb outside user readable memory 
+pcb automatically copied fork re initialized execve 
+extra bit padding field openbsd pcb structure store bit cookie 
+process xor cookie far safer kernel granularity 
+xor cookie inferred attacker read distorted return pointer stack predict real return pointer 
+format string vulnerabilities allow condition looking vendor supplied application binary provide real return pointer 
+process cookie overhead add approximately instructions overhead push pop action 
+instances pcb pointer available register 
+encrypted stack frame mitigate detection corrupt return pointer unpredictable transformation return pointer 
+option encrypting part stack frame window written stack decrypting retrieval 
+unfortunately major obstacles encrypting return pointer 
+
+encrypting decrypting frame may seriously hinder performance 
+
+best registers 
+auxiliary space statically allocated pcb 
+
+algorithm rely block chaining threading setjmp longjmp shu call return ordering 
+
+plaintext easily predictable 
+high bits frame pointer set 
+high bits return pointer zero 
+input registers function arguments fairly constant 
+believe bit block algorithm er improved security xor cookie methods described concatenation frame pointer return pointer input encryption algorithm 
+cryptographically weak usage determined adversaries 
+encrypting stack frames unfortunately impose significant performance degradation obvious reasons 
+encryption algorithm modified encrypt stack frame stackghost detect corrupted return pointer 
+previous stackghost methods form band secret 
+encryption transform obviously cause random 
+return address stack incarnation stackghost implement processor architects call stack 
+improve unconditional branch prediction modern processors keep fifo stack silicon return addresses function calls 
+time call instruction executed return address pushed stack 
+time return instruction enters pipeline address popped stack processor continues fetching associated address seamlessly 
+cycles real return address established processor recover misprediction need 
+shall describe theory developed date 
+design criteria follows 
+mechanism break standard common software 
+
+mechanism guarantee detection stack 
+
+mechanism kill process corrupt stack 
+
+mechanism negligible memory utilization 
+
+mechanism implementable 
+obvious approach build return address stack fifo queue just done hardware 
+unfortunately simple break threading setjmp longjmp possibly exceptions 
+setjmp longjmp exceptions introduce problem multiple return addresses bypassed deep multi level return 
+solved scanning entire stack return address located 
+threading introduces similar situation 
+thread relinquishes processor sibling thread switches seperate stack 
+second thread may apex deep calling sequence start returning 
+queue order fifo may walked return 
+performance sacrificed 
+thread terminated program longjmp queue entries stale stack frames persist process terminates 
+refined approach designing return address stack add small hash table pcb 
+time register window needs mechanism add entry hash table indexed base address stack frame 
+store base address comparison tag return pointer random bit number 
+place return address stack frame place copy random number 
+stackghost retrieves stack frame refill register window compare random number stack image hash table 
+instances match exploit occurred program aborted 
+stackghost fills register return address stored hash table 
+return address hash table alleviates performance problems associated threading address memory leak associated setjmp longjmp terminated thread 
+fortunately setjmp longjmp assisted kernel system call 
+receiving longjmp syscall kernel walk backwards stack setjmp location removing hash entries way 
+indirect benefit walking stack helps secure setjmp storage bu er 
+operating systems openbsd support symmetric multiprocessing sparc kernel managed threads mutual exclusion guaranteed level hash table 
+locking primitive window overflow underflow handler invocation may prove expensive 
+testing careful multi user environment needed 
+performance ects micro benchmarks micro benchmarks run stackghost protection mechanisms results appear see appendices benchmark code details 
+return address stack mechanism optimistic approximation implemented 
+assumed adequate number pre allocated entries free list naive base return kernel process address stack microseconds function call random number generation scheme 
+cookie methods true stackghost implementations 
+micro benchmarks show worst case scenario deeply recursive instance instruction function 
+function calls invoke stackghost 
+mhz sparc kernel xor cookie imposes little microsecond function call penalty 
+process cookie stackghost overhead little microseconds call 
+return address stack cost process mechanism 
+absolute worst case shortest possible recursive function return kernel xor cookie causes overhead baseline 
+process xor cookie result overhead 
+return address stack approximation imposes overhead 
+get worse unwieldy cache tlb ects 
+speculate bulk overhead attributable additional tlb cache additional instruction count 
+performance penalties reduced stackghost code interleaved trap handlers just inserted 
+sparc processors superscalar albeit order take advantage instruction level parallelism ilp 
+trap handlers re written increase ilp optimization absorb stackghost cost 
+macro benchmarks spec integer benchmark suite run establish macro benchmarks see appendix environmental details 
+results appear 
+ratio spec base platform go ksim gcc compress li ijpeg perl vortex specint base kernel process specint benchmarks performance penalties measured spec integer benchmark suite indicated stackghost point speed metrics 
+performance may attributable noise stackghost mechanism 
+un openbsd kernel slightly worse performance version instances explanation due cache tlb ects 
+discounting noise benchmark geometric mean spec rating showed stackghost overhead kernel cookie overhead random process cookie 
+limitations moderate serious deficiencies stackghost 
+diminished research inherent 
+unpredictable execution stackghost xor cookie methods hindering exploits detect corruption stack 
+attacker return pointer manages align correctly xored cookie execution transfered unpredictable manner 
+execution may divert random legal stretch code cause data corruption 
+course successful attack may chance causing data corruption cleanup code called anyway 
+forked processes current stackghost incarnation forked processes identical process cookie 
+may possible unroll stack adjust return pointer new process 
+process non threaded duplicate program stacks write mechanism potentially driving memory utilization 
+research done 
+vs dos stackghost saves network daemon successful attack abort network daemon 
+exploit just converted denial service exploit daemon 
+behavior added incentive remedy underlying problems just mitigating exploit 
+random pool depletion random process keys bursts rapid program spawning randomness pool 
+starved pool hinder programs executing randomness gathered 
+debuggers debuggers currently broken xor cookies 
+able backtrace core return pointers obviously distorted 
+kernel core dump mechanism may able walk stack activation record program 
+research done 
+threaded programs additional beast reasons outlined kernel return stack 
+debugging ptrace problems parent processes core program counter modified stackghost 
+granularity current implementation stackghost protects process system 
+may selectively protect processes deemed risk 
+setuid privileged candidates automatic coverage 
+xor cookie mechanisms stackghost may disable coverage null cookie xoring number zero equivalent adding zero ect 
+una ected exploits stackghost exploit guarantee security 
+exploits stackghost include 
+corrupted function pointer table 
+data corruption leading insecure conditions 
+
+overwriting frame pointer frame pointer far shallower calling sequence 
+short circuit backwards functions callers may skip vital security checks 
+architectures application stackghost mechanisms architectures sparc contingent trap kernel registers pushed stack popped 
+know common architectures provide convenience sparc register window overflow underflow traps 
+believe architectural features approximate behavior sparc 
+hardware breakpoints architectures provide hardware assisted debugging fashion 
+support comes form hardware breakpoints breakpoints placed memory accesses aka instruction addresses kernel may able load breakpoint address return pointers stored context switching processes 
+access current function return pointer function calling sequence cause trap kernel 
+deeper function call cause trap add breakpoint return pointer location saves current 
+return cause trap confirm breakpoint previous return pointer 
+hardware breakpoints approximate trap behavior register windows requires knowledge stack layout priori process include stack layout hints 
+page protection architectures allow protection mechanism limit access virtual pages 
+marking stack pages reads writes kernel guarantee trap time stack accessed 
+unfortunately kernel notified stack access 
+variation method proved costly ia implementation briefly described 
+ia intel ia architecture supports sized register windows register stack engine intel 
+ia function request arbitrary number registers register window sparc 
+overflow underflow occurs processor stalls hardware interacts backing store 
+actual loading storing registers done hardware kernel trap handlers 
+simulate sparc register window trap behavior may possible backing store pointer 
+time register state engine stores backing store registers trap kernel invoking stackghost mechanism 
+related prior research bu er overflows guard stack 
+means exhaustive list 
+stackguard crispin cowan stackguard modified compiler places term canary interchangeable term cookie return pointer function prolog 
+bu er overflow modify canary way overwriting adjacent return pointer 
+function epilog detects dirty canary rightly infers exploit occurred logs exploit aborts program 
+stackguard xor random canary return address function prolog xor canary epilog 
+cause undetected corrupt return pointer dump core executing exploit code 
+technique called described stackguard 
+designates return address stack machine quasi invariant 
+allows store memory location api 
+involved marking entire stack page read function prolog page epilog 
+special trap handler installed kernel emulate writes stack locations near return address unfortunate fall virtual memory page 
+proved impose inordinate overhead 
+works assembler processor supported gnu compilers 
+works modifying function prolog store away return pointer stack distant overflow 
+function return function epilog returns location specified private return stack program stack 
+exploit detection performs checking segments function pointers point 
+hiroaki modification gnu compiler places random canary stack allocated character bu ers return pointer 
+validates canary overflowed bu er function returns 
+reorder local variables protect local pointers overwritten bu er overflow 
+library modification linux safely wraps functions known unsafe contains damage local stack frame 
+included tool called rewrite binary application perform return address check 
+non exec pages implementations available attempt hinder exploit limiting memory segments code execute 
+solar designer architected kernel modification linux prevent execution stack pages 
+exploits able run code bu er resides stack bu er overflows 
+sun built optionally enabled non executable stack sparc version solaris 
+pax linux kernel modification mark data pages non executable just stack pages 
+pax inhibits heap exploits addition stack overflows 
+overflow exploits non executable pages inhibit 
+far common return libc 
+executing custom exploit code attack directs return pointer back code malicious consequences depending 
+easiest example point return address back system library call point instance bin sh 
+stackghost proven ective defense common exploit techniques negligible cost user 
+stackghost primary merit kernel modification require mass recompilation administrative headaches selective protection 
+current implementation stackghost deficient guarantee explicit detection stack exploit foil operation exploit 
+seperate return stack apparatus stackghost fully implemented stackghost er guaranteed detection traditional bu er overflow fraction cost available stack protection mechanisms 
+availability stackghost project homepage stackghost purdue edu 
+patches openbsd shall placed public domain 
+acknowledgments rick florian technical advice 
+susan assistance organization editing 
+aleph 
+smashing stack fun profit 
+phrack november 
+timothy tsai singh 
+transparent run time defense stack smashing attacks 
+proceedings usenix annual technical conference june 
+webb 
+subroutine call return stack 
+ibm technical disclosure bulletin apr 
+crispin cowan calton pu dave maier heather hinton jonathan walpole peat steve beattie aaron perry wagle qian zhang 
+stackguard automatic adaptive detection prevention bu er overflow attacks proceedings th usenix security conference january san antonio tx 
+hiroaki 
+gcc extension protecting applications stack smashing attacks www trl ibm jp projects security ssp org 
+stackguard mechanism vulnerability org stackguard html 
+intel ia architecture software developer manual 
+volume ia application architecture revision july intel ia architecture software developer manual 
+volume ia system architecture revision july intel ia architecture software developer manual 
+volume ia instruction set revision july intel ia architecture software developer manual 
+volume ia itanium processor guide revision july kevin ahuja margaret martonosi douglas clark 
+improving prediction procedure returns stack repair mechanisms 
+proceedings st acm ieee international symposium microarchitecture nov dallas tx 
+mudge 
+write bu er overflows pht com advisories html 
+nathan smith 
+stack smashing vulnerabilities unix operating system com nate machines security stack smashing nate bu er ps 
+pax team 
+data pages net txt 
+branch processing unit return stack including repair pointers di erent pipe stages 
+patent 
+jan 
+solar designer 
+user stack www false com security linux stack 
+sparc international sparc architecture manual 
+version 
+
+
+stack smashing technique protection tool linux 
+www com sk 
+appendix benchmark procedure short program microbenchmark function call overhead imposed stackghost 
+compiled gcc version 
+spec integer suite run generate macro benchmarks 
+benchmark suite built gcc version 
+benchmarks run mhz sparcstation mb ram prom rev cache 
+machine operating multi user mode fairly constant conditions iteration benchmarks 
+appendix micro benchmark define depth define trials void deep int deep int main void struct start float total times trials int stack deep depth trials give time slice avoid context switch gettimeofday start null deep depth gettimeofday null times tv sec start tv sec float tv usec start tv usec total trials total times printf avg time fs total float trials printf avg call fus total float trials depth 

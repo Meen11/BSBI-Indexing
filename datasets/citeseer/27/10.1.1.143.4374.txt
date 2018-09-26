@@ -1,0 +1,404 @@
+slab allocator object caching kernel memory allocator jeff sun microsystems presents comprehensive design overview sunos kernel memory allocator 
+allocator set object caching primitives reduce cost allocating complex objects retaining state uses 
+primitives prove equally effective managing stateless memory data pages temporary buffers space efficient fast 
+allocator object caches respond dynamically global memory pressure employ scheme improves system cache utilization bus balance 
+allocator statistical debugging features detect wide range problems system 
+
+allocation freeing objects common operations kernel 
+fast kernel memory allocator essential 
+cases cost initializing destroying object exceeds cost allocating freeing memory 
+improvements allocator beneficial greater gains achieved caching frequently objects basic structure preserved uses 
+begins discussion object caching interface requires shape rest allocator 
+section describes implementation detail 
+section describes effect buffer address distribution system cache utilization bus balance shows simple coloring scheme improve 
+section compares allocator performance known kernel memory allocators finds generally superior space time 
+section describes allocator debugging features detect wide variety problems system 
+
+object caching object caching technique dealing objects frequently allocated freed 
+idea preserve invariant portion object initial state constructed state uses destroyed recreated time object 
+example object containing mutex needs mutex init applied time object allocated 
+object freed reallocated times incurring expense mutex destroy mutex init time 
+object embedded locks condition variables counts lists objects read data generally qualify constructed state 
+caching important cost constructing object significantly higher cost allocating memory 
+example sparcstation running sunos development kernel allocator reduced cost allocating freeing stream head microseconds microseconds 
+table illustrates savings due object caching stream head allocation free costs sec construction memory allocator destruction allocation init 
+old new caching particularly beneficial multithreaded environment frequently allocated objects contain embedded locks condition variables constructible state 
+design object cache straightforward allocate object object cache take construction required allocate memory construct object free object return cache destruction required reclaim memory cache take objects cache destroy objects free underlying memory object constructed state initialized object brought cache 
+cache populated allocating freeing objects fast trivial operations 
+
+example consider data structure struct foo foo lock foo cv struct bar foo int foo assume foo structure freed outstanding foo pending bar events completed foo null 
+life cycle dynamically allocated foo foo kmem alloc sizeof struct foo km sleep mutex init foo foo lock cv init foo foo cv foo foo foo foo null foo assert foo foo null assert foo foo cv destroy foo foo cv mutex destroy foo foo lock kmem free foo notice foo object perform sequence operations constitutes expensive op 
+overhead foo eliminated object caching 
+
+case object caching central allocator course object caching implemented help central allocator subsystem private implementation algorithm described 
+disadvantages approach natural tension object cache wants keep memory rest system wants memory back 
+privately managed caches handle tension sensibly 
+limited insight system memory needs insight needs 
+similarly rest system knowledge existence caches way pull memory 
+private caches bypass central allocator bypass accounting mechanisms debugging features allocator may possess 
+operating system difficult monitor debug 
+having instances solution common problem increases kernel code size maintenance costs 
+object caching requires greater degree cooperation allocator clients standard kmem alloc kmem free interface allows 
+section develops interface support constructed object caching central allocator 
+
+object cache interface interface follows observations descriptions objects name size alignment constructor destructor belong clients central allocator 
+allocator just know sizeof struct inode useful pool size example 
+assumptions brittle grunwald anticipate needs third party device drivers streams modules file systems 
+memory management policies belong central allocator clients 
+clients just want allocate free objects quickly 
+shouldn worry manage underlying memory efficiently 
+follows object cache creation client driven include full specification objects struct kmem cache kmem cache create char name size size int align void constructor void size void destructor void size creates cache objects size size aligned align boundary 
+alignment rounded minimum allowable value align zero special alignment required 
+name identifies cache statistics debugging 
+constructor function constructs performs time initialization objects cache destructor undoes applicable 
+constructor destructor take size argument support families similar caches streams messages 
+kmem cache create returns opaque descriptor accessing cache 
+follows clients need just simple functions allocate free objects void kmem cache alloc struct kmem cache cp int flags gets object cache 
+object constructed state 
+flags km sleep km indicating acceptable wait memory currently available 
+void kmem cache free struct kmem cache cp void buf returns object cache 
+object constructed state 
+cache longer needed client destroy void kmem cache destroy struct kmem cache cp destroys cache reclaims associated resources 
+allocated objects returned cache 
+interface allows build flexible allocator ideally suited needs clients 
+sense custom allocator 
+built compile time knowledge clients custom allocators grunwald keep guessing adaptive fit methods 
+object cache interface allows clients specify allocation services need fly 
+
+example example demonstrates object caching foo objects introduced section 
+constructor destructor routines void foo constructor void buf int size struct foo foo buf mutex init foo foo lock cv init foo foo cv foo foo foo foo null void foo destructor void buf int size struct foo foo buf assert foo foo null assert foo foo cv destroy foo foo cv mutex destroy foo foo lock create foo cache foo cache kmem cache create foo cache sizeof struct foo foo constructor foo destructor allocate free foo object foo kmem cache alloc foo cache km sleep foo kmem cache free foo cache foo foo allocation fast allocator usually fetch constructed foo cache 
+foo constructor foo destructor invoked populate drain cache respectively 
+example illustrates beneficial side effect object caching reduces instruction cache footprint code uses cached objects moving rarely executed construction destruction code hot path 
+
+slab allocator implementation section describes implementation sunos kernel memory allocator slab allocator detail 
+name derives allocator main data structures slab 
+name stuck sun distinctive object cache slabs discussed section terms object buffer chunk interchangeably depending re viewing piece memory moment 
+
+caches cache front back designed decoupled possible back kmem cache grow kmem cache reap cache front kmem cache alloc kmem cache free front public interface allocator 
+moves objects cache calling back needs objects 
+back manages flow real memory cache 
+influx routine kmem cache grow gets memory vm system objects feeds objects cache 
+routine kmem cache reap invoked vm system wants memory back onset paging 
+note back activity triggered solely memory pressure 
+memory flows cache needs objects flows back rest system needs pages arbitrary limits watermarks 
+hysteresis control provided working set algorithm described section 
+slab allocator monolithic entity loose confederation independent caches 
+caches shared state allocator employ cache locking protecting entire arena kernel heap global lock 
+cache locking improves scalability allowing number distinct caches accessed simultaneously 
+cache maintains statistics total allocations number allocated free buffers cache statistics provide insight system behavior 
+indicate parts system consume memory help identify memory leaks 
+indicate activity level various subsystems extent allocator traffic accurate approximation 
+streams message allocation direct measure streams activity example 
+slab allocator operationally similar grunwald weinstock zone allocators maintain distinct commonly requested buffer sizes 
+grunwald weinstock papers demonstrate customized segregated storage allocator priori knowledge common allocation sizes usually optimal space time 
+slab allocator category advantage customizations client driven run time hard coded compile time 
+true zone allocator 
+standard non caching allocation routines kmem alloc kmem free object caches internally 
+startup system creates set caches ranging size bytes roughly increments 
+kmem alloc simply performs kmem cache alloc nearest size cache 
+allocations larger rare handled directly back page supplier 
+
+slabs slab primary unit currency slab allocator 
+allocator needs grow cache example acquires entire slab objects 
+similarly allocator reclaims unused memory shrinks cache relinquishing complete slab 
+slab consists pages virtually contiguous memory carved equal size chunks count indicating chunks allocated 
+benefits simple data structure manage arena somewhat striking reclaiming unused memory trivial 
+slab count goes zero associated pages returned vm system 
+simple count replaces complex trees bitmaps coalescing algorithms allocators knuth korn standish 
+allocating freeing memory fast constant time operations 
+move object freelist update count 
+severe external fragmentation unused buffers freelist 
+time allocators develop accumulation small unusable buffers 
+occurs allocator splits existing free buffers satisfy smaller requests 
+example right sequence byte byte allocations may result large accumulation free byte buffers byte buffers requested standish 
+allocator suffer fate way populate byte freelist allocate free byte buffers 
+sequence byte byte allocations matter complex result population byte byte 
+prior allocation predictor allocation weinstock buffers 
+reason slabs reduce external fragmentation objects slab type lifetime distribution resulting segregation short lived longlived objects slab granularity reduces likelihood entire page held hostage due single long lived allocation barrett hanson 
+generic caches back kmem alloc notable exception constitute relatively small fraction arena sunos major consumers memory kmem cache alloc 
+internal fragmentation buffer wasted space minimal 
+buffer exactly right size cache object size wasted space unused portion slab 
+example assuming byte pages slabs byte object cache contain buffers bytes left 
+view equivalent bytes wasted space byte buffer internal fragmentation 
+general slab contains buffers internal fragmentation allocator control amount internal fragmentation controlling slab size 
+larger slabs cause external fragmentation probability able reclaim slab decreases number buffers slab increases 
+sunos implementation limits internal fragmentation empirical sweet spot trade internal external fragmentation 
+
+slab layout logical contents slab managed kmem slab data structure maintains slab linkage cache count list free buffers 
+turn buffer slab managed kmem structure holds freelist linkage buffer address backpointer controlling slab 
+pictorially slab looks slab back pointers shown prev slab cache kmem kmem kmem slab buf buf buf pages slab cache kmem unused 
+slab layout small objects objects smaller page slab built allocating page placing slab data dividing rest equal size buffers buf buf buf buf page un kmem slab buffer serves freelist 
+linkage needed computable 
+essential optimizations small buffers allocating memory buffers 
+freelist linkage resides buffer facilitate debugging 
+driven empirical observation data structure typically active 
+buffer modified freed problem easier diagnose heap structure freelist linkage intact 
+allocator reserves additional word constructed objects linkage doesn overwrite constructed state 
+
+slab layout large objects scheme efficient small objects large ones 
+fit buffer page embedded slab data 
+large multi page slabs lose ability determine slab data address buffer address 
+large objects physical layout identical logical layout 
+required slab data structures come small object 
+caches 
+cache self scaling hash table provides buffer conversion 
+
+freelist management cache maintains circular doubly linked list slabs 
+slab list partially sorted empty slabs buffers allocated come followed partial slabs buffers allocated free complete slabs buffers free 
+cache freelist pointer points non empty slab 
+slab turn freelist available buffers 
+level freelist structure simplifies memory reclaiming 
+allocator reclaims slab doesn unlink buffer cache freelist just slab 
+
+reclaiming memory kmem cache free sees slab count zero immediately reclaim memory 
+just moves slab tail freelist complete slabs reside 
+ensures complete slab broken partial slabs depleted 
+system runs low memory asks allocator memory 
+allocator retains second working set slabs prevent thrashing 
+measurements indicate system performance fairly insensitive slab working set interval 
+presumably extremes zero working set reclaim complete slabs demand infinite working set reclaim reasonable albeit suboptimal policies 
+
+hardware cache effects modern hardware relies cache utilization important design software cache effects mind 
+memory allocator broad classes cache effects consider distribution buffer addresses cache footprint allocator 
+topic received attention chen grunwald effect buffer address distribution cache utilization bus balance gone largely unrecognized 
+
+impact buffer address distribution cache utilization address distribution mid size buffers affect system cache utilization 
+particular power allocators buffers bytes byte aligned suppose example inode bytes assigned byte buffer byte aligned dozen fields inode bytes frequently referenced 
+majority inode related memory traffic allocators common easy implement 
+example bsd svr employ power methods mckusick lee 
+addresses modulo 
+cache lines near byte boundaries heavily loaded rest lie 
+effect cache usable inodes 
+fully associative caches suffer problem current hardware trends simpler complex caches 
+course special inodes 
+kernel contains mid size data structures bytes essential qualities contain heavily fields fields grouped near structure 
+artifact way data structures evolve previously recognized important factor allocator design 
+
+impact buffer address distribution bus balance machine interleaves memory multiple main buses effects described significant impact bus utilization 
+example employs byte interleaving main buses 
+continuing example see power allocator maps half inode hot part bus second half bus 
+inode related cache misses serviced bus 
+situation exacerbated inflated rate inodes fighting small fraction cache 
+effects dramatic 
+running laddis sunos development kernel replacing old allocator power buddy system lee slab allocator reduced bus imbalance just 
+addition primary cache rate dropped 
+
+slab coloring slab allocator incorporates simple coloring scheme distributes buffers evenly cache resulting excellent cache utilization bus balance 
+concept simple time new slab created buffer addresses start slightly different offset color slab base page aligned 
+example cache byte objects byte alignment slab buffers addresses relative slab base 
+slab buffers offsets 
+maximum slab color determined amount unused space slab 
+example assuming pages fit byte buffers byte slab 
+buffers consume bytes kmem slab data consumes bytes remaining bytes available coloring 
+maximum slab color slab color sequence 
+particularly nice property coloring scheme mid size power buffers receive maximum amount coloring worst fitting 
+example bytes goes perfectly goes available embedded slab data 
+
+arena management allocator arena management strategy determines dynamic cache footprint 
+strategies fall broad categories sequential fit methods buddy methods segregated storage methods standish 
+sequential fit allocator typically search nodes find fitting buffer 
+methods nature large cache footprint examine significant number nodes generally near 
+causes cache misses tlb misses 
+coalescing stages buddy system allocators knuth lee similar properties 
+segregated storage allocator slab allocator maintains separate different buffer sizes 
+allocators generally cache locality allocating buffer simple 
+allocator determine right freelist computation table lookup having supplied argument take buffer 
+freeing buffer similarly straightforward 
+handful pointers load cache footprint small 
+slab allocator additional advantage small mid size buffers relevant information slab data buffers resides single page 
+single tlb entry covers action 
+
+performance section compares performance slab allocator known kernel memory allocators sunos stephenson sequential fit method bsd mckusick power oftwo segregated storage method svr lee power buddy system method 
+allocator employed previous sunos releases 
+get fair comparison allocators ported sunos base system 
+ensures comparing just allocators entire operating systems 
+
+speed comparison sparcstation time required allocate free buffer various allocators follows memory allocation free costs allocator time sec interface slab kmem cache alloc bsd kmem alloc slab kmem alloc svr kmem alloc sunos kmem alloc note bsd allocator offers functional preprocessor macro interfaces 
+measurements functional version 
+non binary interfaces general considered exported drivers exposing implementation 
+bsd allocator compiled defined default get fastest possible code 
+mutex enter mutex exit pair costs sec locking required allocate free buffer imposes lower bound sec 
+slab bsd allocators close limit little common cases 
+bsd implementation kmem alloc slightly faster accounting reclaims memory 
+slab allocator kmem cache alloc interface faster doesn determine freelist cache cache descriptor passed argument kmem cache alloc 
+event differences speed slab bsd allocators small 
+expected segregated storage methods operationally similar 
+segregated storage implementation achieve excellent performance 
+svr allocator slower buddy systems provides reasonable predictable speed 
+sunos allocator sequential fit methods comparatively slow quite variable 
+benefits object caching visible numbers measure cost allocator 
+table shows effect object caching frequent allocations sunos kernel sparcstation timings microseconds effect object caching allocation improve type caching caching ment alloc numbers section measure performance allocator isolation 
+allocator effect system performance discussed section 
+
+memory utilization comparison allocator generally consumes memory clients request due imperfect fits internal fragmentation unused buffers freelist external fragmentation overhead allocator internal data structures 
+ratio memory requested memory consumed allocator memory utilization 
+complementary ratio memory wastage total fragmentation 
+memory utilization essential kernel heap consumes physical memory 
+allocator space efficiency harder characterize speed 
+best measure various allocators memory utilization fixed set workloads 
+allocator subjected workload sequence system boot 
+measures system memory utilization console login prompt rebooting 
+brief spike load generated trivial program fork fork fork fork fork fork fork fork fd socket af unix sock stream sleep close fd creates processes creates socket 
+causes temporary surge demand variety kernel data structures 
+find 
+trivial find usr mount exec file 
+standard timesharing benchmark 
+generates large amount concurrent activity creating large demand user kernel memory 
+memory utilization measured step 
+table summarizes results mb sparcstation 
+slab allocator significantly outperformed half fragmentation nearest competitor results cumulative column indicates fragmentation steps completed total fragmentation waste allocator boot spike find slab sunos bsd svr column shows results measure peak throughput units scripts executed minute 
+performance primarily memory limited mb system sunos allocator achieved better results bsd allocator despite significantly slower 
+slab allocator delivered best performance margin fast space efficient 
+get handle real life performance author allocators week personal desktop machine mb sparcstation 
+machine primarily reading mail running simple commands scripts connecting test machines compute servers 
+results obviously experiment effect week light desktop kernel allocator heap tation slab mb sunos mb svr mb bsd mb numbers consistent results synthetic workload described 
+cases slab allocator generates half fragmentation sunos turn generates half fragmentation svr bsd 
+
+system performance kernel memory allocator affects system performance variety ways 
+previous sections considered effects individual factors object caching hardware cache bus effects speed memory utilization 
+turn important metric bottom line performance interesting workloads 
+sunos svr allocator replaced slab allocator described 
+table shows net performance improvement key areas 
+system performance improvement slab allocator workload gain measures window system timesharing tpc database laddis nfs service parallel parallel compilation terminal server user typing notes mb improvement due slab allocator space efficiency 
+tpc workload causes little kernel memory allocation allocator speed significant factor 
+test run large server memory paged allocator space efficiency factor 
+performance improvement due solely better cache utilization fewer primary cache misses fewer secondary cache misses 
+parallel run large server paged 
+workload generates lot allocator traffic improvement attributable slab allocator speed object caching system lower cache rate fewer primary cache misses fewer secondary cache misses 
+terminal server run large server paged 
+benchmark spent time kernel old allocator versus new allocator 
+bottom line improvement due reduction kernel time 
+
+debugging features programming errors corrupt kernel heap modifying freed memory freeing buffer twice freeing uninitialized pointer writing buffer difficult debug 
+fortunately thoroughly instrumented kernel memory allocator detect problems 
+section describes debugging features slab allocator 
+features enabled sunos kernel just special debugging versions booting kernel debugger setting appropriate flags allocator detects problem provides detailed diagnostic information system console 
+
+auditing audit mode allocator records activity circular transaction log 
+stores information extended version structure includes thread pointer hi res timestamp stack trace transaction 
+corruption detected methods previous owners affected buffer suspects determined 
+
+freed address verification buffer hash table employed caches debugging feature availability debugging features adds cost allocations 
+cache flag word indicates hash table cache objects larger page contains debugging flags 
+single test checks flags simultaneously common case small objects debugging unaffected 
+hash lookup kmem cache free fails caller attempting free bogus address 
+allocator verify freed addresses changing large object threshold zero 
+
+detecting freed memory object freed allocator applies destructor fills pattern 
+time object allocated allocator verifies contains pattern 
+fills object applies constructor 
+patterns chosen readily human recognizable debugging session 
+represent freed memory uninitialized data respectively 
+
+checking checking detects writes past buffer 
+allocator checks violations adding guard word buffer verifying unmodified buffer freed 
+
+synchronous normally slab working set algorithm retains complete slabs 
+mode allocator destroys complete slabs immediately 
+kmem slab destroy returns underlying memory back page supplier page 
+subsequent object slab cause kernel data fault 
+
+page buffer mode page buffer mode buffer entire page pages buffer unmapped freed 
+slab allocator implements increasing alignment caches system page size 
+feature requires amount physical memory 
+
+leak detection timestamps provided auditing easy implement crude kernel memory leak detector user level 
+user level program periodically scan arena dev kmem looking appearance new persistent allocations 
+example buffer allocated hour ago allocated possible leak 
+
+example example illustrates slab allocator response modification free kernel memory allocator buffer modified freed modification occurred offset replaced buffer ff ff cache cache previous transactions buffer ff thread ff time slab ff ca cache cache kmem cache alloc ufs lookup ac vn open copen syscall thread ff time slab ff ca cache cache kmem cache free spec inactive syscall transaction log continues ff errors handled similarly 
+features proven helpful debugging wide range problems sunos development 
+
+directions 
+managing types memory slab allocator gets pages routines kmem kmem assumes underlying segment driver resource maps translation setup allocator respects firewall trivial plug alternate back page suppliers 
+routines supplied additional arguments kmem cache create 
+allow manage multiple types memory normal kernel memory device memory kernel memory nvram single allocator 
+
+processor memory allocation processor allocation techniques mckenney mckenney fit nicely top slab allocator 
+define allocation hierarchy decreasing speed locality cpu global coalesce page coalesce vm block 
+correspond closely slab allocator front back page supplier layers respectively 
+absence lock contention small processor improve performance eliminating locking costs reducing invalidation traffic 
+
+user level applications slab allocator user level memory allocator 
+back page supplier mmap sbrk 
+
+slab allocator simple fast kernel memory allocator 
+object cache interface reduces cost allocating freeing complex objects enables allocator segregate objects size lifetime distribution 
+slabs take advantage object size lifetime segregation reduce internal external fragmentation respectively 
+slabs simplify reclaiming simple count coalescing 
+slab allocator establishes push pull relationship clients vm system eliminating need arbitrary limits watermarks govern reclaiming 
+allocator coloring scheme distributes buffers evenly cache improving system cache utilization bus balance 
+important areas slab allocator provides measurably better system performance 
+neal suggested allocator retain object state uses old streams allocator uses slab allocator directly 
+steve kleiman suggested vm pressure regulate reclaiming 
+gordon pointed negative effects power alignment cache utilization adrian hypothesized explain bus imbalance seeing machines 
+cathy roger faulkner steve kleiman tim marsland rob pike andy roach bill shannon jim thoughtful comments draft versions 
+david robinson jim providing measurements ashok singhal providing tools measure cache bus activity 
+cathy putting project 
+barrett david barrett benjamin zorn lifetime predictors improve memory allocation performance 
+proceedings sigplan conference programming language design implementation pp 
+
+boehm boehm weiser garbage collection uncooperative environment 
+software practice experience pp 
+daly tetzlaff analysis free storage algorithms revisited 
+ibm systems journal pp 
+
+software lookaside buffer reduces search overhead linked lists 
+communications acm pp 
+
+michel jean marc pradeep sun architecture 
+revision 
+chen bradley chen brian bershad impact operating system structure memory system performance 
+proceedings fourteenth acm symposium operating systems principles pp 
+
+grunwald dirk grunwald benjamin zorn efficient synthesized memory allocators 
+software practice experience pp 
+
+grunwald dirk grunwald benjamin zorn robert henderson improving cache locality memory allocation 
+proceedings sigplan conference programming language design implementation pp 
+
+hanson david hanson fast allocation deallocation memory object lifetimes 
+software practice experience pp 
+
+knuth donald knuth art computer programming vol fundamental algorithms 
+addison wesley reading ma 
+korn david korn phong vo search better malloc 
+proceedings summer usenix conference pp 
+
+lee paul lee barkley watermark lazy buddy system kernel memory allocation 
+proceedings summer usenix conference pp 
+
+hibbard adaptive system dynamic storage allocation 
+software practice experience pp 
+
+analysis free storage algorithms 
+ibm systems journal pp 
+
+mckenney paul mckenney jack efficient kernel memory allocation shared memory multiprocessors 
+proceedings winter usenix conference pp 
+
+mckusick marshall kirk mckusick michael karels design general purpose memory allocator bsd unix kernel 
+proceedings summer usenix conference pp 
+
+rodney stephen allan adaptive exact fit storage management 
+communications acm pp 
+
+standish thomas standish data structure techniques 
+addison wesley reading ma 
+stephenson stephenson fast fits new methods dynamic storage allocation 
+proceedings ninth acm symposium operating systems principles pp 
+
+james van richard rashid zone garbage collection 
+proceedings summer usenix mach workshop pp 
+
+weinstock charles weinstock william wulf efficient algorithm heap storage allocation 
+acm sigplan notices pp 
+
+zorn benjamin zorn measured cost conservative garbage collection 
+software practice experience pp 
+
+author information jeff kernel hacker sun 
+likes rip big slow old code replace small fast new code 
+believe gets paid 
+author received mathematics university delaware statistics stanford 
+electronically eng sun com 

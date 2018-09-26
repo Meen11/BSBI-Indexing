@@ -1,0 +1,235 @@
+writing high performance server applications haskell case study haskell web server simon marlow microsoft research cambridge microsoft com th august server applications particular networkbased server applications place unique combination demands programming language lightweight concurrency high throughput important 
+describes prototype web server written concurrent haskell presents useful results rstly conforming server written minimal ort leading implementation lines code secondly naive implementation produced reasonable performance 
+furthermore making minor modi cations time critical components improved performance level acceptable heavily loaded web servers 
+internet spawned application domain multithreaded server applications capable interacting hundreds thousands clients simultaneously increasingly important 
+examples include ftp file transfer protocol mail transport dns name servers usenet news chat servers distributed le sharing popular servers 
+hypertext transfer protocol protocol transport web pages internet 
+protocol essentially 
+client rst opens connection server sends request message 
+server interprets request request refers valid document server replies client sending contents document 
+early versions protocol connection client server closed point requiring client open new connection document request 
+latest revision protocol allows connection remain open transfers known keep alive connection 
+nature protocol imposes certain demands server implementation concurrency essential server allow tied slow client client requesting large document server 
+choice concurrency model largest impact server performance discuss section 
+server able handle large number clients simultaneously transferring documents performance ected 
+small requests server able process request quickly avoid tying resources long 
+means latency new connection low possible 
+aspect server performance measured ring small requests increasing rate point server performance start drop rate increases latency backlog connections progress builds 
+advantage low latency server resistant denial service type attacks 
+throw bogus requests quickly possible server performance impacted server requests malevolent client 
+fault tolerance important performance server able recover gracefully errors crash arrange restarts minimal interruption service 
+possible re con gure server 
+write web server haskell 
+firstly 
+bad thing haskell compete ectively important application domains web serving 
+secondly haskell plenty relevant attributes bring party concurrent haskell provides lightweight concurrency model helps provide low latency low overhead multiple simultaneous clients essential server performance 
+extensions support exceptions provide useful facilities coping runtime errors 
+asynchronous exceptions allow concise implementations important features timeouts shall see section :10.1.1.26.1040
+asynchronous exceptions useful allowing server respond external stimulus administrator wishes changes server con guration see section 
+wide range libraries constructing web server including networking library parsing combinator library html generation library posix system interface library 
+libraries speci ed part haskell standard distributed ghc compiler 
+describes web server implementation focussing parts required extensions haskell particular concurrency exception support 
+server implementation performs shall show section 
+reliable tested alternate server haskell org site ran week collected hits time kept memory footprint 
+test bug protocol implementation xed 
+hope replace main haskell org web server currently apache haskell implementation point 
+concurrency model choice concurrency model crucial design web server 
+section brie examine common models list advantages disadvantages compare concurrent haskell approach 
+separate processes model apache new connection handled new process machine 
+single top level process monitors incoming connections spawns new worker process talk client 
+advantages simple implement 
+takes advantage multiple processors automatically 
+disadvantages heavy weight terms startup shutdown cost context switch overhead memory overhead process 
+apache maintains cache spare processes order reduce start time new connections 
+interprocess communication hard 
+interprocess communication required certain aspects web server operation 
+example normally single log le records transaction events see section multiple threads cooperate access log le 
+operating system threads operating system threads may map processes case overhead similar separate processes modern operating systems share page tables forked processes case may implemented light weight kernel threads case overhead lower 
+advantages interprocess communication easier 
+takes advantage multiple processors automatically 
+disadvantages fairly heavy weight possibly lighter separate processes 
+writing multithreaded code harder error prone single threaded code 
+monolithic process multiplexing approach implement desired concurrency directly foregoing time sharing facilities provided operating system 
+single requirement approach able multiplex channels 
+existing methods multiplexing single process include posix select equivalently pol functions 
+functions tests multiple le descriptors simultaneous returning information descriptors available reading writing 
+idea application performs available reads writes non blocking returns call select list open le descriptors 
+approach su ers problem select number le descriptors tested application build list length pass select os traverse list build results 
+asynchronous posix real time signals 
+methods ways alleviating linear behaviour select 
+relatively new features operating systems support 
+implementation uses select converted asynchronous realtime signals relatively little ort 
+advantages methods fast especially methods 
+disadvantages web server inherently multi threaded application programming concurrency abstraction bound painful 
+exist web servers methods currently fastest servers 
+user space threads user space threads essentially implementation thread abstraction inside single process possibly top small number operating system threads see 
+programmer gets write application concurrency primitives provided language user space threads implementation provide low level time sharing multiplexing support 
+implementations user space posix threads exist unix 
+concurrent haskell implementation ghc instance model haskell runtime system runs single operating system process multiplexes haskell threads 
+support multiple haskell threads performing simultaneously runtime system may choose multiplexing options described previous section 
+implemented choice invisible programmer 
+way user space threads provide best worlds 
+concurrency lightweight programmer doesn need concerned details multiplexing 
+disadvantage user space threads package won normally able take advantage multiple processors host machine 
+ghc development team currently working implementation concurrent haskell doesn suffer de ciency small number operating system threads share load 
+structure web server main loop main loop strikingly simple config socket io conf sock handle remote forkio catch talk conf handle remote hclose handle conf sock takes server con guration listening socket waits new connection requests socket 
+connection request received new worker thread forked forkio main loop goes back waiting connections 
+worker thread calls talk de nition talk section main function communicating client 
+interesting part happens exception raised talk 
+combinator allows strict sequencing speci ed independent exceptions io io io combinator behaves java 
+performs rst argument performs second argument rst argument raised exception returns value rst argument re raises exception 
+main loop re ensure socket client properly closed encounter error kind including bug code 
+runtime system automatically close les determined unused bene cial close early possible order free resources associated le 
+call talk enclosed catch combinator catch di ers standard io catch haskell referring exception catch ghc exception library catch io exception io io combinator performs rst argument exception raised passes second argument exception handler returns result 
+contrast catch speci es action performed exception raised speci es action executed 
+code uses catch catch errors log error log le describe section 
+protocol implementation serving request simple pipeline 
+read request socket 
+parse request 
+generate response 
+send response back client 
+connection kept alive return step 
+reading request socket performed handle io string takes le handle representing socket communication client place returns list strings single line request 
+typical request looks get index html host www haskell org date wed may gmt rst line gives command get case name object requested version protocol client 
+subsequent lines termed headers give additional information optional 
+server required ignore headers doesn understand 
+stage parse request request structure data request request config string response request note parsing request may return response indicates failure response cases bad request response may speci generate response data response response int string bool data integer size string config request io response performs number checks validity request generates appropriate response 
+valid get request result response invalid request result error response description automatically generated html describing error body body type purpose 
+common case response body consists entire le verbatim component response structure doesn contain entire le body string contains just path le 
+ecient methods sending le client simply converting contents string 
+nal step send response client config handle response io pulling top level talk function looks talk config handle io talk conf handle case left resp conf handle resp right req resp conf handle resp req resp req talk conf handle return reality extra code deal catching logging errors section timeouts section 
+call causes entry written log le describing transaction see section 
+timeouts web server needs form timeout mechanism clients hang take inordinately long time respond disconnected resources associated connection freed 
+basically need generic time combinator type timeout int timeout seconds io action run io action run timeout io application timeout behave follows run completes seconds passes 
+completes time timeout returns result immediately terminated exception executed 
+case timeout raises exception exception propagated timeout 
+timeout function side ects timeouts nested arbitrarily 
+asynchronous exceptions implement timeout combinator properties :10.1.1.26.1040
+note action terminated asynchronous exception time exception safe sure leave mutable data structures inconsistent state leak resources 
+fact code written exception safe exceptions stack ow heap ow delivered asynchronously 
+primitives useful writing exception safe code block io io unblock io io block executes asynchronous exceptions blocked thread wishing raise asynchronous exception current thread wait exceptions unblocked 
+similarly unblock unblocks asynchronous exceptions execution applications block unblock arbitrarily nested 
+example acquiring lock lock represented mvar lock released safely receive exception block unblock catch putmvar throw putmvar combinators described previous section bracket bracket io io io io helpful writing exception safe code 
+example simpler way writing locking sequence bracket takemvar putmvar 
+full story asynchronous exceptions haskell including implementation timeout combinator :10.1.1.26.1040
+logging web server normally produces log les listing requests certain information response sent server 
+entry log normally records time request received requestor address url requested response code success kind failure number bytes transfered time taken request complete client software type version referring url 
+format log entries con gurable may include elds request response 
+exist standard log entry formats produced popular servers software available processes log les produce reports 
+reason decided haskell web server able produce compatible logs 
+worker thread causes log entry recorded calling function request response io passing request response address client time di erence request received completion response 
+actual writing log entries le done separate thread 
+worker threads communicate logging thread global unbounded channel calling 
+logging thread removes items channel manufactures log entries written log le 
+placing logging separate thread idea reasons helps reduce total load system worker threads nish garbage collected log entry written 
+means thread serving multiple requests proceed immediately request waiting log entry rst request written 
+logging thread batch multiple requests write go ecient writing time 
+logging thread designed fault tolerant receives exception kind attempts restart re opening log le writing continuing log request 
+behaviour ab main loop needs restart logging thread receives request re read log le 
+error logging logging server errors handled similar way logging requests 
+separate thread writes log entries error log le log requests global channel 
+exception handlers scattered main request response handling code catch exceptions log informative message indicating error occurred passing exception handled top level 
+error logging thread restarts receives exception logs event log le 
+global variables description logging threads mentioned communication worker thread logging thread global channel 
+de ne global channel haskell 
+instance global mutable variables places web server 
+global mvar example declared global mvar mvar string global mvar unsafeperformio global variables convenient certain cases points bear mind unsafeperformio really unsafe program behaves di erently occurrences global mvar replaced values unsafeperformio 
+order happening circumvent optimisations compiler replace names values 
+ghc amounts adding pragma global mvar source code 
+care taken give type signature global variable declare global mutable variables polymorphically typed contents 
+type safety danger rule broken contents polymorphically typed variable extracted type 
+concurrent program important mvars just multiple threads may access variable ioref plain mutable variable mvar adds synchronisation 
+observe rules global mutable variables useful concept 
+global mutable variables web server places store command line options 
+program started mutable variable 
+store channels worker threads communicate logging threads 
+store logging threads main thread send exception restart 
+cleaner ecient alternative global variables implicit parameters 
+haven investigated route 
+run time con guration web server con gured editing text le similar way popular web servers 
+syntax con guration le similar apache 
+server starts parses con guration le errors immediately starts serving requests 
+interests high availability web server preferably run time con gurable 
+example new content placed server administrator needs inform server new content available nd 
+occasionally necessary change certain options tweak security settings running server 
+take server restart new con guration unsatisfactory site line restart 
+running server able re read con guration le interrupting operations 
+transactions progress 
+see new con guration immediately 
+server take approach new con guration take ect new connections existing connections allowed continue old settings 
+approach avoids number problems changing con guration settings request progress example security settings changed le transmitted longer available client requested transfer terminated 
+fact behaviour desirable solution restart server altogether security settings need change 
+implementing run time con guration updates haskell web server turned straightforward seen key functions inner pipeline take argument type config contains current con guration 
+con guration passed worker thread created con guration changes need ensure new threads receive new con guration 
+approach took send main thread exception re read con guration le 
+gives option having ways force con guration change signal unix operating systems 
+traditional way kick process re reading con guration le consists sending process signal command line 
+method implemented web server follows incoming signal causes new thread start immediately sends exception main thread 
+main thread catches signal re reads con guration le 
+implementing proprietary command administrator recon gure server line remotely 
+secure authorisation certainly needed method 
+type inter process communication provided host operating system 
+performance results section preliminary performance results haskell web server 
+performance initial implementation server remove larger performance bottlenecks 
+replaced naive le transfer code version directly array bytes 
+ghc library provides simple primitives doing 
+default ghc scheduler context switches times second 
+reduced reasonable times sec substantial di erence results 
+reason ghc scheduler currently select context switch determine bound threads woken 
+discussed section select reducing number times win system heavily loaded 
+tweaking garbage collection settings ect particular increasing allocation area size 
+ghc default increases request rate haskell web server connection latency results heap usage line program demands giving program memory outset usually win case 
+reading request turned expensive due inecient implementation ghc library 
+rewriting function improved performance 
+ghc library uses system ensure bu ers resources associated le descriptor freed program releases le handle 
+normally run thread turned expensive web server connections give rise handle socket le transfered 
+changed mechanism batch single thread garbage collection led small performance improvement 
+note optimisation le transfer code web server code rest ghc runtime system libraries 
+web server useful source insight performance bottlenecks ghc concurrency support 
+connection latency measurements httperf tool generating requests speci rate 
+primarily determining rate connection requests web server sustain performance starts drop test server machine pii running linux 
+client separate machine local mbit ethernet connection 
+total number requests sent test 
+requests le 
+timeout client set second 
+graph reply rate requests issued second 
+shows clearly server keeps client re quest rate rises rate server handle accumulating backlog requests second point performance begins decrease sharply 
+performance decrease dramatically 
+possible factors connections progress accumulate server behaviour select ghc scheduler comes play 
+number threads system increases cost garbage collection increases 
+garbage collection necessarily number live threads traverse active thread queues determine threads live 
+server doesn currently limit number connections progress fact rate connections sec number concurrent connections observed server test 
+setting limit number concurrent connections help atten graph drop point 
+hardware apache commonly web server software tops requests second drop sharp 
+reason shallower drop apache limits number active connections default incoming connections limit simply refused operating system 
+put gures perspective heavily loaded web servers net 
+www yahoo com take average hits second peaks probably hits second 
+sites collections identically con gured servers load balancing arrangement spread requests available machines 
+sites net performance turned haskell web server adequate plenty opportunities improvement haven really attempt optimise code server xing slow le transfer 
+primary result constructed web server haskell conforms standard lines haskell including library code resulting server performs realworld conditions 
+furthermore fault tolerant runs constant small amount memory long period time 
+order achieve number extensions haskell main ones concurrency exceptions 
+large amount library code part ghc library collection 
+libraries include networking library parsing combinator library html generation library posix interface library 
+fielding hypertext transfer protocol june 
+rfc 
+lewis shields meijer launchbury 
+implicit parameters dynamic scoping static types 
+th annual acm sigplan sigact symposium principles programming languages popl boston massachusetts january 
+marlow jones moran :10.1.1.26.1040
+asynchronous exceptions haskell 
+th international workshop high level concurrent languages montreal canada september 
+mosberger jin 
+httperf tool measuring web server performance 
+www hpl hp com personal david mosberger httperf html 
+research labs 
+peyton jones gordon finne 
+concurrent haskell 
+proc 
+popl pages st petersburg florida jan 
+acm press 
+peyton jones reid hoare marlow henderson 
+semantics imprecise exceptions 
+proc 
+pldi volume acm sigplan notices pages 
+acm press may 

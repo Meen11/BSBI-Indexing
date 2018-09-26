@@ -1,0 +1,363 @@
+api runtime code patching bryan buck jeffrey hollingsworth computer science department university maryland college park md usa buck cs umd edu post compiler program manipulation tool called dyninst provides class library program instrumentation 
+library possible instrument modify application programs execution 
+unique feature library permits machine independent binary instrumentation programs written 
+describe interface tool sees library 
+discuss simple tools built interface utility count number times function called program capture output running program file implementation conditional break points 
+conditional breakpoint example show interface compared gdb able execute program conditional breakpoints times faster 
+
+normal cycle developing program edit source code compile execute resulting binary 
+cycle restrictive 
+may wish change program executing re compile re link re execute program change binary 
+thought may bizarre goal practical reasons may wish system 
+example measuring performance program discover performance bottleneck necessary insert additional instrumentation program understand problem 
+application performance steering large simulations computational scientists find advantageous able modifications code data simulation executing 
+introduces application program interface api permit insertion code running program 
+api program attach running program create new bit code insert program 
+program modified able continue execution doesn need re compiled re linked re started 
+time modified program executes block code modified new code executed addition original code 
+api permits changing subroutine calls removing application program 
+runtime code changes useful support variety applications including debugging performance monitoring supporting composition applications existing packages 
+depending code augment existing program ancillary operations measuring application performance adding additional print statements alternatively alter semantics program changing subroutines executed manipulating application data structures 
+second type change useful performance steering debugging applications 
+api designed support uses 
+approach differs post compiler instrumentation tools eel atom etch permit code inserted binary starts execute :10.1.1.30.3772
+times specific code inserted may known runtime 
+user unsure type instrumentation require alternatives 
+include possible appear journal supercomputing applications high performance computing 
+instrumentation required 
+approach ensures correct information collected high cost distort mask relevant phenomenon measured 
+second insert minimum amount instrumentation absolutely required 
+key bit instrumentation omitted programmer forced re execute program enable code 
+short running programs re execution problem 
+long running applications large scientific simulations require hours days delay 
+addition applications database servers require long periods warm reach steady state 
+runtime instrumentation applications instrumented desired intervals 
+seek provide machine independent interface permit creation tools applications runtime code patching 
+traditionally post compiler instrumentation tools provided interfaces allow machine assembly language level code inserted 
+interface analogous machine independent intermediate representation instrumentation syntax tree 
+allows instrumentation code different platforms 
+example consider instrumentation code monitor behavior database system tracking commit abort operations 
+instrumentation code specific particular database system instrumentation machine independent machine architecture database system installed 
+key feature interface insertion alteration instrumentation running program 
+underlying possible dynamic instrumentation technology developed part paradyn parallel performance tools project 
+goal api keep interface small easy understand 
+time needs sufficiently expressive useful variety applications 
+way done providing set abstractions programs simple way specify code insert application 
+generate complex code extra initially un called subroutines linked application program calls subroutines inserted runtime interface 
+routines statically linked loaded runtime part dynamic library 
+api directly programmers primarily aimed tool builders 
+result interface code generation asts convenient tool builders somewhat clumsy hand construction 
+rest divided follows 
+section introduces basic abstractions provide 
+section describes key classes api 
+section provides overview api implemented 
+section introduces couple applications api illustrates advantages 
+section describes related section contains 
+
+abstractions api abstractions program state execution 
+primary abstractions points snippets 
+point location program instrumentation inserted 
+snippet representation bit executable code inserted program point 
+example wished record number times procedure invoked point instruction procedure snippets create statement increment counter 
+snippets include conditionals function calls loops 
+api designed single instrumentation process insert snippets multiple processes executing single machine 
+support multiple processes additional abstractions threads images included api 
+thread refers thread execution 
+depending programming model thread correspond normal process lightweight thread 
+images refer static representation program disk 
+images contain points code modified 
+thread associated exactly image 
+structure api implementation shown 
+processes call mutator application 
+left side shows code mutator process contains calls dyninst api 
+contains code implements runtime compiler utility routines manipulate application process shown rectangle labeled api 
+right half shows application process original code program shown top part 
+bottom parts application snippets inserted program runtime library supports dyninst api 
+additional details implementation works section 
+dyninst code mutator application mutator app api machine dependent code ptrace points int int bar snippets run time library abstractions api 
+api includes simple type system support integers strings floating point values 
+additionally support aggregate types including arrays structures provided 
+interface allows manipulation user defined types exist target application modified 
+way create new types interface specific tool built api create new types part runtime library loaded application 
+inherent part api manipulate processes need react events interest take place application process 
+types events occur application process events caused inserted code events occur result normal execution application process termination 
+provide uniform way handle events defined variety callbacks inform mutator events interest application 
+addition functions query event happened 
+
+interface section describe primary classes api explain relationship 
+main components interface 
+classes manipulate code execution 
+group includes bpatch class bpatch thread class 
+second classes accessing original program data structures 
+include bpatch image bpatch module bpatch function classes 
+third classes construct new code snippets insert 
+include bpatch snippet class bpatch point classes 
+bpatch class represents entire dyninst api library 
+instance class time 
+class perform functions obtain information specific particu lar thread image 
+define callback functions invoked specific application events 
+bpatch thread operates creates code execution 
+class manipulate thread 
+example thread may started stopped terminated methods class 
+addition thread class insert instrumentation code program 
+threaded applications interface represents single thread execution 
+implementation api ensures instrumentation code inserted specific thread multi threaded application code executed thread 
+non threaded code thread abstraction represents traditional process 
+bpatch image abstraction represents program executable 
+images exist part threads processes program disk load execution different dynamic libraries different modules available instrumentation 
+bpatch module represents program module part program executable image 
+modules provided unit program decomposition meaningful 
+generally module refers single source file original program 
+libraries especially dynamically loaded libraries module abstraction represent entire library 
+bpatch function represents function application 
+function useful level abstraction instrumentation methods get entry exit function instrumentation points 
+addition methods class determine subroutines called function loops code blocks function 
+bpatch point locations application code library insert instrumentation 
+points described symbolically entry point function descending function hierarchy loop providing virtual address program instrumenting specific statement instruction 
+bpatch type defines interface type system 
+types pre defined language types user defined types occur application program 
+type system allocate variables code snippets provide way mutator programs snippets access existing application variables 
+bpatch snippet representation code insert program 
+snippets defined creating new instance appropriate subclass snippet 
+example create snippet call function new instance class bpatch created 
+creating snippet result code inserted application 
+code generated request insert snippet specific point program 
+sub snippets may shared different snippets snippet may passed argument create different snippets generated code shared replicated snippets implementation dependent 
+details snippets subsection 
+code snippets section describe represent code generated 
+collection instances class bpatch snippet specific sub classes represent different types code inserted represent statements added application mutator 
+collection snippets forms direct cyclic graph 
+code defined calling appropriate constructors passing previously created sub snippets constructor 
+way ast created leaf nodes root 
+briefly describe types code snippets 
+bpatch derived snippet class 
+represents variable area memory thread address space 
+bpatch obtained bpatch thread malloc member function bpatch image member function 
+bpatch provides member functions provided types snippets 
+methods allow mutator program read write value variable application address space 
+bpatch operand statements code definitions 
+arithmetic expressions cover large class operations including variable assignment basic mathematical operations array 
+arithmetic operations supported predefined types 
+programs specify overloaded operators api user directly invoke operator function expression notation 
+addition standard unary operations negation pointer de available binary operators operator description bpatch assign assign value bpatch plus add bpatch minus subtract bpatch divide divide bpatch times multiply bpatch mod compute remainder dividing bpatch ref array form bpatch seq define sequence expressions similar comma bpatch min return smaller operands bpatch max return larger operands 
+bpatch expression snippets define set comparison operations variables 
+operations defined base types integer 
+bpatch operator overload functions called manually 
+operator function bpatch lt return bpatch eq return bpatch gt return bpatch le return bpatch ne return bpatch ge return bpatch return boolean bpatch return boolean bpatch provides simple form branching snippets goto expression 
+goto expression permits snippet branch back earlier part snippet 
+combining conditional statements construct loops 
+complex loops generally better write code function api patch call function 
+
+implementation section provide high level description process compile instrumentation code patch programs runtime 
+main focus high level abstractions bit information implementation useful understand expected performance runtime generated code 
+complete details implementation available pa pers :10.1.1.15.5992
+tricky details trying new code running programs key features api details tool builder 
+basic operations application process mutator process employ operating system services debuggers ptrace proc filesystem 
+services provide way control process execution read write address space application program 
+addition dynamic linked library contains utility functions large arrays loaded application instrumented 
+arrays dynamically allocating small regions memory 
+arrays instrumentation variables hold instrumentation code arrays managed heaps mutator process provide dynamically allocated storage runtime code generation 
+order generate code translate snippet machine language code memory mutator process copy array application address space 
+difficult part inserting instrumentation carefully modifying original code branch newly generated code 
+short sections code called trampolines 
+shows structure trampoline relationship instrumentation point 
+trampolines provide way get point wish insert instrumentation code newly generated code 
+replace instructions instrumentation point branch start base trampoline 
+base trampoline code branches mini trampoline 
+mini trampoline saves appropriate machine state registers condition codes contains code single snippet 
+snippet place code restore machine state branch back base trampoline 
+base trampoline executes instruction displaced original code 
+snippet inserted point executes function call return insert mini trampoline 
+multiple snippets inserted single point chained snippet branches start final snippet branches back trampoline 
+program base tramp mini tramp app function pre relocated instruction post save registers set args snippet restore registers foo inserting code running program 
+
+dyninst api provide insight api build tools provide description small amount sample code applications 
+application shows simple code snippet increment variable selected procedure invoked 
+second application demonstrates simple standalone utility built api 
+third example fast conditional break points shows api part larger tool correctness debugger 
+separate arrays platforms instructions data separate regions memory 
+api directly create programs possible somewhat tedious 
+anticipate users api tool builders create higher level languages specifying instrumentation 
+example mdl language provides simple metric scripting language suited specific task defining performance metrics 
+anticipate little languages built api specific purposes 
+procedure call counting illustrate ideas api short example inserts instrumentation target procedure count number times procedure called 
+trivial example useful illustrate key features api 
+example code tool shown 
+thing mutator program create single instance top level class called bpatch 
+object access functions information global library 
+line program 
+second mutator identifies application process modified 
+process execution done specifying executable file name process id application arguments create instance thread object 
+alternatively new process created call routine shown line 
+application thread created mutator defines snippet code inserted points inserted 
+example lines show call lookup handle entry point target procedure 
+return value list points procedures may cloned different locations program may overloaded 
+lines create new integer variable address space application 
+step creating new variable lookup type 
+handle type malloc method create instance type 
+line show process constructing simple increment integer variable 
+requires constructing integer constant expression addition expression assignment statement 
+line shows insertion increment statement desired point program 
+bpatch bpatch bpatch thread bpatch pathname argv bpatch image bpatch vector bpatch point points bpatch entry bpatch malloc int bpatch bpatch assign bpatch bpatch plus bpatch points code count number occurrences interesting procedure 
+example section show complete program demonstrate api 
+example program called call application works unix command tee passing output standard saving file tee command started application program begun execution 
+motivation started application program begun execution 
+motivation example program running program starts print amount output screen user wishes save output file having re run program 
+takes arguments pathname executable program process id running instance program file name 
+adds code running program copies named file output program writes standard output file descriptor 
+tool uses time code feature api force application open file logging 
+time code feature allows mutator invoke snippet control return mutator program 
+useful various types initialization code 
+code open file application shown 
+line looks handle function open 
+lines construct parameter list open call 
+parameter lines character string taken input command line argument application 
+snippet containing string inserted application string copied mutator application address space 
+second third parameters lines contain integer file mode protection bits 
+line contains statement constructs function call function name parameter list 
+lines create new variable type integer application address space 
+line constructs statement assigns return value open system call new variable created line 
+line uses shot code interface compile execute constructed snippet 
+bpatch function open bpatch vector bpatch snippet bpatch filename argv push back filename bpatch creat push back bpatch push back bpatch bpatch malloc int bpatch bpatch assign code open log file application 
+second part program inserts code entry point write function runtime library checks write system call file descriptor number standard output 
+call meets test additional call write function repeat write statement send output file previously opened 
+note instrumentation snippet recursively invoked check file descriptor equal fail second call problem infinite recursion 
+code generate insert snippet shown 
+line locates write system call application 
+lines generate parameter list function call write system call created file descriptor 
+parameter expression lines access buffer length parameters original call write 
+statement line creates function call 
+lines create relational expression check file descriptor zero generate statement call write system call conditional statement true 
+line inserts constructed snippet application program 
+bpatch function write bpatch vector bpatch snippet bpatch bpatch push back push back push back bpatch bpatch bpatch eq bpatch bpatch bpatch points code snippet instrument write system call 
+conditional breakpoints demonstration dyninst api wrote program controls application process debugger allows user set conditional breakpoints locations instrumented dyninst api 
+user add remove number breakpoints running application 
+conditional breakpoints expensive debuggers typically implemented code resides debugger application debugged 
+means debugger set unconditional breakpoint wait process 
+debugger system calls look address space application check condition automatically continues application condition met 
+demonstration program takes different approach 
+compiles condition breakpoint dyninst api code snippet bpatch snippet checks condition generates signal condition met 
+snippet inserted application location breakpoint desired member function bpatch thread 
+conditional breakpoints useful instance particular piece code called times execution program known suspected behave incorrectly certain conditions 
+examples include function called certain parameters program reaches certain point processing input 
+demonstration program written afternoon consists lines code plus lines lex specification lines yacc parse user supplied conditional expression 
+program totals lines code 
+checking condition done code patched application application allowed run intervention debugger breakpoint reached saving cost potentially context switches system calls 
+quantify degrade performance running application debugger ran applications tool gnu debugger 
+case measured performance conditional breakpoints inserted various locations 
+programs taken spec benchmark suite 
+compress unix compress program 
+li lisp interpreter 
+performed tests mhz ultrasparc running solaris 
+breakpoints dyninst gdb application operations ops sec time sec time sec compress li li compare li binary conditional breakpoint performance 
+results tests averaged runs shown 
+column shows application function breakpoint inserted 
+second column operations count number times breakpoint reached condition evaluated run ops sec column shows number times breakpoint condition evaluated second running tool 
+fourth column shows wall clock time required breakpoint condition true tool gdb time refers wall clock time gdb version 
+compress inserted breakpoint function output outputs code token representing string bytes 
+breakpoint stops execution program time output function called bit codes size codes program increases program processes input file 
+breakpoint useful instance program exhibiting bug code reaches certain size 
+began timing compress function 
+ouput function called result overhead gdb involved evaluating breakpoint extremely high seen fact took application times longer reach breakpoint final time 
+li inserted breakpoint functions compare binary 
+case breakpoint stops program function called certain parameter 
+results show program advantage gdb decreases frequency breakpoint condition evaluated decreases 
+breakpoint frequently called function tried binary running time gdb longer seen breakpoint 
+averaging results experiments gdb appears slow application approximately milliseconds longer dyninst api program time condition evaluated 
+applications api examples provide flavor types tools built dyninst api 
+projects underway making api 
+addition ones described projects world api early stage report 
+university maryland api implement online version critical path analysis parallel programs running smps 
+application instrumentation code track synchronization events shared memory program inserted demand api 
+maryland investigating dyninst part harmony project 
+harmony project looking runtime observations applications automatically tune programs selecting candidate configurations 
+runtime code patching change versions procedures libraries get called specific locations 
+similar dyninst interface eliminate redundant synchronization execution parallel program 
+exam ple rinard proposed compiling program multiple different binary versions selecting runtime performance observations 
+api provide mechanism type optimization 
+team ibm building family tools version api called 
+tools include dynamic trace logger tool gather statistics hardware performance monitors tool help understanding performance mpi message passing programs 
+
+related area research similar dyninst area binary editing tools 
+binary editing permits code inserted application binary compiled linked 
+tools useful avoid need recompile application program 
+require instrumentation code remain fixed lifetime execution program 
+advantage binary editing tools permit efficient code sequences generated able aggressively restructure program executing edited 
+eel etch differ approach programming interface level assembly language machine independent level 
+system designed runtime code generation 
+allows program define set statements language program call 
+approach bit different 
+lacks provision insert code arbitrary locations program requires application explicitly call runtime generated code 
+approach useful things partial evaluation types runtime optimization appropriate instrumentation debugging 
+common way insert instrumentation having compiler directly instrument program part compilation process 
+ae tool convex performance tools approach 
+advantage compiler inserted instrumentation instrumentation code fully optimized compiler 
+approach requires instrumentation code remain static duration application execution 
+addition course requires re compiling program 
+small programs re compilation problem 
+large application commercial systems re compilation time consuming source code may available 
+los alamos debugger form runtime code generation create fast conditional breakpoints 
+approach similar theirs provide machine independent framework possible write debugger portable way 
+
+summary simple api allow runtime generation patching application programs 
+briefly explained interface implemented 
+keeping abstractions machine independent level able create portable tools 
+addition showed simple applications demonstrate api types tools created potential performance improvements possible compared alternative approaches 
+implemented api intel sun sparc compaq alpha ibm power platforms 
+code freely available research evaluation purposes technology incorporated tool developed ibm 
+please see www cs umd edu projects download copy 
+
+members paradyn performance measurement tools project universities wisconsin maryland useful comments api implementation features collection different platforms 
+research supported part doe de fg er nsf awards asc asc 
+
+
+system performance evaluation cooperative capacity management review pp 
+
+
+brown application code instrumentation technology los alamos debugger los alamos national laboratory october 
+rinard dynamic feedback effective technique adaptive computing programming languages design implementation pldi 
+june las vegas nv pp 
+
+
+engler hsieh kaashoek language high level efficient machineindependent dynamic code generation popl rd acm sigplan sigact symposium principles programming 
+jan st petersburg beach fl pp 
+
+
+hansen brooks experience performance analyzer multithreaded application international conference supercomputing 
+june amsterdam pp 
+
+
+hollingsworth critical path profiling message passing shared memory programs ieee transactions parallel distributed computing pp 
+
+
+hollingsworth keleher prediction adaptation active harmony th international symposium high performance distributed computing 
+july chicago pp 
+
+
+hollingsworth miller dynamic program instrumentation scalable performance tools scalable high performance computing conf knoxville pp 
+
+
+hollingsworth miller goncalves xu zheng mdl language compiler dynamic program instrumentation international conference parallel architectures compilation techniques pact 
+nov san francisco pp 
+
+
+larus execution technique efficiently tracing programs software practice experience pp 
+
+
+larus schnarr eel machine independent executable editing pldi 
+june la jolla ca acm pp 
+
+
+miller callaghan hollingsworth paradyn parallel performance measurement tools ieee computer pp 
+
+
+dynamic probe class library tutorial guide ibm june www org projects ps 
+
+romer voelker lee wolman wong levy bershad instrumentation optimization win intel executables etch proceedings usenix windows nt workshop 
+aug seattle wa usa pp 
+
+
+srivastava eustace atom system building customized program analysis tools sigplan conference programming language design implementation 
+may orlando fl pp 
+
+

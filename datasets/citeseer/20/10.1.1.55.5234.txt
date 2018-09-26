@@ -1,0 +1,376 @@
+spring nucleus microkernel objects graham hamilton panos sun microsystems laboratories mountain view ca usa spring system distributed operating system supports distributed object oriented application framework 
+individual spring system microkernel known nucleus structured support fast cross address space object invocations 
+discusses design rationale nucleus ipc facilities fit spring programming model 
+describe internal structure nucleus organized support fast space calls including specific details performance information current implementation 
+
+currently considerable interest industry academia structuring operating systems sets cooperating services single monolithic programs 
+trend driven main motivations 
+belief easier faster develop modify os components required cleanly isolated 
+second desire blur line operating system components regular applications third party applications provide functionality naming paging thought part monolithic os 
+spring operating system distributed operating system focused developing strong interfaces os components treating os components replaceable substitutable parts 
+aid goals chosen represent system resources objects define system interfaces object oriented interface definition language 
+additionally os structured microkernel major system functions file systems pagers network software implemented application level services top microkernel 
+key problems microkernel systems providing sufficiently fast inter process communication ipc os suffer major performance loss split set different address spaces 
+spring interested developing ipc mechanism highly efficient meshed object oriented application programming model 
+describes reasoning ipc model describes nucleus microkernel structured provide extremely efficient cross address space object invocation 
+provide detailed performance analysis fast path call mechanism compare performance related 
+
+short overview spring spring currently exists fairly complete prototype 
+components os run kernel mode 
+virtual memory manager provides core facilities paged virtual memory khalidi nelson 
+microkernel proper known nucleus provides basic primitives domains spring analogue unix processes threads 
+functionality file systems naming paging provided user mode services top basic kernel 
+services provided dynamically loadable modules system boot time os final decisions modules loaded domains 
+typically debug core services boot debug switch services loaded separate domains 
+normal system start code cluster sets related services run domain 
+inter service interfaces defined interface definition language supports object oriented type system multiple inheritance system inherently distributed number caching techniques boost network performance key functions 
+system provides unix emulation support standard utilities vi csh window system khalidi nelson 
+
+related operating systems provide form message passing interprocess communication 
+examples include sockets berkeley unix leffler ports mach ports chorus rozier 
+possible provide procedural call return model message passing facilities fundamental model distinct threads reading messages writing replies 
+systems possible processes pass access rights communication endpoints controlled access resources 
+operating systems provide direct support procedural ipc 
+multics provided facilities called gates enabled secure procedural communication different protection rings process organick 
+variants taos system provided explicit cross address space procedure call facilities high performance bershad bershad 
+microsoft nt system cutler provides interesting ipc mechanism known event pairs specialized cross address space calls 
+pair threads different address spaces agree particular event pair communication threads act high performance server thread cross address space calls 
+
+spring ipc model 
+objects spring spring attempts avoid objects implemented 
+different applications able implement objects different ways 
+includes just implementation particular object methods implementation object machinery object marshalling object invocation 
+example objects required support cross domain calls 
+objects may chose support cross domain calls variety different mechanisms example shared memory addition ipc 
+objects provide different mechanisms cross domain calls intra domain calls 
+despite ocean flexibility clear certain commonly desired properties benefit specific os support 
+important property secure access services 
+want perform full scale authentication check client invokes protected object 
+want restrict access object certain set clients 
+client legitimately acquired access object client able pass access third parties able operate object 
+security requirement quickly led software capability model providing secure access specific objects 
+approach sim ilar cambridge fileserver birrell needham amoeba tanenbaum mach sansom 
+desire security secondary requirements 
+cross address space call occurs capability client server vulnerable incompetence 
+example require defined behaviour client server crashes 
+similarly able debug client server unduly disrupting 
+performance considerations 
+spring system heavy cross address space calls 
+require mechanism highly efficient particularly common cases number arguments results small 
+
+doors doors spring ipc mechanism resembling aspects gates mechanism multics organick cross address space call mechanisms taos bershad aspects communication endpoint notions sockets bsd unix leffler ports mach 
+design doors progressed stages 
+earliest designs primitive mechanism transferring control data different address spaces 
+domain create door designating particular entry point address space 
+domain passed door domain thread jump door causing arrive entry point 
+doors acted capabilities domain obtained access door pass access domains domains access door fabricate access 
+primitive notion doors appealing simplicity 
+original design suffered significant flaws major minor 
+minor flaw door specified pc entry point 
+dealing objects server support wide variety different objects granting different access different clients normally want able identify particular object door granted access 
+problem solved dynamically creating short sequences code needed act entry points objects 
+preferred solution avoided code run time 
+major flaw jump door implied return path 
+implementing system object oriented call return model normally want server able securely return callers 
+obvious solution caller pass return door argument door call 
+unfortunately order sidestep security issues caused malicious clients potentially issuing multiple returns needed fairly careful managed return doors possibly point needing create delete distinct return door distinct call 
+undesirable 
+extended notion doors reflect object oriented call return model 
+door represents entry point cross domain call 
+associated door entry point pc integer datum identify particular object target domain 
+domain granted access door threads may subsequently issue cross domain call door 
+causes transfer control domain created door pc specified door door datum specified register 
+nucleus executes door call records return information nucleus 
+return information consists caller domain pc return call stack pointer caller time issued call 
+call completed called domain execute door return 
+executing door return nucleus return information recorded call return callers address space recorded return pc recorded return stack pointer 
+door call arrives server address space server typically datum value locate target object execute object call 
+practice typically level indirection datum actual language level objects order permit dynamic interposition objects debugging performance analysis 
+
+door tables doors pieces protected nucleus state 
+domain table doors domain access 
+domain doors door identifiers mapped domain door table actual doors 
+door may referenced different door identifiers different domains 
+possession valid door identifier gives possessor right send invocation request door 
+valid door identifier obtained consent target domain consent door identifier door 
+far target domain concerned invocations door equivalent 
+aware invoker acquired appropriate door identifier 
+know invoker door identifier 
+
+counting feature doors mention 
+doors typically provide access application level objects files streams 
+servers interested knowing customers object go away safely destroy object free resources object server address space 
+sufficient clients issue explicit deletes objects cope client crashes difficult clients issue explicit deletes objects shared domains 
+provide simple counting mechanism doors 
+domain granted access door increment door count 
+domain loses access door voluntarily due domain crashing due door revoked decrement count door 
+count decremented nucleus notes deliver unreferenced call door 
+normal object manager retain door implements 
+nucleus keeps queue unreferenced doors domain prepared single nucleus thread domain process queue call domain deliver unreferenced call unreferenced doors 
+originally simply created threads deliver unreferenced call common large num door tables doors door identifiers client application 
+doors door tables client application server application server application kernel mode user mode user mode bers doors may unreferenced simultaneously example due client domain exiting having calls delivered parallel caused unnecessary resource crunch 
+avoid races incoming calls door door unreferenced nucleus increments door count sending call door decrements call returns 
+extremely reluctant add extra cost basic nucleus call return code scrutiny various race conditions unreferenced call arrive causing application discard object state just ahead legitimate incoming call tries state convinced needed solve problem provide satisfactory solution cheaply nucleus user land 
+domain implements door point revoke access door 
+invalidate access door cause unreferenced call delivered soon longer active calls door 
+
+spring thread model 
+threads spring multi threaded system wanted provide application programs ways examining manipulating threads 
+naturally threads represented nucleus objects accessible cross domain calls nucleus 
+issue cross domain call domain domain application software single thread spanning domains threads related call chain 
+obvious implementation represent chain cross domain calls single thread 
+nucleus really doing 
+problems 
+spring distributed system 
+network servers known proxies may forward cross domain calls remote machines 
+application level machines nuclei may involved single cross domain call chain 
+wanted represent cross domain call chain single thread fancy necessary keep different nuclei step 
+particularly interesting intermediate nuclei call chain crashes 
+see discussion failure semantics section 
+secondly security integrity issues mean want limit ways domains manipulate 
+say user domain foo issues call file server domain 
+debugger attached foo attempt threads foo perfectly reasonable desire want call executing file server stopped call may middle important updates affect domains system 
+wanted limit effects thread control operations particular domain 
+debugger stops thread domain called domain affect thread behaviour 
+call continue executing returns stopped 
+chose adopt model application visible thread object describes thread domain 
+cross domain call chain consists series application visible threads 
+access thread objects restricted application program running behalf user normally get access manipulate threads domains belonging user term shuttle refer true nucleus schedulable entity supports chain application visible threads 
+execute cross domain call change apparent application visible thread retain nucleus shuttle contains real state schedulable entity 
+see 
+server threads service incoming call domain needs certain resources available notably stack minutiae region thread local storage reception buffer incoming arguments originally hoped entirely user level having incoming call allocate necessary resources resource pool managed user level 
+approach proved fairly cumbersome 
+calls arrive simultaneously needed degree synchronization resource allocation 
+resource pool empty incoming calls want wait resources available try allocate 
+doing having stack rapidly tedious 
+decided wanted incoming call arrive target domain valid stack pointer 
+desirable incoming calls immediately associated application visible thread objects debugged controlled 
+arranged spring applications explicitly create pools application level threads service incoming requests 
+threads referred server threads 
+creating server thread creating domain specify stack pointer value memory area incoming arguments 
+nucleus create application visible thread object describe new server thread allocate internal thread descriptor nucleus associate domain 
+delivering cross domain call nucleus attempts allocate server thread target domain 
+succeeds delivers data buffer associated server thread leaps target domain previously registered stack pointer value stack pointer register 
+nucleus userlevel thread libraries away key values pointer thread private storage area domain domain domain thread thread thread shuttle user view nucleus view 
+domains threads stack values create full language level environment higher level object pointed datum value 
+things little interesting server threads available process call delivered 
+considered couple alternatives 
+simply return caller error code 
+fairly undesirable normally caller want recover may temporary overload server 
+alternatively suspend calling thread nucleus server thread available 
+partial solution provide facility 
+concerned danger deadlock domains waiting call domain complete 
+provided mechanism domain find run server threads wishes create 
+done providing operation domain object thread call block domain runs server threads 
+practice standard application libraries initially avoid creating server threads merely create thread watch shortfall create threads application specifiable limit needed 
+
+failure semantics executing cross domain call prepared cope caller called domain crashing 
+event called domain crashing nucleus simply treats involuntary return active incoming calls forces calls return error code 
+crashes caller domains interesting 
+clearly don want affect currently executing call may middle important activity 
+arrange call return nucleus true caller remove crashed domain system 
+called domain may executing lengthy activity behalf caller may sleeping resource queue tty input queue intention eventually removing resource returning caller 
+provide non intrusive way called domain optionally detect client gone away abort action performing 
+chosen alert mechanism similar provided taos system birrell 
+briefly associated thread single bit specifying thread alerted 
+thread sleeps specify sleep exception alerted 
+thread poll alerted status explicitly set clear 
+default thread may simply decide ignore alerts 
+spring thread alerted propagate alert forward call chain thread called subsequent threads 
+includes propagating alert network necessary 
+nucleus terminates domain alerts threads domain propagate alert called threads 
+convention server thread sees alert interpret mild suggestion earlier call chain circumstances changed wise return home clarification new orders 
+crashes middle call chains particularly interesting see 
+call occurs immediately transmit alert threads crash threads crash 
+wait call chain attempts return crashed domain engineer error return preceding domain 
+mean indeterminate delay preceding domain notified call failed decided avoid 
+crash occurs middle call chain immediately split call chain separate chains creating new shuttle handle call chain crash 
+new shuttle immediate error return 
+old shuttle handling call chain crash redirected return nucleus crashed domain 
+
+details door invocation currently support different flavours door invocation door returns 
+flavour known fast path supports case door arguments simple data values total bytes 
+practice dominant case calls replies spring see section performance extremely important 
+second flavour known vanilla path supports case kbytes data moderate number doors passed arguments results 
+case data copied nucleus 
+third flavour known bulk path supports case sending entire pages data results 
+case nucleus vm remapping transmit data 
+bulk path supports transmission essentially unlimited numbers doors 
+application level door invocation mechanisms fact built higher levels software 
+level mechanism known transport provides general purpose marshalling mechanism storing retrieving argument data arbitrary size 
+second level consists stubs build top transport level 
+stubs automatically generated interface definition language 
+provide interface remote method operations perform mechanics marshalling argument data transports 
+currently marshalling machinery general purpose targeted support moderate amounts data leading relatively large overhead small calls 
+application level code sees interface stubs plan start generating special stubs small calls bypass general transport machinery leap directly nucleus fast path mechanism 
+
+fast path nucleus fast path call sequence currently roughly sparc sparc instructions nucleus return fast path roughly nucleus instructions permitting complete cross domain call roughly nucleus instructions 
+practice certain number user level instructions 
+caller instructions unavoidable save subsequently restore various pieces user state pointer thread private memory return frame pointer nucleus saves absolute minimal state 
+similarly callee instructions unavoidable establish appropriate environment higher level language programming indirect application level object 
+fast path call fast path return attempt deal normal case resources available domain unusual happening stopped debugging domain domain domain 
+crash middle call chain process terminated 
+compressed couple flag tests call return 
+problems fast path code generates call vanilla path code handle full call return 
+
+fast path sparc clearly details fast path code vary machine architecture machine architecture 
+sparc main considerations managing hardware register window set 
+keep cross domain calls cheap want flush active register windows memory carried call 
+hand security integrity reasons wanted avoid letting target call access register windows belonging client 
+fortunately sparc architecture provides window invalid mask wim allows kernel prevent user mode accessing register windows 
+cross domain call merely mask access caller windows 
+take window overflows write windows caller memory windows available called domain 
+little care required return sequence ensure wim cleared correctly caller fact returning correct window 
+table contains description sparc nucleus instructions required cross domain call return 
+actual performance cross domain path sensitive cache hits misses 
+verify understanding code obtained full cycle cycle trace hardware monitor sparcstation 
+showed real surprises 
+minor exceptions cpu time fairly evenly smeared different activities 
+sparcstation trap entry trap return sequences fairly cheap cycles roughly cache actual instruction switching hardware vm context slightly expensive cycles constitutes small percentage cycle count 
+main non obvious cost saving return information writing new thread domain information saturate cpu write buffer causing stalls store instructions earlier writes flushed 
+expect possible obtain similar instruction counts modern risc cpus 
+main cost switching mmu context happens fairly low sparc 
+
+sparc sparc architecture sparc bit extension bit sparc architecture 
+fully compatible sparc user mode instructions number significant changes table 
+instruction breakdown sparc fast path call return total register windows switching thread domain getting target info counting target door saving restoring return info switching vm context total mode architecture 
+part sparc design consideration done accelerate cross domain calls 
+fortunately unfortunately answer comparatively little 
+cross domain call code benefit general purpose improvements privileged architecture appear support nested traps addition alternate set global registers trap handlers 
+changes specifically motivated cross domain calls changes register window management model easier windows belonging different address spaces register window file simultaneously 
+basically involved replacing mask register small set counter registers convenient manipulate adding additional trap vectors different flavors window overflows underflows 
+short adding specific cisc cross domain call instructions option quickly rejected identify changes particularly benefit cross domain calls 
+cross domain call code simple regular risc instructions 
+
+vanilla path vanilla path cases take full trap nucleus copy argument data target domain move argument doors 
+code fairly straightforward received special tuning 
+
+bulk path bulk path transfer large quantities page aligned data source domain destination domain 
+thread source domain traps kernel bulk call bulk return trap 
+thread passes arguments registers pointer descriptors area number descriptors area 
+descriptor specifies indirect data block passed destination domain 
+indirect data block page aligned region address space source domain 
+ways pass indirect data block bulk path pages address space source domain mapping address space destination domain mapping pages domains write semantics 
+nucleus uses virtual memory services khalidi nelson satisfy calls go bulk path 
+bulk path added extension basic cross domain call mechanism 
+currently libraries provide illusion practically unlimited number bytes door identifiers transferred kernel 
+
+performance 
+arguments size mentioned earlier belief cases cross domain transfer copy bytes door identifiers 
+transfers follow optimized fast call return paths 
+addition expected common cases object invocation follow fast call return path 
+assumptions structure interfaces researchers bershad 
+early results show assumptions correct 
+current implementation spring measured classified number cross address space control transfers calls returns cases boot basic spring services medium sized program start desktop 
+results tables 
+table shows percentage calls returns passed various quantities data 
+majority calls returns involved bytes data 
+addition approximately calls returns passed kernel door identifiers 
+early results show bulk control transfers involve bytes doors consequently worthwhile optimize cases nucleus ipc mechanism 
+table 
+number calls observed spring system different loads 
+thousands cases ssh start boot spring total fast calls vanilla calls total table 
+number returns observed spring system different loads 
+thousands cases ssh start boot spring total fast returns vanilla returns total table 
+distribution number bytes passed call return combined load 
+number bytes passed percentage calls percentage returns bytes bytes bytes bytes bytes 
+performance small calls table shows costs minimal cross address space calls number systems including taos lrpc bershad mach draves nt cutler 
+times bare calls uniprocessors exclude stubs higher level software costs 
+benchmark machines vary considerably raw cpu performance provide raw times times scaled cpu speed 
+lack numbers exact machines taos nt benchmarks numbers product systems cpu chips 
+os performance necessarily scale linearly raw cpu speed ousterhout anderson scaled numbers regarded extremely approximate guide relative performance 
+
+performance discussion traditional ipc systems berkeley sockets major costs cost making scheduling dispatching decisions 
+typically thread issued request go sleep os kernel careful objective decision thread run 
+little luck thread execute request 
+thread run completion call wake caller thread put sleep 
+os kernel careful scholarly scheduling decision hopefully run caller thread 
+second cost performing context switch calling address space called address space 
+worst involve full save cpu registers including floating point registers stack switch restoration cpu state 
+third cost moving argument result data caller callee 
+traditional kernels tend buffer management schemes optimized passing moderately large amounts data 
+microkernel ipc systems pushed back costs 
+assuming rpc call return model possible perform direct transfer control caller callee threads bypassing scheduler 
+direct transfer possible avoid full costs context switch save minimal information necessary rpc return 
+exploiting fact argument sets small large passed shared memory possible avoid buffer management costs 
+different systems vary degree succeeded minimizing costs 
+example taos lrpc system modelled cross domain call single thread execution crossed address spaces avoiding dispatching scheduling costs 
+mach nt model callee threads table 
+minimal cross address space call times 
+raw time spec scaled time berkeley sockets sparcstation taos lrpc firefly mach mk decstation nt event pairs mhz spring cross domain call sparcstation autonomous threads simply happen waiting cross process call 
+leads certain amount dispatcher activity cross process call return occurs 
+spring nucleus attempted minimize costs 
+nucleus dispatcher works terms change cross domain calls 
+scheduling dispatching costs cross domain call 
+absolutely minimal amount cpu state saved basically return program counter stack pointer 
+attempt save current register window set attempt switch different kernel stack 
+fast path optimized case arguments passed registers shared memory nucleus need concern buffering arguments results 
+addition fast path code executed directly low level trap handlers avoids normal system call costs 
+mundane factor ipc performance nucleus data structures tailored optimize performance cross domain calls 
+example cross domain call need check target door identifier valid 
+simple mask indirect load performed 
+target door identifier invalid get pointer special nucleus door entry point returns error code 
+similarly effort concentrate number flags fast path call return code need test single thread anomalous flag 
+prepared ignore security debugging issues probably shave microseconds fast path time 
+example pay instructions prevent callee thread tampering register windows belonging caller thread 
+similarly call return prepared cope threads stopped debugging 
+desired semantics believe fairly close minimum time required cross domain call 
+
+provided high performance cross address space communication facility doors efficiently supports object oriented communication required spring operating system 
+
+acknowledgments marcel janssens obtaining low level timing measurements described section khalidi implementing spring vm support bulk path data transfers 
+
+baron bolosky golub rashid tevanian young 
+mach new kernel foundation unix development 
+summer usenix conference atlanta 
+anderson anderson levy bershad lazowska 
+interaction architecture operating system design 
+proceedings fourth international conference architectural support programming languages operating systems santa clara california april 
+bershad bershad anderson lazowska levy 
+lightweight remote procedure call 
+acm transactions computer systems february 
+bershad bershad anderson lazowska levy 
+user level interprocess communication shared memory multiprocessors 
+acm transactions computer systems may 
+birrell needham birrell needham 
+universal file server 
+ieee transactions software engineering september 
+birrell birrell guttag horning levin 
+synchronization primitives multiprocessor formal specification 
+proceedings th acm symposium operating systems principles austin texas november 
+cutler cutler 
+nt 
+presentation usenix workshop micro kernels kernel architectures seattle april 
+draves draves bershad rashid dean 
+continuations implement thread management communication operating systems 
+proceedings th acm symposium operating systems principles pacific grove california october 
+khalidi nelson khalidi nelson 
+spring virtual memory system 
+sun microsystems tr march 
+khalidi nelson khalidi nelson 
+implementation unix object oriented operating system 
+proceedings winter usenix conference san diego january 
+leffler leffler mckusick karels 
+design implementation bsd unix operating system 
+addison wesley 
+organick organick 
+multics system examination structure 
+mit press cambridge massachusetts 
+ousterhout ousterhout 
+aren operating systems getting faster fast hardware 
+proceedings summer usenix conference anaheim june 
+rozier rozier armand kaiser leonard 
+overview chorus distributed operating system 
+proceedings usenix workshop micro kernels kernel architectures seattle april 
+sansom sansom rashid 
+extending capability system network environment 
+sigcomm symposium communications architectures protocols stowe vermont august 
+sparc sparc international 
+sparc architecture manual version 
+prentice hall 
+sparc sparc international 
+sparc architecture version 
+
+tanenbaum tanenbaum mullender van renesse 
+sparse capabilities distributed operating system 
+proceedings th ieee international conference distributed computing systems cambridge massachusetts may 

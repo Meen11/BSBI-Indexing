@@ -1,0 +1,558 @@
+highly concurrent shared storage khalil amiri garth gibson richard golding carnegie mellon university pittsburgh pa hewlett packard laboratories palo alto ca khalil amiri garth gibson cs cmu edu golding hpl hp com 
+shared storage arrays enable thousands storage devices shared directly accessed hosts switched system area networks promising databases filesystems highly scalable reliable storage 
+systems hosts perform access tasks read write management tasks migration reconstruction data failed devices 
+task translates multiple phases low level device os concurrent host tasks span multiple shared devices access overlapping ranges potentially leading inconsistencies redundancy codes data read hosts 
+highly scalable concurrency control recovery protocols required coordinate line storage management access tasks 
+expressing storage level tasks acid transactions ensures proper concurrency control recovery approach imposes high performance overhead results replication exploit available knowledge storage level tasks 
+identify tasks storage controllers perform propose approach allows tasks composed basic operations call base storage transactions bsts correctness requires serializability bsts parent tasks 
+furthermore show atomicity required bsts 
+recovery specialized semantics task 
+having established serializability bsts core concurrency control requirement propose distributed protocols exploit technology trends bst properties hide latency common case 
+show protocols traditional centralized alternatives percent slower ideal zero overhead protocol 
+
+motivation traditional subsystems raid arrays centralized component coordinate access stor age system includes multiple storage devices shown 
+single component con storage storage controller receives application read write requests coordinates applications see appearance single shared disk 
+addition performing storage access behalf clients storage controller performs management functions migrating storage devices balance load utilize newly added devices lee changing striping redundancy scheme better match workload wilkes 
+major limitations today subsystems limited scalability due shared controllers data pass typically server raid controller raid controller device 
+emerging shared network attached storage arrays enhancing scalability eliminating shared controllers enabling direct host access potentially thousands storage devices gibson lee mass cost effective switched networks boden storage servers network app app hosts servers psc system storage hosts server area network sc app app devices network psc storage parallel app app storage controller psc controller 
+illustrations conventional storage system host requests serialized single storage controller shared storage array shared network attached storage devices directly accessed hosts implicitly transforming low level host software parallel storage controller 
+horst 
+systems host acts storage controller behalf applications running achieving scalable storage access bandwidths gibson 
+unfortunately shared storage arrays shown lack central point affect coordination 
+data striped devices stored redundantly single logical operation initiated application may involve sending requests devices 
+proper concurrency control provisions taken os interleaved hosts see inconsistent data corrupt redundancy codes 
+consistencies occur application processes running hosts participating application level concurrency control protocol 
+storage systems transparently impose relationships data store 
+example consider hosts cluster shown timeline 
+host writing separate block blocks happen raid stripe updating parity block 
+hosts pre read parity block compute new parity 
+hosts write data independent blocks overwrite parity block reflects host update 
+final state parity unit cumulative xor data blocks 
+subsequent failure data disk say device lead reconstruction reflect data value written device 
+general races occur concurrent host accesses concurrent accesses management operations migration reconstruction 
+scalable storage access management crucial today storage marketplace golding 
+current storage systems management operations done manually system line assume centralized implementation wilkes assume simple redundancy scheme lee 
+paramount importance storage system throughput availability practice leads employment plethora ad hoc management techniques contributing annual storage management costs times purchase cost storage golding 
+address challenges building scalable distributed storage management system enables high concurrency access management tasks ensuring correctness 
+particular characterize tasks storage controllers perform break tasks sets basic phased operations call basic storage transactions bsts show correctness requires ensuring serializability component bsts parent tasks 
+distributed concurrency control protocols exploit technology trends device functionality bst properties provide serializability bsts high scalability coming percent performance ideal zero overhead protocol protocol performs concurrency control provides correctness guarantees 
+show limited form atomicity atomicity required bsts 
+recovery protocols exploit knowledge operation semantics achieve level atomicity low overhead 
+new data host device device device parity host ta xa yo xo tb yb data parity data parity rest organized follows 
+section describes detail kind tasks carried storage layer storage controllers 
+section show tasks composed bsts 
+show serializability bsts ensures correctness parent tasks 
+section distributed concurrency control protocols specialized bsts 
+compare performance centralized variants zero overhead protocol 
+discuss recovery protocols bsts section conclude section 
+yb parity data data yb parity yb 
+sketch raid small write 
+data parity read phase new data compute new parity 
+timeline showing concurrent small writes concurrency control provisions 
+initially data units device device contain respectively parity unit xor 
+host updating device host updating device need update parity read version parity host writes parity overwriting parity write leaving parity inconsistent 
+hosts involved application level concurrency control protocol aware storage level association introduced raid level parity 
+anticipate races storage management tasks performed storage controllers 
+
+distributed storage management storage controllers perform access read write tasks storage management tasks 
+storage management tasks include migrating storage balance load utilize new devices lee adapting stor age representation access pattern wilkes backup reconstruction data failed devices 
+data availability paramount importance growing number organizations access tasks performed parallel management tasks 
+furthermore overhead controlling con currency tasks minimal maximize application throughput 
+storage subsystems raid fault tolerance 
+review raid basics describing system model detail 
+
+raid background large collections storage commonly employ redundant codes transparent applications simple common device failures tolerated invoking expensive tape higher level failure disaster recovery mechanisms 
+example raid level parity redundancy code computed group data blocks stored separate parity device 
+allows system tolerate single self identifying device failure recovering data failed device data blocks group redundant code patt 
+block parity protects set data units called parity unit 
+set data units corresponding parity unit called parity stripe 
+focus rest raid level case study evaluation architecture 
+
+system description shows kind system concerns 
+shared storage system composed multiple disks hosts connected scalable network fabric 
+devices store uniquely named blocks act independently 
+host acts storage controller applications 
+controller func tion implemented software operating system device drivers delegated network card 
+hosts perform exactly operations divided access tasks management tasks 
+access tasks reads writes operations 
+management tasks reconstruction storage representation migration reconstruct migrate operations respectively 
+high level task mapped low level requests contiguous physical blocks single device 
+depending striping redundancy policy storage device failed may break different low level form computation may needed computing parity 
+refer low level device requests part high level task siblings 
+tasks addressed virtual objects may files volumes 
+blocks virtual object mapped physical block ranges physical storage devices 
+representation virtual object described stripe map specifying object mapped redundancy scheme object accessed read written 
+stripe maps cached storage controllers enable carry access tasks 
+controller performs access tasks behalf applications running 
+management functions occasionally change contents stripe maps coherence stripe maps cached hosts ensured leases 
+leases obtained storage controller acquires copy map virtual object manager 
+storage controller distinguished manager virtual object serves map object controls coherence cached leases 
+map valid lease expires callback received 
+callbacks notify hosts changes storage layout migration instance 
+storage controller perform access tasks virtual object manager virtual object decide migrate reconstruct 
+virtual object map changes manager responsible invalidating leases held storage controllers 
+
+storage access management bsts access storage management tasks performed storage controllers reconstruct migrate denoted bold font 
+tasks invoke bsts fault free write large write shown denoted italic font 
+bsts map phases requests denoted bold font 
+
+example stripe map raid kb 
+virtual object mapped blocks devices redundancy scheme raid stripe unit size kb 
+stripe map specifies bst read write virtual object case respectively 
+map 
+desired properties bsts mode fault free large write reconstruct write read modify write read 
+bsts fault free mode raid level 
+stripe shown simplicity 
+block bi resides device invokes write bsts invokes read bst 
+arrow directed device represents arrow originating device represents 
+operation represents bitwise xor 
+host write operations fault free mode handled ways depending number units updated 
+cases update mechanisms designed guarantee property write completes parity unit holds cumulative xor corresponding data units 
+case large write bst data units stripe updated parity computed host xor data units data parity blocks written parallel 
+half data units stripe updated reconstruct write bst invoked 
+half data units stripe updated read modify write bst 
+case prior contents data units updated read xored new data written 
+produces map bit positions need toggled parity unit 
+changes applied parity unit reading old contents xoring previously generated map writing result back parity unit 
+motivated concurrency controlled preserve data consistency shared devices accessed multiple hosts 
+solution express access management task transaction gray traditionally provides acid atomicity consistency isolation ity properties gray 
+standard transaction implementation techniques locking logging ensure isolation atomicity tasks 
+approach highly undesirable requires unnecessary performance space overhead 
+specific tasks supported general transactions system designer full priori knowledge semantics 
+allows optimizations specific operations 
+example need logging ensure atomicity migrating blocks original location new location 
+case data available original location write new location complete due failure 
+loc second high level applications databases file systems provide mechanisms high level atomicity gray mohan face kinds failures transaction failures user abort system failures loss volatile memory contents media storage device failures 
+atomicity granularity database transaction file system update typically spans storage tasks 
+high level mechanisms built require limited atomicity semantics provided today disk drives provide atomicity granularity single sector write 
+applying acid transactions storage access management tasks expensive results replication doing acceptable 
+argue bsts need provide durability isolation limited form atomicity 
+notions specific meaning storage level transactions isolation 
+desire execution bsts serializable equivalent serial execution single bst active time 
+show providing guarantee simplifies higher levels ensures consistency redundancy codes preserved 
+data parity update atomicity 
+argued desire atomicity multi block write virtual object 
+desire redundancy codes consistent replicas synch 
+property ensured event host power failures restart failure higher level applications resubmit turn invoke write bsts 
+write bsts assume redundancy codes correct start bst 
+note property require full application processed 
+portion data write processed time failure effect visible redundant code mirror copy parity block 
+durability 
+data written bsts completed persists switching back older data 
+
+storage management bsts virtual objects potentially large reconstruction migration tasks take considerable time 
+allowing accesses proceed concurrently crucial storage system avail ability 
+difficult management tasks change physical mapping vir tual object migrating blocks reconstructing new device 
+complicated fact large number hosts may actively writing object 
+approach treat object modes fault free degraded reconstruction migration 
+fault free degraded modes access modes access tasks allowed reconstruction migration modes management modes management access tasks allowed 
+enable high concurrency access management tasks management mode require bsts invoked access tasks aware new old physical mappings 
+reconstruct task performed reconstruction mode 
+migrate task performed migration mode 
+illustrates different modes transitions 
+virtual objects usually fault free mode degraded mode 
+modes access tasks carried 
+manager interested performing migration reconstruction task switches object access mode management mode 
+possible modes virtual object 
+virtual object starts fault free mode 
+device stores part object fails object switches degraded mode 
+manager object decides start reconstructing data stored failed device new replacement device object switches reconstruction mode 
+manager interested migrating object new location switches migration mode 
+mode data copied new location 
+copy done object switched back fault free mode 
+object switches modes stripe map access object changed 
+object manager issues callbacks storage controllers invalidate cached maps 
+storage controllers new map manager specifies new locations access methods 
+shown device failures occur degraded reconstruction resulting data loss 
+proper mode migration reconstruction allocating fresh unused space storage devices data migrated reconstructed 
+management task completes object transitions back access mode 
+discuss bsts mode detail 
+
+fault free mode fault free mode tasks carried invoking fault free read bst 
+tasks performed invoking bsts large write reconstruct write read modify write depending data stripe updated 
+management tasks performed mode 
+operating fault free mode clear inspection application single bst leaves parity consistent 
+serializable execution bsts pre serve parity consistency 
+reconstruction replacement device allocated data rebuilt device failure fault free new device allocated degraded migration done device failure migration 
+degraded mode degraded mode tasks carried degraded read fault free read trans action depending failed disk read 
+tasks performed stripe map mode degraded failed loc reconstruct write read modify write degraded read 
+bsts invoked degraded mode 
+reconstruct write bst invoked failed disk updated 
+case data units updated read xored new data compute new parity 
+new parity unit written essentially reflecting data update failed device 
+failed device updated read modify write bst invoked 
+failed device needs read degraded read bst 
+stripe map invoking degraded mode bsts degraded write read modify write depending failed disk written 
+depicts examples degraded mode bsts 
+management tasks allowed mode 
+degraded mode clear applying bsts time results consistent updates reads 
+ensuring serializability transactions sufficient ensure correctness 
+mode recon failed degraded read 
+reconstruction mode reconstruction mode tasks ongoing parallel reconstruct task 
+depicts bsts mode 
+object new disk declared replacement object 
+tasks carried degraded read fault free read bst depending failed disk read 
+case read bsts original array ignore replacement object altogether 
+read modify write replacement write rebuild range tasks bsts update parity degraded array addition update replacement object 
+writes update parity reads see latest data written failed device reflected parity block 
+achieve tasks replacement write bst illustrated 
+mode reconstruct tasks ongoing parallel access tasks rebuild range bst 
+rebuild range reads surviving data parity blocks stripe computes contents failed data block writes replacement disk 
+fact multiple concurrent rebuild range bsts different ranges execute parallel 
+reconstruct task done replacement disk reflect data failed disk parity consistent data stripe 
+newloc 
+bsts invoked reconstruction mode 
+shows stripe blocks 
+block resides failed device 
+block allocated replacement block 
+degraded read bst invoked task failed device accessed 
+read modify write bst invoked task failed device updated 
+failed device updated replacement write bst invoked degraded write additionally writes replacement block 
+rebuild range bst invoked reconstruct task reconstruct data failed device write replacement 
+blocks rebuilt fault free mode 
+reconstruction mode may straightforward see serializability read modify write replacement write rebuild range bsts sufficient ensure consistent data correct reconstruction 
+intuition proof 
+consider old location virtual object 
+disks degraded array ignoring replacement disk 
+easy see serial application degraded read read modify write bsts writes update failed device replacement write bst result consistent parity correct reads 
+note replacement write simply degraded write addition writes replacement device 
+replacement write data reflected parity degraded array replacement device 
+rebuild range bst update degraded array interfere old stripe 
+rebuild range bst reads blocks degraded array writes data replacement disk 
+rebuild range serialized ongoing writes unnecessarily recompute rewrite data block value replacement disk synch degraded array 
+
+migration mode simplify exposition assume non redundant virtual object shown 
+mode stripe map virtual object specifies old new physical locations old physical blocks source devices new physical blocks target devices object migrated 
+tasks update old new physical locations invoking multi write bst 
+point migration target physical blocks empty written syn contain contents associated source physical blocks 
+tasks invoke read bst reads physical blocks old locations 
+read bst access target physical blocks may empty copied 
+migrate stripe map mode migration newloc multi write write old new read read old copy copy 
+bsts invoked migration mode 
+mode virtual object associated maps source old map physical blocks destination new map blocks 
+goal copy source blocks target locations 
+tasks invoke multi write bst writes source destination locations 
+migrate task invokes copy bst copies blocks source destination locations 
+task ongoing parallel copy bst 
+easily generalized redundant scheme having write perform bst source target blocks mirroring entire bst 
+
+concurrency control base storage transactions goal rest arrive protocols ensuring serializability bsts ensuring satisfactory recovery failures 
+approach introduce low overhead transparent protocols host storage controllers exploiting simple device support avoid changing applications written single controller storage systems 
+connectivity system area networks enables thousands storage devices hosts clustered shared array desire protocols scale large sizes 
+furthermore protocols free deadlocks 
+new functions required storage device simple clear devices manufactured independent vendors complex systems implemented diverse organizations fragile 
+concurrency control protocols section recovery protocols section 
+centralized protocols traditionally employed practice server locking callback locking optimized distributed protocols device served locking timestamp ordering 
+show optimized protocols benefit specialization bst properties technology trends 
+evaluate performance relative ideal performance zero overhead protocol performs concurrency control 
+baseline simulation parameters system size devices hosts raid level stripe width data parity stripe units device 
+host workload random think time normally distributed mean ms variance ms reads host access address uniformly random access size uniformly varies stripe units 
+service times disk service time random normally distributed mean positioning ms variance ms byte transfer 
+network bandwidth mbytes sec random overhead ms 
+mean host lock server message processing request service time microseconds 
+table 
+baseline simulation parameters 
+host data striped devices raid level layout devices parity group 
+host access sizes exercise possible fault free mode bsts 
+samples data point taken run took seconds 
+
+evaluation environment implemented protocols full detail simulation pantheon simulator system wilkes 
+simulate cluster system consisting hosts disks connected network 
+table shows baseline parameters experiments 
+protocols simulated detail ser vice times hosts controllers links storage devices derived simple distributions observed behavior pentium class servers communicating scsi disks fast switched local area network 
+host clocks allowed drift practical milliseconds real time mills 
+compared performance protocols variety syn generated workloads environmental conditions 
+baseline workload represents kind sharing characteristic oltp workloads cluster applications databases file servers load dynamically balanced hosts servers cluster resulting limited locality random accesses 
+baseline system applies moderate high load storage devices yielding sustained utilization 
+report performance protocols fault free mode representative general performance 
+
+centralized locking protocols approaches traditionally achieve serializability locking optimistic times ordering 
+locking widely practice 
+particular locking variant widely practice phase locking 
+phase locking background 
+locks shared data items enforce serial order execu tion 
+locking preferred solution resources limited overhead lock acquisition release low 
+significant concurrency achieved phase locking gray programming discipline locks may acquired time lock released certain locks needed 
+phase locking susceptible deadlocks processors holding locks long reduce concurrency 
+deadlock prevention detection resolution scheme employed conjunction phase locking 
+storage systems common locking implementations server locking callback locking 
+server locking 
+scheme centralized lock server provides locking low level storage block ranges 
+bst executing host acquires exclusive case shared case lock set target ranges sending lock message lock server 
+host may latency msec total throughput ops sec issue low level requests devices 
+requests bst complete host sends unlock message lock server 
+lock unlock message bst protocol trivially phase serializable 
+locks acquired single message latency minimized deadlocks avoided 
+lock server queues host lock request outstanding lock block requested range 
+conflicting locks released response returned host 
+server locking introduces potential bottleneck server delays issuing requests low level requests round trip messaging lock server 
+callback locking 
+popular variant server locking delays unlock message effectively caching lock host hope host generate access block near able avoid sending lock message server lamb carey 
+host requests lock lock server conflicts lock cached host server con host holding conflicting lock callback message asking relinquish cached lock server lock new owner 
+common optimization callback locking locks automatically expire lease period callback messaging reduced 
+implemen tation uses lease period seconds 
+server locking callback zero overhead protocol centralized locking performance 
+highlights scalability limitation server locking protocols 
+plots host latency protocols total offered throughput varying number contention disk accessed latency msec server locking callback zero overhead protocol 
+scaling server callback locking 
+bottom line represents zero overhead protocol 
+centralized locking schemes bottleneck delivering half maximum achievable throughput 
+applied load increased increasing number active hosts system saturation starting hosts 
+baseline workload hosts corresponds fourth point left hand graph 
+right hand graph shows effect contention baseline workload latency decreasing fraction disk targeted host accesses 
+graph shows high contention callback locking little benefit sever locking 
+callback locking reduces latencies half moderate high contention random access workload baseline workload reads shared locks cached multiple hosts 
+hosts contention varying disk addressed 
+protocols bottleneck tially delivering full throughput system attainable zero overhead proto col performs concurrency control provides consistency guarantees 
+occurs server cpu handling network messaging processing lock unlock requests usec message send receive 
+callback locking reduces lock server load lock sition latencies locks commonly reused host multiple times different host requests conflicting lock 
+extreme host requests locks private data inter acts lock server lease expires 
+extreme lock host called back conflicting 
+induce number messages simple server locking 
+lock acquisition latency worse read lock shared large number hosts need called back 
+show baseline workload callback locking reduces latency relative simple locking larger zero overhead protocol 
+benefit locality workload contains little dominance read traffic allows concurrent cached read locks hosts write 
+benefits possible workload locality false sharing independent accesses share parity block limits potential benefits locality 
+
+parallel lock servers scalability bottleneck centralized locking protocols avoided distributing locking multiple parallel lock servers 
+summary baseline performance server locking callback locking locks timestamp ordering mean latency msec throughput ops sec average number messages bsts delayed blocked retried peak device throughput 
+summary performance various protocols baseline configuration hosts devices 
+table shows mean host latency throughput average number messages fraction operation delayed blocked retried protocol 
+distributed protocols device served locking timestamp ordering approximate ideal performance zero overhead protocol 
+performance distributed protocols reflects piggy backing overwrite optimizations discussed sections 
+bst bst bst lr lr lr wu wu wu locks partitioned multiple lock servers static dynamic scheme hosts directly send parallel lock requests appropriate servers 
+deadlocks arise host attempts acquire locks managed multiple independent servers 
+avoided locks acquired time specific order implies lock requests sent lock servers sequence request sent previous reply received parallel increasing latency lock hold time substantially 
+alternatively deadlocks detected request time outs 
+lock request serviced lock server time negative response returned host 
+timed host bst releases acquired locks retries acquiring locks 
+parallel lock servers single lock server bottleneck problem benefit comes cost messaging usually longer pre latency 
+induces longer lock hold times increasing window time potential conflict compared unloaded single lock server resulting higher probabilities conflict 
+specialized implementation scheme section 
+wu wu wu 
+device served locking lr lr lr bst bst bst read modify write large write read requirement number parallel lock servers opportunity increasing storage device intelligence investigated embedding lock servers devices 
+device served locking reduce cost scalable serializable storage array eliminating need dedicated lock server hardware decrease latency total number messages exploiting phase nature bsts piggy back lock messaging requests 
+device served locks device serves locks blocks stored 
+enhances scalability balancing lock load devices 
+parallel lock server scheme simple device served locking 
+faster lock servers built low latency networks hardware specialized transport protocols symmetric multiprocessor machines 
+simply increases maximum attainable throughput eliminate scalability limitation 
+
+implementation bsts locking piggy backing optimization 
+node represents message exchange device 
+node includes lock operation node includes unlock operation lr represent lock operation wu stands unlock 
+edges represent control dependencies 
+node represents synchronization point host host blocks preceding operations complete restarting fail 
+lock operations fail device times lock 
+increases amount messaging pre latency 
+example single phase writes lock phase added preceding writes bundle lock write requests non serializability 
+lock unlock messaging eliminated piggy backing messages requests shown 
+single phase reads lock acquisition piggy backed reads reducing pre latency separate unlock phase required 
+fortunately second phase latency hidden application data received 
+phase writes locks acquired phase piggy backing lock requests requests released second phase piggy backing unlock messages requests totally hiding latency messaging cost locking 
+require host issue locks acquired order keep recovery simple may issue 
+restarting bst lock acquisition phase require undoing writes data written 
+device supported parallel locking sufficient eliminate need leased callback locks phase writes latency overhead associated locking overhead unlocking single phase reads observable 
+single phase writes benefit lock caching 
+increase complexity durable device state comes callback locking see pragmatic value avoiding callbacks device served locking 
+device served locking effective centralized locking schemes shown summary table 
+baseline workload achieves latencies larger minimal peak throughput equal maximum 
+despite scalability device served locking disadvantages uses messages centralized locking protocols shown summary table performance vulnerabilities high contention due susceptibility deadlocks 
+configuring critical time outs overlooked disadvantage schemes device served locking suffer timeouts normal code path 
+graphs behavior protocols increasing contention induce limiting fraction storage addressed hosts 
+hosts access active disk space disk queues start grow increased lock hold times occur deadlock recovery common 
+note deadlocks may uncommon second order effects cause large number requests queued blocked deadlocked requests time outs unlock effected data deadlocks involve multiple requests multiple devices time outs cause bst restarts necessary ensure progress 
+results messaging load network wasting device resources excess message request processing 
+
+timestamp ordering timestamp ordering protocols attractive mechanism distributed concurrency control storage devices place overhead reads susceptible deadlocks 
+timestamp ordering background 
+timestamp ordering protocols select priori order execution form timestamps enforce order bern 
+implementations verify times transactions execute read write accesses database optimistic variants delay checks commit time adya 
+simplest timestamp ordering approach transaction tagged unique timestamp time starts 
+order verify reads writes proceeding timestamp order storage tags fraction ops delayed contention disk accessed server locking callback locking device served locks timestamp ordering 
+performance protocols high contention 
+hosts conflicting active portion disk device served locking suffers disk queues latency growing bound due timeout induced restarts 
+handle read opts opts wts return reject opts min pts put request queue min rts min opts min rts rts max rts opts true return committed value block pair timestamps rts wts correspond largest timestamp transaction read wrote block respectively 
+basically read transaction timestamp opts block accepted opts wts immediately rejected 
+write accepted opts wts opts rts 
+access rejected parent transaction aborted restarted new larger timestamp 
+handle pre write opts opts rts return reject opts wts return reject min pts min opts min pts put request queue return accept 
+pseudo code basic timestamp ordering showing actions taken logical storage receipt read left pre write center write request right 
+opts represents timestamp transaction making request 
+min rts represents smallest timestamp queued read block min pts represents smallest timestamp queued pre write write processed corresponding pre write removed service queue 
+increase min pts resulting reads serviced 
+similarly read processed removed service queue min rts increase resulting write requests eligible service 
+read processed flag set causes storage inspect queue see writes serviced 
+similarly write processed flag set queued reads inspected service 
+inspection queue requests serviced dequeued possibly leading computing new values min rts min pts 
+order avoid cascading aborts abort transaction causes rippling abort reads allowed read blocks written active uncommitted transactions 
+fact active transaction wants update block submits apre write storage declaring intention write updating data 
+storage accepts pre write opts wts opts rts 
+active transaction commits write issued submitted pre write 
+new value updated visible readers 
+transaction issued pre write may abort case pre writes discarded appropriate blocked requests unblocked 
+pseudo algorithms timestamp ordering shown 
+timestamp ordering bsts 
+described timestamp ordering works having hosts indepen dently determine total order transactions serialized providing information order form timestamp request devices maintaining tags queues outlined enforce ordering 
+requests tagged explicit order processed device deadlocks occur allowed schedules serializable 
+order requests rejected causing parent transaction bst aborted retried higher timestamp 
+handle write opts new value opts min rts put request queue write new value store wts max wts opts true restart rp rp rp general case device performing local check write request may pass check devices bst may abort due failed checks devices 
+simple structure bsts splitting write protocol pre write phase followed write phase ensures host device decisions issuing write allowing avoid complex expensive undo disk writes 
+cluster hosts share loosely synchronized clock 
+new timestamps generated host sampling local clock appending host unique identifier significant bits clock value 
+restart phase write single phase write single phase read example consider read modify write bst employs piggy backing optimization reasonable complexity 
+protocol reads data parity phase uses data new data compute new parity updates data parity 
+host bst execution starts locally generating new timestamp opts sends low level read requests data parity devices tagging request opts bundling request pre write request 
+device receiving read pre write request performs necessary timestamp checks read pre write accepting request checks succeed opts rts opts wts 
+accepted request queued minpts outstanding pre write lower timestamp data returned host rts updated rts 
+host received requested data accepted read pre write requests computes new parity sends new data parity low level write requests tagged opts 
+devices guaranteed acceptance pre write update wts discard corresponding pre write request queue possibly increasing min pts 
+request queue inspected see read read pre write requests completed 
+normal circumstances read modify write task induce overhead just piggy backed device locking reads arriving writing bsts progress rare 
+
+composition host operations optimized timestamp ordering protocol 
+pre write requests denoted nodes respectively 
+rp denotes read request 
+node represents synchronization barrier host host blocks preceding operations complete restarting fail 
+pre writes reads may rejected device pass timestamp checks 
+phase write pre write requests piggy backed reads 
+reads phase writes minimal amount messaging 
+single phase writes require round messages requests issue 
+latency msec discuss optimizations basic timestamp ordering protocol lend efficient implementation 
+optimizations implemented simulation results reflect effects 
+total throughput ops sec server locking callback device served locks timestamp ordering zero overhead protocol minimizing buffering overhead 
+protocol induce high buffering overhead storage device high overwrite concurrent read activity overlapping ranges 
+stor age device accepted multiple pre writes block corresponding writes received order writes buffered applied order satisfy intermediate reads 
+approach apply writes soon arrive modern disk drives limited memory 
+result unnecessary reads may rejected 
+readers theoretically starve protocol persistent stream writes 
+advantage immediate write processing storage devices exploit ability stream data high data rates disk surface 
+avoiding timestamp accesses 
+protocol requires pair timestamps rts wts associated disk block durable read disk operation written disk operation 
+naive implementation store timestamps disk nearby associated data 
+result extra disk access reading block update block rts extra disk access writing block read block previous wts 
+doubling number disk accesses consistent high performance goal 
+clocks loosely synchronized message delivery latency bounded device need accept request timestamped value smaller current time 
+block timestamp information older seconds value discarded value current time minus 
+device messages operation read fraction server locking callback device served locks timestamp ordering zero overhead protocol 
+scalability timestamp ordering compared locking variants left effect workload write read composition messaging overhead various protocols right 
+read intensive workloads timestamp ordering comes close zero overhead protocol 
+messaging overhead increases fraction writes increases 
+performs amount messaging range workloads 
+ing crash power cycle simply wait time clock synchronized accepting requests record initial synchronized time reject requests earlier timestamps 
+timestamps need volatile storage record seconds activity 
+loosely synchronized clocks concurrency control efficient timestamp management suggested thor client server object oriented database management system adya 
+performance timestamped ordering 
+addition highly scalable illustrated advantage timestamp ordering uses smallest amount messaging compared protocols 
+messaging overhead reads piggy backing optimization applied eliminate messaging overhead associated read modify write bsts 
+
+blocking retry behavior protocols bsts attempt access conflicting range succeeding bsts delayed directly lock indirectly suffering abort retry 
+probability delay depends level contention workload fixed workload concurrency control protocol environmental factors network reordering messages result different delay behavior different protocols 
+shown fraction bsts delayed highest call back locking largest window vulnerability conflict lock hold time 
+dis tributed device protocols better callback locking server locking exploit piggy backing lock ordering requests os avoiding latency communicating lock server starting shortening window vulnerability conflict 
+device protocols potentially sensitive message arrival skew 
+skew cause deadlocks restarts device served locks rejections retries timestamp ordering sibling requests serviced different order different devices 
+investigate effect message skew delay latency behavior protocols conducted experiment varied degree reordering performed network measured effect delay latency 
+message latency modeled uniformly distributed random variable window size extending ws milliseconds 
+larger window size implies highly variable message latencies leads higher probability order message arrival 
+graphs latency fraction bsts delayed ws 
+timestamp ordering device locking sensitive message skew effect host latency noticeable 
+fraction ops delayed high message variability fact plagues centralized locking variants perform pre messaging 
+
+recovery base storage transactions shared storage arrays ensure data parity update atomicity event disk host power failure 
+case manager identify bsts failed complete data process updated ensure data addressed bsts data parity update atomicity enforced 
+ensure data correctly transformed today storage systems responsibility databases filesystems robust applications 
+
+disk failures message latency window msec server locking callback device served locks timestamp ordering simplest case disk failure 
+disk fails bsts progress notified abort continue depending began write court 
+read synchronize write nature bsts abort write involves releasing locks cancelling pre writes 
+write disk write failed disk skipped treated succeeded just disk failed 
+failing bsts complete virtual object enters degraded mode manager allocate replacement resources 
+manager initiates reconstruction invokes rebuild range bsts restore lost data 
+latency msec message latency window msec server locking callback device served locks timestamp ordering zero overhead protocol 
+effect variability network message latencies fraction operation delayed retried left host latency right various protocols 
+message latency varied uniformly ms maximum window size 
+graphs plot latency fraction operations delayed versus size variability window size 
+note left hand graph axis plotted log scale 
+
+host power failures host power failures complex approach needed knowing bsts incomplete harder small fraction object range need recovery 
+approach avoids identifying failed bsts altogether declares data suspect failure 
+course prohibitively expensive 
+traditional technique detecting transaction started complete write ahead logging 
+bsts want additional delay induced write ahead logging piggy back log messages bsts actions commit doing 
+write ahead log record quite compact contains description bst type bst target range addresses image blocks 
+server callback locking required locks granted server persist failures bst write ahead logging piggy backed lock acquisitions lock releases 
+lock servers achieve durable recording logs nvram power fail primary secondary replication machine failure 
+device served locks timestamp ordering operations piggy back write ahead logs device locks pre writes 
+nvram needed coping power failure synchronous disk writes lock pre write expensive 
+disk failure simple host recovery described 
+identifying bst accessing virtual object failed manager object enters object recovery mode ensure data parity update atomicity fault free mode 
+fault free mode suspect ranges identified data parity update atomic ity effectively recomputing parity block stripe data blocks 
+mode devices operational rebuild range bst recompute parity block 
+degraded reconstruction modes 
+modes data disks failed accessible 
+way ensure data parity blocks stripe updated atomically logging 
+consequently bsts invoked task modes atomic 
+image blocks updated bst logged atomicity enforced 
+case write bst image blocks available storage controller write phase 
+atomicity ensured sending image blocks manager virtual object write phase begins 
+manager writes blocks log stable storage enforce atomicity blocks log case failure 
+rebuild range bst invoked reconstruct task need atomic recovery performed simply bst rebuild range writes replacement object update degraded array 
+migration mode 
+migration mode bst invoked access task migrate task 
+bsts invoked tasks recovery carried described fault free mode 
+case copy bst invoked migrate task recovery simply enacted re issuing copy bst 
+
+shared storage arrays enable thousands storage devices shared directly accessed hosts switched system area networks 
+systems concurrent host tasks lead inconsistencies redundancy codes data read hosts 
+propose novel approach construct ing scalable distributed storage management system enables high concurrency access management tasks ensuring correctness 
+approach breaks storage access manage ment tasks performed storage controllers phased operations bsts correctness requires ensuring serializability component bsts parent tasks 
+distributed protocols exploit technology trends bst properties provide serializability bsts high scalability coming percent performance ideal zero overhead protocol 
+protocols distribute concurrency control endpoints hosts accesses originate devices stored data resides avoiding bottlenecks 
+show atomicity required bsts recovery protocols bsts exploit knowledge operation semantics reduce recovery overhead substantially 
+adya adya gruber liskov maheshwari efficient optimistic concurrency control loosely synchronized clocks proceeding sigmod international conference management data may 
+benner fibre channel gigabit communications computer networks mcgraw hill new york 
+bern bernstein goodman timestamp algorithms concurrency control distributed database systems proceedings th international conference large databases october 
+elnozahy morgan highly available network file server proceedings usenix winter conference pp 
+
+boden boden myrinet gigabit second local area network ieee micro feb 
+carey carey franklin fine grained sharing page server oodbms proceedings acm sigmod minneapolis mn may 
+court ii gibson holland zelenka structured approach redundant disk array implementation proceedings sept 
+eswaran gray lorie traiger notions consistency predicate locks database systems communications acm vol 
+november pp 
+
+gibson gibson cost effective high bandwidth storage architecture proceedings acm asplos october 
+golding golding shriver sullivan wilkes attribute managed storage workshop modeling specification san antonio texas october 
+gray gray lorie traiger granularity locks degrees consistency shared database ibm research report rj september 
+gray gray reuter 
+transaction processing concepts techniques 
+morgan kaufmann san mateo ca 
+reuter principles transaction oriented database recovery acm computing surveys vol 
+pp 
+
+holland gibson architectures algorithms line failure recovery redundant disk arrays journal distributed parallel databases vol 
+pp 
+july 
+horst horst reliable system area network ieee micro feb 
+howard kazar menees nichols satyanarayanan sidebotham west scale performance distributed file system acm transactions computer systems vol 
+pp 
+february 
+kung kung robinson optimistic methods concurrency control acm transactions database systems vol 
+june 
+lamb lamb landis orenstein weinreb objectstore database system cacm vol 
+october 
+lee lee thekkath petal distributed virtual disks proceedings seventh asplos october 
+mass changing storage subsystems computer technology review jan 
+mills mills network time protocol specification implementation darpa internet report rfc darpa july 
+mohan mohan lindsay pirahesh schwarz aries transaction recovery method supporting fine granularity locking partial rollbacks write ahead logging acm transactions database systems vol 
+pp 
+
+papadimitriou serializability concurrent updates journal acm vol 
+october pp 
+
+patt patterson gibson katz case redundant arrays inexpensive disks proc 
+acm sig mod june 
+seagate technology cheetah industry leading performance demanding applications seagate com 
+wilkes wilkes golding staelin sullivan hp autoraid hierarchical storage system acm transactions computer systems vol 
+february pp 
+

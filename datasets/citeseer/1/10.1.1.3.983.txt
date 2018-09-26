@@ -1,0 +1,367 @@
+performance consistent wide area database replication yair amir michal amir jonathan stanton technical report cnds www cnds jhu edu december th design generic consistent replication architecture enables transparent database replication optimizations tradeo chosen design 
+demonstrate practicality approach building prototype replicates postgresql database system 
+provide experimental results consistent wide area database replication 
+claim optimized synchronization engine key building practical synchronous replication system wide area network settings 
+internet applications large number users geographically dispersed may routinely query update database 
+environment centralized database exposed significant risks performance degradation due high server load 
+data loss risk due server crashes 
+high latency queries issued remote clients 
+availability issues due lack network connectivity server downtime 
+apparent solution problems consistently replicate database server set peer servers 
+system queries answered servers additional communication order system remain consistent transactions update database need disseminated synchronized replicas 
+obviously transactions system updates replicated system trades performance availability fault tolerance 
+replicating database local cluster cost relatively low solution successfully addresses problems 
+response computer science department johns hopkins university baltimore md usa 
+email cnds jhu edu spread concepts llc email michal com computer science department george washington university washington dc usa 
+email edu time availability due network connectivity remain valid concerns clients scattered wide area network cluster limited single location 
+furthermore local cluster provide fault tolerance presence catastrophic failures may ect entire location 
+wide area database replication coupled mechanism direct clients best available server network server wise greatly enhance response time availability 
+wide area network settings cost synchronizing updates peer replicas maintaining global system consistency magnified high network latency increased likelihood network partitions 
+contribution introduce optimized architecture consistent replication local widearea networks 
+architecture provides peer replication replicas serve master databases accept updates queries 
+supported failure model includes network partitions merges computer crashes recoveries message omissions handled system 
+replication system employed black box replicate database system modifying database transparently significant number applications 
+investigate limitations imposed design show adapted alleviate limits provide cient synchronous replication tightly integrated specific database system adapted needs specific applications 
+furthermore argue transparent replication architecture avoids complex tailoring specific application database system facilitates interoperability di erent database systems 
+validate architecture design developed prototype system replicates postgresql database system 
+prototype uses spread group communication toolkit replication algorithm :10.1.1.16.3690
+prototype able replicate seamlessly existing applications standards jdbc odbc 
+evaluate architecture performance local area wide area network settings investigating impact latency disk operation cost query versus update mix replication performance 
+results help identifying update synchronization algorithm bottleneck synchronous replicated system 
+knowledge results show consistent database replication practical wide area network settings able maintain throughput su cient large number modern applications 
+show high latency inherent obstacle achieving wide area transaction throughput similar achieved local area clusters 
+remainder organized follows section surveys related 
+section describes proposed transparent synchronous replication architecture section details main components discusses design optimizations tradeo section evaluate performance system 
+section concludes 
+related despite ine ciency lack scalability phase commit protocols remain principal technique commercial database systems provide synchronous peer replication 
+terms consistent replication synchronous replication interchangeably reflect nomenclature distributed database communities respectively 
+accessible copies algorithms maintain approximate view connected servers called virtual partition 
+data item read written virtual partition virtual partition approximation current connected component contains majority read write votes 
+case data item considered accessible read write operations done collecting sub quorums current component 
+maintenance virtual partitions greatly complicates algorithm view change requires servers execute protocol agree new view recover date item state 
+view decisions membership connected servers changes update requires acknowledgments entire quorum 
+state art commercial database systems provide level database replication 
+cases solutions highly tuned specific environment settings require lot ort setup maintenance 
+oracle supports asynchronous synchronous replication 
+requires level application decision conflict resolution requires replicas system available able function making impractical 
+informix sybase db support asynchronous replication ultimately relies application conflict resolution 
+open source database community database systems emerged leaders mysql postgresql 
+default systems provide limited master slave replication capabilities 
+projects exist provide advanced replication methods postgresql postgres replicator uses trigger store forward asynchronous replication method 
+evolved approaches postgres project combines open source expertise academic research 
+postgres implements algorithms designed kemme alonso postgresql database manager order provide synchronous replication 
+current version uses spread underlying group communication system focuses integrating method version postgresql system 
+existing implementation provides master slave replication 
+authors demonstrate practicality synchronous database replication local area network environment network partitions occur 
+approach tightly integrated database system uses group communication order totally order write sets transaction establish order locks acquired avoid deadlocks 
+contrast method algorithm requires multicast messages total order multicast generic multicast transaction :10.1.1.16.3690
+method allows concurrent execution transactions site allowed local concurrency manager transactions may aborted due conflicts 
+presents performance results postgresql replicated database prototype postgres 
+authors examine methods provide online reconfiguration replicated database system order cope network partitions server crashes recoveries 
+authors approach replication problem targeted local area clusters supporting network partitions merges server recoveries 
+solution tightly integrated database completely transparent requires application provide conflict class information order allow concurrent processing non conflicting transactions 
+similar transaction encapsulated message multicast sites :10.1.1.16.3690:10.1.1.16.3690
+transaction executed master site conflict class optimistic delivery order 
+commit message containing write set transaction issued optimistic order conflict final total order 
+applied replicas total order 
+presents enhanced online reconfiguration technique algorithms described allows parallel recovery nodes 
+algorithm primary component membership model nodes primary component progress nodes separated primary component considered failed rejoin primary component 
+contrast solution allows multiple components progress exchanging information applying updates commit order determined 
+methods take advantage primitives ered modern group communication systems 
+various solutions di erent degree exploit group communication properties 
+argue optimal usage group communication primitives lead significant performance improvements synchronization algorithm improvements turn build practical synchronous database replication solution local wide area networks 
+research protocols support group communication wide area networks internet begun expand 
+new group communication protocols designed wide area networks proposed continue provide traditional strong semantic properties reliability ordering membership 
+group communication systems aware currently exist available provide extended virtual synchrony semantics horus ensemble spread 
+transparent synchronous replication architecture architecture provides transparent peer replication supporting diverse application semantics 
+core system synchronization algorithm introduced :10.1.1.16.3690
+peer replication symmetric approach replicas guaranteed invoke set actions order 
+approach requires state database determined current state action guarantees replicas reach database state 
+section generic term action refer non interactive deterministic multi operation database transaction state database execution new action defined exclusively state database execution action action 
+database transaction multi operation sql transaction packed action replication engine 
+model user abort transactions submitted system initiation 
+transactions assumed deterministic abort operation transaction boundaries executed replicas dictated database state transaction time execution 
+section discuss architecture augmented support generic transaction types 
+sections refer read transactions queries non read transactions contain update operations referred updates 
+architecture structured layers replication server group communication toolkit 
+replication servers maintains private copy database 
+client application requests action replication servers 
+replication servers agree order actions performed replicated database 
+soon replication server knows final order action applies action database execute commit 
+replication server initiated action returns database reply client application 
+replication servers group communication toolkit disseminate actions servers group group communication replication server application send receive multicast deliver request apply reply network db group communication replication server application safe order messages membership persistent order actions db unreliable packets group communication replication server application send receive multicast deliver request apply reply network db group communication replication server application safe order messages membership persistent order actions db unreliable packets synchronous database replication architecture help reach agreement final global order set actions 
+typical scenario application submits request replication server server logically multicasts message containing action group communication 
+local group communication toolkit sends message network 
+currently connected group communication daemons eventually receives message delivers message order replication servers 
+group communication toolkit provides multicast membership services extended virtual synchrony model 
+particularly interested safe delivery property model 
+delivering message safe delivery requires group communication toolkit determine total order message know daemon membership message 
+careful safe delivery extended virtual synchrony allows eliminate acknowledgments action basis 
+long membership change takes place system eventually reaches consistency 
+state synchronization needed membership change takes place 
+moving application level group communication level provides fundamental performance increase synchronization points determined exclusively speed network adding extra overhead application synchronization extra ipc writes disk 
+furthermore aggregating group communication layer additionally increases ciency phase 
+chose spread supporting group communication system 
+group communication toolkit overcomes message omission faults notifies replication server changes membership currently connected servers 
+notifications correspond server crashes recoveries network partitions re merges 
+notified membership change group communication layer replication servers exchange information actions sent membership change 
+exchange information ensures action known member currently connected servers known 
+knowledge final order actions shared currently connected servers 
+consequence exchange completed state database connected servers identical 
+cost synchronization amounts message exchange connected servers plus retransmission updates connected server connected server 
+course site disconnected extended period time cient transfer current snapshot 
+spread replication engine semantics optimizer postgres interceptor postgres postgres replication server spread replication engine semantics optimizer postgres interceptor replication engine semantics optimizer postgres interceptor postgres postgres replication server transparent postgresql replication architecture consistency system presence network partitions server crashes recoveries guaranteed quorum system uniquely identifies connected components primary component system 
+examples quorum systems include majority dynamic linear voting 
+updates continue committed primary component components continue remain active answer queries consistently 
+advanced replication systems support peer peer environment address possibility conflicts di erent replicas 
+architecture eliminates problem conflicts updates invoked order replicas 
+course basic form model excludes possibility concurrently executing updates replica 
+restriction inherent completely generic solution assume knowledge application semantics rely application resolve potential conflicts 
+latency throughput system updates obviously highly dependent performance group communication safe delivery service 
+dedicate subsection explaining optimizations implemented safe delivery mechanism spread toolkit 
+queries sent network answered immediately local database 
+important property architecture achieves transparency allows replicating database modifying existing database manager applications accessing database 
+architecture require extending database api implemented directly database part standard database access layer odbc jdbc 
+presents non replicated database system postgresql database manager 
+presents building blocks implementation replicating postgresql database system 
+building blocks include replication server spread group communication toolkit 
+database clients see system aware replication access database replication server 
+similarly instance database manager sees local replication server client 
+replication server consists independent modules provide database integration consistency services 
+include replication engine includes replication logic synchronizer algorithm applied database application 
+engine maintains consistent state recover wide range network server failures 
+replication engine algorithm 
+semantics optimizer decide replicate transactions apply application semantics specified actual content transaction replica primary component 
+database specific interceptor interfaces replication engine dbms clientserver protocol 
+proof concept replicate postgresql created postgresql specific interceptor 
+existing applications transparently interceptor layer provide interface identical postgresql interface postgresql database server sees interceptor regular client 
+database need modified applications 
+similar interceptor created databases 
+design details considerations scalable safe delivery wide area networks architecture reliability algorithms spread toolkit provide basic services reliable fifo total order safe delivery 
+architecture requires high performance implementation safe delivery service wide area networks developed previous 
+spread uses level hierarchy set daemons provide networking services client applications 
+spread daemons organized sites site represents daemons connected local area network 
+site chooses representative responsible forwarding messages sites 
+delivering message safe delivery requires group communication toolkit determine total order message know daemon membership message delivering application 
+property called message stability traditionally implemented group communication systems garbage collection purposes usually optimized 
+straightforward way achieve message stability require daemons immediately acknowledge safe message 
+sent daemons reaching possible destinations original safe message time network diameter leads message latency twice network diameter 
+algorithm obviously scalable 
+system sites message requires broadcast leading times control messages data messages 
+approach avoids problem aggregating information cumulative 
+minimizing bandwidth costs cause extremely high latency safe messages undesirable 
+approach permits tuning tradeo bandwidth message latency 
+structure referred aru update received follows originating certain site site sequence sequence number message originated daemon site forwarded order sites spread may forward messages order sites optimize performance 
+number guarantees messages originated site lower sequence number 
+site lts lamport timestamp guarantees site send message lower lamport timestamp sequence number higher site sequence 
+site aru lamport timestamp messages lower lamport timestamp originated site received site daemon keeps track values received currently connected sites 
+addition daemon updates local variable global aru minimum site aru values received sites 
+represents lamport timestamp message received order daemons system 
+safe message delivered local application replication server case lamport timestamp smaller equal global aru 
+order achieve minimum latency aru update message sent immediately site receiving safe message daemons site 
+aru update sent message site tra network increase linearly number sites 
+spread optimizes trading bandwidth improved latency load messages low sending aru update number messages received message load high 
+delay consecutive aru update messages bounded certain timeout delta 
+example safe messages received delta time aru update sent overhead message received aru update sent delta interval aru update sent immediately 
+note simplification actual implementation piggybacks control information data messages 
+practical settings delta selected higher network diameter dn leads safe delivery latency dn delta dn 
+latency bounds optimized including aru update complete table information currently connected sites just local values described 
+reduce safe delivery latency dn delta dn 
+scheme scalable size aru update grow linearly number sites 
+small number sites technique useful order preserve scalability system sites experiments scalable method described leads message latency dn delta dn 
+example safe delivery action table scalable safe delivery wide area networks seq lts aru seq lts aru seq lts aru seq lts aru global aru global aru global aru global aru consider network daemons daemons represents site 
+table shows safe delivery mechanism works daemon safe message sent considering worst case scenario latency diameter network 
+initially daemons variables initialized zero table 
+receiving safe message daemon updates site lts table 
+assuming losses messages system daemons behave similarly updating site lts value 
+takes network diameter dn message get daemons 
+delta interval daemon sends aru update containing row representing matrix 
+depending time daemon waits sending aru update daemons receive information daemons dn delta dn time 
+receiving updates daemon knows daemons increased site lts detect loss update site aru table 
+similarly daemons update site aru values assuming losses 
+point knows daemon create message lamport timestamp lower total order delivery deliver message upper layer 
+safe delivery know daemons received aru updates 
+dn time elapsed farthest daemon time sent aru update time got 
+waiting delta dn time daemons send aru update containing site aru value advanced 
+dn time receives aru updates advance global aru table deliver safe message 
+total latency worst case dn delta dn delta dn dn equal delta dn 
+note aru updates periodic cumulative safe messages sent delta interval delay amortized di erent messages 
+expected latency safe message dn delivery mechanism includes rounds scalable approach 
+semantics optimizer semantics optimizer provides important contribution ability system support various application requirements performance 
+level sophistication semantics optimizer incorporates degree integration database system determine amount additional optimizations replication system take advantage concurrent transaction execution data partitioning 
+purpose detail integration achieved outline basic variations standard implementation illustrate flexibility architecture 
+strictest model consistency updates applied database primary component global consistent persistent order action determined 
+read actions queries need replicated 
+query answered immediately local database update pending generated client 
+significant performance improvement achieved system distinguishes queries actions update database 
+purpose postgresql prototype built semantics optimizer implements basic sql parser identifies queries actions 
+replica handling query part primary component guarantee answer local database reflects current state system determined primary component 
+applications may require updated information prefer block information available may content outdated information prior consistent state weak consistency preferring receive immediate response 
+system allow client specify required semantics individually connecting system 
+system support specification action require client aware replication service 
+addition strict consistency semantics standard weak consistency implementation supports limited types consistency requirements delay updates cancel actions names refer execution updates actions non primary component 
+delay updates semantics transactions update database ordered locally applied database global order determined 
+client blocked continue submitting updates querying local database needs aware responses queries may incorporate ect previous updates 
+cancel actions semantics client instructs semantics optimizer immediately abort actions issued non primary component 
+specification method polling availability primary component client perspective 
+decisions semantics optimizer semantic specifications client system setup provided 
+examples demonstrate semantics optimizer determines path action enters replication server 
+interceptor reads action client passes semantics optimizer 
+optimizer detects action query desired semantics current connectivity replica decides send action replication engine send directly database immediate processing cancel altogether 
+action sent replication engine semantics optimizer involved decision process action ordered 
+applications may request action optimistically applied database action locally ordered 
+happen application knows update semantics commutative order important application willing resolve possible inconsistencies may arise result conflict 
+barring cases action applied database globally ordered 
+design tradeo design perspective distinguish possible approaches architecture replicated database 
+opted black box approach assume knowledge internal structure database system application semantics 
+flexibility architecture enables replication system support heterogeneous replication di erent database managers di erent vendors replicate logical database 
+contrast white box approach integrate replication mechanism database attempting exploit powerful mechanisms concurrency control conflict resolution implemented inside database price losing transparency 
+middle way gray box approach assumes database system enhanced providing additional primitives outside include replication mechanism inside database 
+exploits data partitioning common databases assuming application provide information conflict classes addressed transaction 
+approach permits row replication transaction executed just database ect replicated servers 
+reduces load database server may increase significantly network load modified row data significantly larger standard sql transaction 
+argue design allow basic form concurrent transaction execution doesn su er performance drawback uses cient synchronization algorithm 
+highly concurrent synchronous replication system overcome fundamental cost global synchronization limited performance synchronization module 
+ms mbits sec ms mbits sec ms mbits sec ms mbits sec mb mb virginia delaware boston san jose los angeles ms mbits sec ms mbits sec ms mbits sec ms mbits sec mb mb virginia delaware boston san jose los angeles layout network presentation model mention replication architecture assumes possibly multi operation transaction deterministic encapsulated action removing possibility executing normal interactive transactions 
+assumption relaxed certain degree 
+allow example transaction execute deterministic procedure specified body transaction depends solely current state database 
+transactions called active transactions 
+help active transactions mimic interactive transactions user starts transaction reads data user level interactive decision regarding updates 
+transactions simulated help actions model 
+action contains query part transaction 
+second action active action encapsulates updates dictated user checks values data read action valid 
+valid second action aborted transaction aborted traditional sense 
+note server aborts servers abort trans action apply identical deterministic rule identical state database guaranteed algorithm 
+prototype performance evaluation evaluated performance postgresql replication prototype environments 
+local area cluster emulab wide area testbed 
+cluster contains linux dual piii computers mbytes memory scsi disks 
+emulab utah network testbed provides configurable test bed latency throughput link loss characteristics links controlled 
+configured network emulated emulab local area network actual routers computers enforce required latency loss capacity constraints 
+emulab linux computers emulate real network depicted 
+emulab machines piii mbytes ide disk 
+order better understand context results measured throughput single non replicated database sustain single serialized stream transactions 
+computers local area experiments perform non replicated postgresql database approximately update transactions read transactions second defined 
+emulab available www emulab net primarily supported nsf ani cisco systems 
+number replicas actions second upd upd upd upd upd lan postgres throughput varying number replicas number clients replicas actions second upd upd upd upd upd lan postgres throughput varying number clients computers wide area experiment perform non replicated postgresql database approximately update transactions read transactions second defined 
+experiments run postgresql version standard installations 
+order facilitate comparisons database experiment similar introduced 
+database consists tables tuples 
+table attributes integers character string float date 
+tuple size slightly bytes yields database size mb 
+transactions contain queries updates order simplify analysis impact poses system 
+control percentage update versus query transactions experiment 
+action experiments types described table randomly selected table value id randomly selected number update table set attr int attr int attr id random select avg float attr sum float attr table experiment postgresql database avoid side ects previous experiments 
+client submits action update query time 
+action completed client generate new action 
+local area performance evaluation benchmarked replication engine architecture local area network setup experiment :10.1.1.16.3690
+compared replication engine group communication method upper bound phase commit implementation noticed engine outperforms solutions order magnitude reaching updates second 
+analyze performance postgresql replication prototype 
+experiment conducted new architecture tested scalability system number replicas database increases 
+replica executed separate computer number clients replicas wide area transactions second evs engine upper bound pc wan synchronization engine comparison number clients replicas actions second upd upd upd upd upd wan postgresql throughput varied update query load local client local area network 
+shows separate experiments 
+experiment di erent proportion updates queries 
+update line shows disk bound performance system 
+replicas added throughput system increases maximum updates second disks support reached updates second replication adds additional disk sync updates number replicas 
+maximum reached system maintains stable throughput 
+achieved update throughput overhead replication server disk syncs taken account matches potential number updates machine capable previous subsection 
+analysis di erence synchronization engine potential performance observed prototype performance subsection discussing wide area experimentation 
+significant improvement number sustained actions second proportion queries updates increases attributed semantics optimizer executes query locally replication overhead 
+maximum throughput entire system improves replica handle additional load queries 
+throughput queries increases linearly reaching queries second replicas expected 
+experiment fixed number replicas replica computer local area network 
+number clients connected system increased evenly spread replicas 
+sees small number clients produce maximum throughput updates 
+reasons client transaction active time latency update limits number updates client produce second 
+second replication server sync updates generated locally connected clients updates evenly distributed computers clients added 
+throughput queries increases linearly clients reaching queries case flat database replica saturated 
+wide area performance evaluation order visualize performance gain introduced synchronization algorithm optimized safe delivery avoiding compared performance replication engine full disk order guarantee data consistency number clients replicas updates second sync replication server sync full sync impact forced sync disk throughput number clients replicas updates second half latency net base net double latency net throughput varied network latency upper bound phase commit algorithm pc 
+upper bound pc engine reaches maximum capacity approximately actions second consistent performance reported similar setups commercial databases pc core synchronous replication method 
+replication engine saturated actions second due optimizations mentioned previous section 
+wide area experiment conducted emulab measured throughput varying client set action mix 
+system able achieve throughput close achieved local area network similar number replicas clients depicted 
+latency update experiences experiment ms load reaches ms point system reaches maximum throughput updates second 
+queries similarly lan test performance increases linearly number clients servers reach queries second 
+results mixes expected 
+notice throughput achieved update replication close performance exhibited synchronization algorithm 
+di culties conducting database experiments real production database servers expensive available academic research 
+conducted experiments standard inexpensive intel pcs disk memory performance significantly poorer lack specialized hardware flash ram logging disks 
+evaluate potential performance system hardware reran experiment updates scenario varied disk sync conditions 
+replication server uses forced syncs disk disabling feature database system achieves maximum throughput updates second clients 
+synchronous disk sync disabled postgresql replication engine maximum throughput updates second reached clients system close potential exhibited replication engine 
+test impact network latency performance emulab construct additional networks identical topology original network half double latency link 
+ect explores performance system diameter network changes 
+original network diameter ms typical network spanning additional networks ms ms diameters pc implementation assume locks granted instantly ensuring maximum level concurrency pc method support 
+time sec replicate synchronize replication recovery updates time sec number updates synchronize time synchronize varying number updates respectively 
+illustrates diameters system achieve maximum throughput updates second 
+diameter increases clients required achieve throughput 
+di cult directly compare results due significant di erence hardware platforms 
+postgresql proof concept demonstrates architecture replicate database useful cient manner 
+cient synchronization method previous solutions able sustain high throughput rates despite giving additional gains concurrent transaction execution semantic knowledge application 
+throughput prototype able sustain su cient large number applications maintaining reasonably low response time wide area settings 
+partition behaviour order evaluate performance prototype presence temporary network failures partitions ran experiment 
+wide area emulab setup partitioned node boston virginia 
+node partitioned submit varying number updates database remaining connected sites 
+reconnect node rest system record time necessary updated data missed 
+parallel run clients query databases second check updates applied 
+record progress noted clients 
+generate updates system steady rate updates second 
+updates replicated connected replicas 
+generating updates reconnect th node rest replicas bring date continue submitting updates rate 
+noted time needed node catch nodes seconds fraction time needed replicate updates steady rate 
+plots synchronization time previous graph change number updates applied partition time 
+note linear increase synchronization time number outstanding updates 
+shows constant time synchronized update regardless synchronization load 
+transparent peer synchronous database replication architecture employs optimized update synchronization algorithm order improve performance system 
+contrast existing techniques sacrifice performance gains attained parallelization transaction execution favor enhanced synchronization method real bottleneck synchronous replication system show viability approach practical experimentation 
+improvements notable local area network wide area experiments 
+furthermore synchronization engine build generic transparent solution adapted employed replication solutions integrated database exploit specific application information creating exciting new realm opportunities wide area database replication 
+peterson amir shaw seamlessly selecting best copy internet wide replicated web servers international symposium distributed computing disc pp 
+
+spread www spread org amir stanton loss tolerant architecture protocol wide area group communication proceedings international conference dependable systems networks dsn june pp 
+
+amir total order database replication proceedings international conference distributed computing systems icdcs vienna austria july ieee pp :10.1.1.16.3690
+
+gray reuter transaction processing concepts techniques data management systems 
+morgan kaufmann publishers san mateo ca usa 
+el abbadi skeen cristian cient fault tolerant algorithm replicated data management proceedings th acm sigact sigmod symposium principles database systems 
+acm march pp 
+
+el abbadi toueg availability partitioned replicated databases proceedings th acm sigact sigmod symposium principles database systems 
+acm march pp 
+
+oracle www oracle com informix www informix com sybase www sybase com db www ibm com software data db mysql www mysql com doc replication html postgresql www postgresql com sourceforge net postgres postgresql org project php kemme alonso don lazy consistent postgres new way implement database replication proceedings th international conference large databases vldb cairo egypt sept 
+amir stanton spread wide area group communication system tech 
+rep cnds johns hopkins university center networking distributed systems 
+kemme bartoli babaoglu online reconfiguration replicated databases group communication proceedings conference dependable systems networks goteborg sweden 
+martinez jimenez peris kemme alonso scalable replication database clusters proceedings th international symposium distributed computing disc 
+jimenez peris martinez kemme alonso improving scalability fault tolerant database clusters proceedings international conference distributed computing systems icdcs 
+ieee july pp 
+
+jimenez peris martinez alonso algorithm non intrusive parallel recovery replicated data correctness proceedings st ieee int 
+conf 
+reliable distributed systems srds pp 
+
+keidar sussman marzullo dolev client server oriented algorithm virtually synchronous group membership wans proceedings th ieee international conference distributed computing systems 
+ieee april pp 
+
+keidar client server approach virtually synchronous group multicast specifications algorithms proceedings th ieee international conference distributed computing systems 
+ieee april 
+agarwal moser melliar smith totem multiple ring ordering topology maintenance protocol acm transactions computer systems vol 
+pp 
+may 
+van renesse birman ma eis horus flexible group communication system communications acm vol 
+pp 
+apr 
+hayden ensemble system ph thesis cornell university 
+moser amir melliar smith agarwal extended virtual synchrony international conference distributed computing systems pp 
+
+jajodia dynamic voting algorithms maintaining consistency replicated database acm transactions database systems vol 
+pp 
+
+amir replication group communication partitioned network ph thesis hebrew university jerusalem jerusalem israel www cnds jhu edu publications yair phd ps 
+lamport time clocks ordering events distributed system communications acm vol 
+pp 
+july 
+white lepreau stoller ricci hibler barb integrated experimental environment distributed systems networks osdi boston ma dec pp 
+
+www net 

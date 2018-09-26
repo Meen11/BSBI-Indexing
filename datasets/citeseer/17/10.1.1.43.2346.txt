@@ -1,0 +1,496 @@
+experience distributed file system implementation emergence high performance local area networks cluster technology resulted renewed interest distributed computation 
+relative client server programs previous generation new peerto peer distributed systems enabled low latency high bandwidth communication complex due performance scalability availability requirements 
+growing complexity understanding engineer systems 
+xfs network file system described previous example distributed system 
+distributes cache secondary storage metadata management closely coupled workstations 
+decentralized nature system offering superior performance scalability availability traditional client server file systems complex 
+arguments reimplemented new version xfs 
+report lessons learned implementation effort 
+believe experience may offer insight system builders encourage development new tools interfaces ease jobs 
+traditional methods interfaces rules thumb carried client server world painfully inadequate 
+specifically wish myths ffl formal methods role development distributed system 
+contrast experience shows formal methods help manage complexity distributed system 
+produce systems correct design testing 
+ffl threads right abstraction structuring complex systems 
+contrary learned judicious singlethreaded event loops threads applicable reduces difficulty managing synchronization 
+ffl rpc distributed programming easy 
+need easy communication interface accommodate multi party communication patterns addressed traditional rpc paradigm various multicast efforts 
+interface built top traditional rpc interface 
+ffl kernel vnode layers matured support distributed file systems 
+experience indicates contrary 
+vnode layers need provide support cache coherence reimplemented reduce cache overhead 
+elements xfs number systems including vesta zebra treadmarks sam gms crl inktomi petal believe lessons widely applicable new generation peer peer distributed systems :10.1.1.130.4550
+provide brief overview xfs section section describes formal verification system xfs cache coherence engine 
+section shift focus components single client 
+report experience threads 
+section turn attention communication 
+discuss rpc context non traditional communication patterns 
+section focus lowest level system 
+describe kernel support lack thereof high performance distributed file system 
+summarize lessons section 
+applicable draw experiences systems 
+xfs overview main design philosophy xfs elimination centralized bottleneck efficient resources network workstations 
+shows sample xfs installation 
+client client client manager manager storage server storage server storage server storage server manager network sample xfs configuration 
+clients managers storage servers provide global memory cache distributed metadata manager striped network disk respectively 
+xfs architecture machine responsible caching managing storing piece data metadata 
+main components systems clients managers storage servers 
+main role client component providing cooperative memory cache 
+client accepts file system requests users sends data storage servers writes forwards reads managers cache misses receives replies storage servers clients 
+answers forwarding requests manager sending data clients 
+job metadata manager tracking locations file data blocks forwarding requests clients appropriate destinations 
+storage servers collectively provide illusion striped network disk 
+receive striped writes clients 
+react requests managers supplying data clients initiated operations 
+prototype runs sun sparc ultrasparc workstations 
+order ease development take advantage pre existing user level software modules bulk client code executes user level 
+loadable kernel module implement solaris kernel vnode interface redirect requests user level daemon 
+network communications occur user level low overhead active messages :10.1.1.23.716
+architecture fundamentally sound demonstrated excellent scalability 
+peer peer architecture reveals implementation issues 
+request user example potentially involve different machines 
+needs formal approaches reasoning correctness interactions system 
+concurrency management various user level components kernel module challenging 
+note communication pattern components richer simple client server dialogue 
+demands placed vnode layer nontraditional 
+explore areas greater detail sections 
+start section xfs features problems complicate implementation proceed conventional approach problems explain inadequate conclude new approaches taken 
+formal methods cache coherence engine section focus issues involved correctly implementing xfs cache coherence protocol 
+rules thumb exist correct concurrent programming uniprocessor corollary exists high performance peer peer distributed systems 
+describe experience formal protocol verifier 
+compared ad hoc methods formal methods resulted clearer abstraction levels increased system confidence reduced complexity 
+believe experience provide insights distributed systems complex cache protocols 
+xfs cache coherence protocol xfs employs directory invalidate cache coherence protocol 
+client obtain read token order read file block obtain write token order overwrite modify block 
+manager maintains list current block response client token requests sends invalidate messages forwarding requests clients 
+important differences xfs protocol previous cache coherence protocols 
+differences result striking balance performance functionality complexity 
+better understand design tradeoffs involved move traditional client server architecture peer peer architecture consider difference sprite file system cache coherence protocol xfs 
+sprite token manager home data 
+consistency actions invoked file open time 
+client caching enabled concurrent write sharing 
+server participates data transfers 
+design decisions simple implement contributes limitations sprite file system terms scalability performance availability 
+address limitations cache coherence mechanism peer peer architecture encounter issues client server model 
+token management data storage eliminates centralized data servers allows better locality flexible configuration splits previously atomic server operations different phases 
+aggressive caching xfs means solve cache coherence problems disabling caching maintain coherence finer grain 
+client client interactions xfs efficient introduces potential circular dependencies 
+cache coherence protocol xfs close seen hardware dsm systems dash alewife 
+minor modifications protocols lead subtle bugs 
+reliability considerations file system require protocol modifications apply dsm systems 
+example client write dirty data storage servers forward client 
+recognizing error prone nature protocols hardware designers adopted formal methods methods common practice operating system community 
+examine difficulties involved protocol development necessitate formal approaches 
+implementation problems modularization requires managing data block state state machine 
+intuitively block read shared private clean private dirty invalid 
+abstraction difficulties 
+difficulty state space 
+transition source state destination state frequently need engage communication network operating system 
+transient states mark progress 
+example client wishes upgrade read token write token shift transient state waiting response manager 
+alternative blocking communication easily lead deadlocks 
+significantly increases state space 
+simplified view xfs coherence engine contains states introductory textbooks 
+needs systematic approach dealing large state space 
+second difficulty concerns network 
+messages sent host received order hosts switched network 
+example early version sprite granting read token subsequent revoke token leads subtle race condition 
+order maximize performance protocol designers allow multiple outstanding messages network compounds problem 
+example xfs manager wait client completes forwarding request continue subsequent invalidate message potentially reach client order 
+ordering enforced communication layer research argued ordering best expressed application state 
+third difficulty concerns unexpected messages 
+messages get order receive messages processed right away current state 
+example data block process modified read request block wait modification finishes 
+disabling message reception option active message layer demands network constantly drained deadlocks result network fabric 
+possible solutions queueing unexpected message processing sending negative encoding unexpected message state information 
+approaches problem 
+queueing lead deadlocks negative lead deadlocks livelocks encoding message state information leads proliferation states ad hoc modification bookkeeping data structures 
+early implementations xfs certain approaches right solution particular situation 
+problem means unique xfs 
+study crl example ad hoc modifications data structures handle unexpected messages queueing processing simplify protocol 
+number software engineering issues try engineer cache coherence engine traditional methods 
+implementing cache protocol clear language general 
+despite best intentions aspects implementations related protocol specification mixed 
+result modular general harder debug harder maintain 
+similarly crl protocol specification mixed low level details communication 
+xfs protocol similar dsm protocols non trivial reuse modify existing codes due ties native environments 
+testing challenge 
+practical test combinations states events different hosts 
+timing dependent errors occur difficult reconstruct sequence events leading error 
+due difficulties initial implementation xfs coherence protocol plagued subtle race conditions 
+implementing cache coherence formal methods unsuccessful attempts completing cache coherence protocol traditional development methods decided rewrite system teapot tool writing memory coherence protocols 
+specifically tool provides main functionalities protocol specifier protocol verifier implementation generator 
+protocol specifier provides concise language allows construct state machine defining primitives states messages data blocks hosts operations associated objects 
+protocol verifier system 
+systematically checks protocol bugs invariant violations deadlocks performing exhaustive state space exploration 
+effectively generates exhaustive test vector distributed protocol 
+implementation generator outputs code 
+experience formal approach positive 
+arriving correct protocol trial error process systematic framework provided formal methods dramatically shortens turnaround time 
+brute force testing longer critical path 
+verification system provide protocol designer instant feedback allows progressively refine protocol 
+bugs uncovered protocol verifier difficult diagnose field testing 
+show example 
+manager provides serialization point maintaining coherence block 
+earlier version protocol saw need manager maintain sequence numbers outgoing messages 
+receiver manager request ready act simply queues processing 
+approach pass protocol verifier 
+shows 
+initially client sole clean block 
+client sends read request manager 
+manager forwards request client noting client caching data 
+client sends write request manager 
+manager sends revoke request client arrives client previous forwarding message invalidating data 
+manager sends second revoke request client client queues requested data arrived 
+client sends write request manager manager queues previously sent revoke message acknowledged 
+delayed forward message step arrives client queues request manager satisfied 
+reached deadlock client waiting manager complete revoke operations manager waiting client acknowledge revoke request client waiting client supply desired data client waiting manager process write request 
+solution sequence numbers order outgoing messages manager sequence events seen client consistent view manager 
+examples formal methods allow quickly pinpoint design flaw difficult identify brute force testing 
+addition automatically uncovering protocol bugs teapot illustrates number advantages formal methods 
+demonstrates importance suitable notation 
+teapot language appropriate notation specifying coherence protocols 
+language restrictive read forward read forward read write revoke revoke write sample deadlock discovered protocol verifier 
+clients labeled 
+manager labeled 
+arrows denote directions messages 
+numbers denote logical times messages sent received 
+shown left host message queue holds requests waiting processed 
+messages queued processed immediately 
+arrows denote wait relationship presence cycle indicates deadlock 
+specifications written fairly stylized way 
+eliminates source bugs 
+language provides facilities continuations reduce complexity managing transient states 
+second formal methods force concentrate problem hand separate implementation details 
+case teapot resulted modular general purpose code isolated rest file system 
+formal methods encourage software reuse isolating features common class problems designed solve 
+case able inherit support structures message queues state tables protocols reducing complexity chances errors 
+seen formal protocol specifier simplified task implementing cache coherence engine 
+tool designed best suited simulating hardware state machines 
+software state machine interact parts system including instances state machine manage different data blocks study interactions section 
+experience threads xfs client module inherits features operating system example order support concurrent users react concurrent requests network heavily multithreaded system 
+hand client module inherits features hardware state machine example coherence state machine naturally represented singlethreaded event loop 
+primitives available hardware state machine typically limited simple 
+embed software state machine xfs client cache control operations needs perform state transitions powerful 
+examples system calls synchronization operations 
+difference leads synchronization issues typically seen hardware state machines 
+bridge different worlds interesting question 
+instinct structure threads 
+appears natural thread simply procedure calls enter various software modules 
+experience indicates concurrency control threads major source bugs attempting integrate different software modules 
+natural ordering events frequently leads races deadlocks 
+key observation xfs client software architecture analogous network protocol stack graphical user interface application 
+events communication mechanism different modules single threaded event loops eliminate source synchronization bugs 
+thread programming entering mainstream happens example servicing read fault block requires eviction different block 
+daemon xfs vnodes kernel user cache coherence state messages active machine software architecture xfs client 
+support reusable software components matures believe experience applicable larger audience 
+client software architecture shows software architecture xfs client 
+kernel vnode module manages directory cache interacts existing kernel file cache initiates upcalls user space cache misses 
+cache coherence state machine described previous section reacts events generated local system network calls components coherence state transitions 
+communication module implements active message protocol 
+accepts messages local system asynchronous transmission invokes message handlers incoming messages 
+daemon coordinates components 
+exception daemon xfs development team limited influence internals modules 
+kernel module adhere conventions interfaces available vnode layer 
+cache coherence state machine largely generated automatically protocol specification system 
+communication module developed team 
+modules appear black boxes xfs development team 
+events xfs client naturally flow opposite directions black boxes shown 
+user initiates operation client request redirected kernel module user space 
+daemon services upcall generates event coherence state machine 
+state transition state machine prepares message communication module eventually transmits message 
+incoming message necessarily reply reaches client exact opposite sequence events occur 
+shall see subsection opposite flow requests user incoming messages xfs vnodes daemon coherence state machine active messages opposite flow events xfs client 
+events software components internals exposed fertile ground subtle synchronization bugs multithreaded system 
+difficulty concurrency control seemingly natural way structuring xfs threads 
+unfortunately different sequence events discussed previous subsection force threads different modules different orders 
+breaks abstractions leads deadlocks 
+fact modules development control exacerbates problem 
+shows case 
+concerns software modules kernel vnode module cache coherence state machine 
+kernel vnode module protects state data block lock 
+cache coherence state machine implemented monitor protected monitor lock 
+client incurs read marks kernel state read progress effectively holding kernel read lock 
+thread continues state machine monitor releasing state machine monitor lock prior going sleep 
+client supplies data signals sleeping thread 
+unfortunately woken thread reacquire monitor lock immediately 
+assumption client acquired read copy data client steals monitor lock vnodes vnodes vnodes client read faults client invalidates data coherence client supplies data coherence coherence deadlock multiple threads responding local remote events single client 
+thread services client read fault holds read lock vnode layer sleeping cache coherence state machine monitor 
+client supplies requested data signals client sleeping thread 
+client steals state machine monitor lock client 
+enters deadlock third thread attempts acquire vnode lock order invalidate data 
+proceeds invalidate client data 
+result deadlock 
+client waiting reacquire monitor lock held client finish read operation client waiting client finish read 
+deadlocks hierarchy components support events flowing opposite directions means unique xfs 
+javabeans development kit example events normally flow bottom enclosing beans normal program flow travels top enclosed beans 
+bean methods question protected monitor locks runs risk deadlocks multiple threads execute concurrently opposite directions 
+unfortunately provides satisfactory solution 
+recommends locks risk inconsistency certain situations avoid deadlocks 
+event loops client architecture shown analogous network protocol stack protocol component message interface allows send packets receive packets adjacent protocol 
+possible implementation strategy architecture absence multiple threads executing concurrently protocol component eliminates need concurrency control 
+similarly ousterhout observes single threaded event loops advantages threads graphical user interface applications 
+arguments apply components xfs 
+example allowing multiple threads execute concurrently cache coherence state machine simply enqueue request event state machine 
+state machine employs single thread continuously services event queue loop 
+state machine requires service modules generates events similar fashion 
+important advantage singlethreaded event loop multi threaded approach eliminates unnecessary synchronizations lead bugs 
+consider example 
+locks involved deadlock quite different 
+read lock vnode layer marks file block read 
+meaningful file system implementor responsible reasoning 
+monitor lock cache coherence state machine hand meaning file system 
+implementation artifact protect global state state machine user state machine need aware 
+turning state machine multithreaded monitor single threaded event loop interacts modules asynchronous events eliminate need monitor lock result deadlock illustrated longer possible 
+important point declaring event loops panacea synchronization 
+possible user state machine deadlock creates circular dependencies interface level 
+improvements event loop approach useful 
+pure event loop event handler run completion difficult carry local state handling event 
+turn difficult simulate procedure call module events request event reply event decoupled execution context request event available handling reply event 
+solution problem continuation captures execution context sending request event restores execution context reply event arrives 
+useful extension allow multiple threads interact event loop 
+possible desirable eliminate uses multi threading 
+case event loop finishes servicing request generating reply event wakes blocked requesting thread 
+third improvement increasing concurrency 
+single threaded event loop allows cpu concurrency take advantage multiple processors 
+enumerate range extensions progressively incorporate elements multi threading increase concurrency 
+simple solution run different event loops different processors 
+solution split single event loop multiple event loops need synchronize 
+example split coherence state machine multiple event loops manage disjoint portions file block space 
+event loops run different processors having synchronize 
+third solution allows concurrency allowing multiple threads execute event loop may need synchronize 
+analogous thread packet solution network protocol stack 
+static checkers prove correctness local synchronizations 
+summarize managing concurrency threads difficult problem xfs implementation especially threads enter shelf software modules full control 
+judicious single threaded event loops applicable reduce complexity 
+different approach thread deadlock problem synchronization :10.1.1.25.5436
+event loops reduce unnecessary concurrency wait free synchronization preserves concurrency retries operations conflicts detected 
+problem wait free synchronization difficult achieve performance operating system hardware support 
+multi party communication communication pattern xfs represents significant departure traditional client server system 
+simple request reply exchanges xfs transactions require cooperation machines 
+rpc communication provides easy understand semantics tool choice distributed system builders 
+experience xfs suggests synthesize multi party communication rpc benefit advantages rpc designed provide 
+build new multiparty rpc system directly top underlying transport mechanism 
+implementing multi party communication simple rpc simple multi party communication example 
+hosts labeled xfs clients host labeled metadata manager 
+example illustrates read client thicker arrow represents large data transfer 
+shows simple example multi party communication xfs 
+host incurs read sends request manager 
+manager consults bit vector current sends forwarding request host updates bit vector include host host sends data host allowing host continue 
+example multi party communication client performs parallel writes number storage servers stripe group 
+primary aim rpc distributed computation easy 
+providing communication facility easy local procedure calls designers rpc sought remove unnecessary difficulties network communication system builders concentrate higher level issues 
+largely successful simple client server systems 
+goal original rpc design efficiency 
+goal achieved largely due simplicity 
+shall see benefits lost attempt implement multi party communication simple rpc 
+shows naive attempts implementing example simple rpc 
+reply data forced retrace steps rpc requests 
+obvious disadvantage extra cost unnecessary data transfers clients manager 
+approach shown attempts address inefficiency 
+case host initiate request receive request different hosts host simultaneously rpc client rpc server 
+host sends request rpc server manager 
+manager rpc server acting rpc client sends new request rpc server host rpc server host acting rpc client supplies requested data rpc server host third request 
+rpc reply propagate back retracing steps taken rpc requests 
+examine pitfalls naive implementation 
+need better rpc main benefit rpc semantics close local procedure call 
+semantics procedure call caller control desired operation performed exactly caller call reply 
+programmer responsible matching data original request 
+approach inefficient 
+original requester wait network hops receive rpc reply 
+depending characteristics network taken longer implementing multi party communication simple rpc 
+component labeled host rpc server component labeled rpc client 
+arrows denote directions communications 
+numbers represent logical times communications occur 
+solid lines rpc requests dashed lines rpc replies 
+thicker arrow represents large data transfer 
+shows traditional client server approach 
+reply data steps rpc requests 
+shows peerto peer approach 
+reply data sent source destination network hop 
+data transfer 
+alleviate inefficiency tempted rpc servers reply sooner overlap replies operations weakening rpc semantics 
+advocating low level message passing build distributed systems 
+rpc useful abstraction eases network programming 
+point gain implementing multi party communication traditional rpc 
+rpc system support multi party communication patterns seen xfs built underlying transport mechanism directly 
+need simple extension passes final reply potentially different node back user 
+point point exposed rpc user 
+example useful extension support gather scatter number rpc servers 
+simplify communications client array storage servers 
+kernel support described previously component xfs client kernel module implements kernel vnode interface file system 
+chose vnode interface straightforward way file system available unmodified applications 
+earlier version xfs developed ultrix 
+current version xfs supports solaris 
+solaris interface evolved considerably predecessors far complex share ancestral design suited today high performance distributed file systems 
+main issues coherence efficiency portability 
+cache coherence vnode interface designed time consistency issue file systems intended support :10.1.1.113.4370
+example operating systems support number local file systems need concern consistency nfs supports ad hoc style consistency :10.1.1.14.473
+research file systems andrew nfs sophisticated consistency semantics consistency actions triggered file open events 
+option disabling caching falling back central server 
+restrictions possible support file systems vnode framework 
+xfs maintain coherence file attributes directory contents file data block granularity sacrificing performance resorting central server 
+vnode interface starts show strain requirements 
+xfs implements directory caching requires support kernel 
+slightly difficult maintaining file data coherence 
+xfs cooperative caching algorithm works best managers precise knowledge control client cache contents 
+vnode interface informs managers changes cache contents allows easy manipulation managers useful 
+possible synthesize interface kernel cache interface operating systems studied explicit support operations vnode interface provide cleaner abstraction 
+problematic maintaining consistency attributes 
+vnode layers studied attributes cached vnodes freely accessed kernel code 
+system xfs attributes invalidated remote hosts time making sure attribute accesses properly synchronized difficult 
+interface overhead vnode interface designed time file system performance relatively poor 
+kernel cache days meant disk accesses slow network accesses 
+consequently effort devoted bringing interface overhead cache misses 
+example andrew client architecture similar xfs interface overhead kernel issue kernel cache results access local disk cache 
+xfs hand cache usually handled fast transfer client memory 
+advent high performance network file systems xfs file system performance approaching network speeds network performance continues improve kernel interface overhead limiting factors improving file system performance 
+example vnode layer solaris ultrasparc limits file system write throughput mb sec capable delivering close mb sec file system 
+similar problems noted osf kernel high kernel overhead impacted design gms 
+portability vnode layers different operating systems considerably different 
+needs arcane knowledge kernel internals order port file system different vnode layer 
+major obstacles deploying xfs variety different platforms 
+cluster file system xfs portable operating system interface allow easily take full advantage resources heterogeneous cluster reduce system complexity 
+vnode interfaces failed miserably 
+construction portable vnode layer difficult undertaking currently investigating portable efficient interposition agents means distributing code 
+section seen vnode layer achieved goal making xfs available unmodified applications considerable cost 
+disadvantages complexity due lack coherence support interface overhead cache misses poor portability 
+high performance distributed file systems popular kernel interface evolve cater needs 
+reported lessons learned implementation distributed file system 
+believe experience applicable xfs provides insights system developments 
+distributed systems complex difficult rely exhaustive field testing verify system correctness 
+formal methods provide precise notation automated verification automatic generation implementation help manage complexity systems 
+threads right abstraction 
+replacing single threaded event loops cases reduces complexity synchronization management 
+communication patterns distributed systems diverse need interfaces sophisticated traditional rpc communication easy 
+assumptions file system kernel interfaces initially designed longer valid new enhancements needed fully realize new systems potential 
+anderson culler patterson team 
+case networks workstations ieee micro feb 
+anderson owicki saxe thacker high speed switch scheduling local area networks 
+acm trans 
+computer systems nov 
+anderson dahlin neefe patterson roselli wang serverless network file systems 
+proc 
+th acm symposium operating systems principles december pp 
+
+birman schiper stephenson light weight causal atomic group multicast 
+acm transactions computer systems august 
+birrell nelson implementing remote procedure calls 
+acm transactions computer systems february 
+boden cohen seitz su myrinet gigabit second local area network 
+ieee micro feb 
+chandra richards larus teapot language support writing memory coherence protocols 
+proc 
+sigplan conference programming language design implementation may 
+cheriton skeen understanding limitations causally totally ordered communication 
+proc 
+th acm symposium operating systems principles december pp 
+
+corbett feitelson overview vesta parallel file system 
+computer architecture news dec 
+dahlin wang anderson patterson cooperative caching remote client memory improve file system performance 
+proc 
+symposium operating systems design implementation november pp 
+
+dill drexler hu yang protocol verification hardware design aid 
+ieee international conference computer design vlsi computers processors pp 
+
+draves bershad rashid dean continuations implement thread management communication operating systems 
+proc 
+th acm symposium operating systems principles october pp 
+
+feeley morgan karlin levy thekkath implementing global memory management workstation cluster 
+proc 
+th acm symposium operating systems principles december pp 
+
+petrou anderson slic secure loadable interposition code 
+tech 
+rep ucb csd university california berkeley november 
+gosling java tm language environment white 
+java com whitepaper html 
+greenwald cheriton synergy non blocking synchronization operating system structure :10.1.1.25.5436
+proc 
+second symposium operating systems design implementation october pp 
+
+hartman ousterhout zebra striped network file system :10.1.1.130.4550
+proc 
+th symposium operating systems principles dec 
+howard kazar menees nichols satyanarayanan sidebotham west scale performance distributed file system 
+acm trans 
+computer systems feb 
+hutchinson peterson architecture implementing network protocols 
+ieee transactions software engineering january 
+johnson kaashoek wallach crl high performance software distributed shared memory 
+proc 
+th acm symposium operating systems principles december pp 
+
+joseph birman reliable protocols 
+distributed systems mullender ed addison wesley 
+keleher cox dwarkadas zwaenepoel treadmarks distributed shared memory standard workstations operating systems 
+proc 
+winter usenix conference january pp 
+
+kleiman vnodes architecture multiple file system types sun unix :10.1.1.113.4370
+proc 
+summer usenix conference june pp 
+
+kubiatowicz agarwal anatomy message alewife multiprocessor 
+proc 
+th internat 
+conf 
+supercomputing july 
+lee thekkath petal distributed virtual disks 
+seventh international conference architectural support programming languages operating systems october pp 
+
+lenoski laudon gharachorloo gupta hennessy directory cache coherence protocol dash multiprocessor 
+proc 
+th internat 
+symp 
+computer architecture may pp 
+
+mainwaring culler active message application programming interface communication subsystem organization 
+tech 
+rep ucb csd university california berkeley october 
+mishra peterson implementing fault tolerant replicated objects 
+proc 
+th symposium reliable distributed systems october 
+nelson leino saxe stata extended static checker home page 
+www research digital com src esc esc html 
+nelson welch ousterhout caching sprite network file system 
+acm trans 
+computer systems feb 
+ousterhout role distributed state 
+cmu computer science th anniversary rashid ed addison wesley pp 
+
+ousterhout threads bad idea 
+www com 
+sandberg goldberg kleiman walsh lyon design implementation sun network filesystem :10.1.1.14.473
+proc 
+summer usenix june pp 
+
+scales lam design evaluation shared object system distributed memory machines 
+proc 
+symposium operating systems design implementation november pp 
+
+srinivasan mogul nfs experiments cache consistency protocols 
+proc 
+th symp 
+operating systems principles dec pp 
+
+sun microsystems 
+javabeans api specification 
+www javasoft com beans 
+von eicken basu vogels net user level network interface parallel distributed computing 
+proc 
+th acm symposium operating systems principles december pp 
+
+von eicken culler goldstein schauser active messages mechanism integrated communication computation 
+proc 
+asplos may pp 
+
+webber operating system support portable filesystem extensions 
+proceedings usenix winter conference january pp 
+
+woodruff aoki brewer gauthier rowe investigation documents world wide web 
+www berkeley edu papers inktomi 
+

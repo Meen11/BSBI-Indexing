@@ -1,0 +1,374 @@
+software transactional memory dynamic sized data structures maurice herlihy department computer science brown university providence ri usa mph cs brown edu mark moir sun microsystems laboratories network drive burlington ma usa mark moir sun com propose new form software transactional memory stm designed support dynamic sized data structures describe novel non blocking implementation 
+non blocking property consider obstruction freedom 
+obstruction freedom weaker lock freedom result admits substantially simpler efficient implementations 
+novel feature obstruction free stm implementation modular contention managers ensure progress practice 
+illustrate utility dynamic stm straightforward implementation obstruction free red black tree demonstrating sophisticated non blocking dynamic data structure difficult implement means 
+results simple preliminary performance experiments demonstrate early release feature stm useful reducing contention stm lends effective modular contention managers 
+
+locks programs shared memory multiprocessors introduces known software engineering problems 
+coarse grained locks protect relatively large amounts data generally scale threads block really interfere lock source contention 
+fine grained locks mitigate scalability problems introduce software engineering problems locking conventions guaranteeing correctness avoiding deadlock complex error prone 
+locks cause vulnerability thread permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+podc july boston massachusetts usa 
+copyright sun microsystems rights reserved 
+acm 
+victor sun microsystems laboratories network drive burlington ma usa victor sun com william scherer iii department computer science university rochester rochester ny usa scherer cs rochester edu failures delays 
+example thread preempted holding lock obstruct threads 
+dynamic software transactional memory dstm low level application programming interface api synchronizing shared data locks 
+transaction sequence steps executed single thread 
+transactions atomic transaction commits takes effect aborts effects discarded 
+transactions linearizable appear take effect ata time order 
+transactional memory supports computational model thread announces start transaction executes sequence operations shared objects tries commit transaction 
+commit succeeds transaction operations take effect discarded 
+transactional memory originally proposed hardware architecture proposals non blocking software transactional memory stm similar constructs 
+dynamic stm 
+prior stm designs required memory usage transactions defined statically advance 
+contrast new dstm allows transactions transactional objects created dynamically transactions may determine sequence objects access values observed objects accessed earlier transaction 
+result dstm suited implementation dynamic sized data structures lists trees 
+developed prototype implementations dstm java tm programming languages 
+focus java version considerably simpler need explicit memory management 
+java implementation uses experimental prototype doug lea java util concurrent package call native compare swap cas operations 
+non blocking broadly include progress conditions requiring failure indefinite delay thread prevent threads making progress synonym lock free authors prefer 
+simplicity implementation due choice non blocking progress condition 
+synchronization mechanism obstruction free thread runs long progress implies thread progress runs long encountering synchronization conflict concurrent thread 
+stronger non blocking progress conditions lock freedom wait freedom obstruction freedom ensures halted thread prevent threads making progress 
+lock freedom obstruction freedom rule livelock interfering concurrent threads may repeatedly prevent making progress 
+livelock course unacceptable 
+believe great benefit treating mechanisms ensure progress matter policy evaluated empirical effectiveness application execution environment 
+demonstrated compared obstruction freedom admits substantially simpler implementations efficient absence synchronization conflicts concurrent threads 
+obstruction freedom allows simple schemes prioritizing transactions allows transaction abort transaction time 
+particular high priority transaction may abort low priority transaction 
+lock approach high priority transaction blocked low priority transaction held lock high priority transaction required resulting priority inversion intricate schemes circumvent inversion 
+hand lock free implementation high priority transaction may help low priority transaction complete order ensure transaction complete 
+obstruction free dstm implementation provides simple open ended mechanism guaranteeing progress prioritizing transactions 
+specifically transaction detect abort 
+case consults contention manager determine abort transaction immediately wait time allow transaction chance complete 
+contention managers implementation modular various contention management schemes implemented plugged affecting correctness transaction code 
+design implement verify obstruction free data structure vary contention managers provide desired progress guarantees transaction prioritization 
+contention managers exploit information time operating systems services scheduling hardware environments details system execution environment programmer supplied information 
+practical sources information largely neglected literature lock free synchronization 
+believe approach yield simpler efficient concurrent data structures help accelerate widespread acceptance deployment 
+section illustrates dstm series simple examples 
+evaluate utility dstm implementing complex data structures implement obstruction free red black tree 
+far aware red black tree complex nonblocking data structure achieved date 
+implementation reasonably straightforward transformation sequential implementation difficult construct non blocking implementation principles 
+difficult implement lock red black tree allows operations accessing different parts tree proceed parallel 
+section describes stm detects synchronization conflicts transactions commit abort emphasis obstruction free property simplifies underlying algorithm 
+section describe implementation interfaces contention managers responsible ensuring progress 
+section describes simple experiments conducted prototype dstm implementation 
+concluding remarks appear section 
+code dstm implementation contention managers related experiments publicly available 
+
+overview examples section illustrate dstm series simple examples 
+dstm manages collection transactional objects accessed transactions 
+transaction short lived single threaded computation commits aborts 
+transactional object container regular java object 
+transaction access contained object opening transactional object reading modifying regular object 
+changes objects opened transaction seen outside transaction transaction commits 
+transaction commits changes take effect discarded 
+transactional objects created dynamically time 
+creation initialization transactional object performed part transaction 
+concretely basic unit parallel computation class extends regular java threads 
+regular java thread provides run method 
+addition class provides additional methods starting committing aborting transactions checking status transaction 
+threads created destroyed dynamically 
+transactional objects implemented tmobject class 
+implement atomic counter create new instance counter class shown create tmobject hold counter counter new counter tmobject tmobject new tmobject counter class objects may encapsulated transactional object implement interface 
+interface requires object export public clone method returns new logically disjoint copy object 
+dstm uses method opening transactional objects described 
+dstm guarantees object cloned change cloning synchronization necessary clone method 
+thread calls begintransaction start transaction 
+started transaction active committed aborted 
+active transaction access encapsulated counter calling open counter counter counter tmobject open write counter increment counter argument open constant indicating caller may modify object 
+open method returns copy encapsulated regular java object created object clone method call copy transaction version 
+thread manipulate version object calling methods usual way 
+dstm guarantees thread access version need synchronization 
+note transaction version meaningful lifetime transaction 
+versions stored objects transactional objects meaningful transactions 
+thread attempts commit transaction invoking committransaction returns true commit successful 
+thread may abort transaction invoking 
+guarantee successfully committed transactions linearizable appear execute time order 
+kind consistency guarantee transaction eventually aborts 
+argue matter transaction changes transactional objects discarded anyway 
+synchronization conflicts cause transaction observe inconsistencies objects opens aborts 
+example transaction executing transaction modify objects accessed objects subsequently access 
+case see partial effects transaction 
+transactions appear execute isolation observing inconsistencies may cause transaction unexpected side effects dereferencing null pointer array bounds violations 
+dstm addresses problem validating transaction opens transactional object 
+validation consists checking synchronization conflicts object opened transaction opened conflicting mode transaction 
+synchronization conflict occurred open throws denied exception returning value indicating transaction successfully commit 
+set transactional objects opened exception guaranteed consistent open returns actual states objects instant 
+throwing exception allows thread avoid wasting effort continuing transaction 
+ultimately dstm support nested transactions class methods transactions invoke transaction methods classes transactions 
+acquired sufficient experience programming dstm decide appropriate nesting semantics specify behavior 
+extended example consider linked list values stored increasing order 
+list implement integer set class open method returns object class java lang object explicitly cast back class counter 
+implementation support rudimentary form nested transactions examples discussed 
+public class intset private tmobject class list implements int value tmobject list int value public object clone list new list value return public intset list new list integer min value new tmobject new tmobject new list integer max value public boolean insert int list new list tmobject newnode new tmobject thread thread true thread begintransaction boolean result true try list list open write list list open write value list open write value result false result true newnode catch denied thread committransaction return result 
+integer set example intset provides insert delete methods 
+relevant code excerpts shown 
+intset nodes list elements nodes transactional objects class tmobject contain list elements class list regular java objects 
+list class fields value integer value tmobject containing list element 
+emphasize tmobject list element field meaningful transactions 
+list elements encapsulated transactional objects list class implements interface providing public clone method 
+intset constructor allocates sentinel nodes containing list elements holding minimum maximum integer values assume inserted deleted 
+brevity focus insert 
+method takes integer value returns true insertion takes place false value set 
+creates new list element hold integer argument new node hold list element 
+repeatedly retries transaction succeeds 
+transaction traverses list maintaining current node previous node 
+traversal current node contains smallest value list greater equal value inserted 
+depending value current node transaction detects duplicate inserts new node previous current nodes tries commit 
+commit succeeds method returns resumes loop retry transaction 
+attractive feature dstm reason code sequential 
+principal differences need catch denied exceptions retry transactions fail commit need distinguish transactional nodes non transactional list elements 
+note catching denied exception call committransaction terminate transaction guaranteed fail 
+conflict reduction transaction typically fail commit concurrent transaction opens object opened ultimately responsibility contention manager discussed section ensure conflicting transactions eventually overlap 
+intset implementation just described introduces number unnecessary conflicts 
+example consider transaction calls member test particular value set running concurrently transaction calls insert insert larger value 
+transaction cause abort conflict opening node list 
+conflict unnecessary transaction inserting value modify nodes traversed transaction 
+designing operations avoid conflicts reduces need contention management generally improves performance scalability 
+dstm provides mechanisms eliminating unneeded conflicts 
+conventional mechanism allow transactions open nodes read mode indicating transaction modify object 
+list list list node open read concurrent transactions open transactional object reading conflict 
+difficult especially face aliasing transaction keep track objects opened mode opened allow transaction open object times different modes 
+revised insert shown method walks list read mode identifies nodes modify 
+upgrades access read regular access transactional object write mode 
+read access particularly useful navigating public boolean delete int thread thread true thread begintransaction boolean result true try tmobject null tmobject list list open read list list open read value null release list open read value result false result true list open write open write catch denied thread committransaction return result delete method early release tree data structures transactions pass common root modify root 
+dstm provides novel powerful dangerous 
+way reduce conflicts 
+commits transaction may release object opened read mode invoking release method 
+object released transactions accessing object conflict releasing transaction released object 
+programmer ensure subsequent changes transactions released objects violate linearizability releasing transaction 
+danger similar problem mentioned earlier motivate validation releasing objects transaction causes validations transaction ignore released objects 
+transaction observe inconsistent state 
+effects case potentially worse transaction commit linearizable 
+intset example releasing nodes useful navigating list minimum conflicts shown 
+transaction traverses list opening node read mode releases node prev node 
+transaction adds element list upgrades access node modified node write mode 
+transaction removes element list opens write mode node modified node removed 
+easy check steps preserve linearizability 
+transaction may open object times dstm matches object invocations analogous technique lock coupling see course locks 
+start tmobject transaction new object old object locator aborted data data transactional object structure release invocations open read object released release invoked times open read object 
+objects opened write mode transaction released transaction commits transaction opens object read mode upgrades write mode subsequent requests release object silently ignored 
+clearly release facility care careless may violate transaction linearizability 
+useful designing shared pointer data structures lists trees transaction reads way complex structure 
+
+implementation describe dstm implementation 
+transaction object class transaction field initialized active set committed aborted cas instruction 
+cas functionality provided class experimental prototype doug lea java util concurrent package 
+opening transactional object recall transactional object class tmobject isa container regular java object call version 
+logically transactional object fields transaction points transaction opened transactional object write mode points old object version points new object version 
+current committed version transactional object determined status transaction opened object write mode 
+transaction committed new object current version old object meaningless 
+transaction aborted old object current version new object meaningless 
+transaction active old object current version new object active transaction tentative version 
+version current transaction commits successfully discarded 
+observe transactional objects opened write mode active transaction changing status field transaction active cas instruction takes parameters address expected value new value currently stored address matches expected value cas stores new value address returns true say cas succeeds case 
+cas returns false modify memory say cas fails case 
+start tmobject transaction new object old object old locator transaction new object old object new locator committed data data active data copy opening transactional object commit start tmobject transaction new object old object old locator transaction new object old object new locator aborted data data active data copy opening transactional object abort committed atomically changes current version respective object old version new version essence atomic transactions achieved implementation 
+interesting part implementation transaction safely open transactional object changing current version occur transaction successfully commits 
+achieve need atomically access fields mentioned 
+current architectures generally provide hardware support atomic updates 
+introduce level indirection tmobject single field start points locator object 
+locator object contains fields mentioned transaction points transaction created locator point old new object versions 
+indirection allows change fields atomically calling cas swing start pointer locator object 
+explain detail transaction opens tmobject write mode 
+transaction opened object write mode 
+prepares new locator object transaction set suppose committed 
+sets new locator field objects opened reading transaction successfully commits change transaction successfully validates executes cas changes status transaction linearized invocation commit point cas succeeds 
+point subtle defer complete discussion proof linearizability full version 
+current new field copy current 
+recall class encapsulated transactional object export public clone method 
+calls cas change object start field old locator new locator 
+cas succeeds open method returns new version transaction tentative version object 
+update version synchronization 
+cas fails transaction object start field retries 
+suppose aborted 
+follows procedure sets new locator field current 
+suppose active 
+may commit abort changes object start field determine version current moment cas succeeds 
+safely choose version store field locator 
+beauty obstruction freedom need guarantee progress resolve dilemma attempting abort cas change status field active aborted ensuring status field aborted committed proceeding change may effected action transaction 
+resolution highlights important property algorithm respect integration contention managers determine advance interfere decide policy implemented contention manager discussed section abort give chance finish 
+read access implemented slightly different way 
+opens transactional object reading identifies committed version possibly aborting active transaction exactly write access 
+installing new locator object adds pair thread local read table 
+match invocations open read release transaction maintains counter pair readonly table 
+object opened read mode entry table transaction increments corresponding counter inserting new pair 
+counter decremented release method pair removed counter reduced zero 
+validating committing transaction open determined version object return returns version dstm validate calling transaction order ensure user transaction code observe inconsistent state 
+validation requires steps 
+pair calling thread read readers familiar cas may concerned aba problem cas operation fails notice location accesses changed new value back original value causing cas succeed failed 
+problem arise java implementation garbage collection gc ensures locator object get recycled thread pointer 
+gc eliminates aba problem case caution reader assuming aba problem occur environments support gc 
+table verify committed version 
+check status field transaction object remains active 
+committing transaction requires steps validating entries read table described calling cas attempt change status field transaction object active committed 
+costs absence synchronization conflicts transaction opens objects writing requires cas operations open call commit transaction 
+synchronization conflicts may require cas operations abort transactions 
+strong synchronization operations needed dstm implementation open returns object version need synchronization access version 
+transaction incurs cost cloning objects opened writing cloning achieved simple load store instructions dstm ensures objects cloned change cloning 
+validating transaction opened objects writing objects reading released requires 
+validation performed object opened transaction commits total overhead due dstm implementation transaction opens reading objects writing plus cost copying objects opened writing 
+note addition reducing potential conflict releasing objects opened reading reduces overhead due validation released objects need validated 
+objects open reading time total overhead transaction plus cost cloning objects 
+
+contention management despite advocacy obstruction free synchronization expect progress take care 
+contrary explicit measures necessary avoid starvation 
+obstruction free synchronization encourages clean distinction obstruction free mechanisms ensure correctness conflict detection recovery additional mechanisms ensure progress adaptive backoff queuing 
+transactional memory implementation progress responsibility contention manager 
+thread contention manager instance consults decide force conflicting thread abort 
+addition contention managers different threads may consult compare priorities attributes 
+correctness requirement contention managers simple quite weak 
+informally active transaction asks sufficiently times eventually get permission abort conflicting transaction 
+precisely optional step reduce space overhead storing null whichever object pointers locator obsolete transaction commits aborts allowing garbage collector claim 
+straightforward changes required order avoid dereferencing null pointers 
+call contention manager method eventually returns invoking thread stops steps reason transaction repeatedly requests abort transaction eventually granted permission 
+requirement needed preserve transaction forever denied permission abort conflicting transaction commit runs 
+conflicting transaction continually requesting permission abort incorrectly denied permission situation akin deadlock 
+conversely eventually allowed abort conflicting transaction eventually commit runs long 
+correctness requirement contention managers guarantee progress presence conflicts 
+particular contention manager provide guarantee assumptions system models policy decision may depend applications environments factors 
+problem avoiding livelock delegated contention manager 
+mandate specific contention management policy define interface contention manager implement 
+interface specifies kinds methods notification methods feedback methods invoked dstm implementation 
+notification methods inform contention manager relevant events dstm return value 
+example method invoked transaction commits successfully method invoked attempt commit transaction fails 
+notification methods correspond events internal dstm implementation 
+example method called notify contention manager attempt open read mode object open similarly method called attempt open object write mode 
+feedback methods called dstm determine action taken various circumstances 
+important feedback method invoked dstm detects conflicting transaction attempt open object 
+method passed object opened manager conflicting transaction returns boolean indicating try abort conflicting transaction 
+addition explicit purposes contention manager methods may implement measures backoff queuing manage contention 
+done preliminary methods implement simple contention management strategies expect interface evolve gain experience methods especially notification methods useful implementing sophisticated strategies 
+examples baseline experimental results reported section implemented trivial aggressive contention manager immediately permission abort conflicting transaction 
+implemented runs means concurrent transaction takes step concurrent transaction exists 
+simple polite contention manager adaptively backs times encounters conflict 
+specifically transaction invokes object method sleeps random duration returning false refusing permission abort thread 
+subsequent call object doubles expected sleep time threshold reached 
+threshold returns immediately returns true granting caller permission abort conflicting transaction 
+imagine variations strategy different strategies queuing backoff combined spinning 
+discovering strategies best remains open area research 
+
+results section briefly results simple performance experiments conducted sun fire tm server mhz sparc processors 
+experiment implemented integer set measured operations completed integer set seconds varying number participating threads multiprogramming level 
+operation randomly choose value randomly choose insert delete value 
+restricted range ensures significant contention concurrent threads exercises contention managers 
+experiment thread executes operations repeatedly delay order examine implementations scale increased contention 
+results experiments 
+graphs show results throughput operations millisecond 
+point represents average runs relevant experiment 
+upper graph shows results various experiments running threads 
+lower graph presents detailed look experiments number threads exceed number processors 
+course experiments conducted test various implementation approaches transaction contention manager stm levels 
+simple experiments intended illustrate broad principles 
+implemented simple linked list synchronized single lock see simple locking 
+due simplicity implementation yields higher throughput configuration single threaded case operations millisecond 
+number threads increases throughput implementation quickly falls particular threads processors implementation performs badly due preemption holding lock 
+dstm implement simple transactional integer set shown 
+composed specialized optimistic locking algorithms exploit simple semantics linked lists substantially improve performance 
+algorithms involve unsynchronized reads shared data require careful reasoning concurrency ensure correctness avoid deadlock 
+furthermore algorithms generalize straightforwardly complex data structures 
+purpose illustrate implications different implementation approaches construct best implementation integer sets consider algorithms 
+operations millisecond operations millisecond simple locking aggressive polite aggressive polite rbtree aggressive rbtree polite number threads processor machine simple locking aggressive polite aggressive polite rbtree aggressive rbtree polite number threads processor machine experimental results processor sun fire server 
+bottom shows detailed view top threads 
+trivial aggressive contention manager aggressive implementation immediately livelocks soon thread 
+compose implementation slightly sophisticated polite contention manager performs better 
+fact outperforms simple lock implementation threads 
+results demonstrate necessity effectiveness contention management 
+discussed section preferable avoid contention merely manage 
+tested linked list implementation early release shown 
+implementation greatly reduces contention transaction fewer objects open time 
+seen implementation livelock aggressive contention manager aggressive demonstrating programming technique effective reducing contention 
+implementation gives rise contention effect contention management pronounced 
+interestingly early release implementation performs better aggressive contention manager polite especially number threads exceeds number processors 
+possible explanation difference tuned polite manager case contention 
+threads processors transaction conflict transaction thread preempted case may best abort transaction immediately 
+conduct detailed experiments test conjectures fully understand cause effect 
+context sequential algorithms standard practice design complex algorithms outperform simpler ones example implementing balanced tree list 
+non blocking algorithms implementing complex data structures prohibitively difficult 
+dstm significant step overcoming difficulty 
+demonstrate dstm implement non blocking red black tree straightforward translation sequential code 
+reduce contention red black tree implementation initially opens nodes read mode upgrading write mode needed 
+keep simple release nodes transaction commits aborted 
+tested red black tree implementation aggressive polite contention managers rbtree aggressive rb tree polite 
+seen red black tree significantly outperforms non blocking implementations low levels contention fewer threads 
+expected improvement red black tree time complexity logarithmic size set contrast linear time complexity list 
+effect pronounced chose values insert larger range resulting larger sets steady state 
+limited value range red black tree aggressive contention manager significantly outperforms configurations levels contention marked degradation performance number threads increases 
+polite contention manager red black tree perform quite remains competitive configurations shown thread processor significantly better 
+observations suggest lessons 
+unsurprisingly sophisticated data structures red black trees significantly outperform simpler data structures linked lists 
+dstm relatively straightforward transform sequential algorithms non blocking ones allows leverage decades efficient sequential data structures development non blocking data structures 
+second difference performance configurations different contention managers reinforces importance contention management designing efficient non blocking data structures 
+performance degradation red black tree contention managers suggests room considerable improvement sophisticated contention managers impose low overhead contention problem manage contention better shortcoming current dstm implementation respect range possible contention managers way transaction detect transaction opened object read mode 
+opening object write mode transaction cause transaction abort 
+clearly tradeoff amount synchronization needed open object reading visible way order enable competing transactions polite benefit derived doing 
+currently working ideas direction 
+
+concluding remarks proposed new form dynamic software transactional memory dstm supports relatively straightforward programming wide variety data structures 
+example implement non blocking red black tree far sophisticated non blocking data structure achieved date 
+implemented obstruction free prototype java programming language 
+obstruction freedom new non blocking progress condition proposed weaker previous conditions result admits substantially simpler implementations 
+attractive feature implementation ability transaction detect cause abort decide proceed give transaction chance complete 
+policy decisions modular contention managers plugged affecting transaction code correctness 
+preliminary performance experiments show nontrivial contention management schemes necessary order avoid livelock simple schemes effective 
+begun explore range possible contention manager designs 
+believe designing testing reasoning modular contention managers rich source research problems 
+interesting note possible design contention managers provable progress guarantees presence certain weak reasonable assumptions underlying system transaction code 
+managers practical matter research 
+interesting novel feature dstm ability release objects transaction commits 
+feature puts significantly burden transaction programmer reasoning correctness provide considerable performance improvements care 
+interesting issues remain regarding interface semantics 
+cases tradeoffs efficiency implementation usability simplicity interface explore tradeoffs detail 
+acknowledgments ron larson getting access sun fire computer doug lea experimental java util concurrent package steve green help experiments steve heller useful discussions 
+guy steele jan willem useful feedback especially dstm interface 
+jan suggested nulling extra pointer locators transactions aborted committed allow garbage collection obsolete version 
+grateful yossi lev feedback useful suggestions improvements mike kistler comments draft 
+
+java specification request concurrent utilities jsr 
+jcp org 
+sun microsystems laboratories scalable synchronization research group publications page 
+research sun com scalable pubs 
+afek 
+wait free fast 
+proceedings th annual acm symposium theory computing pages 
+barnes 
+method implementing lock free shared data structures 
+proceedings fifth annual acm symposium parallel algorithms architectures pages 
+bayer 
+concurrency operations trees 
+acta informatica 
+cormen leiserson rivest 
+algorithms 
+mcgraw hill 
+herlihy moir 
+obstruction free synchronization double ended queues example 
+proceedings rd international conference distributed computing systems 
+herlihy moss 
+transactional memory architectural support lock free data structures 
+proceedings th international symposium computer architecture pages 
+herlihy wing 
+linearizability correctness condition concurrent objects 
+acm transactions programming languages systems 
+israeli 
+disjoint access parallel implementations strong shared memory primitives 
+proceedings th annual acm symposium principles distributed computing pages 
+moir shavit 
+nonblocking compare single swap 
+proceedings th annual acm parallel algorithms 
+michael scott 
+nonblocking algorithms preemption safe locking multiprogrammed shared memory multiprocessors 
+journal parallel distributed computing 
+moir 
+transparent support wait free transactions 
+proceedings th international workshop distributed algorithms pages 
+shavit 
+software transactional memory 
+distributed computing special issue 
+turek shasha prakash 
+locking blocking making lock concurrent data structure algorithms nonblocking 
+proceedings eleventh acm sigact sigmod sigart symposium principles database systems pages 

@@ -1,0 +1,567 @@
+alto link time optimizer compaq alpha robert muth saumya debray scott department computer science university arizona tucson az usa debray cs arizona edu koen de en universiteit gent gent belgium kdb rug ac keywords compilers code optimization executable editing november traditional optimizing compilers limited scope optimizations fact single function possibly single module available analysis optimization 
+particular means library routines optimized specific calling contexts 
+optimization opportunities exploiting information available addresses variables final code layout ignored linkers traditionally unsophisticated 
+possible solution carry program optimization link time 
+describes alto link time optimizer compaq alpha architecture 
+able realize significant performance improvements programs compiled optimizing compiler high level optimization 
+resulting code considerably faster obtained om link time optimizer conjunction profile guided inter file compiletime optimizations 
+robert muth saumya debray scott supported part national science foundation numbers ccr ccr cda 
+koen de research associate fund scientific research flanders 
+optimizing compilers traditional imperative languages limit program analyses optimizations individual procedures 
+disadvantage possible optimizations may missed depend propagating information procedure boundaries 
+compiler implements interprocedural analyses see example analyses optimizations possible limited code available examination compile time :10.1.1.152.183:10.1.1.22.4648
+means code involving calls library routines procedures defined separately compiled modules dynamically dispatched virtual functions objectoriented languages case virtual function overridden effectively optimized 
+optimizations reduce cost address computations require information available compile time 
+possible solution carry program optimization entire program library calls available inspection link time 
+possible address shortcomings traditional compilation model gives rise problems example machine code usually semantic information source code difficult discover control flow data flow information 
+simple example simple order programs functions treated data passed form closures languages scheme ml procedure parameters languages pascal function pointers control flow analysis executable files difficult determining extent jump tables possible targets code derived case switch statements difficult source level contrast corresponding problem straightforward 
+compiler analyses typically carried representations source programs terms highlevel source language constructs 
+nasty features infrequent result non programs observable behavior guaranteed preserved optimizations 
+example explicit nontrivial pointer arithmetic simple increment decrement operations pointers usually frequently encountered bounds array accesses typically result non standard conforming programs 
+compiler analyses handle conservatively essentially giving features encountered adhere strictly language semantics assuming array access addresses elements array simply ignoring potentially non standard conformant constructs bounds accesses 
+alternative difficult implement significant adverse impact extent optimization achieved programs 
+level executable code contrast nasty features 
+nontrivial pointer arithmetic ubiquitous ordinary address computations manipulating tagged pointers 
+number arguments function large arguments may passed stack 
+case arguments passed stack typically reside top caller stack frame callee reach caller frame access stack frame typically accessed array words indexed stack frame pointer bounds array 
+unfortunately source level approaches handling features longer adequate level executable code treating nontrivial pointer arithmetic conservatively giving significant adverse impact optimization ignoring effects bounds array accesses cause incorrect optimization carried 
+executable programs tend significantly larger source programs derived 
+coupled lack semantic information programs means sophisticated analyses practical source level may overly expensive level executable code time space requirements 
+describes link time optimizer built alpha architecture 
+system call alto link time optimizer reads executable file produced linker currently support digital unix binaries version elf binaries linux developed currently tested execution profile information optional carries various analyses optimizations produces executable file 
+experiments indicate currently implements relatively simple analyses example checks pointer aliasing implemented rudimentary conservative way performance code generated system considerably better generated om link time optimizer supplied vendor 
+remainder organized follows section gives brief overview alpha processor 
+section describes organization alto 
+section discusses control flow analysis carried 
+section describes analyses carried alto section describes optimizations performed section gives performance results 
+section summarizes related 
+section concludes 
+alto downloaded free charge www cs arizona edu alto 
+alpha architecture overview alpha conventional superscalar risc processor bit words bit instructions 
+bit integer registers registers floating point registers registers 
+register hard wired integer value hard wired floating point value 
+additionally standard usage registers follows integer registers floating point registers usage return values functions scratch registers callee saved registers argument registers function calls ra return address register function calls gp global pointer register sp stack pointer global pointer register gp deserves explanation 
+typical bit architecture bit instruction words bit registers bit constant loaded register instructions load high bits register low bits instructions bits loaded encoded part instruction word 
+alpha bit instructions bit registers mechanism adequate loading bit constant address procedure global variable register 
+constants collected global address tables separately compiled module 
+generated code accesses table gp register bit displacement 
+accessing global object involves steps address object loaded global address table access object referred load store global variable jump procedure 
+system organization execution alto divided phases 
+phase executable file containing relocation information objects read initial somewhat conservative inter procedural control flow graph constructed 
+second phase suite analyses optimizations applied iteratively program 
+activities phase broadly divided categories simplification program code simplified ways dead unreachable code eliminated operations normalized different ways expressing operation clearing register rewritten possible operation ops typically inserted scheduling alignment purposes eliminated reduce clutter 
+alto basic block profiles generated vendor supplied pixie tool basic block edge profiles generate currently extending system generate value profiles specific points interest 
+analysis number analyses carried phase including register liveness analysis constant propagation stack usage patterns jump table analysis 
+optimization optimizations carried phase include standard compiler optimizations peephole optimization branch forwarding copy propagation invariant code motion loops optimizations elimination unnecessary register saves restores function call boundaries architecture specific optimizations conditional move instructions simplify control flow improvements control flow graph results jump table analysis 
+followed function inlining phase 
+fourth phase repeats optimizations carried second phase code resulting inlining 
+final phase carries profile directed code layout instruction scheduling insertion ops alignment purposes code written 
+alto carries inlining may opportunities inlining link time module library boundaries may compile time 
+reason simplification optimization phases performed twice inlining influence inlining influenced 
+example function call inlined depends part size callee affected dead unreachable code elimination prior inlining 
+turn affected optimizations copy propagation constant folding 
+example inter procedural constant propagation constant folding prior inlining propagate value constant argument library routine allow outcome conditional branch routine statically determined subsequent removal unreachable code reduce size routine point gets inlined call sites 
+inlining phase turn give rise opportunities optimizations 
+example optimizations alto conservative treatment function calls assume callee may read write memory location inlining exposes memory access behavior inlined routine enhance effects optimizations 
+control flow analysis traditional compilers generally construct control flow graphs individual functions intermediate representation program 
+determination intra procedural control flow difficult intermediate representation need deal machine level idioms control transfer 
+result construction control flow graph fairly straightforward process 
+things somewhat complex link time machine code harder decompile 
+algorithm alto construct control flow graph input program follows 
+start address program appears fixed location header file location may different different file formats 
+starting point standard algorithm identify leaders basic blocks function entry blocks 
+relocation information executable identify additional leaders detected 
+jump table targets basic blocks marked relocatable 
+stage alto assumptions function single entry block ii basic blocks function laid contiguously 
+assumption turns incorrect flow graph repaired stage second assumption hold control flow graph constructed alto may contain safe imprecisions result optimizations may effective 
+
+edges added flow graph 
+exact determination target control transfer possible alto estimates set possible targets conservatively special node unknown special function unknown associated worst case data flow assumptions registers define registers 
+basic block start address marked relocatable considered potential target jump instruction unresolved target edge unknown function entry point marked relocatable considered potentially target indirect function call call edge unknown indirect function call jsr instruction considered call unknown indirect jumps considered jump unknown 
+inter procedural constant propagation carried resulting control flow graph results determine addresses loaded registers 
+information turn resolve targets indirect jumps function calls targets resolved unambiguously edge unknown unknown replaced edge appropriate target 
+
+assumption far function call returns caller instruction immediately call instruction 
+level executable code assumption violated ways 
+involves escaping branches ordinary non function call jumps function happen tail call optimization code sharing hand written assembly code example numerical libraries 
+second involves nonlocal control transfers functions setjmp longjmp 
+cases handled insertion additional control flow edges call compensation edges control flow graph case escaping edges function function result single compensation edge exit node exit node case function containing setjmp edge unknown exit node function containing longjmp compensation edge exit node unknown effect compensation edges force various dataflow analyses safely approximate control flow effects constructs 
+
+alto attempts resolve indirect jumps jump tables arise case switch statements 
+done part optimizations mentioned section 
+optimizations simplify control data flow allow extent jump table determined 
+essential idea constant propagation section identify start address jump table bounds check instruction determine extent jump table 
+edge indirect jump unknown replaced set edges entry jump table 
+indirect jumps function resolved way remaining edges unknown basic blocks function deleted 
+program analysis flow graph constructed program subjected various dataflow analyses important described 
+interprocedural constant propagation generally opportunities interprocedural constant propagation link time compile time 
+reasons entire program including library routines available inspection second link time possible detect deal architecture specific computations visible intermediate code representation level typically compilers optimizations 
+example case computation gp register alpha processor value register generally recomputed entry function return function call cases recomputation unnecessary eliminated propagating value register program 
+noted optimization carried compile time value gp determined link time 
+analysis alto essentially standard iterative constant propagation limited registers carried control flow graph entire program 
+effect communicating information architectures callee may explicitly manipulate return address circumstances part sparc calling convention cases extra word immediately call instruction cases callee increments return address skip word grateful anonymous referee pointing 
+situations arise alpha architecture handled alto 
+program 
+instructions evaluated total total evaluated compress gcc go ijpeg li ksim perl vortex geometric mean table efficacy interprocedural constant propagation constant arguments calling procedure callee 
+improve precision alto attempts determine registers saved entry function restored exit register saved restored function manner contains constant just function called inferred contain value return call 
+results constant propagation optimizations carried shown table 
+column labelled total gives static counts total number instructions program unreachable code elimination see section column labelled evaluated gives number instructions operands result determined link time 
+seen average possible evaluate instructions program link time 
+mean instructions program removed alto instructions outcome evaluated ahead time represent address computations accessing arrays records function calls 
+information advantage cases replacing indirect function calls direct calls register operands immediate operands 
+shown analysis profound impact performance generated code 
+turning analysis results slowdown spec benchmarks programs ksim perl vortex suffering slowdowns 
+reason impact great part control data flow analyses rely knowledge constant addresses computed program 
+example code generated compiler function call typically loads address called function register uses jsr instruction jump indirectly register 
+constant propagation determine address loaded fixed value callee far away indirect function call replaced direct call bsr instruction cheaper vital construction inter procedural control flow graph program optimizations inlining 
+example constant address information involves identification possible targets indirect jumps jump tables done indirect jump assumed capable jumping basic block function significantly hamper optimizations 
+knowledge constant addresses useful optimizations removal unnecessary memory section strength reduction constant computations section 
+unfortunately rely calling conventions observed hand written assembly code libraries obey conventions compilers may ignore doing interprocedural register allocation 
+precisely basic block marked relocatable 
+compress gcc go ijpeg li ksim perl vortex relative execution time relative execution time constant propagation constant propagation average performance impact interprocedural constant propagation interprocedural liveness analysis interprocedural dataflow analyses context insensitive context sensitive 
+context insensitive analyses simply combine control flow graphs individual procedures single large graph analyze standard intra procedural techniques keeping track return edges correspond call edges 
+advantages simplicity efficiency special needs done handle interprocedural control flow procedure re analyzed various call sites 
+problem analyses suffer loss precision explore execution paths containing call return pairs correspond occur execution program 
+context sensitive analyses contrast avoid problem maintaining information return edges correspond call sites propagating information realizable call return paths 
+price paid improvement precision increase cost analysis 
+alto implements relatively straightforward interprocedural liveness analyses restricted registers extended deal alpha instruction set 
+example call pal instruction acts interface host operating system handled specially registers may instruction visible explicit operands instruction implementation currently implements node unknown mentioned section 
+conditional move instruction requires special attention destination register considered source register 
+remainder section gives high level overview liveness analysis 
+order propagate dataflow information realizable call return paths alto computes summary information function models effect function calls summaries 
+call site consisting call node return node call function effects function call liveness information summarized pieces information 
+mayuse gives registers may register may realizable path entry node intervening definition mayuse describes set registers live entry independent calling context necessarily live call node 
+bypass 
+set registers live live flexibility choice bypass 
+srivastava wall choose bypass complement set registers guaranteed dead entry 
+problem introduces mutual dependency bypass mayuse sets complicates flow equations 
+goodwin chooses bypass complement set registers necessarily defined avoids mutual dependency problem mentioned 
+general hard see set lies mayuse valid candidate bypass 
+choice bypass load instructions executed program trivial context insensitive context sensitive triv ins triv sens triv ins sens compress gcc go ijpeg li ksim perl vortex geometric mean table effect liveness analysis load instructions executed superset goodwin results uniform dataflow equations somewhat simpler implement 
+analysis proceeds phases 
+phases compute summary information functions mayuse bypass sets third phase uses information actual liveness computation 
+phases carried parallel doing sequentially reduces amount space possibly cost increased execution time 
+implementation carries phases sequentially order conserve space 
+turns context sensitive liveness analyses may overly conservative careful handling register saves restores function call boundaries 
+consider function saves contents register restores register returning 
+register saved manner appear operand store instruction appear function subsequent restore operation register appear destination load instruction appear defined function 
+straightforward analysis infer function defined cause inferred live call site handle problem alto attempts determine function set registers saves restores 
+set callee save registers function save determined analysis somewhat conservative removing set mayuse adding bypass values updated fixpoint computation 
+ultimately utility various analyses measured extent enable optimizations carried 
+particular analyses attain improved precision cost increased complexity justified additional code optimizations possible result improvement precision 
+table compares context insensitive context sensitive versions interprocedural register liveness analyses respect reduction number load store instructions executed column marked trivial corresponds base case liveness information available 
+seen liveness analysis leads reduction number loads memory go program achieving reduction 
+compared simple context insensitive analysis context sensitive liveness analysis yields additional improvement 
+priori assumptions program necessarily respect calling conventions regard callee saved registers safe possibly conservative 
+program original unreachable unreachable original instrs instrs compress gcc go ijpeg li ksim perl vortex geometric mean table experimental results unreachable code elimination optimizations section describes important optimizations implemented alto 
+maintain continuity optimization discuss performance impact experimental methodology described section raw data regarding execution times table appendix performance impact particular optimization measured comparing execution speeds attained optimizations turned attained optimization turned 
+details methodology experiments including benchmarks compiler options hardware processor section 
+noted interactions different optimizations performance improvement program usually sum improvements individual optimizations 
+unreachable code elimination compilers unreachable code code executed typically arises due user constructs debugging statements turned setting flag result optimizations usually detected eliminated intra procedural analysis 
+contrast unreachable code detected link time usually different origins due inclusion irrelevant library routines code identified unreachable due propagation actual parameter values function 
+case link time identification unreachable code fundamentally interprocedural nature 
+unreachable code executed elimination desirable number reasons 
+reduces amount code link time optimizer needs process lead significant improvements amount time memory 
+
+enable optimizations enabled bringing basic blocks closer allowing efficient control transfer instructions allowing precise liveness analysis trigger optimizations 
+
+elimination unreachable code reduce amount cache pollution unreachable code loaded cache nearby reachable code executed 
+turn improve cache behavior program 
+
+elimination unreachable code simplifies processing extended basic blocks sequence instructions incoming control flow edges allowed top may outgoing control flow edges intermediate points sequence unnecessary check certain situations unreachable cycle basic blocks prove problematic 
+compress gcc go ijpeg li ksim perl vortex relative execution time relative execution time optimization optimization average performance impact constant computation optimization unreachable code analysis involves straightforward depth traversal control flow graph performed soon control flow graph program computed 
+initially basic blocks marked unreachable entry block program unknown edge basic block unknown predecessors see section 
+analysis traverses inter procedural control flow graph identifies reachable blocks basic block marked reachable reached block reachable 
+function calls corresponding return blocks handled context sensitive manner basic block follows function call marked reachable corresponding call site reachable 
+amount unreachable code detected benchmarks shown table 
+numbers include ops inserted reachable basic blocks alignment instruction scheduling purposes 
+seen amount unreachable code quite significant programs exceeds case vortex program 
+average instructions benchmarks unreachable 
+somewhat higher results srivastava estimate amount unreachable code fortran programs 
+benchmarks primary impact unreachable code elimination code size measured impact optimization execution speed small 
+optimization constant value computations possible determine constant propagation folding value computed loaded register constant alto attempts find cheaper instruction compute constant register 
+optimization generalized cheap instruction sequences replace high latency operations multiplication 
+simplest case optimization involves computing values constants specific registers values known program point register value global pointer register gp value program point known link time 
+signed constant represented bits instruction compute constant register replaced instruction lda instruction lda computes register result adding contents signed bit value 
+similarly difference constant value gp register representable signed bit integer thing gp base register 
+basic optimization described srivastava wall alto generalized constant computed known value register just gp 
+care taken ensure constants involved addresses code sections executable 
+alto changes code section addresses certain change constants excluded optimization 
+data addresses problem contrast transformations implemented alto cause data addresses change 
+example optimization consider statement global variables type long addresses respectively code generated typically follows original code initial optimized code final optimized code ldq gp ldq gp ldq gp ldq gp lda ldq gp lda ldq ldq ldq ldq ldq ldq addq addq addq stq stq stq ldq loads register contents bytes address computed adding contents register stq instruction stores analogously 
+original code instructions load addresses variables global address table global pointer register gp index table 
+instructions implement actual addition 
+alto able determine addresses loaded registers able determine contents gp global address table read area memory 
+allows constant value optimization instructions replaces address loads cheaper lda instructions 
+instructions modified base register 
+resulting code shown column labelled initial optimized code 
+note registers longer code assuming dead code fragment instructions subsequently deleted resulting final optimized code sequence shown 
+alto tries optimize constants 
+alpha instructions allow small immediate value place second operand register 
+alto attempts exploit feature possible 
+operand register determined constant alto try swap operands instruction 
+trivial instruction commutative operands requires serious analysis modifications 
+performance impact optimization illustrated 
+programs benefit optimization ksim perl vortex improvements spec benchmarks experience performance improvement due optimization 
+elimination unnecessary memory operations possible identify load frequently store operations unnecessary link time eliminate operations 
+unnecessary loads stores arise variety reasons variable may kept register compiler global compiler unable resolve aliasing adequately free registers available compiler 
+link time accesses globals different modules evident making possible keep registers inlining module boundaries library routines may possible resolve aliasing done compile time link time optimizer may able scavenge registers hold values spilled memory compiler 
+alto distinct optimizations eliminate unnecessary memory operations 
+suppose instruction stores register memory location loads memory location followed soon instruction loads location register shown location modified instructions load forwarding attempts delete instruction replace register move may happen register overwritten instructions case alto tries find free register may may hold value compress gcc go ijpeg li ksim perl vortex relative execution time relative execution time optimization optimization average performance impact memory operation elimination instruction shown dead deleted 
+current implementation happens frequently store load operations liveness analysis memory locations limited 
+
+memory accesses result saving restoring callee save registers function boundaries 
+accesses may unnecessary registers saved restored manner touched execution paths function code registers unreachable outcome conditional branch predicted result inlining interprocedural constant propagation deleted 
+reduce number unnecessary memory accesses alto uses variation shrink wrapping move register save restore actions away execution paths don need 
+difference implementation shrink wrapping originally proposed chow don allow execution path function contain save restore actions 
+apart function saves subsequently restores callee save register change instructions save restore eliminated 
+performance impact optimization illustrated 
+programs benefit optimization go perl improvements neighborhood spec benchmarks experience improvement due optimization 
+inlining motivations carrying inlining alto fold 
+eliminate function call return overhead 
+usually inlining function call gets rid instructions call return instructions load store instructions saving restoring return address callee allocating deallocating callee stack frame leaf function call functions need save restore return address may allocate stack frame 
+additionally register reassignment reduce overhead saving restoring registers call boundaries 
+second exploit callsite specific information callee example aliasing relationships caller code callee code may easier determine inlining refer stack frame different frames see section 
+final reason improve branch prediction instruction cache behavior profile directed code layout cf 
+section 
+code growth due inlining controlled alto follows function inlined call site hold callee small calling return sequences longer body ii call site consideration call site function program number instructions inlining inl inlining inl inl inl compress gcc go ijpeg li ksim perl vortex table code growth due inlining compress gcc go ijpeg li ksim perl vortex relative execution time relative execution time inlining inlining average performance impact inlining iii call site hot sufficiently high execution count alto estimate cache footprint resulting code exceed size instruction cache 
+reason condition inlining attention cache behavior significant negative effect program performance 
+address problem hot call site function considered inlining alto satisfies criteria critical subgraph control flow graph refers subgraph consisting hot basic blocks blocks edges permit path subgraph entry node hot block exit node 
+loop enclosing call site number instructions critical basic blocks instructions critical subgraph callee exceed capacity level instruction cache case alpha processor kbytes instructions 
+loop total number instructions critical subgraphs caller callee exceed capacity level instruction cache 
+sophisticated strategies possible implemented alto time 
+extent code growth due inlining shown table 
+inlining causes modest increase code size cases neighborhood cases leads small decreases code size 
+performance improvements resulting inlining shown 
+greatest benefits observed ksim improvement little 
+general effect inlining small spec benchmarks performance improvement due inlining 
+believe compress gcc go ijpeg li ksim perl vortex relative execution time relative execution time profile information profile information average performance impact profile directed code layout reasons input executables subjected inlining compiler second inter procedural constant propagation register liveness analyses precise benefit significantly inlining third profile directed code layout able mitigate locality effects inlining 
+code layout alto creates interprocedural control flow graph program unconditional branches eliminated 
+code layout phase arrange basic blocks program linear sequence unconditional branches necessary 
+important issues considered determining linear arrangement basic blocks 
+branch mispredict penalties execution conditional branch instructions fetched memory branch target determined order keep instruction pipeline full hide memory latencies 
+order cpu predicts guesses target branch 
+guess wrong instructions pipeline fetched incorrectly predicted target discarded instructions actual target fetched 
+execution cost associated incorrect prediction referred branch mispredict penalty 
+older processors static branch prediction schemes backward branches predicted taken forward branches taken 
+processors benefit careful basic block layout obvious 
+modern cpus alpha experiments history dynamic branch prediction schemes hardware result code branch misprediction penalties sensitive code layout 
+reason alto consider issue determining code layout 
+
+control flow change penalty instruction fetching precedes instruction decoding instruction pipeline change control flow causes fetch performed decoding instruction causing control flow change wasted incurring small performance penalty 
+note different branch mispredict penalty discussed penalty incurred unconditional branch correctly predicted 
+change control flow increases possibility instruction cache 
+suggests guidelines code layout unconditional branches avoided possible conditional branches oriented fall path branch taken path 
+
+instruction cache conflicts modern cpus significantly faster memory delivering instructions major bottle neck 
+high hit rate instruction cache essential 
+primary instruction caches typically relatively small size low associativity order improve speed 
+advantageous lay basic blocks program way frequently executed blocks positioned close lead cache conflicts 
+alto implements code layout schemes exploits profiling information 
+profiling information available primary goal reduce cache conflicts far possible 
+done variant bottom positioning approach pettis hansen minor modifications address problems identified calder grunwald 
+attempts lay basic blocks way minimizes number branches taken runtime effect blocks executed close temporally tend placed close spatially 
+currently alto carry procedure placement positioning code different procedures program guided call frequency information mitigated extent fact profile guided placement basic blocks carried inter procedural manner example block containing frequently executed function call placed close entry block callee 
+execution profile available alto attempts minimize number branches maintaining original code layout input program closely possible 
+describe layout algorithm profile information available 
+profile information available code layout algorithm proceeds grouping basic blocks program sets hot set consists frequently executed threshold discussed blocks program zero set contains basic blocks executed cold set contains remaining basic blocks 
+basic block layout sets determined separately resulting code sequences concatenated obtain program layout 
+central discussion determination hot set blocks executed sufficiently frequently 
+value interval determine largest execution frequency threshold set basic blocks execution frequencies exceeding account fraction total number instructions executed program indicated basic block execution profile 
+hot basic blocks program defined smallest set blocks contain blocks execution frequencies exceeding ii contain instructions fit primary instruction cache 
+example hot basic blocks program consist allow account instructions executed runtime 
+basic blocks fill instruction cache go able fill instruction cache 
+value hot set obviously depends threshold determine value empirical tuning principle specified user 
+layout algorithm currently uses experiments range values indicates long zero set separated frequently executed code performance sensitive actual value performance impact profile directed code layout compared code layout profile data adheres closely layout original code shown 
+programs seen benefit significantly profile directed code layout greatest benefits obtained ksim perl vortex improvements 
+average performance spec benchmarks improves due optimization 
+instruction scheduling various optimizations effected alto significantly alter instruction sequence executed processor instruction rescheduling phase regenerating executable desirable 
+especially true alpha processor issue instructions cycle provided appropriate constraints met instruction group try access memory access functional unit 
+possible plausible link time code transformation deletion op instruction alter instruction sequence way opportunities multiple instruction issues reduced dramatically corresponding loss performance 
+reasons alto carries instruction scheduling optimizations carried layout code determined execution profiles 
+compress gcc go ijpeg li ksim perl vortex relative execution time relative execution time scheduling scheduling average performance impact instruction scheduling instruction scheduler works extended basic blocks sequence basic blocks entered control may leave intermediate points sequence subject restriction basic blocks constituting extended basic block consecutive code layout 
+increasing scope scheduler handle extended basic blocks benefits 
+scheduler choose move instructions basic blocks boundaries improves schedule 
+especially useful ops introduced basic block alignment purposes 
+
+basic blocks scheduled isolation inter block dependencies taken account 
+profile directed code layout carried prior scheduling extended basic blocks achieves effect similar trace scheduling 
+performance impact instruction scheduling shown 
+programs show performance improvements neighborhood vortex showing largest gain 
+performance results background previous sections discussed effects specific analyses optimizations implemented alto 
+section presents performance improvements attained alto compares performance obtained inter file profile directed optimizations compiler link time optimization om link time optimizer 
+benchmarks test effect alto programs programs spec integer benchmark suite compress file compression program gcc commonly compiler go game playing program ijpeg image compression program li lisp interpreter ksim simulator motorola microprocessor perl perl language interpreter vortex single user object oriented database transaction benchmark 
+size program source object code levels shown table number source lines reported measured command wc processing alto programs compiled vendor supplied compiler invoked cc linker options retain relocation information produce statically linked executables 
+executables instrumented vendor supplied pixie executed spec training inputs obtain execution profile provided alto invoked default switches 
+compared performance improvements obtained alto obtained om link time optimizer supplied vendor 
+obtained execution profile base program pixie described resulting profile recompile program time specifying compiler invoke om command program source lines functions blocks instructions compress gcc go ijpeg li ksim perl vortex table static characteristics benchmark programs compress gcc go ijpeg li ksim perl vortex relative execution time relative execution time original program om ifo om alto om average ifo om average alto average performance results programs cc om wl om compress wl om feedback profile input wl om dead code non shared om lm list source files program 
+measured performance achievable existing capabilities static optimization available digital unix 
+compiled programs optimization level additionally profile directed inter file optimization link time optimization om described appendix performance optimized code relative execution times different executables obtained discussed previous section spec inputs shown 
+timings obtained compaq alpha workstation mhz alpha processor split primary direct mapped cache kbytes instruction data cache kbytes chip secondary cache mbytes chip backup cache mbytes main memory running digital unix 
+case execution time reported obtained follows run times runs executable run single user mode recorded smallest largest execution times discarded average remaining times reported 
+raw data regarding execution times table appendix seen programs tested executable obtained alto considerably faster obtained om conjunction profile guided compress gcc go ijpeg li ksim perl vortex relative execution time original program profile info profile info average profile info average profile info performance impact profile information inter file optimization 
+cases difference improvements quite significant example li gets improvement om profile guided inter file optimization carried compared improvement alto 
+interestingly find exception go ksim profile guided inter file optimization compiler significant additional effect performance achieved just om programs ijpeg vortex executables obtained ifo fb om slightly slower obtained just om 
+link time optimization om produces average improvement profile guided inter file optimizations compiler addition link time optimization om yields average improvement contrast link time optimization alto produces average improvement 
+effect profile information optimizations performed alto profile guided code layout inlining instruction scheduling rely availability profile information 
+general may happen profile information unavailable program inapplicable program execution highly input dependent making difficult find representative profiling inputs 
+interesting examine performance achieved code optimized alto profile information available 
+relative execution times execution profiles unavailable compared original execution times profiles available shown 
+things evident 
+seen execution profiles significant performance impact average availability profiles yields additional reduction execution time 
+second execution profiles available alto able achieve reduction execution time average 
+interestingly compare performance alto profile information om profile feedback om profile feedback combined profile guided inter file optimization compiler find average performance improvement achieved alto profiles significantly worse improvement om improvement om profile guided inter file optimization profile information optimizations 
+static linking impact libraries mentioned section experimental results obtained statically linked executables code library routines linked executable statically linker 
+due partly fact mentioned section research objectives building alto investigate effect analyses optimizations access entire program including library routines 
+primary reason requirement statically linked executables alto relies presence relocation compress gcc go ijpeg li ksim perl relative execution time original program libraries included libraries excluded average libraries included average libraries excluded performance impact library code information control flow analysis see section digital unix linker ld refuses retain relocation information non statically linked executables 
+noted alto om link time optimizer related atom low level instrumentation tool require statically linked executables 
+immediately raises question extent results hold static linking requirement absent 
+indicated static linking requirement fairly fundamental alto operation making impractical try run alto non statically linked executables 
+modified alto ignore library code carrying analyses optimizations 
+inter procedural liveness analysis constant propagation confronted call library routine conclude calling conventions respected contents callee save registers preserved 
+inlining library routines user code disallowed optimizations library code 
+profile guided code layout discussed section places library code zero set away user code 
+believe provides reasonable approximation performance attained link time optimization programs library code linked statically 
+performance effects ignoring library routines shown 
+seen performance benefit statically linking library routines effect small performance improvement drops standard alto analysis optimization library routines disabled change 
+benchmarks li ksim version obtained ignoring libraries slightly faster obtained standard alto believe due instruction cache effects arising differences profile directed code layout 
+results came surprise expected analysis optimization library code larger effect performance program 
+detailed examination benchmarks indicates reason frequently executed code fragments typically contain calls library routines 
+conjecture may due partly fact users believe function calls expensive tend avoid calls library routines hot spots programs 
+alto resource usage alto research prototype primary design goal evaluation variety link time optimizations speed primary design concern leaves lot room improvement 
+example liveness information recomputed optimization uses information unnecessary liveness altering transformations occured liveness computation 
+table lists optimization times alto compares compilation time programs cc time taken compile profile guided inter file optimization link time optimization om cc ifo om 
+seen general alto slower cc ifo om factor ranging exception compress alto slower factor 
+average alto slower factor 
+program processing time secs ratio cc cc ifo om alto alto cc ifo om compress gcc go ijpeg li ksim perl vortex geometric mean table processing times compile time link time optimization size running time secs cc cc ifo om alto cc cc ifo om alto processing times cc cc ifo om alto size memory kbytes alto memory usage apart absolute execution times interesting important issue rate grows input size increases 
+discuss meaningfully specify meant size program 
+analyses optimizations alto constant propagation time taken depends number instructions liveness analysis depends number basic blocks inter procedural analyses may depend number functions program 
+accommodate chose size program sum total number functions basic blocks instructions program 
+plots running time alto input size measure benchmarks 
+line shown alto obtained square fit indicates running time alto 
+plotted running times compilation cc ii inter file optimization om link time optimizer clear notion size similar notion defined entirely terms low level aspects number instructions appropriately measures input sizes case gives indication processing time increases input programs get larger 
+squares curve fitting indicates growth rate execution time program size case second case 
+important execution time amount memory memory usage adverse impact execution time due excessive paging extreme cases cause program crash 
+shows memory alto data structures varies size input program size program described 
+squares curve fitting indicates growth rate alto memory usage input size 
+discussion correctness generally high level semantic information available link time alto disadvantage compared traditional compiler 
+example input programs contain arbitrary machine code need necessarily correspond source language programs conform assumptions satisfied code generated compiler 
+examples include numerical library routines control jumps middle simplicity implementation current implementation alto uses statically allocated arrays data structures hold instructions basic blocks control flow edges shows arrays input size 
+dynamically allocated memory memory usage increase small constant factor bit pointers required bit pointers compiler flag case sublinear asymptotic growth rate unaffected 
+function middle going usual function call return interface standard calling conventions argument register usage may violated 
+alto number assumptions behavior input programs assumptions violated output generated alto may correct 
+fundamental assumptions alto input program 
+assumes input programs carry address arithmetic text segment addresses address arithmetic involving data addresses problem 
+reason optimizing transformations carried alto inevitably result changes code addresses cause program behave incorrectly carries nontrivial arithmetic involving addresses 
+assumption simple relocation information indicating words executable denote text segment addresses sufficient solve address translation problem statically 
+relocation information allows determine functions potential candidates indirect calls function pointers callbacks function address taken 
+noted assumption particular alto fundamental tools rewrite executable files instrumentation tools pixie atom 
+assumption turns current version alto unable handle executables generated functional language implementations objective caml 
+
+assumes top stack pointer resides particular register behaves expected points current top stack 
+
+assumes text segment modified course execution see 
+alto currently support dynamically linked unanalyzed modules program 
+mentioned section static linking requirement really fundamental way alto works byproduct requirement relocation information input programs 
+discussed section function calls targets resolved handled artificial function unknown worst case dataflow assumptions similarly function entry point marked relocatable potentially target unresolved indirect call considered called unknown worst case assumptions unknown conservative sufficient correctness 
+suffices correctly conservatively handling situations involving statically unpredictable runtime control flow address exception handler passed program operating system 
+issue relocation information resolved calls dynamically linked libraries handled correctly similar approach slightly better assumed calls conform calling conventions treatment argument registers callee saved registers 
+problem operating system calls solved similarly difference necessary worst case assumptions call interface behavior system calls documented 
+problem arise dynamic code generation code generated executed runtime available inspection prior execution 
+possibilities 
+dynamically generated code written data segment systems dynamic code generation tempo dcg alto treatment program conservative safe case code alto believes static fact static altered runtime control transfers dynamically generated code handled conservatively 
+calls static code dynamically generated code represented alto calls unknown branches static code dynamic code modelled branches unknown see section alto worst case assumptions unknown unknown code treated conservatively 
+calls branches dynamically generated code static code require addresses static code targets taken passed dynamic code 
+turn leads addresses marked relocatable alto inserts control flow graph static code edges unknown unknown appropriate 
+result control transfers dynamically static code treated conservatively 
+
+dynamically generated code written text segment modify code alto believes static alto may fail sense alto optimized code may semantically equivalent original program 
+way problem bail program contains instructions flush cache 
+implemented 
+signal handling volatile variables may pose correctness problems 
+brought home experimenting scheme programs compiled bigloo scheme compiler runtime system version boehm demers weiser conservative garbage collector 
+garbage collector contained code form file os dep gc find limit static volatile char result 
+gc setup temporary fault handler 
+result min page size result min page size gc noop result 
+file mark void gc noop code apparently nonterminating loop repeatedly changes value pointer variable result illegal address dereferencing prior call gc noop generates exception 
+exception fielded handler set prior loop call gc setup temporary fault handler allows control leave loop 
+processing machine code resulting code alto inlined call gc noop eliminated dereference operation result inferring unnecessary 
+course got rid exception raised dereferencing illegal address produced nonterminating program 
+got problem rewriting code slightly force gc noop argument problem noticed independently fixed somewhat different way subsequent releases garbage collector 
+problem case arises dead code elimination imagine analogous problems memory operation elimination section applied variables declared volatile 
+possible disable particular optimizations command line switches invoking alto straightforward solution problems albeit entirely satisfactory user disable optimizations manually programs contain constructs 
+functionally equivalent solution may preferable users provide command line option specifying conservative mode operation optimizations performed conversion indirect function calls direct function calls results constant propagation section profile directed code layout section cases give nontrivial performance improvements 
+efficacy optimizations shows link time optimizations performed alto lead significant improvements program execution speeds programs subjected high degree compile time optimization 
+alto implements large suite classical intra inter procedural compiler optimizations turns relatively small number account performance benefits due link time optimization conversion indirect function calls jsr instructions direct calls bsr instructions produces speedup average 
+optimization relies constant propagation determine call targets 
+constant computation optimization primarily beneficiaries instructions loading constant addresses addresses global variables functions read data segment registers 
+allows elimination associated load instructions gives average speedup 
+memory operation elimination uses results liveness analysis identify free registers alias analysis disambiguate memory eliminate unnecessary load instructions 
+yields speedup average 
+profile directed code layout uses execution profile information lay code way improve instruction cache utilization 
+produces average speed improvement 
+course optimizations independent speedup figures additive 
+aspects results interesting 
+performance benefits result information unavailable compile time addresses globals functions 
+information plays crucial role optimizations mentioned optimization indirect function calls constant computations helpful alias analysis supports memory operation optimization 
+may entirely unexpected retrospect suggests link time optimization useful improving performance programs regardless extent compile time optimization carried 
+
+having entire program available examination optimization useful expected input programs compiled high degree optimization compiler done job register allocation 
+opportunities elimination memory operations expected 
+came interprocedural propagation constant addresses inter procedural liveness analysis 
+profile directed code layout applied entire program regard procedure boundaries useful performance improvement 
+course observation profile directed code layout yield significant performance benefits numerous authors hardly new point having entire program available manipulation allows optimize code layout inter procedural execution paths 
+availability library routines analysis optimization surprisingly small effect performance average 
+ability carry procedure inlining module file boundaries performance impact anticipated 
+may due partly fact inlining carried compiler 
+related link time code optimization considered number researchers 
+link time register allocation aimed allowing global variables kept registers reducing register saves restores inter module calls discussed wall 
+zuse translation system mld link time optimizer aimed reducing cost abstraction object oriented languages 
+ayers describe production quality link time optimizer hewlett packard systems running hp ux distinguished ability perform program optimizations large programs virtue careful attention paid memory management issues 
+works rely specially engineered compilers produce object files containing special annotations assist link time optimizer intermediate representation program semantic information subsequently optimized translated executable code linker 
+implication performance critical modules written hand coded assembly language third party software libraries source code available code source language supported compiler amenable optimization tools 
+machine level global optimization discussed johnson miller alto system carry interprocedural analysis optimizations 
+authors investigated program optimization compile time examples include compiler successors developed rice university targets parallel distributed scientific programs vortex compiler object oriented languages targets number object oriented languages 
+primary differences 
+compilers target particular language family languages contrast alto able process code generated variety languages regardless source language code generated long code respects assumptions discussed section 
+second specific set analyses optimizations implemented different systems depend characteristics specific classes applications language compiled tends dependence analysis fortran compiler receiver class prediction vortex 
+third difference arises fact discussed section entities visible compile time tend different visible link time result sources performance improvement compiler carries program optimization different optimizer experiences indicate precisely reason link time optimization useful improving program performance compiler carries program optimization 
+systems closest om spike etch link time optimizers 
+actions carried systems conceptually similar differ details 
+spike etch intended executables running windows compaq alpha intel processors respectively 
+spike carries different optimizations hot cold optimization register allocation profile directed code layout alto currently implement hot cold optimization implements optimizations described earlier 
+targeted different operating systems direct comparison alto systems feasible 
+comparisons om see section indicate code produced alto considerably faster produced om 
+due partly fact om implements relatively optimizations primarily intra procedural nature benefit alias analysis register liveness analysis particular optimizations need scratch registers carried 
+dynamo system takes different approach global optimization optimizes native executables dynamically execute 
+system able carry optimizations procedure module boundaries advantage able handle statically dynamically linked libraries 
+main disadvantage dynamic optimization necessarily incurs runtime overhead cases overhead overwhelm optimization benefits yield net loss performance 
+related problem desire keep overhead dynamic optimization low avoid problems difficult implement sophisticated potentially expensive analyses optimizations 
+traditional compile time analyses optimizations limited scope compilation unit analyses optimizations usually limited individual procedures interprocedural optimizations generally limited individual modules library routines available analysis optimization 
+entire program available inspection linking link time optimization overcome deficiencies 
+describes alto link time optimizer implemented compaq alpha 
+experiments indicate currently implements relatively simple analyses example checks pointer aliasing implemented rudimentary conservative way performance code generated system average significantly better generated om link time optimizer supplied vendor 
+grateful robert cohn compaq computer information om link time optimizer craig compaq computer help om feedback directed optimization 
+comments anonymous referees helped improve content presentation significantly 
+aho sethi ullman compilers principles techniques tools addison wesley 
+ayers de jong peyton schooler scalable cross module optimization proc 
+sigplan conference programming language design implementation june pp 
+
+bala duesterwald banerjia transparent dynamic optimization design implementation dynamo technical report hpl hewlett packard laboratories cambridge mass june 
+
+boehm space efficient conservative garbage collection proc 
+sigplan conference programming language design implementation pp 
+
+
+boehm personal communication march 
+chow rudnick design data flow analyzer proc 
+sigplan conference compiler construction june pp 
+
+chase wegman zadeck analysis pointers structures proc 
+sigplan conference programming language design implementation june pp 
+
+chow minimizing register usage penalty procedure calls proc 
+sigplan conference programming language design implementation june pp 
+
+calder feller eustace value profiling proc 
+micro dec 
+calder grunwald reducing branch costs branch alignment th international conference architectural support programming languages operating systems october pp 
+
+cohn lowney hot cold optimization large windows nt applications proc 
+micro dec 
+cohn goodwin lowney rubin optimizing alpha executables windows nt spike digital technical journal vol 
+pp 
+
+collberg flexible encapsulation ph thesis lund university 
+consel noel general approach run time specialization application proc 
+rd annual acm symposium principles programming languages jan pp 
+
+dean defouw grove litvinov chambers vortex optimizing compiler objectoriented languages proc 
+oopsla eleventh annual conference object oriented programming systems languages applications oct pp 
+
+deutsch interprocedural may alias analysis pointers limiting proc 
+sigplan conference programming language design implementation june pp 
+
+emami ghiya hendren context sensitive interprocedural analysis presence function pointers proc 
+sigplan conference programming language design implementation june pp 
+
+engler proebsting dcg efficient retargetable dynamic code generation system proc 
+international conference architectural support programming languages operating systems asplos vi pp 
+
+fernandez simple effective link time optimization modula programs proc 
+sigplan conference programming language design implementation june pp 
+
+fisher trace scheduling technique global microcode compaction ieee transactions computers july 
+goodwin interprocedural dataflow analysis executable optimizer proc 
+acm sigplan conference programming language design implementation pp 
+june 
+philipose mock chambers eggers evaluation staged run time optimizations proc 
+sigplan conference programming language design implementation may pp 
+
+hall kennedy tseng interprocedural compilation fortran mimd distributed memory machines proc 
+supercomputing november 
+jagannathan wright flow directed inlining proc 
+sigplan conference programming language design implementation may pp 
+
+johnson miller effectiveness machine level global optimizer proc 
+sigplan symposium compiler construction june pp 
+
+landi ryder safe approximate algorithm interprocedural pointer aliasing proc 
+sigplan conference programming language design implementation june pp 
+
+leroy effectiveness type unboxing workshop types compilation amsterdam 
+mcfarling procedure merging instruction caches proc 
+sigplan conference programming language design implementation june pp 
+
+muth register liveness analysis executable code manuscript dept computer science university arizona dec 
+available www cs arizona edu alto papers liveness ps 
+pettis hansen profile guided code positioning proc 
+sigplan conference programming language design implementation june pp 
+
+romer voelker lee wolman wong levy bershad chen instrumentation optimization win intel executables usenix windows nt workshop appear 
+ruf context insensitive alias analysis revisited proc 
+sigplan conference programming language design implementation june pp 
+
+register allocation procedure module boundaries proc 
+sigplan conference programming language design implementation june pp 
+serrano weis bigloo portable optimizing compiler strict functional languages proc 
+static analysis symposium sas pp 
+
+srivastava unreachable procedures object oriented programming acm letters programming languages systems vol 
+dec pp 
+
+srivastava wall practical system intermodule code optimization link time journal programming languages pp 
+march 
+srivastava wall link time optimization address calculation bit architecture proc 
+sigplan conference programming language design implementation june pp 
+
+wall global register allocation link time proc 
+sigplan symposium compiler construction july pp 
+
+wilson lam efficient context sensitive pointer analysis programs proc 
+sigplan conference programming language design implementation june pp 
+
+execution time sec program base om ifo fb om alto om base ifo base alto base base om ifo alto compress gcc go ijpeg li ksim perl vortex geometric mean table performance results alto compared om om ifo feedback performance impact alto optimizations raw data section gives raw performance data experiments 
+timings obtained compaq alpha workstation mhz alpha processor split primary direct mapped cache kbytes instruction data cache kbytes chip secondary cache mbytes chip backup cache mbytes main memory running digital unix 
+case execution time reported obtained follows run times runs executable run single user mode recorded smallest largest execution times discarded average remaining times reported 
+addition variation different timings shown magnitude maximum deviation timings considered mean expressed percentage mean 
+set timings discard lowest highest remaining numbers obtain timing mean remaining times maximum deviation mean mean 
+seen tables timings obtained particular executable show variation cases maximum deviation mean 
+table compares performance improvements obtained alto compared obtained om resulting om coupled profile guided inter file optimization 
+table shows performance data comparing effects different optimizations 
+benchmark table shows performance obtained various different optimizations turned 
+performance number rows top row shows mean execution time middle row shows maximum deviation mean third row expresses mean execution time fraction execution time original input program 
+program original le compress gcc go ijpeg li ksim perl vortex geom 
+mean key original input program constant propagation section optimization constant value computations section memory access optimizations section inlining section profile guided code layout section instruction scheduling section le profile information section alto optimizations table performance impact various optimizations compiling programs inter file optimization om inter file optimization capability vendor compiler om link time optimizer compiled programs optimization level additionally profile directed inter file optimization link time optimization om 
+programs compiled follows 
+programs compiled cc non shared orig lm list source files program 
+
+resulting executable orig instrumented pixie run spec training input benchmark produce execution profile 
+feedback file generated profile command prof pixie feedback opt orig 
+source files recompiled profile guided inter file optimization turned feedback file generated previous step cc ifo inline speed feedback opt non shared ifo fb lm switch ifo turns inter file optimization reason files specified inline speed instructs compiler inline routines enhance execution speed 
+
+resulting executable ifo fb instrumented pixie spec training inputs 
+
+resulting execution profile recompile program final time time om optimizer turned cc ifo inline speed feedback opt om wl om compress wl om feedback ifo fb wl om dead code non shared ifo fb om lm reason necessary regenerate profile information om feedback directed optimizations change code addresses rendering original profile useless perspective om 
+notice step distinct sets profiles feedback file opt generated original profile obtained step profile ifo fb obtained executable resulting feedback directed inter file optimization step 
+

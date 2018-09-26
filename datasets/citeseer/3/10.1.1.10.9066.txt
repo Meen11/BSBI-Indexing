@@ -1,0 +1,716 @@
+capriccio scalable threads internet services rob von behren jeremy condit feng zhou george necula eric brewer computer science division university california berkeley zf necula brewer cs berkeley edu presents capriccio scalable thread package high concurrency servers 
+advocated event systems believe systems provide simpler programming model achieves equivalent superior performance 
+implementing capriccio user level thread package decoupled thread package implementation underlying operating system 
+result take advantage cooperative threading new asynchronous mechanisms compiler support 
+approach able provide key features scalability threads efficient stack management resource aware scheduling 
+introduce linked stack management minimizes amount wasted stack space providing safe small non contiguous stacks grow shrink run time 
+compiler analysis stack implementation efficient sound 
+resource aware scheduling allows thread scheduling admission control adapt system current resource usage 
+technique uses blocking graph automatically derived application describe flow control blocking points cooperative thread package 
+applied techniques apache web server demonstrating achieve high performance scalability despite simple threaded programming model 
+categories subject descriptors operating systems process management threads general terms algorithms design performance keywords user level threads linked stack management dynamic stack growth resource aware scheduling blocking graph permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+sosp october bolton landing new york usa 
+copyright acm 
+
+today internet services increasing scalability demands 
+modern servers capable handling tens hundreds thousands simultaneous connections significant performance degradation 
+current commodity hardware capable meeting demands software lagged 
+particular pressing need programming model allows programmers design efficient robust servers ease 
+thread packages provide natural abstraction programming years event systems seda 
+event systems handle requests pipeline stages 
+request represented event stage implemented event handler 
+systems allow precise control batch processing state management admission control addition provide benefits atomicity event handler 
+unfortunately event programming number drawbacks compared threaded programming 
+event systems hide control flow application making difficult understand cause effect relationships examining source code debugging 
+instance event systems invoke method module sending call event waiting return event response 
+order understand application programmer mentally match call return pairs different parts code 
+furthermore creating call return pairs requires programmer manually save restore live state 
+process referred stack major burden programmers wish event systems 
+advocate different solution switching event model achieve high concurrency fix thread model 
+believe modern thread package able provide benefits event system offering better programming model internet services 
+specifically goals revised thread package support existing thread apis 
+scalability hundreds thousands threads 
+flexibility address application specific needs 
+meeting goals possible programmers write high performance internet servers intuitive thread connection programming style 
+thread package improve performance existing threaded applications little modification application 
+thread design principles process fixing threads server applications user level approach essential 
+user level threads kernel threads useful solve fundamentally different problems 
+kernel threads primarily useful enabling true concurrency multiple devices disk requests cpus 
+user level threads really logical threads provide clean programming model useful invariants semantics 
+date strongly advocate particular semantics threads argue clean semantics threads requires decoupling threads programming model logical threads underlying kernel 
+decoupling programming model kernel important reasons 
+substantial variation interfaces semantics modern kernels despite existence posix standard 
+second kernel threads asynchronous interfaces areas active research :10.1.1.20.4362
+range semantics rate evolution require decoupling logical threads hide os variation kernel evolution 
+case decoupling provided number advantages 
+able integrate compiler support thread package taken advantage new kernel features 
+able increase performance improve scalability address applicationspecific needs changing application code 
+capriccio discusses new thread package capriccio 
+thread package achieves goals help key features improved scalability basic thread operations 
+accomplished task user level threads cooperative scheduling advantage new asynchronous interface engineering runtime system thread operations 
+second introduced linked stacks mechanism dynamic stack growth solves problem stack allocation large numbers threads 
+traditional thread systems large chunks memory thread stack severely limits scalability 
+capriccio uses combination compile time analysis run time checks limit amount wasted stack space efficient application specific manner 
+designed resource aware scheduler extracts information flow control program order scheduling decisions predicted resource usage 
+scheduling technique takes advantage compiler support cooperative threading address application specific needs requiring programmer modify original program 
+remainder discusses features detail 
+experimental evaluation thread package 
+discuss directions user level thread packages integrated compiler support 
+
+thread design scalability capriccio fast user level thread package supports posix api thread management synchronization 
+section discuss design thread package demonstrate satisfies scalability goals 
+user level threads issues explored designing capriccio employ user level threads kernel threads 
+user level threads important advantages performance flexibility 
+unfortunately complicate preemption interact badly kernel scheduler 
+ultimately decided advantages user level threads significant warrant additional engineering required circumvent drawbacks 
+flexibility user level threads provide tremendous amount flexibility system designers creating level indirection applications kernel 
+abstraction helps decouple allows faster innovation sides 
+example capriccio capable advantage new asynchronous mechanisms linux kernel allows provide performance improvements changing application code 
+user level threads increases flexibility thread scheduler 
+kernel level thread scheduling general provide reasonable level quality applications 
+kernel threads tailor scheduling algorithm fit specific application 
+fortunately user level threads suffer limitation 
+user level thread scheduler built application 
+user level threads extremely lightweight allows programmers tremendous number threads worrying threading overhead 
+benchmarks section show capriccio scale threads capriccio possible write highly concurrent applications written messy event driven code simple threaded style 
+performance user level threads greatly reduce overhead thread synchronization 
+simplest case cooperative scheduling single cpu synchronization nearly free user threads thread scheduler interrupted critical section 
+believe flexible user level scheduling compile time analysis allow offer similar advantages multi cpu machine 
+case preemptive threading user level threads offer advantage require kernel crossings mutex acquisition release 
+comparison mutual exclusion requires kernel crossing synchronization operation 
+situation improved locks highly contended mutexes require kernel crossings 
+poorly designed signal handling code reintroduce problems problem easily avoided 
+linux kernels allow operations mutexes occur entirely user space 
+memory management efficient userlevel threads 
+kernel threads require data structures eat valuable kernel address space decreasing space available buffers file descriptors resources 
+disadvantages user level threading drawbacks 
+order retain control processor userlevel thread executes blocking call user level threading package overrides blocking calls replaces internally non blocking equivalents 
+semantics non blocking mechanisms generally require increased number kernel crossings compared blocking equivalents 
+example efficient nonblocking network primitive linux involves polling sockets readiness performing actual call 
+second calls identical performed blocking case poll calls additional overhead 
+non blocking disk mechanisms similar employ separate system calls submit requests retrieve responses 
+addition user level thread packages introduce wrapper layer translates blocking mechanisms non blocking ones layer source overhead 
+best layer thin shim simply adds extra function calls 
+quick operations cache reads easily satisfied kernel overhead important 
+user level threading difficult take advantage multiple processors 
+performance advantage lightweight synchronization diminished multiple processors allowed synchronization longer free 
+additionally discussed anderson scheduler activations purely userlevel synchronization mechanisms ineffective face true concurrency may lead starvation 
+ultimately believe benefits user level threading far outweigh disadvantages 
+benchmarks section show additional overhead incurred problem practice 
+addition working ways overcome difficulties multiple processors discuss issue section 
+implementation implemented capriccio user level threading library linux 
+capriccio implements posix threading api allows run applications modification 
+context switches 
+capriccio built top edgar coroutine library 
+library provides extremely fast context switches common case threads voluntarily yield explicitly making blocking call 
+currently designing signal non blocking mechanisms posix aio linux new io submit allow submission multiple requests single system call issues feature difficult 
+example implementations posix aio suffer performance problems 
+additionally batching creates trade system call overhead latency difficult manage 
+code allows preemption long running user threads capriccio provide feature 
+capriccio intercepts blocking calls library level overriding system call stub functions gnu libc 
+approach works statically linked applications dynamically linked applications gnu libc versions earlier 
+gnu libc version bypasses system call stubs internal routines printf causes problems dynamically linked applications 
+working allow capriccio function libc add order provide better integration latest versions gnu libc 
+internally capriccio uses latest linux asynchronous mechanisms file descriptors sockets pipes fifos linux aio disk 
+mechanisms available capriccio falls back standard unix poll call descriptors pool kernel threads disk users select available mechanisms setting appropriate environment variables prior starting application 
+scheduling 
+capriccio main scheduling loop looks event driven application alternately running application threads checking new completions 
+note scheduler hides event driven behavior programmer uses standard thread abstraction 
+capriccio modular scheduling mechanism allows user easily select different schedulers run time 
+approach simple develop different schedulers including novel scheduler thread resource utilization 
+discuss feature detail section 
+synchronization 
+capriccio takes advantage cooperative scheduling improve synchronization 
+capriccio supports cooperative threading single cpu machines case inter thread synchronization primitives require simple checks boolean locked unlocked flag 
+cases multiple kernel threads involved capriccio employs spin locks optimistic concurrency control primitives depending mechanism best fits situation 
+efficiency 
+developing capriccio taken great care choose efficient algorithms data structures 
+consequently capriccio thread management functions bounded worst case running time independent number threads 
+sole exception sleep queue currently uses naive linked list implementation 
+literature contains number algorithms efficient sleep queues current implementation caused problems focused development efforts aspects system 
+threading microbenchmarks ran number microbenchmarks validate capriccio design implementation 
+test platform smp ghz xeon processors gb memory rpm scsi ultra ii hard drives gigabit ethernet interfaces 
+operating system linux includes support asynchronous disk lightweight system calls 
+ran benchmarks thread packages capriccio linuxthreads standard linux kernel thread package version new native posix threads linux capriccio capriccio linuxthreads thread creation thread context switch mutex lock table latencies thread primitives different thread packages 
+package 
+built applications gcc linked gnu libc 
+recompiled linuxthreads new lightweight system call feature latest linux kernels ensure fair comparison uses feature 
+thread primitives table compares average times thread primitives capriccio linuxthreads 
+test labeled capriccio disabled statistics collection dynamic stack backtracing scheduler discussed section show impact performance 
+thread creation time dominated stack allocation time quite expensive thread packages 
+thread context switches significantly faster capriccio stack tracing statistics collection overhead 
+believe reduced kernel crossings simpler scheduling policy contributed result 
+synchronization primitives faster capriccio factor mutex locking kernel crossings involved 
+thread scalability measure efficiency scalability scheduling synchronization different thread packages ran simple producer consumer microbenchmark packages 
+producers put empty messages shared buffer consumers process message looping random amount time 
+synchronization implemented condition variables mutexes 
+equal numbers producers consumers created test 
+test run seconds repeated times 
+average throughput standard deviations shown 
+capriccio outperforms linuxthreads terms raw performance scalability 
+throughput linuxthreads begins degrade quickly threads created throughput degrades 
+shows unstable behavior threads persists versions series kernels tested 
+capriccio scales producers consumers threads total 
+attribute drop throughput threads increased cache footprint 
+performance shows network performance capriccio thread packages load 
+test measured throughput concurrently passing number tokens bytes fixed number pipes 
+number concurrent tokens quarter number pipes pipes exactly tokens 
+benchmark simulates effect slow client links large number idle pipes 
+scenario typical internet servers traditional threading systems perform poorly tests 
+functionally equivalent benchmark programs obtain results threaded version capriccio linuxthreads non blocking version poll 
+tokens passed test test run times 
+shows capriccio scales smoothly threads incurs overhead compared pipes 
+knowledge best non blocking mechanism available linux performance reflect best eventbased servers rely mechanism 
+capriccio performs consistently better poll linuxthreads threads twice fast linuxthreads threads created 
+concurrency low pipes capriccio slower competitors issues system calls 
+particular calls wait obtain file descriptor readiness events wake threads blocking performs calls periodically transferring events possible call 
+concurrency low number runnable threads occasionally reaches zero forcing capriccio issue wait calls 
+worst case capriccio slower concurrent tokens threads 
+fortunately overhead amortized quickly concurrency increases scalable scheduling allows capriccio outperform linuxthreads high concurrency 
+capriccio uses asynchronous primitives capriccio benefit kernel disk head scheduling algorithm just kernel threads 
+shows microbenchmark number threads perform random kb reads gb file 
+test program bypasses kernel buffer cache direct opening file 
+test run seconds averages runs shown 
+throughput thread libraries increases steadily concurrency level levels concurrency reaches 
+contrast utilization kernel head scheduling algorithm eventbased systems blocking disk seda limited number kernel threads deliberately small reduce kernel scheduling overhead 
+worse process applications non blocking poll select dev poll benefit kernel head scheduling explicitly asynchronous unfortunately programs asynchronous significantly increases programming complexity compromises portability 
+shows disk performance thread libraries os buffer cache 
+test measure throughput achieved threads read continuously blocks file system specified buffer cache rate 
+cache rate fixed reading appropriate portion data small file opened normally cache hits reading throughput requests sec capriccio linuxthreads number producers consumers producer consumer scheduling synchronization performance 
+throughput mb capriccio linuxthreads number threads benefits disk head scheduling 
+remaining data file opened direct 
+higher rate test disk bound capriccio performance identical linuxthreads 
+rate low program cpu bound throughput limited transfer overhead 
+capriccio maximum throughput means capriccio overhead twice 
+source overhead asynchronous interface linux aio capriccio incurs amount overhead cache hitting operations ones reach disk request completion event needs constructed queued delivered user level separate system call 
+shortcoming relatively easy fix returning result immediately requests need wait eliminate overhead 
+leave modification 
+linuxthreads performance degrades significantly low rate 
+believe degradation result bug kernel library processor idle test 
+throughput tokens sec throughput mb capriccio linuxthreads poll number pipes threads network scalability test 
+capriccio linuxthreads cache rate disk performance buffer cache 
+
+linked stack management thread packages usually attempt provide programmer abstraction unbounded call stack thread 
+reality stack size bounded bounds chosen conservatively plenty space normal program execution 
+example linuxthreads allocates megabytes stack default conservative allocation scheme consume gb virtual memory stack space just threads 
+fortunately threads consume kilobytes stack space time go stages considerably 
+observation suggests significantly reduce size virtual memory dedicated stacks adopt dynamic stack allocation policy stack space allocated threads demand relatively small increments deallocated thread requires stack space 
+rest section discuss compiler feature allows provide mechanism preserving programming abstraction unbounded stacks 
+example call graph annotated stack frame sizes 
+edges marked ci 
+checkpoints 
+compiler analysis linked stacks approach uses compiler analysis limit amount stack space preallocated 
+perform program analysis weighted call graph 
+function program represented node call graph weighted maximum amount stack space single stack frame function consume 
+edge node node indicates function calls function directly 
+paths nodes graph correspond sequences stack frames may appear stack run time 
+length path sum weights nodes path total size corresponding sequence stack frames 
+example graph shown 
+call graph wish place reasonable bound amount stack space consumed thread 
+recursive functions program cycles call graph easily bound maximum stack size program compile time finding longest path starting thread entry point 
+real world programs recursion means compute bound stack size compile time 
+absence recursion static computation stack size conservative 
+example consider call graph 
+ignoring cycle graph maximum stack size kb path main path main smaller stack size kb 
+path initialization second path program execution allocating kb thread wasteful 
+reasons important able grow shrink stack size demand 
+order implement dynamically sized stacks call graph analysis identifies call sites insert checkpoints 
+checkpoint small piece code determines stack space left reach checkpoint causing stack overflow 
+space remains new stack chunk allocated stack pointer adjusted point new chunk 
+function call returns stack chunk unlinked returned free list 
+scheme results non contiguous stacks stack chunks switched right actual arguments function call pushed code callee cil toolkit purpose allows efficient program analysis real world applications apache web server 
+need changed 
+caller frame pointer stored callee stack frame debuggers follow backtrace program 
+code checkpoint written small amount inline assembly reading setting stack pointer code inserted source source transformation program prior compilation 
+mutual exclusion accessing free stack chunk list ensured cooperative threading approach 
+placing checkpoints program analysis determine place checkpoints 
+simple solution insert checkpoints call site approach prohibitively expensive 
+restrictive approach ensure checkpoint bound stack space may consumed reach checkpoint leaf call graph 
+satisfy requirement ensure checkpoint cycle call graph recall edges call graph correspond call sites 
+find appropriate points insert checkpoints perform depth search call graph identifies back edges edges connect node ancestors call graph 
+cycles graph contain back edge add checkpoints call sites identified back edges order ensure path function checkpoint bounded length 
+checkpoint allocates stack chunk checkpoint inserted back edge break cycles bounds stack size may large 
+add additional checkpoints graph ensure paths checkpoints desired bound compile time parameter 
+insert new checkpoints process call graph time determining longest path node checkpoint leaf 
+performing analysis consider restricted call graph contain back edges edges checkpoints 
+restricted graph cycles process nodes bottom processing node determined longest path successors 
+successor node take longest path add new path length exceeds specified path limit parameter add checkpoint edge effectively reduces longest path zero 
+result algorithm set edges checkpoints added reasonable bounds maximum path length node 
+example limit kb algorithm places additional checkpoints 
+checkpoint stack frames main kb 
+shows instances lifetime thread call graph shown 
+function executing stack chunks allocated checkpoints 
+notice kb wasted stack chunk kb wasted second scheme omit frame pointer enabled gcc 
+possible support optimization expensive checkpoint operations copying arguments caller frame callee frame 
+examples dynamic allocation deallocation stack chunks 
+chunk 
+function called stack chunks necessary 
+see instance recursion 
+new stack chunk allocated calls checkpoint 
+second time code checkpoint decides space remaining current stack chunk reach leaf function checkpoint 
+dealing special cases function pointers additional challenge algorithm know compile time exactly function may called function pointer 
+improve results analysis want determine precisely possible set functions called function pointer call site 
+currently categorize function pointers number type arguments plan sophisticated pointer analysis 
+calls external functions cause problems difficult bound stack space precompiled libraries 
+provide solutions problem 
+allow programmer annotate external library functions trusted stack bounds 
+alternatively allow larger stack chunks linked external functions long threads don block frequently functions reuse small number large stack chunks application 
+standard library annotations deal functions block functions frequently called annotations derived analyzing library code 
+tuning algorithm algorithm causes stack space wasted places 
+stack space wasted new stack chunk linked call space internal wasted space 
+second stack space bottom current chunk considered unused space called external wasted space 
+internal wasted space shown light gray external wasted space shown dark gray 
+user allowed tune parameters adjust trade offs terms wasted space execution speed 
+user adjust specifies maximum desired path length algorithm just described 
+parameter affects trade execution time internal wasted space larger path lengths require fewer checkpoints stack linking 
+second user adjust minimum stack chunk size 
+parameter affects trade stack linking external wasted space larger chunks result external wasted space frequent stack linking turn results internal wasted space smaller execution time overhead 
+parameters provide useful mechanism allowing user compiler optimize memory usage 
+memory benefits linked stack technique number advantages terms memory performance 
+general benefits achieved thread implementation kernel mechanisms improving ability tune individual application memory usage 
+compiler techniques application specific tuning practical 
+technique preallocation large stacks unnecessary turn reduces virtual memory pressure running large numbers threads 
+analysis achieves goal guard pages contribute unnecessary kernel crossings virtual memory waste 
+second linked stacks improve paging behavior significantly 
+linked stack chunks reused lifo order allows stack chunks shared threads reducing size application working set 
+allocate stack chunks smaller single page reducing amount memory waste 
+demonstrate benefit approach respect paging created microbenchmark thread repeatedly calls function touches pages mb buffer stack 
+threads yield calls 
+compiler analysis inserts checkpoint calls checkpoint causes large stack chunk linked duration call 
+yield threads share single mb stack chunk stack analysis give thread individual mb stack 
+ran microbenchmark threads calls times 
+recorded execution time runs test averaged results 
+thread individual stack benchmark takes seconds seconds user level 
+stack analysis benchmark takes instrumented call sites parameter bytes number apache call sites instrumented function parameter 
+seconds seconds user level 
+standard deviations seconds 
+fact total time decreases factor user level execution time remains roughly suggests sharing single stack linked stack mechanism drastically reduces cost paging 
+running test threads version stack analysis starts thrashing stack analysis running time scales linearly threads 
+case study apache applied analysis apache web server 
+set parameter kb choice examining number call sites instrumented various parameter values 
+results shown indicate kb kb reasonable choice larger parameter values little difference amount instrumentation 
+set parameter kb profiling information 
+adding profiling counters checkpoints determined increasing chunk size kb reduced number stack links significantly increases yielded additional benefit 
+expect tuning methodology automated long programmer supplies reasonable profiling workload 
+parameters studied behavior apache execution workload consisting static web pages specweb benchmark suite 
+threaded client program seda simulated clients ms request delay total file workload mb 
+server ran threads standard unix poll network blocking disk total virtual memory footprint apache approximately mb resident set size approximately mb 
+test functions executed entirely initial kb chunk necessary threads linked kb chunk order call function kb buffer stack 
+runs benchmark maximum number kb chunks needed time mean standard deviation 
+required just mb stack space kb initial stacks mb larger chunks mb mb chunks run external functions 
+believe additional kb chunks needed highperformance mechanisms process studying impact features stack usage 
+average kb buffers threads clearly win addition internal external wasted space difficult directly compare stack utilization unmodified apache 
+example shows capable running unmodified applications small amount stack space fear stack overflow 
+important note provide safety addition efficiency unmodified version apache run workload single contiguous kb stack setting may safe workloads different configurations apache 
+observed program behavior call site crossed execution benchmark 
+results extremely consistent repetitions benchmark numbers represent entire range results repetitions 
+call sites checkpoints caused new stack chunk linked cost instructions 
+call sites large stack chunk linked unconditionally order handle external function costing instructions 
+call sites checkpoint determined new chunk required cost instructions 
+remaining call sites unaffected 
+assuming instructions roughly equal cost result slowdown considering function calls 
+call instructions program instructions slowdown approximately 
+
+resource aware scheduling advantages claimed event systems scheduling easily adapt application needs 
+event applications broken distinct event handlers computation particular task proceeds task passed handler handler 
+architecture provides pieces information useful scheduling 
+current handler task provides information task location processing chain 
+information give priority tasks closer completion reducing load system 
+second lengths handlers task queues determine stages bottlenecks indicate server overloaded 
+capriccio provides similar application specific scheduling thread applications 
+capriccio uses cooperative threading model view application sequence stages stages separated blocking points 
+sense capriccio scheduler quite similar event system scheduler 
+methods powerful deduce stages automatically direct knowledge resources stage enabling finer grained dynamic scheduling decisions 
+particular automated scheduling provide admission control improve response time 
+approach allows capriccio provide sophisticated application specific scheduling requiring programmer complex brittle tuning apis 
+main thread create thread create sleep sleep sleep read open read close example blocking graph 
+graph generated run knot test web server 
+improve performance scalability compromising simplicity threaded programming model 
+blocking graph key abstraction scheduling blocking graph contains information places program threads block 
+node location program blocked edge exists nodes consecutive blocking points 
+location program merely value program counter call chain reach blocking point 
+path approach allows differentiate blocking points useful way program counter allow tend points read write system calls 
+shows blocking graph knot simple thread web server 
+thread walks graph independently blocked thread located nodes 
+capriccio generates graph run time observing transitions blocking points 
+key idea approach capriccio learn behavior application dynamically information improve scheduling admission control 
+technique works part targeting longrunning programs internet servers acceptable spend time learning order improved decisions 
+graph scheduling threads annotate edges nodes information thread behavior 
+annotation introduce average running time edge 
+thread blocks know edge just traversed know previous node 
+measure time took traverse edge cycle counter update exponentially weighted average edge 
+keep similar weighted average node update time thread traverses outgoing edges 
+node average essentially weighted average edge values number updates proportional number times outgoing edge taken 
+node value tells long edge take average 
+annotate changes resource usage 
+currently define resources memory stack space sockets track individually 
+cpu time weighted averages edges nodes 
+blocked thread located particular node annotations allows estimate running thread increase decrease thread usage resource 
+estimate basis resource aware scheduling know resource scarce close promote nodes threads release resource demote nodes acquire resource 
+resource aware scheduling existing event systems prioritize event handlers statically 
+seda uses information event handler queue lengths dynamically tune system 
+capriccio goes step introducing notion resource aware scheduling 
+section show blocking graph perform resource aware scheduling transparent application specific 
+strategy resource aware scheduling parts 
+keep track resource utilization levels decide dynamically resource limit 
+
+annotate node resources outgoing edges predict impact resource schedule threads node 
+
+dynamically prioritize nodes threads scheduling information parts 
+resource increase utilization reaches maximum capacity long don overload resource throttle back scheduling nodes release resource 
+resource usage low want preferentially schedule nodes consume resource assumption doing increase throughput 
+importantly resource preferentially schedule nodes release resource avoid thrashing 
+combination hysteresis tends keep system full throttle risk thrashing 
+additionally resource aware scheduling provides natural workload sensitive form admission control tasks near completion tend release resources new tasks allocate 
+strategy completely adaptive scheduler responds changes resource consumption due type done offered load 
+speed adaptation controlled parameters exponentially weighted averages blocking graph annotations 
+implementation resource aware scheduling quite straightforward 
+maintain separate run queues node blocking graph 
+periodically determine relative priorities node prediction subsequent resource needs resource utilization system 
+priorities known select nodes stride scheduling select threads nodes dequeuing nodes run queues 
+operations 
+key underlying assumption resource aware scheduler resource usage similar tasks blocking point 
+fortunately assumption hold practice 
+apache example variation resource utilization edges blocking graph 
+resources resources currently track cpu memory file descriptors 
+track memory usage providing version malloc family 
+detect resource limit memory watching page fault activity 
+file descriptors track open close calls 
+technique allows detect increase open file descriptors view resource 
+currently set resource limit estimating number open connections response time jumps 
+track virtual memory usage number threads 
+vm tracked way physical memory limit reached reach absolute threshold total vm allocated full address space 
+pitfalls encountered interesting pitfalls implementing capriccio resource aware scheduler 
+determining maximum capacity particular resource tricky 
+utilization level thrashing occurs depends workload 
+example disk subsystem sustain far requests second requests sequential random 
+additionally resources interact vm system trades spare disk bandwidth free physical memory 
+effective solution watch early signs thrashing high page fault rates signs indicate maximum capacity 
+unfortunately thrashing easy thing detect characterized decrease productive increase system overhead 
+measure overhead productivity inherently applicationspecific notion 
+attempt guess throughput measures number threads created destroyed number files opened closed 
+approach sufficient applications apache complicated applications benefit threading api allows explicitly inform runtime system current productivity 
+application specific resources challenges 
+example application level memory management hides resource allocation deallocation runtime system 
+additionally applications may define logical resources locks 
+providing api application inform runtime system logical resources may reasonable solution 
+simple cases memory allocators may possible achieve goal help compiler 
+yield profiling problem arises cooperative scheduling threads may yield processor lead unfairness starvation 
+problems mitigated extent fact threads part application mutually trusting 
+failure yield performance problem matters 
+annotate graph dynamically running time edge trivial find edges failed yield running times typically orders magnitude larger average edge 
+implementation allows system operator see full blocking graph including edge time frequencies resources sending usr signal running server process 
+tool valuable porting legacy applications capriccio 
+example porting apache places yield sufficiently 
+result surprising apache expects run preemptive threads 
+example turns close call closes socket take ms documentation insists returns immediately nonblocking selected 
+fix problem insert additional yields system call library actual call close 
+solution fix problem general allow break long edge smaller pieces 
+better solution implemented multiple kernel threads running user level threads 
+approach allow multiple processors hide latencies occasional uncontrollable blocking operations close calls page fault handling 
+
+evaluation microbenchmarks section show capriccio performance excellent scalability 
+section evaluate capriccio performance generally realistic web server workload 
+realworld web workloads involve large numbers potentially slow clients provide tests capriccio scalability scheduling 
+discuss overhead capriccio resource aware scheduler context discuss scheduler achieve automatic admission control 
+web server performance server machine web benchmarks mhz pentium server gb memory intel gigabit ethernet card 
+operating system stock linux 
+unfortunately linux kernel microbenchmarks discussed earlier unstable placed heavy load 
+experiment take advantage linux aio 
+similarly able compare capriccio workload 
+leave additional experiments 
+generated client load similarly configured machines gigabit switched network 
+capriccio haboob perform non blocking network standard unix poll system call thread pool disk apache configured posix threads uses combination spin polling individual file descriptors standard blocking calls 
+workload test consisted requests gb static file data various file sizes 
+request frequencies size file designed match specweb benchmark 
+clients test repeatedly connect server issue series requests separated ms pauses 
+client load level ran test minutes measurements middle minutes 
+client program seda program simpler set client machines allowed disable dynamic content tests preventing external cgi programs competing web server resources 
+limited cache sizes haboob knot mb order force deal disk activity 
+minimal configuration apache disabling dynamic modules access permission checking 
+performed essentially tasks haboob knot 
+bandwidth mb apache apache capriccio haboob knot number clients web server bandwidth versus number simultaneous clients 
+performance results shown quite encouraging 
+apache performance improved nearly run capriccio 
+additionally knot performance matched event haboob web server 
+specific data variance results quite small load levels 
+variation clients general trends repeatable runs 
+particularly remarkable knot simplicity 
+knot consists lines code written straightforward threaded style 
+knot easy write took days create easy understand 
+consider experience strong evidence simplicity threaded approach writing highly concurrent applications 
+blocking graph statistics maintaining information resources blocking point requires determining program blocks performing amount computation save aggregate resource utilization figures 
+table quantifies overhead apache knot workload described 
+top lines show average number application cycles application spent going blocking point 
+bottom lines show number cycles capriccio spends internally order maintain information resource aware scheduler 
+cycle counts average number cycles blocking graph edge normal processing load memory cache branch predictors 
+important note cycle counts include time spent application 
+kernel time spent processing included 
+internet applications intensive takes place kernel 
+performance impact overhead lower table suggest 
+overhead gathering maintaining statistics relatively small edges apache 
+statistics tend remain fairly steady item cycles enabled apps apache knot system stack trace dynamic bg edge statistics sampling periods table average edge cycle counts applications capriccio 
+workloads tested sampled relatively infrequently 
+sampling ratio quite sufficient maintain accurate view system 
+reduces aggregate overhead mere 
+overhead stack traces significantly higher amounting roughly execution time apache knot 
+additionally stack traces essential determining location program enabled 
+overhead stack tracing illustrates compiler integration help improve capriccio performance 
+overhead maintain location information statically generated blocking graph essentially zero 
+dynamic technique maintain global variable holds fingerprint current stack 
+fingerprint updated function call xor ing unique function id function entry exit point extra instructions easily inserted compiler 
+fingerprint accurate true stack trace accurate generate blocking graph currently 
+resource aware admission control test resource aware admission control algorithms created simple consumer producer application 
+producer threads loop adding memory global pool randomly touching pages force stay memory cause vm faults pages swapped 
+consumer threads loop removing memory global pool freeing 
+benchmark tests number system resources 
+producers allocate memory quickly program may run virtual address space 
+additionally page touching proceeds quickly machine thrash virtual memory system sends pages disk 
+goal maximize task throughput measured number producer loops second making best memory disk resources 
+run time test application parameterized number consumers producers 
+running linuxthreads producers consumers fewer system quickly starts thrash 
+capriccio resource aware scheduler quickly detects overload conditions limits number producer threads running 
+applications reach steady state near knee performance curve 
+
+related programming models high concurrency long standing debate research community best programming model debate focused threads events particular 
+ousterhout enumerated number potential advantages events 
+similarly scalable servers advocates events 
+examples include internet servers flash harvest server infrastructures seda ninja 
+tradition duality argument developed lauer needham previously argued apparent advantages events simply artifacts poor thread implementations 
+believe past arguments favor events better viewed arguments application specific optimization need efficient thread runtimes 
+arguments major motivations capriccio 
+blocking graph capriccio scheduler directly inspired seda stages explicit queues 
+previous number reasons threads preferred events highly concurrent programming 
+provides additional evidence claim demonstrating capriccio performance scalability ability perform applicationspecific optimization 
+adya pointed debate eventdriven threaded programming split debates preemptive cooperative task management automatic manual stack management :10.1.1.20.464
+coin term stack describe process manually saving restoring live state blocking points identify process primary drawback manual stack management 
+authors point advantages cooperative threading approach 
+authors attempted improve threading performance transforming threaded code event code 
+example adya automate process stack event driven systems allowing code written thread style :10.1.1.20.464
+sense thread packages perform translation run time mapping blocking operations non blocking state machines underneath 
+ultimately believe advantage static transformation threaded code event driven code tuned thread runtime perform just event 
+performance tests capriccio corroborate claim 
+user level threads user level thread packages differ capriccio goals techniques 
+best knowledge capriccio unique blocking graph provide resource aware scheduling compile time analysis effect applicationspecific optimizations 
+additionally aware language independent threading library uses linked stack frames discuss language dependent ones 
+filaments nt fibers high performance user level thread packages 
+cooperative scheduling targeted large numbers blocking threads 
+minimal context switching threads high performance thread package specialized web caches includes fast disk libraries memory management 
+performance optimizations employed packages useful capriccio complementary 
+state threads package lightweight cooperative threading system shares capriccio goal simpli fying programming model network servers 
+capriccio state threads library provide posix threading interface applications rewritten 
+additionally state threads select poll scalable linux blocking disk factors limit scalability state threads network intensive workloads restrict concurrency disk intensive workloads 
+patches available allow apache state threads resulting performance increase 
+patches include number improvements apache impossible tell improvement came state threads 
+unfortunately patches longer maintained compile cleanly unable run direct comparisons capriccio 
+scheduler activations solve problem blocking unexpected blocking preemption user level threads adding kernel support notifying user level scheduler events 
+approach ensures clean integration thread library operating system large amount kernel changes involved precluded wide adoption 
+potential problem approach scheduler activation outstanding operation number tens thousands internet servers 
+result contrary original goal reducing number kernel threads needed 
+problem apparently stems fact scheduler activations developed primarily high performance computing environments disk fast network dominant 
+scheduler activations viable approach dealing page faults capriccio 
+employing scheduler activations allow user level scheduler influence kernel decision kernel thread preempt 
+scheme solve difficult problems priority inversion convoy phenomenon 
+support user level preemption threading running user level threads top kernel threads tricky 
+techniques optimistic concurrency control cilk stealing effectively manage thread scheduler data structures 
+presents nice description techniques context linux 
+expect employ techniques capriccio add support threading 
+kernel threads project linux great strides improving efficiency linux kernel threads 
+advances include number kernel level improvements better data structures lower memory overhead thread management operations 
+quite new active development 
+expect performance degradation higher numbers threads may resolved developers find bugs create faster algorithms 
+application specific optimization performance optimization application specific control system resources important theme os research 
+mach allowed applications specify vm paging scheme improved performance applications knew upcoming memory needs disk access patterns 
+similar things network improving flexibility reducing overhead compromising safety 
+spin operating system vino operating system provide user customization allowing application code moved kernel 
+exokernel took opposite approach moved os user level 
+systems allow application specific optimization nearly aspects system 
+techniques require programmers tailor application manage resources type tuning difficult brittle 
+additionally tie programs nonstandard apis reducing portability 
+capriccio takes new approach application specific optimization enabling automatic compiler directed feedback tuning thread package 
+believe approach techniques practical allow wider range applications benefit 
+asynchronous number authors propose improved kernel interfaces important impact user level threading 
+asynchronous primitives linux disk aio freebsd kqueue interface central creating scalable user level thread package 
+capriccio takes advantage interfaces benefit improvements reducing number kernel crossings 
+stack management number related approaches problem large stacks 
+functional languages standard ml new jersey call stack allocate activation records heap 
+approach reasonable context language uses garbage collector supports higher order functions class continuations 
+features provided programming language means arguments favor heap allocated activation records apply case 
+furthermore wish incur overhead associated adding garbage collector system previous shown java general purpose garbage collector inappropriate high performance systems 
+number systems lists small stack chunks place contiguous stacks 
+bobrow wegbreit describe technique uses single stack multiple environments effectively dividing stack analyze program attempt reduce amount run time checks required 
+olden language runtime system parallelizing programs simplified version bobrow wegbreit technique called spaghetti stacks 
+technique activation records different threads interleaved single stack dead activation records middle stack reclaimed live activation records exist stack allow amount wasted stack space grow bound 
+lazy threads project introduced linked stack chunks compiling parallel languages 
+mechanism provides run time stack overflow checks uses compiler analysis eliminate checks stack usage bounded analysis handle recursion capriccio provide tuning parameters 
+cheng blelloch fixed size provide bounds processing time parallel real time garbage collector 
+draves show reduce stack waste kernel threads continuations 
+case eliminated stacks entirely allowing kernel threads package state continuation 
+sense approach similar event driven model programmers stack package live state unwinding stack 
+internet servers considering approach impractical relatively large amount state saved restored process tedious error prone 
+resource aware scheduling previously suggested techniques similar resource aware scheduler 
+douceur bolosky describe system monitors progress running applications indicated application special api suspends low priority processes detects thrashing 
+technique deliberately unaware specific resources selectivity 
+fowler propose technique closer directly examine low level statistics provided operating system hardware performance counters 
+show approach application level achieve adaptive admission control suggest kernel scheduler information 
+technique views applications monolithic unclear kernel scheduler suspend resource intensive processes 
+blocking graph provides additional information believe scheduler needs order truly intelligent decisions resources 
+
+process extending capriccio multi cpu machines 
+fundamental challenge provided multiple cpus longer rely cooperative threading model provide atomicity 
+believe information produced compiler assist scheduler making decisions guarantee atomicity certain blocks code application level 
+number aspects capriccio implementation explore 
+believe dramatically reduce kernel crossings heavy network load batching interface asynchronous network expect ways improve resource aware scheduler tracking variance resource usage blocking graph nodes improving detection thrashing 
+ways stack analysis improved 
+mentioned earlier conservative approximation call graph presence function pointers language features require indirect calls higher order functions virtual method dispatch exceptions 
+improvements approximation substantially improve results 
+particular plan adapt dataflow analysis ccured order disambiguate function pointer call sites 
+compiling languages start similarly conservative call graphs employ existing control flow analyses cfa analyses functional object oriented languages languages virtual function resolution analyses object oriented languages 
+addition plan produce profiling tools assist programmer compiler tuning capriccio stack parameters application needs 
+particular record information internal external wasted space gather statistics function calls cause new stack chunks linked 
+observing information range parameter values automate parameter tuning 
+suggest potential optimizations programmer indicating functions responsible increasing stack size stack waste 
+general believe compiler technology play important role evolution techniques described 
+example process devising compiler analysis capable generating blocking graph compile time results improve efficiency runtime system required generate graph allow get atomicity free guaranteeing statically certain critical sections contain blocking points 
+addition plan investigate strategies inserting blocking points code compile time order enforce fairness 
+compile time analysis reduce occurrence bugs warning programmer data races 
+static detection race conditions challenging progress due compiler improvements tractable program analyses 
+nesc language networked sensors support atomic sections compiler understands concurrency model 
+uses mixture completions run completion threads compiler uses variation call graph similar blocking graph 
+compiler ensures atomic sections reside edge graph particular calls atomic section yield block indirectly 
+kind support extremely powerful authoring servers 
+expect atomic sections enable better scheduling deadlock detection 
+
+capriccio thread package provides empirical evidence fixing thread packages viable solution problem building scalable high concurrency internet servers 
+experience writing programs suggests threaded programming model useful abstraction event model writing maintaining debugging servers 
+decoupling thread implementation operating system take advantage new mechanisms compiler support 
+result techniques linked stacks resource aware scheduling allow achieve significant scalability performance improvements compared existing thread event systems 
+technology matures expect techniques integrated compiler technology 
+writing programs threaded style programmers provide compiler information high level structure tasks server perform 
+information hope compiler expose opportunities static dynamic performance tuning 
+
+adya howell theimer bolosky douceur 
+cooperative task management manual stack management 
+proceedings usenix atc june 
+anderson bershad lazowska levy 
+scheduler activations effective kernel support user level management parallelism 
+acm transactions computer systems february 
+appel macqueen 
+standard ml new jersey 
+proceedings rd international symposium programming language implementation logic programming pages 
+appel shao 
+empirical analytic study stack vs heap cost languages closures 
+journal functional programming jan 
+bershad chambers eggers maeda mcnamee pardyak savage sirer 
+spin extensible microkernel application specific operating system services 
+acm sigops european workshop pages 
+gray price 
+convoy phenomenon 
+operating systems review 
+blumofe joerg leiserson randall zhou 
+cilk efficient multithreaded runtime system 
+journal parallel distributed computing 
+bobrow wegbreit 
+model stack implementation multiple environments 
+communications acm oct 
+carlisle rogers reppy hendren 
+early experiences olden 
+proceedings th international workshop languages compilers parallel computing lncs 
+chankhunthod danzig neerdaels schwartz worrell 
+hierarchical internet object cache 
+proceedings usenix annual technical conference january 
+cheng blelloch 
+parallel real time garbage collector 
+proceedings acm sigplan conference programming language design implementation pldi 
+
+fast multithreading shared memory multiprocessors 
+technical report university june 
+douceur bolosky 
+progress regulation low importance processes 
+symposium operating systems principles pages 
+draves bershad rashid dean 
+continuations implement thread management communication operating systems 
+proceedings th acm symposium operating systems principle pages 
+association computing machinery sigops 
+engler kaashoek toole 
+exokernel operating system architecture application level resource management 
+symposium operating systems principles pages 
+fowler cox zwaenepoel 
+performance reflection systems software 
+proceedings hotos workshop may 
+gay levis von behren welsh brewer culler 
+nesc language holistic approach networked embedded systems 
+acm sigplan conference programming language design implementation 
+goldstein schauser culler 
+lazy threads synchronizers enabling primitives compiling parallel languages 
+third workshop compilers run time systems scalable computers 
+hun 
+minimal context thread manual 
+www com docs mct manual pdf 
+
+linux aio home page 
+www org blah aio 
+lauer needham 
+duality operating system structures 
+second symposium operating systems ir october 
+lemon 
+kqueue generic scalable event notification facility 
+usenix technical conference 
+
+linux patch 
+www org linux patches nio improve html 
+mcnamee armstrong 
+extending mach external pager interface accommodate user level page replacement policies 
+technical report tr university washington 
+muchnick 
+advanced compiler design implementation 
+morgan kaufmann san francisco 
+necula rahul weimer 
+cil intermediate language tools analysis transformation programs 
+lecture notes computer science 
+necula weimer 
+ccured type safe retrofitting legacy code 
+th annual acm symposium principles programming languages pages 
+acm jan 
+ousterhout 
+threads bad idea purposes 
+presentation usenix annual technical conference january 
+pai druschel zwaenepoel 
+flash efficient portable web server 
+proceedings annual usenix technical conference june 
+pande ryder 
+data flow virtual function resolution 
+lecture notes computer science 
+pang goodwin 
+algorithm solving constraint satisfaction problems 
+seltzer endo small smith 
+dealing disaster surviving misbehaved kernel extensions 
+proceedings nd symposium operating systems design implementation pages seattle washington 
+shah madden franklin hellerstein 
+java support data intensive systems experiences building telegraph dataflow system 
+sigmod record 
+shivers 
+control flow analysis higher order languages 
+phd thesis carnegie mellon university may 
+
+coroutine library source 
+www de 
+unknown 
+apache project 
+aap sourceforge net 
+unknown 
+state threads internet applications 
+state threads sourceforge net docs st html 
+von behren brewer chen welsh macdonald lau gribble culler 
+ninja framework network services 
+proceedings usenix annual technical conference june 
+von behren condit brewer 
+events bad idea high concurrency servers 
+proceedings hotos workshop may 
+von eicken basu vogels 
+net user level network interface parallel distributed computing 
+proceedings th acm symposium operating systems principles copper mountain resort usa 
+welsh culler brewer 
+seda architecture conditioned scalable internet services 
+symposium operating systems principles pages 

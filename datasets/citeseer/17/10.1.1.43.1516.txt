@@ -1,0 +1,360 @@
+pebble component operating system embedded applications john bruno jos eran gabber avi silberschatz christopher small lucent technologies bell laboratories information sciences research center mountain ave murray hill nj eran avi chris research bell labs com affiliated university california santa barbara pebble operating system intended support complex embedded applications 
+accomplished key features safe extensibility system constructed untrusted components reconfigured running low interrupt latency ensures system react quickly external events 
+discuss pebble architecture underlying technology pebble include microbenchmark performance results mips target systems 
+performance measurements demonstrate pebble platform complex embedded applications 
+describes pebble operating system architecture designed platform high embedded communicating devices constructed reusable software components 
+component approach building applications increasingly popular exemplified popularity com java beans corba 
+advantage software components clean interfaces allow code combined reused ways imagined developers allowing cost development amortized uses 
+constructing system software components choice method isolate components 
+basic approaches provide protection components exemplified com systems provide software protection systems provide hardware protection exemplified corba rpc approaches 
+method drawbacks 
+protection misbehaved component compromise integrity system access data resources system 
+software protection typically requires system written special safe programming language may acceptable developers 
+hardware protection schemes traditionally exhibited poor performance due cost switching protection domains performing inter protection domain call 
+exokernel kaashoek shown commonly held assumptions intrinsic performance cost hardware protection schemes need reexamined 
+pebble architecture began idea operating system services implemented collection fine grained replaceable user level components 
+techniques applied order get performance operating system components component applications running pebble applications share performance benefit provided techniques 
+performance improvement striking example pebble way inter protection domain call takes roughly machine cycles order magnitude cost performing function call equivalent call running openbsd hardware takes roughly machine cycles gabber 
+pebble application dynamically configure services provided system safely load new untrusted components written unsafe pro proceedings usenix workshop embedded systems cambridge ma march 
+gramming language system system running 
+old servers may retired gracefully new versions service introduced disrupting operation system 
+capability essential high availability systems operate continuously 
+communication devices pda cell phone hybrids set top boxes routers require just type dynamic configurability ability safely run untrusted code 
+feel approach pebble valuable building embedded systems 
+remainder organized follows 
+section describes pebble philosophy 
+section contrasts software hardware protection component applications 
+section discusses technologies implement pebble including protection domains portals scheduling synchronization device drivers interrupt handling 
+section explains portals optimize file operations 
+section presents performance measurements pebble different mips target machines 
+concludes survey related current status summary 
+pebble philosophy pebble architectural philosophy consists key ideas 
+combined enable goals providing low interrupt latency low cost inter component communication 
+privileged mode nucleus small possible 
+run user level privileged mode nucleus responsible switching protection domains synchronization code part system run interrupts disabled 
+reducing length time interrupts disabled reduce maximum interrupt latency seen 
+perfect world pebble include privileged mode instruction transfer control protection domain 
+minimizing done privileged mode reduce amount privileged code time needed perform essential service 
+component implemented separate protection domain 
+cost transferring control protection domain small performance related reason locate components 
+microkernel systems mach past tended coarse grained user level servers part cost transferring protection domains high 
+keeping cost low enable factoring operating system application smaller components small performance penalty 
+operating system built fine grained replaceable components isolated hardware memory protection 
+functionality operating system implemented trusted user level components 
+components replaced augmented layered 
+noteworthy example scheduler pebble handle scheduling decisions 
+user scheduler responsible scheduling synchronization operations 
+transferring control protection domains done generalization hardware interrupt handling termed portal traversal 
+portal code generated dynamically performs portal specific actions 
+hardware interrupts inter protection domain calls pebble equivalent system calls handled portal mechanism 
+pebble generates specialized code portal improve run time efficiency 
+portal mechanism provides important features communication facilities allow components isolated configuration code specialization enables application unavailable optimizations 
+portals discussed depth section 
+software vs hardware protection suggesting hardware protection scheme age java software protection controversial proposal 
+approach applications 
+component systems software protection schemes typically written type safe byte coded language java gosling limbo language inferno system dorward 
+components run single hardware protection domain runtime environment implements effect software protection domain 
+systems typically designed goals 
+provide architecture independent distribution format code 
+
+ensure resources memory returned system longer needed 
+
+ensure component view modify data granted access 
+case java goals satisfied machine independent java byte code garbage collector provided java run time environments run time java byte code verifier 
+java byte code offers hardware architecture neutral distribution format software components 
+architecture neutral format untrusted code 
+compiler front ends generate machine independent intermediate form compiled machine specific back 
+intermediate form distribution format components written language trusted untrusted 
+software protection problems 
+putting software protected components address space hard pin buggy component caught type system garbage collector 
+hardware protection schemes run component separate hardware protection domain 
+example traditional operating system unix thought hardware protected component system components programs protection provided operating system working concert hardware memory management unit 
+typically hardware schemes attempt satisfy components distributed machine language target hardware 
+satisfied careful bookkeeping system keeps track resources assigned component process component process terminates resources returned system 
+implemented hardware memory protection component run separate address space 
+component attempts view modify data outside address space hardware trap taken component process terminated 
+running multiple java virtual machines top hardware protection separate components way easier identify buggy components 
+software schemes option hardware protection unavailable low processors memory management units 
+designers inferno limbo chose software protection scheme precisely reason 
+hardware schemes called component code written unsafe language 
+java provides facilities unavailable reasons running code written unsafe language 
+example component may include legacy code difficult costly reimplement safe language may include hand tuned assembler code uses hardware specific features 
+example implementation computation intensive algorithm mpeg decoder special hardware instructions designed support tasks 
+garbage collection facility offered systems java seen blessing curse 
+hand garbage collection frees programmers software testers ensuring allocated resources eventually freed 
+storage leaks notoriously hard find automated garbage collection greatly simplifies task writing robust code 
+building applications fixed latency requirements garbage collectors trouble worth 
+free memory pool may empty time memory allocation trigger collection estimating cost time memory allocation stochastic deterministic process 
+real time embedded system uncertainty introduced presence garbage collector may worth benefit offers 
+reason systems inferno invested effort ensure garbage collection delay critical functions 
+final historical argument choosing software protection hardware protection cost transferring components hardware protection scheme orders magnitude higher software protection scheme 
+show techniques pebble bring cost cross component communication hardware scheme order magnitude 
+continue analogy components composed unix pipes 
+cost function call feel point moot 
+pebble technology section discuss technology implement pebble 
+protection domains portals component runs protection domain pd consists set memory pages represented page table portal table holds addresses portal code portals component access 
+protection domain may share memory pages portals protection domains discussed 
+parent protection domain may share portal table child 
+case changes portal table reflected parent child 
+alternately parent protection domain may create child domain copy parent portal table time child created 
+note copying sharing portal tables efficient portal tables contains pointers actual portal code 
+copying portal code needed case 
+thread belonging protection domain invoke service protection domain successfully opened portal protection domain exports service controls protection domains may open portals components invoke service 
+protection domain may delegate execution access control policy third party directory server name space server 
+transfer control thread executes trap instruction transfers control nucleus 
+nucleus determines portal wishes invoke looks address associated portal code transfers control portal code 
+portal code responsible saving registers copying arguments changing stacks mapping pages shared domains 
+portal code transfers control component shows example portal transfer 
+thread passes portal scheduling decision thread continues run priority invoked protection domain 
+part portal traversal portal code manipulate page tables invoking invoked protection domains 
+commonly occurs thread wishes map duration portal invocation region memory belonging invoking protection domain virtual address space invoked protection domain gives thread window address space invoking protection domain running invoked protection domain 
+thread returns window closed 
+memory window save cost copying data protection domains 
+variations include windows remain open share pages protection domains windows transfer pages invoking domain invoked domain implement tear away write windows transfer pages invoked domain invoker implement tear away read note portal code may modify vm data structures vm manager portal manager generates portal code share knowledge data structures 
+pebble nucleus oblivious data structures 
+portal code may block may contain loops 
+essential ensure portal traversed small finite amount time 
+portal block invoked domain stacks queue empty portal code transfers control scheduler inside calling thread waiting resource 
+important point mentioned specialized portal code generated fly 
+protection domain shorthand protection domain component running nucleus user level portal table ab portal code 
+portal transfer 
+protection domain invokes protection domain portal transfer 
+protection domain transfers indirectly portal table portal code specific communication path 
+portal code transfers control protection domain portal opened 
+allows portal code take advantage semantics trust relationships portal 
+example caller trusts callee caller may allow callee caller stack allocate new 
+level trust exist caller require callee allocate new stack 
+sharing stacks decreases level isolation caller callee improve performance 
+server components part pebble philosophy system services provided server components run user mode inside separate protection domains 
+applications server components may granted limited privileges afforded application components 
+example scheduler runs interrupts disabled device drivers device registers mapped memory region portal manager may add portals protection domains protection domain modify portal table directly 
+advantages implementing services user level 
+software engineering standpoint guaranteed server component exported interface components 
+second server component privileges needs job programming error component directly affect components 
+clearly critical component fails vm system affected bug console device driver overwrite page tables 
+scheduling synchronization pebble scheduler implements actions may change calling thread state 
+threads block inside scheduler 
+particular pebble synchronization primitives managed entirely user level scheduler 
+thread running protection domain creates semaphore portals invoke scheduler operations added protection domain portal table 
+thread invokes order acquire semaphore 
+succeeds scheduler calling protection domain semaphore returns 
+semaphore held protection domain fails scheduler marks thread blocked schedules thread 
+operation works analogously operation unblocks thread higher priority invoker scheduler block invoking thread run newly awakened 
+scheduler runs interrupts disabled order simplify implementation 
+data structures shown appropriate hardware support possible implement data structures pebble scheduling synchronization component locking herlihy 
+implementation allow scheduler run interrupts enabled reduce interrupt latency 
+implemented scheduler data structures plan investigate implementation 
+device drivers interrupt handling depicts interrupt handling pebble 
+hardware device system associated semaphore communicate interrupt dispatcher component device driver component specific device 
+typically device driver left thread blocked semaphore 
+portal table protection domain contains entries machine hardware interrupts 
+interrupt occurs portal saves context currently running thread including contents entire register set 
+portal switches stack pointer interrupt stack calls interrupt dispatcher determines device generated interrupt 
+interrupt dispatcher calls scheduler performs operation device semaphore portal 
+portal saves registers allows scheduler share stack interrupt dispatcher 
+operation unblocks handler thread 
+handler thread higher priority thread running time inter run blocked blocked ready nucleus 
+interrupt handling 
+interrupt causes portal call interrupt dispatcher calls scheduler performs operation device semaphore 
+scheduler wakes handler thread waits semaphore 
+see text explanation different portal activities 
+external interrupt domain preempted interrupt dispatcher scheduler handler thread portal portal portal level received scheduler calls portal identity handler thread 
+portal restores context handler thread including registers stack interrupt handled immediately 
+handler thread added ready queue scheduler selects resume thread running previously calling portal identity thread 
+note portal performs actual context switch 
+scheduler just supplies identity thread run 
+note pebble rely hardware interrupt priorities order schedule interrupt handler threads 
+interrupt dispatcher called promptly interrupts pebble scheduler decides run associated handler thread 
+pebble unifies interrupt priority thread priority handles scheduler writing portal code portal definitions written simple interface definition language 
+portal manager uses definition dynamically generate specialized code portal created 
+interface definition specifies registers save share stack receiving domain process argument 
+simple arguments integers processed complex argument types may require 
+example argument may specify address memory window mapped receiver address space capability see section transformed transferred 
+hand order efficient transformation code may need access private data structures trusted server virtual memory system capability system hand trusted servers allowed keep internal data representations private 
+solution plan implement allow trusted services register argument transformation code templates portal manager 
+portal manager instantiates portal uses argument code template generating portal 
+technique allows portal code efficient inlining code transforms arguments encapsulated allowing servers keep internal representations private 
+portal code runs kernel mode access server specific data structures data structures accessed servers 
+short circuit portals cases amount done small portal code implement service 
+short circuit portal transfer invoking thread new protection domain performs requested action inline portal code 
+examples include simple system calls get current thread id obtain time day 
+tlb handler software mips architecture current platform pebble implemented short circuit portal 
+capabilities pebble design includes support capabilities tokens represent access rights 
+capability manager trusted user level server keeps track capabilities available protection domain 
+additionally registers capability argument type associated transformation code portal manager 
+capability passed portal portal code adds capability receiving protection domain capability list transforms sending protection domain external representation capability receiving domain 
+plan implement standard capability operations revocation non transferability reduction strength 
+portal example portals model code data set portals represent open file descriptor 
+pebble open call creates portals invoking protection domain read write seek corresponding file 
+read call transfers directly appropriate routine run time demultiplexing needed determine type underlying object appropriate code disk file socket invoked 
+additionally pointer control block embedded portal code passed directly service routine run time validation file pointer needs done 
+portal code modified client server trust control block pointer passed valid access particular file immediately 
+need separate file descriptor table data normally associated tables dynamically generated portal code 
+performance measured operation pebble microbenchmarks different test hardware platforms named low mid high represent low medium high embedded system configurations described table 
+platforms included mips processors qed rm rm idt 
+manufactured algorithmics developer systems embedded applications 
+low platform representative low cost handheld devices single level cache hierarchy smaller memory 
+mid platform representative powerful appliances set top box contain powerful processor level cache hierarchy larger memory 
+high platform representative high systems contain top line processors larger caches note inevitable time high platform come considered mid mid platform low 
+cache targets accessed single machine cycle cause pipeline delay 
+access higher levels memory hierarchy causes delay depicted table 
+basic operations table depicts time perform primitive operations test platforms 
+results machine cycles absolute time believe measurements remain machine cycles faster processors similar memory hierarchy 
+reported times average repetitions 
+operations reported table simple communication synchronization building blocks 
+performance suggests higher level operations efficient 
+reported operations portal time get short circuit portal returns identity calling domain 
+equivalent unix null system call 
+short circuit portal performs action returns caller immediately context switch 
+ipc time leg ipc domains implemented portal traversal 
+portal passes integer parameters machine registers 
+parameter manipulation performed portal code 
+portal allocates new stack target domain frees stack return 
+reported time table leg time half total time 
+additional measurements low mid high board processor rm rm processor speed mhz mhz mhz mhz pipeline single single dual cache way kb kb way kb kb way kb kb cache chip direct map mb chip way kb access cycles cache chip direct map mb access cycles main memory mb mb mb memory access cycles table 
+test hardware 
+ran tests platforms represent points embedded system hardware spectrum 
+platforms share common cpu architecture vary cache size architecture processor speed 
+
+acronym ipc traditionally refers inter process communication 
+serendipity ipc represent inter protection domain call pebble equivalent 
+reported gabber show leg time constant chain ipcs sequence domains 
+yield measures thread yield operation current thread calls scheduler requests run thread higher priority 
+measurements threads yield yield yield yield respectively 
+active thread domain 
+reported time table single context switch time total time total number yields threads 
+sem measures time pass token ring threads running separate domain 
+thread shares semaphore left neighbor semaphore right neighbour 
+thread waits left neighbor 
+semaphore released thread releases right semaphore repeats process 
+measurements threads sem sem sem sem respectively 
+active thread domain 
+reported time time pass token time single pair semaphore acquire release 
+results reported table indicate performance degrades number active threads expected due frequent cache misses 
+performance degrades low platform cache high platform large cache large hold entire working set test 
+note high platform significantly faster low mid platforms portal ipc sem tests dual issue pipeline larger caches 
+tests cause cache misses portal code dominated sequences load store instructions executed parallel 
+interrupt latency interrupt generated factors control delay interrupt handled 
+delay system notified interrupt received processor running interrupts disabled 
+second may delay time interrupt delivered time device serviced 
+sum delay components interrupt latency 
+delay component bounded length path system interrupts disabled 
+particular determined portal code scheduler frequently portions system run interrupts disabled 
+value time reported table portal ipc yield yield 
+half time reported sem sem times pair semaphore operations 
+second delay component bounded minimum amount time required deliver interrupt interrupt handler 
+interrupt latency range provided interrupt handling generate additional cache misses mid high platforms 
+table shows interrupt response time pebble system performing different background tasks 
+median th percentile response time repetitions 
+interrupt latency measured computing difference time interrupt generated operation low mid high portal ipc yield yield yield yield sem sem sem sem table 
+basic operations time cycles 
+measurements give estimate performance pebble basic communication operations 
+
+length context refers amount time takes process instruction sequence 
+intuitively expected roughly proportional length instructions code path 
+time user thread waited interrupt 
+accomplish measurement thread sleep randomly chosen duration compare time woken time expected woken 
+difference interrupt latency 
+test precise test platforms include high resolution timer incremented second processor cycle ability schedule timer interrupts granularity 
+code fragment shows inner loop measurement thread 
+rand function generates uniformly distributed random number range min max 
+function returns current high resolution time 
+routine waits specified time 
+order estimate interrupt latencies various loads run measurement thread concurrently background task repeatedly performs specific operation 
+different operations exercise different interrupt disabled paths system different interrupt latency characteristics 
+background threads tested idle background thread spins tight loop particular variable user mode 
+idle task preempted time 
+value reported case estimate lower bound interrupt latency 
+portal background task calls get routine repetitively 
+get implemented short circuit portal 
+background thread identical portal program table 
+interrupts disabled executing portal 
+ipc background thread repeatedly performs ipc protection domain measurement thread running 
+portal code associated portal minimal just transferring control call returns immediately 
+background thread identical ipc program table 
+interrupts disabled leg ipc call return enabled executing caller called domains 
+yield background thread repeatedly calls scheduler yield control 
+thread identical yield program table 
+active thread system scheduler just returns calling thread 
+interrupts disabled portal call scheduler inside scheduler portal return thread 
+sem pair background threads pass token back forth 
+thread runs separate protection domain 
+test identical sem program table 
+interrupts disabled semaphore operations 
+table indicates interrupt latency bounded sum platform specific constant plus time 
+measurement thread 
+code inner loop interrupt latency measurement thread 
+delay rand min max start delay latency start delay background low mid high idle median th max 
+portal median th max 
+ipc median th max 
+yield median th max 
+sem median th max 
+est 
+interrupt latency lower bound table 
+interrupt latency cycles 
+time cycles expected delivery interrupt received 
+proportional longest interrupt disabled path background task 
+platform specific constant minimal interrupt response time median value idle test 
+measurements table upper bound duration corresponding interrupt disabled paths 
+note median th percentile idle test platforms close 
+indicates interrupts served immediately 
+maximal interrupt latency mid high platforms close th percentile platforms indicates system performance highly predictable 
+maximal interrupt latency low platform higher percentile latency 
+result small cache size low result excessive cache misses due infrequent background events timer interrupt 
+case low mid platforms portal ipc tests slightly lower median interrupt latency idle test differ 
+may caused better cache hit rate 
+see interrupt latencies mid high systems quite close lower low 
+cache architectures differ mid high appear effective caches low 
+cache mid twice size cache low cache high size low way set associative 
+addition cache high accessed cycles 
+high painful mid low 
+summary section shown microbenchmark results pebble indicate cost hardware protection components system services low summarized table interrupt latency pebble quite low lower bound cycles depending target architecture 
+related traditional microkernels mach chorus windows nt leave operating sys tem code running privileged mode pebble 
+fact trend run system privileged mode time goes current release nt includes window system privileged mode kernel 
+moving services mode kernel reduce communication overhead operating system designers essence giving microkernel approach 
+focused finding fixing performance bottlenecks microkernel approach required rethinking basic architecture 
+liedtke espoused philosophy minimal privileged mode kernel includes support ipc key vm primitives liedtke 
+pebble goes step removing vm tlb fault handling done software mips 
+exokernel kaashoek attempts os abstractions leaving privileged mode kernel charge protecting resources leaving abstraction resources user level application code 
+exokernel approach pebble moves implementation operating system abstractions user level leaving development os abstractions application writers pebble provides set os abstractions implemented user level os components 
+pebble os components added replaced allowing alternate os abstractions coexist override default set 
+pebble inspired space project turn inspired clouds project dasgupta 
+concepts terminology project come systems space provided idea cross domain communication generalization interrupt handling 
+pebble applies techniques developed bershad bershad massalin massalin pu pu improve performance ipc 
+bershad results showed ipc data size tends small fits registers large passed sharing memory pages 
+massalin synthesis project pu project studied generating specialized code improve performance 
+status pebble nucleus small set services scheduler portal manager interrupt dispatcher minimal vm devices console clock ethernet driver currently runs mips processor 
+implementing networking support tcp ip file system support port underway 
+summary pebble architecture provides efficient operating system easy modify debug 
+pebble provides hardware protection running components written language 
+components communicate portals run user mode interrupts enabled 
+portals specialized specific interrupt communication handle pebble able compile run time decisions lead better performance typical operating system implementations 
+addition portal configured save restore subset machine state depending calling conventions level trust client server 
+additionally low interrupt latency provided pebble architecture suited embedded applications 
+bershad bershad lightweight remote procedure call proc 
+th sosp pp 
+december 
+dasgupta dasgupta leblanc ahamad ramachandran clouds distributed operating system ieee computer november 
+dorward dorward pike presotto ritchie trickey inferno proc 
+ieee compcon pp 
+
+gabber gabber bruno silberschatz small pebble component operating system proc 
+usenix technical conference monterey ca june 
+gosling gosling joy steele java language specification addison wesley reading ma 
+herlihy herlihy wait free synchronization acm transactions programming languages systems january 
+kaashoek kaashoek application performance flexibility exokernel systems proc 
+th sosp pp 
+october 
+liedtke liedtke achieved ipc performance proc 
+th hotos pp 
+may 
+massalin massalin synthesis efficient implementation fundamental operating system services ph thesis columbia university 
+mendelsohn mendelsohn operating systems component software environments proc 
+th hotos pp 
+may 
+bruno space new approach operating system abstractions proc 
+pp 
+october 
+available ftp cs ucsb edu pub papers space ps gz pu pu optimistic incremental specialization streamlining commercial operating system proc 
+th sosp pp 
+december 

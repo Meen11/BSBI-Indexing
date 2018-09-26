@@ -1,0 +1,300 @@
+appear usenix jvm conference april parallel garbage collection shared memory multiprocessors christine flood sun microsystems laboratories christine flood sun com david detlefs sun microsystems laboratories david detlefs sun com nir shavit tel aviv university tau ac il zhang harvard university eecs harvard edu multiprocessor world garbage collection framework provides multiple forms load balancing 
+parallel collectors framework balance root scanning static balance tracing object graph form dynamic load balancing called stealing 
+describe collectors written framework parallel semispace collector parallel collector 
+java tm programming language increasingly large memory intensive multithreaded applications run shared memory multiprocessors 
+java virtual machines jvm tm employ world garbage collection gc algorithms halt running threads perform gc 
+processor available sense employ gc process 
+describes parallelization sequential gc algorithms allow take advantage available processors 
+java technology research group sun microsystems laboratories developed jvm includes gc interface support multiple gc algorithms enabling comparison various gc strategies high performance vir www sun com research tual machine 
+describes augmentation interface parallel infrastructure support multiple parallel gc strategies 
+infrastructure parallelize wellknown collection schemes space copying algorithm semispaces mark sweep algorithm sliding compaction 
+resulting algorithms outperformed highly tuned product quality sequential counterparts multiprocessors 
+parallelizing sequential gc algorithms tackle key issues load balancing parts algorithm re engineering inherently sequential elements 
+algorithms key load balancing correctly ciently partition task tracing object graph 
+task unfortunately lend static partitioning 
+approach described sections combine static partitioning dynamic load balancing stealing 
+show combination static dynamic methods leads ective parallelization semispaces collectors 
+belief ectiveness dynamic partitioning result finely tuned lock free stealing algorithm arora low overhead allows balance individual object level 
+algorithms parts easily parallelizable 
+semispaces algorithm included installing forwarding pointers allocating parallel scanning card table old generation 
+installation forwarding pointers parallelized performed lock free manner 
+allocation sequential bottleneck globally allocating local bu ers objects may allocated synchronization 
+scanning card table requires novel partitioning scheme achieve load balancing 
+main inherently sequential part compaction phase involves copying objects heap 
+statically partition old generation heap partitions compacting partitions direction odd partitions direction avoiding synchronization optimizing size free areas 
+short description previous endo describe parallel world gc algorithm stealing 
+algorithm depends threads copying auxiliary queues available stealing 
+threads look auxiliary queue lock queue steal half queue elements 
+extends theirs lower overhead stealing mechanism addressing harder problem parallelizing relocating collectors just non relocating mark sweep algorithm 
+halstead describes multiprocessor gc multilisp 
+processor local heap lock bits moving updating forwarding pointers 
+load balancing done statically dynamically 
+collectors operate concurrently mutator activity 
+kind concurrency orthogonal style parallel collection describe 
+collector combine concurrent collectors world phases performed parallel collectors concurrent gc threads threads working parallel cope high aggregate garbage creation rates multi threaded programs 
+steensgaard explores clever method partially parallelizing collection 
+compile time analysis identifies allocation sites allocate objects escape allocating thread accessible threads 
+objects allocated thread local heap collected independently threads 
+technique avoids synchronization issues general parallel collection address requires extensive expensive static analysis subset objects may collected thread locally 
+overview section presents basic parallel programming techniques 
+section presents parallel gc infrastructure applies techniques garbage collection problem 
+sections describe parallel algorithms implemented infrastructure 
+section presents results benchmarks 
+section presents 
+parallel programming basics predetermined amount able partition perfectly available processors achieve perfect parallelism finish collection possible amount time 
+tasks partitioned way call statically partitionable 
+tasks di cult divide subtasks predictable size 
+example tracing graph program live data di cult subdivide priori depends shape object graph 
+tasks fall able partition statically roughly exactly equivalent subtasks 
+tasks 
+break tasks subtasks threads thread dynamically claims subtask time 
+motivations 
+number processors available gc process unpredictable due load machine processes 
+task divided exactly subtasks processor machine processors unavailable processor complete subtasks doubling time computation 
+extra subtask divided smaller subtasks may distributed active processors 
+second rough estimate subtask represents assigning just task processor risks tasks significantly larger 
+decreases risk making smaller subtasks enables processors finished smaller subtasks take additional 
+tasks approximately statically 
+tasks require form dynamic load balancing 
+stealing highly ective load balancing technique situations 
+approach thread works tasks runs takes initiative steal processors 
+short explanation lock free stealing queues arora non blocking implementation double ended queue data structure tailored support stealing minimal synchronization 
+thread queue tasks 
+fundamental operations pushes element bottom queue pops element bottom queue pops element top queue 
+local operations usually require synchronization 
+stealing threads queues 
+parallel algorithm stealing starts available tasks distributed queues 
+thread uses claim tasks local queue 
+execution task may reveal new subtasks added local queue 
+thread runs uses steal task thread queue 
+synchronization required stealing element queue claiming element local queue 
+modified algorithm arora ways 
+added termination detection protocol ensure complete thread terminates 
+added support fixed size queues form overflow detection handling mechanism 
+parallel gc infrastructure balancing root scanning garbage collection computes transitive closure objects reachable set root pointers 
+jvm root set consists class statics thread stacks roots groups gc threads compete dynamically claim root groups 
+static partitioning succeeds balancing root scanning starting balanced groups su cient 
+roots may lead large data structures may lead single objects 
+balancing traversal live data solve problem stealing dynamically balance load 
+tasks objects scanned examined pointers objects 
+scanning gc thread acquires object local queue stealing thread queue pushes outgoing object local queue 
+termination detection protocol determine completion transitive closure 
+consider behaviour algorithm large linked data structure say binary tree 
+thread scan root pointer referencing toplevel node tree push child nodes queue pop child nodes processing 
+child node available stealing 
+way su ciently large tree load dynamically balanced 
+termination detection termination protocol status word containing bit thread participating gc 
+threads start marked active 
+long thread local gets overflow lists see section succeeds stealing bit status word remains 
+unable find sets status bit loops checking see status bits 
+threads terminate algorithm complete 
+thread threads queues attempting find steal 
+finds thread steal thief sets status bit active tries steal 
+succeeds goes back processing 
+fails sets status bit back inactive resumes loop 
+colleague peter kessler suggested replacing status word integer indicating number active threads 
+er termination thread decrement count atomic instruction count goes zero threads terminated 
+inactive thread active increment count atomic instruction 
+avoids parallelism limitation imposed bit width word implemented proposal 
+handling overflow gc queues order avoid allocation gc allocate fixed size stealing queues startup time large objects especially large arrays advantageous consider object comprised chunks subdivide object scanning task separate tasks scanning chunk 
+implemented extension 
+object object 
+
+class class class overflow sets gc 
+required modifications stealing code check overflow mechanism handling overflow gracefully items global overflow set 
+threads look overflow set resorting stealing 
+wished able handle overflow additional storage space avoid thrashing objects overflow set stealing queues 
+modified check possible overflow adding element 
+adding element cause queue overflow pop elements bottom half queue add overflow set 
+overflow set mechanism due colleague ole agesen exploits class pointer header word objects implementation 
+shown class link instances overflow set linked list head contained class structure object class pointer overwritten pointer list 
+destroy information objects class list instances class 
+classes instances overflow set linked list 
+mechanism represents overflow set small class storage overhead 
+draining bottom half queue overflow filling top half queue retrieving overflow set ensure object placed overflow set avoiding thrashing 
+parallel semispaces semispaces copying collection divides heap equally regions space space 
+objects allocated space fills gc triggered 
+reachable objects copied contiguous area space leaving remaining space free allocation 
+gc traces transitive closure copies object encountered leaving forwarding pointer space copy object indicate new address space 
+subsequent object updated forwarding pointer 
+elegant style cheney copy pointer tracks free address scan pointer tracks object scanned 
+gc scans object indicated scan pointer examines object copying referenced object space space updating copy pointer 
+scan pointer updated point object 
+collection complete scan pointer reaches copy pointer point swap space space resume program 
+algorithm sequential algorithm 
+depend infrastructure properly distribute process scanning roots 
+cheney copy scan pointers represent set objects scanned explicit stealing queues 
+parallel copying collector threads allocate objects space time 
+approach managing concurrency thread increment copy pointer atomically object copies hardware operation fetch add compare swap cas 
+experiments indicate results contention 
+alternative adopted thread atomic allocation allocate relatively large regions called local allocation bu ers labs 
+thread local allocations bu er synchronization 
+thread deallocate allocation useful parallelizing insertion forwarding pointer explain 
+labs large reduce contention copy pointer small avoid excessive fragmentation 
+note potential fragmentation introduced labs possible space may hold objects copied space 
+concern heap nearly full 
+collection preserve shape object graph 
+threads simultaneously processing object fromspace may succeed copying object 
+observe object copied update forwarding pointer installed copying thread 
+accomplish having thread speculatively allocate space object lab cas update space object forwarding pointer point speculative new address 
+cas succeeds thread proceeds copy object 
+cas fails cas returns updated forwarding pointer 
+thread uses value update locally retracts speculative allocation 
+semispaces algorithm youngest generations generational collectors 
+generational collector generations objects usually allocated younger smaller generations promoted older generations survive long 
+hope youngest generation collections significantly faster collections entire heap reclaim su cient space continue computation 
+multi threaded programs running multiprocessors larger aggregate allocation rates single threaded programs fill young generation size quickly increasing collection frequency 
+attractive increase size youngest generation reduce collection frequency multithreaded programs parallelism keep pause times low throughput high 
+issues addressed algorithm youngest generation generational collector 
+collector threads allocate space older generation promotion 
+forms allocation parallelized old generation promotion uses lab allocation technique space allocation 
+second performing youngest generation collection treat older generation objects roots 
+traverse entire heap find youngest generation youngest generation collection costly collection entire heap 
+generational systems including keep track old young card table array entries correspond subdivisions heap called cards 
+mutator code updates field corresponding card table entry 
+youngest generation collector scans card table find dirty entries ones corresponding cards contain old young 
+cas implementations aware 
+card contains old young collection collector leaves corresponding card table entry free space free space parallel compaction large heaps scanning card table may take long time partitioned threads 
+partitioned straightforward way dividing card table consecutive contiguous blocks claimed gc threads 
+unfortunately didn applications blocks dense sparse example large arrays caused dense blocks 
+scanning dense blocks dominating cost gc 
+address problem card table strides set cards separated intervals cards 
+cards 
+comprise stride cards 
+comprise 
+causes dense areas partitioned tasks 
+usual threads compete claim strides 
+parallel old generation uses collector 
+original sequential collector consists major phases marking phase identifies marks live objects 
+forwarding pointer installation phase computes new addresses live objects compaction stores addresses forwarding pointers objects headers 
+redirection phase updates live objects new addresses objects 
+compaction phase copies live objects new compacted addresses 
+algorithm single threaded algorithm parallelizing phases 
+parallelization dirty 
+phases relatively straightforward final compaction phase di culties 
+original sequential compaction phase compacted live data low heap 
+parallel case di cult ensure thread overwrite object data thread copy 
+solution problem break heap regions number gc threads 
+thread claims region slides live objects region 
+section discusses criteria influence selection region boundaries 
+direction objects moved alternates odd numbered regions 
+shows example heap regions free areas compaction 
+general heap regions contiguous free areas 
+practical purposes small number sufficiently large contiguous free areas allows allocation ciently single free area 
+subsections describes parallel phase detail 
+parallel marking similar parallel marking phase employs parallel gc infrastructure statically partition root set dynamically balance marking stealing 
+thread keeps queue objects scanned pointers objects 
+thread runs objects attempts steal object queue thread 
+requires synchronization installation forwarding pointers marking idempotent requires synchronization 
+parallel forwarding pointer installation point live objects marked 
+phase corresponds sweep phase mark sweep collector side ect computing distribution live data guide partitioning heap regions discussed 
+heap units roughly equal size 
+ensure unit boundaries object aligned leads approximation 
+value typically number gc threads 
+gc threads compete claim units unit note lack synchronization depends having mark bits object external marking array word contain marks necessitate synchronization 
+thread traverses objects counting number bytes live data unit coalescing contiguous regions dead objects single blocks traversable constant time 
+units processed know exact amount live data unit partition heap regions approximately equal amounts live data 
+partition region contains units created previous pass regions unit aligned 
+regions partitions solve compaction problem heap divisions 
+region contains object dictates direction copied 
+know live data unit region straightforward calculate new address live object particular unit summing live data previous units region appropriate compaction order region 
+forwarding pointer installation unit partitioning established 
+gc threads dynamically claim units install forwarding pointers live objects unit 
+parallel redirection redirecting object requires scanning roots objects current generation objects generations objects current generation 
+forwarding pointers inserted previous phase update 
+rely parallel gc infrastructure balance scanning roots 
+currently scanning young generation treated single task partitioned 
+old generation reuse previous unit partitioning 
+parallel compaction phase parallel compaction 
+discussed previously larger grained region partitioning phase 
+trade parallelism favors smaller partitions allocation ciency favors fewer larger partitions fewer larger free areas compaction 
+currently favor allocation ciency making region partition exact partition opposed 
+design choice investigated 
+results benchmarks results benchmarks 
+synthetic program variety loads garbage collector including large heaps requiring significant old generation collections 
+specjbb scalability benchmark inspired tpc emulates tier system emphasis middle tier 
+javac compiler translates java programming language source code java class files 
+application allocates array element points root binary tree megabyte size 
+initial phase allocates data structures program number steps maintaining steady state heap size 
+step allocates number bytes short lived data die young generation collection number bytes nodes long lived tree structure replaces previously existing tree making garbage 
+step simulates amount mutator computation iterations busy loop 
+pointer mutation rate important factor performance generational collection step modifies number pointers manner preserves amount reachable data 
+command line parameters control amount live data steady state number steps run number bytes long lived data allocated step amount simulated step number pointers modified step 
+ran mb live data allocating bytes short lived data byte long lived data 
+specjbb throughput benchmark measures amount accomplished fixed amount time amount time required accomplish fixed amount 
+create runs compared determine parallel speedup gc run fixed number warehouses mutator threads considered collections run 
+believe mutator behavior collections su ciently similar runs comparable 
+graph annotated heap configuration parameters runs 
+heap configuration specifies sizes young old generations fixed experiments 
+example indicates young generation mb old generation size mb 
+number young old generation collections similar runs including sequential run allocation behavior largely una ected collection algorithm 
+discuss exception 
+runs performed sun enterprise tm server mhz ultrasparc tm processors sharing gbyte memory 
+collector ran generational collector parallel semispaces young generation parallel old generation 
+scalability presents results terms scalability graphs 
+axis number processors 
+axis shows speedup relative performance parallel collector run processor 
+show curve linear speedup performance sequential form gc algorithm 
+speedups young generation old generation shown separate graphs speedups calculated basis total time collections type 
+table gives average total gc times sequential runs parallel runs processors 
+seq par par young avg ms young total old avg ms old total specjbb young avg ms young total old avg ms old total javac young avg ms young total old avg ms old total table average total collection times discussion outperform sequential algorithm processors cases 
+case required processors specjbb 
+hypothesis due optimization sequential collector adapted parallel version 
+dense prefix optimization avoids copying large blocks data small amount free area reclaimed 
+applications optimization eliminates significant fraction copying costs 
+hope adapt technique realize similar savings parallel version 
+achieve speedup factors processors exception collections javac 
+reason old generation collections processor run processor sequential runs 
+believe increase caused fragmentation introduced parallel lab allocation young generation collection inherent cost parallel collection 
+note javac far smallest heaps benchmark runs 
+larger problem sizes ect significant 
+parallel mark compact collector measure scalability individual phases separately 
+turns phases scale collection 
+example specjbb processor old generation speedup speedups individual phases range installing forwarding pointers redirecting sweeping 
+particular phase stands clear scalability bottleneck 
+clearly needed attempt increase scalability explain factors inhibit 
+exploring parallel techniques implementing parallel collectors believe great potential improving pause times throughput parallelism 
+large multi threaded applications written garbage collected languages 
+applications require heaps gigabyte range 
+sequential gc algorithms greater scaling 
+systems intended support applications threads garbage collection parallel techniques avoid bottleneck 
+trademarks sun sun microsystems sun enterprise jvm java trademarks registered trademarks sun microsystems united states countries 
+sparc trademarks license trademarks registered trademarks sparc international united states countries 
+products bearing sparc trademarks architecture developed sun microsystems arora robert blumofe greg plaxton 
+thread scheduling multiprogrammed multiprocessors 
+proceedings tenth annual acm symposium parallel algorithms architectures 
+robert blumofe charles leiserson 
+scheduling multithreaded computations stealing 
+jacm 
+sparc architecture manual version sun microsystems edsger dijkstra leslie lamport martin scholten ste ens 
+onthe fly garbage collection exercise cooperation 
+cacm november 
+damien doligez georges gonthier 
+portable unobtrusive garbage collection multiprocessor systems 
+proceedings acm conference principles programming languages pages 
+robert halstead 
+implementation multilisp lisp multiprocessor 
+acm symposium lisp functional programming pages new york ny 
+acm 
+richard jones rafael lins 
+garbage collection algorithms automatic dynamic memory management 
+john wiley sons 
+john ellis kai li andrew appel 
+real time concurrent collection stock multiprocessors 
+technical report digital equipment systems research center february 
+jr steele 
+multiprocessing garbage collection 
+cacm september 
+bjarne steensgaard 
+thread specific heaps multi threaded programs 
+acm sigplan notices january 
+endo akinori yonezawa 
+scalable mark sweep garbage collector large scale shared memory machines 
+proceedings high performance networking computing sc 
+derek white alex 
+gc interface evm 
+technical report tr sun microsystems laboratories 
+paul wilson 
+uniprocessor garbage collection techniques 
+international workshop memory management springer verlag lecture notes computer science 
+number processors linear speedup semispaces number processors speedup factor linear speedup specjbb number processors linear speedup semispaces number processors speedup factor linear speedup javac number processors linear speedup semispaces number processors speedup factor linear speedup speedup graphs 

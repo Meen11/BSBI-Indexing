@@ -1,0 +1,419 @@
+sandia technical report sand june appear computational chemistry new parallel method molecular dynamics simulation macromolecular systems steve bruce hendrickson parallel computational sciences department ms sandia national laboratories albuquerque nm cs sandia gov keywords molecular dynamics parallel computing macromolecular modeling short range molecular dynamics simulations molecular systems commonly parallelized replicated data methods processor stores copy atom positions 
+enables computation bonded body forces molecular topology partitioned processors straightforwardly 
+drawback methods inter processor communication scales number atoms independent number processors 
+parallel efficiency falls rapidly large numbers processors 
+article new parallel method simulating macromolecular small molecule systems called force decomposition 
+memory communication costs scale allowing larger problems run faster greater numbers processors 
+replicated data techniques contrast spatial decomposition approaches new method simply load balanced performs irregular simulation geometries 
+implementation algorithm prototypical macromolecular simulation code discussed 
+processor intel paragon runs standard benchmark simulation parallel efficiency times speed vectorized version charmm running single cray mp processor 
+partially supported applied mathematical sciences program department energy office energy research performed sandia national laboratories operated doe contract 
+de ac dp 
+molecular dynamics md widely computational tool simulating liquids solids atomistic level 
+macromolecular systems polymers proteins dna particularly interesting study md conformational shape molecules determines functional catalytic properties 
+systems computationally challenging simulate absence crystal periodicity large numbers atoms included model interesting events molecular diffusion conformational changes typically occur long timescales relative scale timesteps md model 
+md simulations natural candidates implementation parallel computers forces atom molecule computed independently :10.1.1.39.2414
+focus md simulations molecular systems require computation bonded forces topology simulated molecules addition standard non bonded van der waals forces 
+achieve parallel performance bonded computations distributed evenly processors conjunction parallelization non bonded pairwise computations 
+limit scope short range md models non bonded forces truncated atom interacts atoms specified cutoff distance 
+examples widely commercial research codes implement model include charmm amber discover 
+computation case scales linearly number atoms atom interacts roughly constant number neighbors 
+accurate md models long range forces expensive compute hierarchical methods multipole approximations 
+computation methods typically partitioned short long range portions 
+short range portion involves direct summation pairwise interactions near neighbors parallelized methods described 
+long range portion requires different strategies efficiently parallelize scope 
+commonly technique parallelizing short range md simulations molecular systems known replicated data rd method 
+numerous parallel algorithms simulations developed approach 
+typically processor stores copy atom positions simulation 
+uses vector information compute non bonded forces subset atoms assigned 
+bonded force computation simply parallelized scheme processor compute force group bonded atoms 
+drawback rd method memory communication cost scale independent number processors 
+large numbers processors communication costs dominate algorithm inefficient 
+competing parallel method known geometric spatial decomposition sd :10.1.1.39.2414
+approach simulation domain broken pieces processor 
+processor computes forces atoms sub domain 
+large limit technique scales optimally processor need acquire information processors neighboring sub domains 
+sd algorithms widely molecular simulation due complexity particularly bonded force computation difficulty achieving load balance processors irregularly shaped dynamically changing domains 
+developed new parallel algorithm called force decomposition fd particularly appropriate simulations molecular systems linear chain polymers large macromolecules 
+nearly simple implement rd technique reduces communication cost memory requirements factor allows processors efficiently simulation 
+new algorithm scaling optimal sd methods similar rd geometry independent simpler load balance effectively sd methods 
+section show dozen processors fd method offer faster parallel performance rd techniques argue fastest parallel methods rd fd sd kinds molecular simulations moderate size tens thousands atoms 
+earlier described fd techniques simulations pairwise jones embedded atom method potentials metals :10.1.1.39.2414
+addition body bonded forces important complication requiring special treatment previous efforts direction briefly discussed 
+detail enhanced version fd method reduced communication cost motivated algorithm parallel matrix vector multiplication discussed 
+provide time full description parallelize computation bonded forces context fd method 
+section outline computations performed md simulations molecular systems 
+sections briefly describe rd sd methods put new algorithm context 
+fd method detailed sections 
+implemented rd fd algorithms macromolecular md code called 
+compare performance approaches section benchmark simulations liquid crystal systems 
+md simulations molecules md simulations molecular systems kinds interactions contribute total energy ensemble atoms non bonded bonded 
+energies expressed simple empirical relations desired physics chemistry simulated specifying appropriate coefficients 
+energy nb due non bonded interactions typically written nb ffl ij oe ij gamma oe ij term interactions second van der waals distance atoms subscripted quantities user specified constants 
+short range simulations summations evaluated timestep include atom pairs cutoff distance bonded energy system harmonic approximation written bonds gamma angles gamma dihedrals oe cos oe oe oe gamma oe term body energy second body energy body interactions torsional dihedral improper dihedral energies topology molecules 
+distance angles oe computed interaction function atomic positions subscripted quantities constants 
+contrast non bonded energy summations equation explicitly enumerated user setup simulation connectivities molecules fixed 
+md simulation derivatives equations yield force equations atom integrated time generate motion ensemble atoms 
+replicated data algorithm basic methods parallelize computation equations replicated data rd atom decomposition algorithms 
+processor assigned subset atoms updates positions velocities duration simulation regardless move physical domain 
+setting computational involved evaluating equation represented theta force matrix ij element represents non bonded force atom due atom note sparse due short range forces 
+take advantage newton rd law set ij likewise set ij odd 
+conceptually colored checkerboard red squares diagonal set zero black squares diagonal set zero 
+zeroing half matrix elements accomplished striping various ways 
+define vectors length store position total force atom 
+simulation store coordinates atom definitions rd algorithms assign processor sub block consists rows matrix shown 
+indexes processors gamma processor computes non bonded forces sub block rows 
+assigned corresponding sub vectors length denoted computation non bonded force ij requires atom positions compute forces processor need positions atoms owned processors 
+represented having horizontal vector top span columns implies processor store copy atom positions 
+take advantage newton rd law processor compute forces atoms store copy forces represented force vector definition typical rd algorithm outlined dominating term computation communication cost step listed right 
+assume timestep processor knows current positions atoms updated copy entire vector 
+step algorithm non bonded forces matrix sub block computed 
+typically done neighbor lists tag interactions non zero timestep 
+parallel algorithm processor constructs lists sub block timesteps 
+pairwise non bonded interaction atoms computed force components summed twice processor local copy location negated location stored matrix 
+step scales number non zero non bonded interactions computed processor 
+step bonded forces equation computed 
+done spreading loops implicit summations equation evenly processors 
+processor knows positions atoms compute terms equation sum resulting forces local copy step scales small number bonded interactions atom 
+step force vector copies summed processors way processor ends total force atoms 
+called fold operation scales optimally volume data force vector note fold operation costly global sum operation processor ends total force atoms done rd algorithms discussed 
+global sum operation typically scales log processors times expensive fold 
+forces resulting fold update atom positions velocities step 
+step new atom positions shared processors preparation timestep 
+called expand operation essentially inverse fold operation 
+processor starts small piece position vector ends copy entire length vector 
+cost communication step scales chief advantage rd algorithm outlined simplicity 
+straightforwardly divides md force computation integration evenly processors long block roughly number non zero elements 
+may case example atoms fewer neighbors due non uniform densities load imbalance result 
+overcome randomly permuting order atoms simulation begins 
+static load balancing method scatters non zero elements uniformly matrix 
+alternatively young brooks proposed dynamic method preserving load balance rd algorithms 
+adjust size sub blocks simulation progresses 
+individual processors lose gain atoms insure continual load balance 
+chief drawback rd algorithm requires global communication fold expand steps processor acquire information held processors 
+communication scales independent limits number processors effectively 
+similarly rd algorithm requires processor store copy entire length position force vectors 
+memory overhead limits size problems simulated 
+spatial decomposition algorithm second parallel method computing equations exploits locality short range forces assigning processors small region simulation domain call indexes processors gamma 
+geometric spatial decomposition sd workload algorithm form outlined 
+processor update positions atoms sub domain 
+need know positions atoms owned processors sub domains cutoff distance sub domain 
+similarly computes forces atoms compute components forces nearby atoms newton rd law 
+definitions steps algorithm computation non bonded bonded forces interactions involving processor atoms 
+steps scale number atoms processor sub domain 
+step forces computed neighboring atoms communicated processors owning neighboring sub domains 
+received forces summed previously computed create total force processor atoms 
+scaling step depends length force cutoff relative sub domain size 
+list delta discuss 
+step updates positions processor atoms 
+step positions communicated processors owning neighboring sub domains processors update list nearby atoms 
+periodically usually neighbor lists created atoms left processor sub domain moved step appropriate new processor 
+description ignores details effective sd algorithm shows algorithm scaling optimal long communication costs delta minimized :10.1.1.39.2414
+limit large ratios delta scales surface volume ratio processor sub domain 
+processor sub domain roughly equal size force cutoff distance delta scales processor receives atom positions neighboring processors 
+practice obstacles minimizing delta achieving high parallel efficiencies md simulations molecular systems 
+molecular systems may simulated vacuum surrounding solvent uniformly fill box 
+case non trivial divide simulation domain processor sub domain equal number atoms 
+load imbalance result 
+dependence energies equation long cutoffs simulations organic materials 
+processor sub domain may smaller cutoff 
+result considerable extra communication steps acquire needed atom positions forces delta longer scales cube cutoff distance 
+atoms move new processors step molecular connectivity information exchanged updated processors 
+extra coding manipulate appropriate data structures optimize communication performance data exchange subtracts parallel efficiency algorithm 
+discuss sd implementations section 
+force decomposition algorithm new force decomposition fd algorithm 
+communication cost lies rd sd approaches 
+fd method partitions force matrix blocks rows section 
+block decompositions matrices common linear algebra algorithms parallel machines sparked interest idea short range md simulations 
+assignment sub blocks force matrix processors calendar ordering processors depicted 
+assume ease exposition power straightforward implement algorithm number processors logically mapped square rectangular grid 
+index processors gamma processor owns update atoms stored sub vector block decomposition permuted force matrix formed rearranging columns original particular way 
+order pieces row order rows matrix form usual position vector shown vertical bar left 
+span columns form force matrix 
+span columns permuted position vector shown horizontal bar top pieces stored column order columns matrix 
+processor example shown stores processor piece usual order stores 
+ij element force atom vector due atom permuted vector sub block owned processor size theta 
+compute non bonded forces processor know length piece vectors denote ff fi elements computed accumulated corresponding force sub vectors ff fi greek subscripts ff fi run gamma row column position occupied processor processor ff consists sub vectors fi consists sub vectors 
+fd algorithm outlined 
+processor updated copies needed atom positions ff fi timestep 
+step non bonded forces matrix sub block computed 
+neighbor lists tag non zero interactions force computed result summed appropriate locations ff fi account newton rd law 
+step processor computes fraction bonded interactions 
+processor knows subset atom positions done differently rd algorithm 
+describe computation section 
+step force processor atoms acquired 
+total force atom sum elements row force matrix minus sum elements column permuted position column step performs fold row processors sum contributions 
+key difference fold operation replicated data rd fold 
+case vector ff folded length processors row participating fold 
+operation scales rd algorithm 
+similarly step fold done column contributions total force joined step 
+step update atom positions steps share updated positions processors need timestep 
+processors share row column processors row ff perform expand sub vectors acquires entire ff fold operation scales length ff rd algorithm 
+similarly step processors column fi perform expand result acquire fi ready timestep 
+fd method processors equal matrix blocks uniformly sparse 
+atoms ordered geometrically case problems uniform density 
+ordering creates force matrix diagonal bands non zero elements 
+rd case random permutation atom ordering produces desired effect 
+key feature fd method communication operations steps scale case rd algorithm 
+likewise memory costs position force vectors reduced factor 
+run large numbers processors significantly reduce time spent communication 
+important note communication cost algorithm independent force cutoff distance sd methods communication cost grows cube volume cutoff 
+fd method retains simplicity rd technique implemented expand fold communication routines 
+bonded forces return step fd algorithm preceding section computation bonded forces md model 
+processor stores length portions atom positions insure processor knows atom positions required compute bonded interactions listed equation 
+similar randomization process load balancing purposes accomplished pre processing step proper ordering atoms 
+wish assign atoms processors way bonded interactions computed preserving load balance 
+define cluster atoms collection atoms 
+necessarily connected topology molecule 
+define group processors processors row force matrix 
+processors groups 
+pre processing algorithm proceeds stages computationally simple performed quickly workstation large md simulations 
+stage create clusters 
+stage assign clusters groups 
+stage assign atoms processors group 
+stage begun assigning atom cluster 
+process list body interactions random order 
+demand set interacting atoms clusters 
+case merge smallest clusters form new single cluster 
+done twice atoms initially different clusters 
+body interactions processed list body interactions treated similarly 
+set atoms clusters merged needed satisfy constraint 
+goal stage maximize total number clusters cluster minimal size 
+typically clusters grow larger dozen atoms small atom clusters particularly small solvent molecules included model 
+second stage algorithm begun sorting clusters size 
+largest clusters assigned whichever group processors currently number total atoms 
+goal stage assign equal numbers atoms group simple practice typically order magnitude clusters groups 
+final stage atoms group assigned individual processors group 
+done randomly atoms cluster spread processors group processor ends roughly number total atoms 
+exception rule follows 
+list body interactions scanned random order 
+atoms group atoms sets assigned random processor group 
+shake constrain bond lengths stages modified treat small subsets coupled atoms unit 
+insures atoms particular subset assigned processor computation constraint parallelized subsets 
+stages completed processor nearly equal numbers atoms assigned 
+randomness stages insures processor roughly equal numbers non bonded forces compute 
+guaranteed bonded computation computable processors 
+automatic body interactions processor atom ff atom fi body interactions atoms particular ff assigned cluster 
+processor ff group third atom fi similar argument holds body interactions 
+purpose final stage restriction atoms assigned processor just group insure atoms fi atoms assigned processors final pre processing step create lists bonded interactions computed processor md simulation 
+atoms interaction ff fi processor row column compute interaction 
+assigned tune load balance bonded computations 
+results implemented rd fd algorithms parallel md code written called 
+similar concept scope widely commercial academic macromolecular codes charmm amber discover 
+fact designed charmm compatible sense uses force equations charmm 
+rd fd methods communication primitives simply switch partitions force matrix rows sub blocks figures 
+brooks done extensive benchmarking charmm variety machines large prototypical protein simulation 
+atom molecule surrounded shell solvent water molecules total atoms 
+resulting ensemble roughly spherical shape 
+benchmark timestep simulation performed temperature ffi non bonded force cutoff neighbor lists created timesteps cutoff total atom pairs stored neighbor lists 
+timing results benchmark simulation run different numbers processors shown 
+solid symbols timings due brooks 
+single processor cray mp timing secs timestep version charmm optimized vector processing 
+developed parallel version charmm rd algorithm similar discussed section 
+timings version intel ipsc intel delta caltech shown timings rd algorithm section running intel paragon sandia 
+account xp floating point processors paragon faster xr chips ipsc delta inter processor communication significantly faster paragon sets rd timings quite similar 
+curves show marked roll parallel efficiency processors due poor scaling communication steps 
+timing results fd algorithm shown open circles 
+performance falls rapidly processors added running times faster rd counterpart processors secs timestep vs times faster processors secs timestep vs 
+processor timing times faster single mp processor timing 
+dotted line represents perfect speed parallel efficiency code 
+benchmark requires memory run single processor estimated processor timing summing processor computation times bonded non bonded forces neighbor list construction communication load imbalance times 
+processor intel ipsc timing charmm estimate 
+fd algorithm relatively high parallel efficiency processors compared rd timing 
+compared performance new fd algorithm results brooks provided standardized benchmark timings exhibit best scaling rd implementation seen literature parallel efficiency intel ipsc processors 
+include parallelization charmm processor intel ipsc charmm code long range forces processor transputer machine amber processor ncube processor fujitsu ap processor ncube processor intel ipsc general molecular simulation codes processor intel ipsc ibm workstation cluster 
+efforts show reduced parallel efficiencies processors due scaling problems inherent rd approach 
+depending parallel machine communication characteristics reported efficiencies fall low dozens hundreds processors cases speed reduced processors added 
+implementation sato notable exception parallel efficiencies processors benchmark calculations 
+comparison performance parallel machines rd fd algorithms shown table results simulations array atom liquid crystal molecules total atoms done collaboration wright patterson afb researchers study atomistic effects macroscopic structure thin film geometries 
+cutoffs forces neighbor lists model performance tested parallel machines processor ncube intel paragon sandia processor cray cray research 
+previous difference total run time nd number entry algorithms grows larger number processors increases machines 
+listed communication times st number entry key reason difference performance 
+worth re emphasizing performance rd fd algorithms scale linearly number atoms 
+fd advantage speed paragon processors table hold similar simulations sized system 
+lower memory requirements fd algorithm model systems atoms liquid crystal simulations cutoff discussed processors paragon processor 
+contrast largest liquid crystal system model processors rd option atoms 
+similarly brooks report atom benchmark cutoff nearly largest simulation perform rd technique ncube intel paragon cray rd fd rd fd rd fd table cpu timings seconds timesteps replicated data rd force decomposition fd algorithms varying numbers processors parallel machines atom liquid crystal simulation 
+number entry communication second total time 
+processor intel delta usable mbytes processor parallel charmm 
+written spatial decomposition code suitable molecular systems contrast performance parallel algorithms atomic md simulation 
+benchmark described fully individual atoms interact jones potential analogous non bonded component molecular simulation :10.1.1.39.2414
+shows timing results simulations box containing atoms liquid state reduced density ae ncube sandia 
+force cutoff oe neighbors atom sd algorithm faster processors 
+force cutoff oe neighbors atom typical longer range cutoffs molecular systems effects fd algorithm fastest choice number processors 
+communication costs independent cutoff length sd algorithm perform communication cutoff length increased 
+performance sd code reduced atoms uniformly distributed regular box benchmark 
+increased fixed come crossover point sd code faster longer cutoff problem results indicate regime potentially tens thousands atoms fd approach fastest algorithmic choice :10.1.1.39.2414
+spatial decomposition implementations molecular simulations parallel machines hundreds processors discussed 
+developed linear chain polymer model processor transputer machine 
+partition simulation box columns rd dimension owned wholly processor 
+particle benchmark system cutoffs encompassed neighbors atom achieve parallel efficiency processors 
+brown implemented sd algorithm sub domains linear chain polymers rectangular boxes 
+report efficiency atom simulation processors fujitsu ap 
+developed code clark designed general bio molecules arbitrary connectivity patterns simulations irregular shaped domains 
+outperforms earlier parallel replicated data implementation processors intel delta caltech 
+hierarchical decomposition processor ends rectangular shaped sub domain variable size may align neighbors 
+allows irregular shaped domains partitioned processors load balanced fashion cost extra communication overhead 
+report parallel efficiency roughly load balancing processors delta atom simulation cutoff uniformly filled box simulated systems atoms parallel efficiency 
+proposed new strategy force decomposition parallelizing short range md simulations illustrated effectiveness parallel supercomputers 
+replicated data spatial decomposition algorithms fd method computational cost scales optimally communication memory costs scale scaling rd scaling sd 
+new fd algorithm particularly suited simulations molecular systems long force cutoffs computation bonded forces irregular simulation geometries degrade parallel efficiency sd implementations 
+rd techniques fd method geometry independent irregular dynamically changing problems automatically load balanced 
+key advantage fd method rd reduced memory costs improved communication scaling enables larger numbers processors effectively simulate problem practice performance difference rd fd methods may significant dozen processors 
+sd algorithms clearly method choice large md simulations due optimal scaling relatively high parallel efficiencies simplicity fd approach fast option simulations currently performed massively parallel computers 
+acknowledgments richard sandia fruitful discussions regarding md simulations macromolecular systems suggesting improvements preliminary version manuscript 
+helping write code ron sandia coding bonded force partitioning algorithm section 
+brooks national institutes health providing input files benchmark problem 
+liquid crystal simulations discussed section performed collaboration wright patterson afb researchers ruth 
+cray runs performed machine cray research assistance barry 
+bonded force routines equation written public domain md code authored andreas columbia university guide 
+allen 
+computer simulation liquids 
+clarendon press oxford 
+andersen 
+velocity version shake algorithm molecular dynamics calculations 
+comp 
+phys 
+barnes hut 
+hierarchical log force calculation algorithm 
+nature 
+barnett gupta payne van de watts 
+building high performance collective communication library 
+proc 
+supercomputing pages 
+ieee computer society press 
+van de vorst 
+parallel lu decomposition transputer network 
+van zee van de vorst editors lecture notes computer science number pages 
+springer verlag 
+brooks states swaminathan karplus 
+charmm program macromolecular energy minimization dynamics calculations 
+comp 
+chem 
+brooks 
+parallelization charmm mimd machines 
+chemical design automation news 
+brown clarke 
+domain decomposition parallel processing algorithm molecular dynamics simulations polymers 
+comp 
+phys 
+comm 
+scales 
+simulation organic liquids pseudo pairwise forces toroidal transputer array 
+comp 
+phys 
+comm 
+clark scott 
+parallelizing molecular dynamics spatial decomposition 
+proc 
+scalable high performance computing conference pages 
+ieee computer society press 
+clark scott 
+parallel molecular dynamics 
+proc 
+th siam conference parallel processing scientific computing pages 
+siam 
+
+md parallelization amber molecular dynamics module distributed memory hypercube computers 
+comp 
+chem 
+ding goddard iii 
+atomic level simulations particles cell multipole method coulomb london interactions 
+chem 
+phys 
+
+efficient parallel implementation molecular dynamics toroidal network ii 
+multi particle potentials 
+comp 
+phys 
+
+parallel computers molecular simulation 
+
+sim 
+fox johnson otto salmon walker 
+solving problems concurrent processors volume 
+prentice hall englewood cliffs nj 
+greengard rokhlin 
+fast algorithm particle simulations 
+comp 
+phys 
+heller schulten 
+molecular dynamics simulation parallel computer 
+
+sim 
+hendrickson 
+torus wrap mapping dense matrix calculations massively parallel computers 
+siam sci 
+stat 
+comput 
+hendrickson 
+parallel body simulations communication 
+par 
+dist comp 
+
+protein calculations parallel processors ii 
+parallel algorithm forces molecular dynamics 
+comp 
+chem 
+lewis van de 
+distributed memory matrix vector multiplication conjugate gradient algorithms 
+proc 
+supercomputing pages 
+ieee computer society press 
+lin mellor crummey phillips jr molecular dynamics distributed memory multiprocessor 
+comp 
+chem 
+adams 
+molecular dynamics simulation cyclic liquid crystalline material 
+electrical optical magnetic properties organic solid state materials volume pages 
+materials research society symposium proc fall 
+:10.1.1.39.2414
+fast parallel algorithms short range molecular dynamics 
+comp 
+phys 
+hendrickson 
+parallel molecular dynamics embedded atom method 
+materials theory modeling volume pages 
+materials research society symposium proc fall 
+hendrickson 
+new decomposition strategy parallel bonded molecular dynamics 
+proc 
+th siam conference parallel processing scientific computing pages 
+siam 
+
+numerical integration cartesian equations motion system constraints molecular dynamics 
+comp 
+phys 
+sato tanaka saito yao 
+parallelization amber molecular dynamics program ap highly parallel computer 
+proc 
+scalable high performance computing conference pages 
+ieee computer society press 
+schreiber schuster 
+parallel molecular dynamics 
+parallel computing 
+smith 
+molecular dynamics hypercube parallel computers 
+comp 
+phys 
+comm 
+smith 
+parallel macromolecular simulations replicated data strategy computation atomic forces 
+comp 
+phys 
+comm 
+
+advanced algorithms molecular dynamics simulations program pmd 
+mattson editor parallel computing computational chemistry page 
+american chemical society 
+young brooks iii 
+dynamic load balancing algorithms replicated data molecular dynamics 
+division force matrix processors replicated data algorithm 
+processor assigned rows matrix corresponding piece position vector 
+addition know entire position vector shown spanning columns compute non bonded forces compute non bonded forces doubly summing results local copy compute fraction bonded forces summing results local copy fold processors result update atom positions expand processors result single timestep replicated data algorithm processor 
+compute non bonded forces summing results compute bonded forces summing results share neighboring processors summing received forces delta update atom positions share neighboring processors received positions update delta move atoms new processors necessary delta single timestep spatial decomposition algorithm processor division permuted force matrix processors force decomposition algorithm 
+processor assigned sub block size compute non bonded forces know corresponding length pieces ff fi position vector permuted position vector compute non bonded forces storing results ff fi compute fraction bonded forces storing results ff fi fold ff row ff result fold fi column fi result subtract result total update atom positions expand row ff result ff expand column fi result fi single timestep force decomposition algorithm processor number processors cpu time sec timestep intel paragon replicated data force decomposition perfect speed cray mp intel ipsc delta replicated data brooks nih cpu timings seconds timestep replicated data force decomposition algorithms different numbers processors atom benchmark 
+timings solid symbols 
+number processors cpu time sec timestep replicated data force decomposition spatial decomposition cpu timings seconds timestep replicated data force spatial decomposition algorithms atom jones benchmark different numbers ncube processors 
+solid symbols oe cutoff open symbols oe cutoff 
+

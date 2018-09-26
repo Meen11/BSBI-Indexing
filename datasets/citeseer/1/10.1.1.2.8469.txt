@@ -1,0 +1,309 @@
+case virtual channel processors derek mcauley intel research cambridge jj thomson av cambridge uk derek mcauley intel com modern desktop server computer systems multiple processors general purpose cpu graphic processor gpu network processors np network interface cards nics raid controllers signal processors sound cards modems 
+processors traditionally special purpose processors trend replacing embedded general purpose processors 
+time main cpus powerful desktop cpus start featuring simultaneous multi threading smt symmetric multi processing smp systems widely server systems 
+structure operating systems really changed reflect trends different types processors evolve different timescales largely driven market forces requiring significant changes operating systems kernels reflect appropriate tradeoffs 
+position propose re old idea channel processors encapsulating operating system subsystems virtual channel processors 
+perform operations behalf os 
+provide similar development performance fault isolation dedicated embedded processors offering flexibility split functionality main processor dedicated processors affecting rest os 
+part executed main processor propose virtual machine technology smt smp features isolate performance rest system protect system faults 
+categories subject descriptors operating systems organization design operating systems communications management general terms design contact author permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+acm sigcomm workshops august karlsruhe germany 
+copyright acm 
+position keywords rolf neugebauer intel research cambridge jj thomson av cambridge uk rolf neugebauer intel com virtual channel processors protocol offloading 
+modern computer system contains different processors apart main cpu 
+include graphics engines signal audio processors provide specialised functionality vector real time analog signal processing 
+trend accelerated proposals products placing additional processing cards subsystem 
+processors partially replace functionality previously implemented hardware mainly targeted moving computation away main cpu cards 
+prime example emergence network cards containing tcp offloading engines toe processor network card executing tcp protocol stack behalf operating system 
+common approaches load part network protocol stack processing hardware checksum calculation 
+trend partly motivated emergence storage networks ip storage solutions iscsi 
+main argument toe loading techniques reduce load imposed main processor isolate performance impact additional load rest system 
+similar reasons specialised raid controller cards time speed main cpus support memory interfaces increase significantly faster continuously speed embedded processors typically separate processors 
+believe trend mainly attributed market economies 
+observations mind question sense invest developing specialised offloading technology especially considering cost complexity embedded software development required modifications os month time main processor handle additional load 
+give example experimental results software iscsi implementation mhz pentium iii client dual mhz pentium iii server suggested toe capable network cards specialised iscsi capable nics relieve main cpu 
+subsequent authors evaluate performance currently available hardware approaches soft modems notable marginal processing moved specialised signal processor back main processor despite quite stringent timeliness requirements 
+date system ghz amd athlon mp 
+concluded currently available hardware approaches toe provide significant performance benefit software approaches main processor attribute result mainly disparity processing powers 
+improvements hardware solutions main processor speeds doubled ghz processors widely available 
+widening disparity may temporary phenomenon clear correct tradeoff remain moving target 
+furthermore faster offloading technology available argued tcp offload dumb idea applications complex implement offers little performance benefits 
+common justification offloading processing additional processors provide performance isolation 
+argument performance applications executing main cpu directly impacted processing performed additional processors dedicated hardware resources 
+importantly significant performance impact systems attributed general processing overheads interrupt processing 
+issue resolved faster main processors 
+contrary complex processors pronounced 
+extent performance isolation interrupt overheads addressed simultaneous multi threading smt technology intel hyper threading technology ht 
+experimental evidence non specialised oses ht provide significant network performance improvements 
+isolation achieved separate hardware threads processing overheads addressed dedicating fixed portion hardware thread interrupt processing akin related approaches dedicating separate physical cpu protocol processing albeit significantly reduced cost 
+important observation structure traditional operating systems necessarily conducive supporting emerging technologies difficult adapt changing tradeoffs different implementation options exemplified slow availability different loading options discussed 
+anecdotal evidence consider linux network stack checks different source files excluding device drivers hardware supports checksum offloading 
+modifications fairly local appears non trivial change 
+consider changes required supporting substantial hardware offloading radical hardware designs twin cities prototype furthermore changing operating system track tradeoffs may system stability previously monolithic kernel subsystems ip network stack broken 
+changes local kernel subsystem potential disrupt rest kernel execute protection resource domain 
+address issues propose subsystems traditional os kernel potentially kernel subsystems encapsulating virtual channel processors akin channel processors mainframe computers 
+perform operations behalf rest operating system constitute separate protection scheduling domains 
+developers tradeoff place functionality dedicated hardware interface twin cities experimental prototype connecting intel ixp network processor attached network interface directly front side bus pentium iii processor 
+cards main processor 
+placed main processor isolation provided virtual machine technology offering fault performance isolation clean slate developers subsystems 
+rest structured follows 
+section highlight problems arising traditional os kernel structure aforementioned iscsi example 
+section describe virtual channel processor approach detail re visiting iscsi example illustrate addresses issues 
+section outline implementation plan xen virtual machine monitor 
+section discusses related section summarise proposal 
+
+example iscsi iscsi emerging standard aims commodity ethernet network components build storage area networks allowing clients issue scsi commands tcp ip access block devices remote network attached storage 
+operating system iscsi interesting example exercises previously independent subsystems file system stack network stack poses interesting challenges operating systems 
+illustrates pure software iscsi implementation provided 
+applications access files file system layer turn uses block device layer issue scsi commands 
+scsi commands control locally attached disk entered top operating system network stack traverse normal network packets tcp ip layer ethernet layer handed network card transmission 
+filesystem block layer scsi apps sockets tcp ip ethernet nic iscsi software implementation os hw oversimplified diagram highlights number issues 
+implementation adds complexity previously independent kernel subsystems depend 
+operating systems typically non public ill defined changing apis components adding feature crosses subsystems may trigger unwanted side effects cause previously interactions complicate maintainability kernel 
+note issues resolved standard software engineering practice modularisation microsoft windows network implementation definition interfaces network devices transport protocols respectively appear step right direction 
+strong encapsulation 
+techniques typically utilised os kernel code 
+furthermore implementation may significant performance impact executes processor implementation 
+example network stack shared traditionally separate file network normal network processing may interfere iscsi network processing network stack essentially introducing opportunities resource contention memory contention buffer caches network receive transmit buffers 
+may potential problems locking locking filesystem stack typically independent locking network stack 
+latency may increased file requests go stacks kernel just 
+common proposal solve problems specialised network cards implementing tcp ip network stack iscsi devices place iscsi interface network card 
+propose interface operating systems encapsulate functionality virtual channel processor 
+
+virtual channel processors gives overview proposed architecture 
+assume virtual machine monitor vmm create manage virtual machines 
+vmm provides similar functionality control program cp vm disco vmware server esx kernel denali isolation kernel xen hypervisor 
+vmms allow multiple guest operating systems execute machine providing machine interface 
+addition guest oses propose place parts subsystem virtual machines constituting part executing main cpu 
+virtual machines export virtual interface defining virtual channel processor 
+virtual interface indicated solid lines diagram contrast non public apis kernel components message queues allowing decoupling computations different virtual machines 
+messages passed asynchronously contain data residing shared memory regions allowing zero copy communication data path 
+application os kernel vmm hardware guest os vm application kernel subsystems may contain device drivers talking directly hardware device vmm supports feature 
+access hardware interface provided vmm 
+furthermore conceivable desirable allow user level applications instantiate communicate directly 
+require changes guest operating system api user level processes 
+placing parts subsystem separate virtual machines advantages 
+obvious advantage rest system isolated certain software faults subsystem potentially increasing system stability drivers contribute large proportion operating system bugs 
+furthermore faults experimental software software development contained easily executed virtual machine virtual machine executing experimental code affected 
+fault containment motivation shared hive software engineering benefit virtual machine provides clean slate programming environment 
+programmers freed constraints say linux windows driver model tied particular existing implementation implementation environment 
+significantly simplifies implementation 
+example programmers need worry locking respect concurrency kernel subsystems worry smp related locking issues executes single cpu 
+acknowledge initial implementation may introduce instabilities potential bugs main operating system non trivial changes required incorporate concepts kernel 
+believe initial modification containment subsystems offers greater benefits 
+second benefit abstraction provides flexibility respond changing system environments 
+hard coding software hardware divide allows evolve technology virtual channel processor independent rest system 
+words virtual machine approach preclude hardware accelerate allows choice place functionality affecting rest system implementation virtual machine affected 
+obviously assumes virtual interface rest operating system need changed 
+designing suitable virtual interfaces requirement interface message queue paradigm shared memory allows efficient bulk data transfer avoiding unnecessary data copies decoupling individual components 
+worth pointing design principles interfaces understood partially motivated limitation existing interface 
+represent separate scheduling resource allocation entities 
+placing processing virtual machine easier control resources consumed processing 
+plan leverage smt features modern processors dedicate hardware thread guaranteed share hardware thread virtual channel processing performed main cpu comparable dedicated cpu tcp server system eta prototype 
+note vmm need understand se worth pointing fault containment sufficient achieve better system stability dependability appropriate recovery mechanism required 
+furthermore recovery bad hardware state may require additional support hardware 
+mantics operations performed detail 
+example expect able support managing buffer space message queues virtual memory interface vmm exports guest oses 
+similar vmm export asynchronous event notification mechanisms guest oses interrupts 
+mechanism communication virtual machines 
+special requirement vmm specialised treatment respect scheduling 
+easily accomplished entire hardware thread dedicated slack cpu resources hardware thread may shared best effort basis 
+iscsi general idea virtual channel processors introduced revisit iscsi example 
+shows possible implementation iscsi subsystem virtual channel processor stark contrast traditional software implementation depicted 
+filesystem block layer iscsi scsi network nic applications os virtual machine iscsi hw iscsi filesystem block device layer remain virtually unchanged executed guest os virtual machine 
+block device layer may changed interface virtual interface exported newly introduced iscsi virtual machine 
+new component encapsulates iscsi layer network stack connected network interface 
+network stack iscsi virtual machine simplified streamlined iscsi traffic respect locking supported tcp options making susceptible complex bugs 
+network stack encapsulated virtual machine free move network processing nic provide better performance 
+decision independent components effect rest operating system 
+network interface suitably standard network subsystem iscsi virtual machine physical network device 
+
+implementation plan planning implement prototype described virtual channel architecture virtual machine monitors xen hypervisor 
+xen ia architecture currently capable running multiple instances linux operating system separate virtual machines contrast full underlying hardware xen uses approach termed para 
+large subset physical hardware providing idealised abstractions parts architecture difficult extremely inefficient 
+results changes required guest operating systems hosted xen vmm 
+case linux guest os known changes limited machine dependent part kernel source practically introduce new architecture strongly resembles identical physical hardware 
+example linux kernel executed ring ring ia user level processes execute ring standard linux run unmodified linux binaries 
+operations require privileges ring page table updates provided different interface 
+architecture specific part linux virtual memory system modified reflect change 
+general form para promises performance benefits full keeping changes required guest operating systems minimum 
+unfortunately namespace currently easily completely currently possible give individual virtual machines access portions physical namespace vms privileges allowing access entire namespace obvious reduction isolation vms 
+attempting emulate specific physical device approach taken vmware workstation plan extend idea physical devices 
+current plan provide interface message queues directly hardware 
+provided approach similar arsenic gigabit ethernet prototype 
+interesting alternative offered twin cities prototype allow direct interaction hardware vmm interaction 
+context evaluating vi architecture potential option 
+para interfaces line current xen implementation provides guest oses similar interface 
+xen currently executes device drivers physical device virtual machine monitor 
+plan evaluate benefits drawbacks executing device drivers separate vms part 
+initial prototype focus virtual channel processor implementation providing iscsi functionality example 
+plan compare performance software implementations hardware assisted implementations 
+previous suggests potentially substantial performance benefits performing network processing separate processor particularly interested investigating benefits smt technologies hyper threading context 
+smt interesting offers potential performance improvements significantly lower cost smp systems challenging hardware threads share functional units processor 
+furthermore interested evaluating overheads introduced 
+choice xen motivated part due relative maturity completeness compared available vmm prototypes part due involvement development 
+example network transmit receive throughput xen prototype introduces small overhead mtu size bytes compared standard linux incurs significantly higher overhead transmission reception smaller mtu size bytes measure ttcp 
+significant packet overhead attributed current implementation vmm performs fire de multiplexing 
+believe performance bottlenecks removed network interface dedicated environments particular purpose intelligent hardware devices performing functionality 
+
+related idea placing subsystems separate virtual machines new 
+example early software telecommunication subsystem placed special virtual machine cp precursor vm controlled micro computer allow bulk remote access machine 
+idea channel processors albeit real ones processing originates early mainframe world 
+proposal ideas apply modern context 
+number systems eta prototype tcp servers introduce virtual network device interfaces dedicated processors smp system protocol processing 
+virtual channel processors similar approach dedicating entire processor purpose provide virtual machine allowing dynamic allocation resources 
+hope higher processor speeds smt technology appropriate scheduling algorithms similar performance benefits achieved reported systems 
+reasons placing subsystems separate virtual machines shared motivations micro kernels architectures mach 
+proposed move device drivers user level servers 
+believe ipc interface typically micro kernels inferior message queue interfaces especially respect bulk data transfers 
+furthermore appropriate vmm support proposed system need suffer extra cost kernel user mode crossings typically incurred micro kernel systems 
+staged computation decouples computation demonstrated achieve better scalability performance 
+interface message queue interface hope gain similar benefits 
+goals comparable extensible operating systems projects vino spin 
+systems software mechanisms safe languages protect parts kernel 
+propose virtual machine technology provided xen isolation providing freedom developers programming language choice 
+
+summary position concept virtual channel processors 
+encapsulate subsystem traditional operating system kernels exporting virtual interface parts system 
+argued approach benefit traditional kernel structures offering safer execution environment new immature kernel code providing resource isolation kernel subsystems 
+know tradeoffs placing computation main cpu leveraging rapidly increasing cpu speeds emerging technologies smt deploying dedicated loading engines justifiable today argued virtual channel processor concept provides flexibility compared current trend hardware accelerating specific function subsystem 
+allow hardware software tradeoff having changes core operating system 
+outlined implementation plan virtual machine monitor technology provided xen hypervisor 
+initial prototype target iscsi implementation illustrative example 
+
+accetta baron bolosky golub rashid tevanian young 
+mach new kernel foundation unix development 
+proc 
+summer usenix pages july 
+barham fraser hand harris ho neugebauer pratt warfield 
+xen hypervisor 
+technical report cl tr cambridge computer laboratory jan 
+bershad savage pardyak sirer becker fiuczynski chambers eggers 
+extensibility safety performance spin operating system 
+proc 
+th symposium operating systems principles sosp pages copper mountain usa dec 
+black 
+explicit network scheduling 
+phd thesis university cambridge computer laboratory apr 
+available technical report 
+steenkiste 
+effects buffering semantics performance 
+proc 
+nd symposium operating systems design implementation osdi pages seattle wa usa oct 
+bugnion devine rosenblum 
+disco running commodity operating systems scalable multiprocessors 
+proc 
+th symposium operating systems principles sosp pages copper mountain usa dec 
+chapin rosenblum devine lahiri gupta 
+hive fault containment shared memory multiprocessors 
+proc 
+th acm sigops symposium operating systems principles sosp pages copper mountain colorado usa dec 
+chase 
+system optimisation high speed tcp 
+ieee communications apr 
+chou yang chelf hallem engler 
+empirical study operating systems errors 
+proc 
+th symposium operating systems principles sosp pages lake louise canada oct 
+compaq intel microsoft 
+virtual interface architecture specification version dec 
+
+system extended architecture channel subsystem 
+ibm research development may 
+bock chu oliver 
+speeding complex networking applications twin cities heterogeneous multiprocessing prototype 
+accepted ieee network 
+hendricks hartman 
+evolution virtual machine subsystem 
+ibm systems 
+ietf 
+ip storage working group 
+www ietf org html charters ips charter html 
+
+benefits threads tcp ip processing 
+submitted publication jan 
+intel 
+ia intel architecture software developer manual volume basic architecture 
+jones saroiu 
+predictability requirements soft modem 
+proc 
+int 
+conf 
+measurements modeling computer systems pages cambridge ma usa june 
+larus parkes 
+cohort scheduling enhance server performance 
+proc 
+usenix annual technical conference pages monterey ca june 
+liedtke 
+kernel construction 
+proc 
+th symposium operating systems principles sosp pages copper mountain usa dec 
+liedtke 
+real microkernels 
+comm 
+acm sept 
+macdonald barkley 
+microsoft windows tcp ip implementation details 
+white microsoft 
+marr hill 
+hyper threading technology architecture microarchitecture 
+intel technical journal feb 
+mogul 
+tcp offload dumb idea time come 
+proc 
+th workshop hot topics operating systems hawaii may 
+muir smith 
+asymmetric multiprocessor operating system 
+proc 
+st ieee conf 
+open architectures network programming san francisco ca usa apr 
+muir smith 
+functional divisions multiprocessor operating system 
+proc 
+th european sigops workshop pages sintra portugal sept 
+pai druschel zwaenepoel 
+io lite unified buffering caching system 
+proceedings rd symposium operating systems design implementation osdi new orleans la usa feb 
+pratt fraser 
+arsenic user accessible gigabit ethernet interface 
+proc 
+th annual joint conference ieee computer communications societies infocom pages los alamitos ca apr 
+rangarajan banerjee iftode zwaenepoel 
+tcp servers offloading tcp ip processing internet servers 
+design implementation performance 
+technical report dcs tr rutgers university department computer science mar 
+regnier fong 
+eta experience intel xeon tm processor packet processing engine 
+proc 
+symposium high performance interconnects palo alto ca aug 
+accepted publication 
+sarkar 
+storage ip hardware support help 
+proc 
+nd usenix conference file storage technologies fast san francisco ca usa mar 
+sarkar 
+ip storage challenge ahead 
+proc 
+th ieee symposium mass storage systems college park md usa apr 
+meth 
+iscsi 
+internet draft draft ietf ips iscsi txt nov 
+
+vm study multiplicity usefulness 
+ibm systems pages 
+small seltzer 
+vino integrated platform operating systems database research 
+technical report tr harvard university cambridge ma usa 
+
+lim 
+virtualizing devices vmware workstation hosted virtual machine monitor 
+proc 
+usenix annual technical conference pages boston ma june 
+welsh culler brewer 
+seda architecture conditioned scalable internet services 
+proc 
+th symposium operating systems principles sosp pages lake louise canada oct 
+whitaker shaw gribble 
+scale performance denali isolation kernel 
+proc th symposium operating systems design implementation pages boston ma dec 

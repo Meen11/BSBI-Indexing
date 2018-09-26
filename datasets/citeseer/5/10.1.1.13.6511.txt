@@ -1,0 +1,468 @@
+shade fast instruction set simulator execution profiling tracing tools widely help analyze design tune hardware software systems 
+describes tool called shade combines efficient instruction set simulation flexible extensible trace generation capability 
+efficiency achieved dynamically compiling caching code simulate trace application program 
+user may control extent tracing variety ways arbitrarily detailed application state information may collected simulation tracing translates directly greater efficiency 
+current shade implementations run sparc systems simulate sparc versions mips instruction sets 
+describes capabilities design implementation performance shade discusses instruction set emulation general 
+
+tracing tools widely help analysis design tuning hardware software systems 
+tracing tools provide detailed information behavior program information drive analyzer analyzes predicts behavior particular system component 
+turn provides feedback improve design implementation architectures compilers applications 
+analyzers consume kinds trace information 
+example address traces studies memory hierarchies register operand usage pipeline design instruction combinations superscalar deep pipe designs instruction counts optimization studies operand values studies branch behavior branch prediction 
+features improve utility tracing tool 
+tool easy avoid dependencies particular languages compilers 
+ideally avoid potentially cumbersome preprocessing steps 
+second able trace wide variety applications including signals exceptions dynamically linked libraries 
+third trace generation fast traces recreated demand archived bulk storage possible study realistic workloads partial workloads may provide representative information bkw 
+fourth tracing tool provide arbitrarily detailed trace information appear acm sigmetrics conference measurement modeling computer systems 
+copyright association computing machinery acm bob cmelik sun microsystems rfc eng sun com david keppel university washington pardo cs washington edu useful wide variety analyzers general means extensible ng programmed collect specialized information 
+possible trace applications machines exist 
+features odds 
+example static cross compilation produce fast code purely static translators simulate trace details code 
+improved tracing flexibility generally means reduced performance 
+interpreter saves address trace information may reasonably fast adding control interpreter saves address trace slow simulation instruction simulator check save trace information 
+providing finer control save trace data slows simulation adding flexibility save kinds trace information slows simulation 
+conflict generality performance tools provide subset features listed 
+shade provides features tool uses general techniques achieve needed flexibility performance 
+shade dynamically cross compiles executable code target machine executable code runs directly host machine 
+second host code cached reuse cost cross compiling amortized 
+third simulation tracing code integrated host code saves trace information directly runs 
+fourth shade gives analyzer detailed control traced tracing strategy varied dynamically opcode address range 
+shade saves just information requested analyzer clients need little trace information pay little overhead 
+shade call special purpose analyzer supplied code extend shade default data collection capabilities 
+contributions 
+introduce dynamic compilation caching techniques building fast simulators 
+show tracing tool extensible flexible 
+show simulation instrumentation code integrated save trace information efficiently 
+show ideas shade performs cross architecture simulation collects kinds trace information allows fine control tracing extensible simulates traces target machine detail including tricky things signals self modifying code despite flexibility performance competitive tools just cross simulate tracing tools simple tracing omit details improve simulation tracing efficiency 
+shade shows general purpose tool efficient effectively replace tools 
+presents framework describing simulation tracing tools 
+remainder organized follows section describes interface seen programmers shade write analyzers 
+section describes implementation shade focusing compilation caching instrumentation 
+section discusses cross architecture simulation 
+section reports performance shade native cross architecture tracing 
+section compares capabilities implementation simulation tracing tools 
+
+analyzer interface shade analyzer program part program utilizes simulation varying degrees tracing capabilities provided shade 
+shade analyzers pure simulation tracing generate memory address traces tools provide debugger interface simulated target machine compiler cross development evans observe instruction operand values richardson analyze memory cache performance analyze microprocessor pipeline performance analyze shade performance 
+analyzers see shade collection library functions cmelik 
+analyzers call functions identify application program simulated specify level tracing detail simulate application instructions collecting specified trace information 
+shade knows efficiently collect common trace information instruction address text data addresses memory operations contents registers instruction 
+information may collected trace functions 
+shade arranges functions called simulating application instruction 
+functions access application simulated registers memory 
+analyzer may specify trace information collect trace functions call opcode basis 
+example analyzer wishes analyze memory systems request tracing just instruction data addresses 
+tracing selections may change course simulation 
+analyzer skip tracing application initialization trace particularly interesting application library code 
+trace data analyzer requests faster shade runs 
+
+implementation section describes basic implementation shade 
+section describes structure shade 
+section describes dynamic compilation translations directly simulate trace application program 
+section describes translations cached reuse reduce compilation overhead 
+section concludes special problems considerations general techniques shade 
+
+simulating tracing heart shade small main loop repeatedly maps current target application pc corresponding fragment shade host simulator code called translation 
+translation simulates target instruction optionally saves trace data updates target pc returns main loop 
+shade builds translations cross compiling target instructions host machine code 
+shade translates application memory refer simulated memory similarly translates updates target registers updates simulated registers 
+summarizes primary data structures shade 
+main loop translations utility functions called translations share common register window stack frame 
+host registers reserved special purposes 
+register vs pointer application virtual state structure holds simulated registers vpc application virtual program counter part virtual state warrant host register base address application memory tr pointer current trace buffer entry number unused trace buffer entries tlb pointer tlb described 
+shade maps target pc corresponding translation data structure called translation lookaside buffer tlb 
+main loop fast partial tlb lookup 
+fails function called slower full tlb lookup 
+fails translation compiler invoked generate new translation translation cache tc update tlb 
+main loop checks pending signals need delivered application 
+depending application wishes handle signal shade may terminate application point arrange invocation application signal handler 
+case shade continues simulating tracing application signal handler 
+text data stack tlb tc vs int regs fp regs cond codes 
+shade data structures scale 
+translations application instructions typically translated chunks extend current instruction control transfer instruction accompanying delay slot 
+translation stops tricky instructions software trap memory synchronization instructions shade arbitrarily limits number application instructions translation order simplify storage allocation 
+user trace buffer size limits translation size 
+translation may represent basic block application code fragment application code may simultaneously represented translation 
+translation consists prologue body fragment application instruction epilogue 
+
+translation prologue translation prologue see allocates trace buffer space translation 
+space translation returns control main loop returns control analyzer 
+generated translations collect trace information target instruction 
+trace space requirements translation stored data structure tested main loop 
+save code space translation require executing additional instructions address load count inconsistent translation chaining described translations branch directly bypassing main simulator loop 
+prologue count body space run body nop 
+branch delay slot add count return main loop body 
+translation prologue 
+translation body translation body contains code simulate optionally trace application instructions 
+simulation consists updating virtual state registers plus memory application program 
+tracing consists filling current trace buffer entry advancing 
+shows sample application instruction shows code simulates 
+translation body loads contents application registers application virtual state structure host scratch registers 
+translation performs add operation 
+translation writes result host scratch register back virtual state structure location application register 
+translation updates application virtual pc 
+add 
+sample application code ld vs vs ld vs vs add st vs vs vpc 
+translation body tracing code generated perform application operation instruction different register numbers 
+host machine poor match virtual target machine wish virtualize target machine operations instructions call simulation function may 
+extreme instructions need generated simulate useless application instructions nop 
+shade allocates host registers represent target registers allocation translation basis span target instructions 
+host registers hold target register values translated application instruction order reduce memory traffic virtual state structure 
+host registers lazily loaded virtual state structure lazily stored back translation epilogue 
+conceptually shade updates virtual pc application instruction shown 
+practice virtual pc updated translation epilogue needed translation body tracing application instruction addresses 
+application instructions access memory shade translates application memory address host memory address adding base address offset applies application memory 
+
+tracing shade minimizes amount tracing code giving analyzers precise control application instructions traced information collected instruc tion 
+example analyzer requests tracing data memory addresses load instructions particular library address range shade translates library load instructions directly save memory address trace record 
+trace information saved load instructions trace information saved instructions load instructions outside library 
+shade compiles simulation tracing code 
+example shows code simulates sample application code analyzer control traces instruction address instruction text source destination registers calls pre post instruction trace functions supplied analyzer 
+translation calls analyzer supplied trace function returns live application state virtual state structure trace function 
+st vpc tr tr pc trace instr addr set st tr tr iw trace instr text ld vs vs load st src reg ld vs vs load nd src reg st tr tr rs trace st src reg st tr tr rs trace nd src reg mov tr arg trace buf mov vs arg virt 
+state call pre instruction trace function add simulate add st vs vs save dst reg st tr tr rd trace dst reg mov tr arg trace buf mov vs arg virt 
+state call post instruction trace function vpc tr advance trace buffer 
+translation body tracing 
+translation epilogue translation epilogue see updates virtual state structure returns control main simulator loop jumps directly translation 
+epilogue saves host registers hold modified virtual register values 
+virtual condition codes modified saved 
+epilogue updates trace buffer registers tr necessary 
+virtual pc remains host register translation calls 
+leaving translation contains address application instruction executed 
+epilogue update virtual state structure update virtual pc count tr go main loop translation 
+translation epilogue execution translation dynamically follows 
+translations predecessor successor directly connected chained save pass main simulator loop 
+predecessor successor compiled order 
+successor compiled predecessor compiled branch directly successor 
+predecessor compiled time successor compiled predecessor return main simulator loop overwritten branch successor 
+translations conditional branches compiled separate exits single common exit legs may chained 
+translations register indirect jumps software traps cause control transfer chained successor translation may vary 
+
+translation caching translation cache tc memory translations stored 
+shade simply compiles translations tc translation lookaside buffer tlb associates application code addresses corresponding translations 
+tc space needed available shade frees entries tc clears tlb 
+full flushing translation chaining freeing strategies tedious ck :10.1.1.13.6511
+full flushing deletes useful translations tc large freeing rare ck :10.1.1.13.6511
+shade flushes tc tlb analyzer changes tracing strategy typically rare tracing hardcoded translations 
+application uses self modifying code tc tlb translation chaining entries modified code invalid flushed 
+sparc systems provide flush instruction identify code changed systems provide equivalent primitives keppel 
+application executes modified instructions shade compiles new translations changed code 
+tlb array lists target host address pairs 
+pair associates application instruction address corresponding translation address 
+find translation shade hashes vpc produce tlb array index searches tlb entry address pair list application address 
+search succeeds list reorganized accessed address pair head list 
+search fails translation generated new address pair placed head list 
+lists implemented fixed length arrays tlb simply dimensional array address pairs 
+tlb may thought way set associative list length 
+address pair lists fixed length address pairs pushed list lost corresponding translations inaccessible tlb 
+tlb large usually problem ck translations accessible chaining translations :10.1.1.13.6511
+
+considerations decision simulate trace analyze process leads conflicts process state resources 
+conflicts arise application program code generated shade simulate application analyzer shade translation compiler 
+conflicts resolved various ways 
+example host memory partitioned shade uses part memory application 
+resource conflicts arise sharing outside process 
+example shade application file system files written accidentally files written 
+general conflicts resolved partitioning resource time multiplexing contenders simulating virtualizing resource 
+conflicts unresolved usually due incomplete implementation ck :10.1.1.13.6511
+shade target code parser ad hoc machine code parsers built automatically ramsey 
+shade uses ad hoc code generator generates code roughly pass 
+minor backpatching performed chain translations replace nops delay slots 
+resulting code doubt im proved time spent user supplied analyzer usually dwarfs time spent shade code generation simulation tracing combined 
+implementation issues choices implementation alternatives described ck details signal exception handling implementation system call interface :10.1.1.13.6511
+
+cross shades previous section focused shade subsequently referred shade host target architectures version sparc host target operating systems sunos sunos 
+shades developed 
+shade mips runs mips kane binaries second shade runs sunos version sparc sparc binaries 
+host system sunos version sparc 
+versions shade shade host target operating systems solaris sunos 
+shades complete extent run spec binaries compiled respective target systems 
+
+shade mips shade mips provides shade custom tracing capabilities mips binaries 
+shade ready access sparc systems sparc natural choice host architecture 
+rule mips instructions straightforward simulate just sparc instructions 
+possible mips sparc architectures risc architectures support ieee arithmetic mips architecture lacks integer condition codes 
+little attention paid simulation efficiency efficient simulation techniques shade 
+average shade mips executes sparc instructions simulate mips instruction 
+differences host target machines shade mips faithful slower complicated 
+example mips systems support big endian little endian byte ordering james sparc supports 
+shade mips currently runs code compiled mips systems running big endian mode 
+shade avoids complicated simulation little endian access 
+similarly shade mips check overflows cause exceptions mips systems 
+mips features unaligned memory access instructions details floating point rounding direct sparc counterparts shade mips simulates albeit slowly 
+immediate fields bits mips bits sparc target immediates fit bits extra sparc instructions place immediate value host scratch register 
+difference complicates translation compiler 
+host target differences help shade mips efficiency 
+particular mips architecture employs values stored general purpose integer registers place integer condition codes 
+reduces contention host condition codes ck :10.1.1.13.6511
+
+shade shade simulates sparc target runs sparc host 
+principal problems simulating applications hosts wider integer registers additional condi 
+average means geometric mean dynamically weighted values spec benchmarks 
+native icount icount icount icount icount icount shade app inst time inst time inst time inst time inst time inst time inst time gcc doduc espresso na doduc na table 
+dynamic expansion instructions cpu time tion codes 
+simulating bit address space problem far avoided 
+new instructions new problems new instructions 
+rough measure relative simulation complexity consider shade took weeks develop shade mips months develop shade point run spec 
+shade usually generates short sequence instructions instruction 
+example shows translation body fragment add instruction 
+complicated instructions compiled calls simulation functions 
+vs vs virt 
+vs vs virt 
+add lower bits add upper bits std vs vs virt 
+vpc 
+shade translation body target bit registers simulated register pairs host 
+doubles memory traffic register moved virtual state structure host registers 
+increases number moves half target registers cached host registers 
+sparc sets condition codes 
+set low order bits result just full bits result 
+host integer condition codes required add example simulate bit operations involve condition codes 
+increases number contenders host condition codes ck :10.1.1.13.6511
+shade performance degrade compilers take advantage features 
+example supports floating point registers floating point condition codes 
+compilers better registers increase register pressure host 
+shade applications allowed access lower gb virtual memory 
+programs manipulate bit pointers shade ignores upper bits addresses actual accesses load store register indirect jump system call 
+shade run slower needs simulate full bit address space 
+
+performance section reports performance shade 
+shade performance reported relative native execution 
+sparc platforms construction shade figures include relative performance 
+standard shade configuration tests mb tc holds host instructions kb tlb holds lines address pairs 
+benchmarks spec compiled optimizations 
+shade gcc doduc benchmarks shade espresso doduc 
+measurements shade analyzers performing different amount tracing 
+analyzers shade record varying amounts information shade records ignored 
+null analysis done show breakdown time shade 
+real analyzers analysis dominates run time shade bottleneck 
+analyzers icount tracing just application simulation 
+icount tracing just update traced instruction counter permit instruction counting 
+icount trace pc instructions including trace effective memory address non loads stores 
+corresponds tracing required cache simulation 
+icount icount plus instruction text decoded opcode value appropriate instruction flag taken branch flag 
+icount icount plus values integer floating point registers instruction 
+icount icount plus call empty user trace function application instruction 
+table shows slower applications run shade compared native execution 
+inst column shows average number instructions executed application instruction 
+time column shows cpu user system time shade ratio native time shade absolute time seconds 
+shade usually efficient floating point code doduc integer code gcc espresso 
+floating point code larger basic blocks improves host register allocation reduces number branches number lookup operations map target pc corresponding translation 
+floating point code uses expensive operations relatively time spent doing useful 
+relative costs closer higher levels tracing overhead tracing nearly independent instruction type 
+shade efficient shade efficient integer floating point applications 
+wider words cause memory traffic contention host registers 
+condition codes simulate 
+average shade simulates sic integer spec benchmarks times slower run native floating point spec benchmarks times slower 
+shade simulates benchmarks times slower run native respectively 
+table shows larger dynamically weighted number times executed translation application code represents 
+input size dynamically weighted average size target basic block 
+output size average number instructions translation 
+instruction counts gathered running shade superior shades ran icount analyzer subordinate traced shades ran indicated analyzers benchmarks 
+running times collected elapsed time timers host 
+percentage time distribution shown measured conventional profiling cc prof input output size shade app size icount icount icount icount icount icount gcc doduc espresso doduc table 
+code translation expansion dynamically weighted shade app location icount icount icount icount icount icount compiler tc gcc sim analyzer compiler tc doduc sim analyzer compiler tc espresso sim analyzer compiler tc doduc sim analyzer table 
+run time execution profile summary shade app icount icount icount icount icount icount gcc doduc espresso doduc table 
+code generator instructions instruction generated code space expansion input size 
+output sizes don directly correlate running time portions translations conditionally executed instructions executed outside tc translation compiler simulation functions analyzer 
+table shows percentage total run time spent various phases execution 
+compiler denotes time spent translation compiler tc time spent executing code translation cache sim time spent functions called tc simulate assist simulating application instructions analyzer time spent user analyzer including user trace functions called tc 
+time distribution determined factors 
+better optimization takes longer produces faster running code increase percentage time spent code generation 
+simulation time sim comes saving restoring condition codes ck simulating save restore main loop execution larger target basic blocks tend reduce condition code main loop overheads :10.1.1.13.6511
+small tc increases frequency useful translations discarded 
+small ineffective tlb increases frequency useful translations lost 
+translations collect lot information take longer run reduce percentage time spent simulation functions absolute running time unchanged 
+analyzers tests trivial icount includes null functions called application instruction 
+table shows average number instructions executed code generator order generate host instruction 
+number instructions instruction code generator function instruction set architecture host target machines level tracing 
+note translation caching compiler invoked time target struction run applications run hundreds thousands times slower 
+measurements tc tlb effectiveness reported ck :10.1.1.13.6511
+
+related section describes related summarizes capabilities implementation techniques simulators virtual machines tracing tools 
+cases try evaluate capabilities tools technology evaluating actual tools necessarily evaluate limits particular implementation 
+
+capabilities implementation table summarizes capabilities implementations number tools 
+columns show particular features tool grouped sections 
+group purpose input rep describe purpose tool user prepares program order tool 
+second group columns detail md mp signals smc ok shows level detail simulation kinds programs processed tool 
+third group columns technology bugs ok shows implementation technology tool robustness face application errors 
+columns described detail 
+purpose describes tool cross architecture simulation sim debugging db address tracing memory hierarchy analysis atr detailed kinds tracing 
+tools marked tbc tool building tools usually extension language ng 
+input describes input tool 
+processing high level language input hll best portability best optimization tool source programs written supported languages vf generally input smc bugs name purpose detail md mp signals technology rep ok ok accelerator sim exe scc gi atom se ash tbc sim atr exe exe aug emu dis mod run fc sim atr asm scc db atr hll pdi executor sim exe pdi sim db exe usd tci magnusson magnusson sim db atr tbc sim db atr exe exe usd tci dcc mg migrant se sim db atr tbc sim exe exe usd tci scc emu mimic may sim exe dcc mint vf atr exe pdi dcc sim exe scc mx vest sim exe scc gi purify hj db exe aug qp qpt lb atr exe aug self cul sim exe dcc nielsen sim exe dcc spa atr exe hp sim atr exe pdi st ds sim exe dcc atr asm aug pixie mips atr exe aug pixie ii killian atr db exe scc proteus atr hll aug rppt atr hll aug titan bkw atr exe aug sjf atr asm aug tango lite gh atr asm aug atr exe emu aug mu baumann sim exe shade ck sim atr tbc exe dcc table :10.1.1.13.6511
+summary related systems studying behavior translation tools compilers 
+consuming assembly code asm portable high level language provide detailed information 
+extent assembly languages similar tools may relatively easy retarget detailed information may obscured 
+executable code input exe frees user needing access source possibly complex build process 
+information usually reported machine units source constructs 
+tools symbol table information report trace information symbolically 
+need symbolic information perform translation exe 
+detail describes machine simulated 
+tools user level code run systemlevel code system mode simulation generally requires device emulation 
+target machines system mode simulation avoid costs address translation protection checks machines system mode marked parenthesis 
+md reports tool supports multiple protection domains multitasking multiple processes target processor 
+usually implies support system mode operation address translation 
+target systems multitask single protection domain listed mp tells tool supports multiple processor execution indicates tool uses single host processor indicates tool runs target processors host processors run target processors host processors 
+simulating multiprocessor generally introduces additional slowdown big number target processors divided number host processors 
+supporting signals generally difficult execution interrupted instruction resumed instruction analysis instrumentation may groups instructions improve simulation efficiency 
+signals column tools handle asynchronous exceptional events 
+indicates tool able deal aspects example signals may processed program results correct address trace information generated 
+smc ok describes tool able operate programs instruction space changes dynamically 
+dynamic linking common reason number uses 
+static rewrite tools link dynamically statically rewritten code link rewritten statically may go untraced 
+technology describes general implementation techniques tool pittman 
+obvious implementation executes programs fetching decoding interpreting instruction isolation 
+implementations optimize caching decoded result translating host code direct host prefetch decode hardware ds executing target instructions context neighbors target state simulated registers accessed efficiently host registers target instruction boundaries 
+implementations hardware emulation including dedicated hardware microcode emu 
+obvious implementation decode dispatch interpreter 
+interpreters pdi pre convert quick intermediate representation 
+ir forms particularly fast simple common form threaded code tci 
+translation performance name assumptions notes units slowdown accelerator ebb nr bo ph regs pages dis mod run fc bb nr executor proc nr mixed code nr bo pages magnusson magnusson bb nr bo pages mg nr bo pages migrant se ebb nr bo mimic may ebb nr bo regs fp align compile bb nr mx vest ip bo mixed code fp prec self cul ip vm spec nielsen hp nr bo st ds proc vm spec mu baumann nr bo regs mixed code machine shade ck ebb nr bo different machines tracing table :10.1.1.13.6511
+summary cross architecture simulators static cross compilation scc decodes dispatches cross compilation avoiding essentially runtime dispatch costs 
+special case host target static compiler merely annotates augments aug original program code save trace data emulate missing instructions 
+note conversion limited tool see statically 
+example dynamic linking may hard instrument statically 
+limited static information limits optimization 
+example instruction may practice branch target proving hard static compiler may forced produce code 
+dynamic cross compilation dcc performed runtime code including dynamically linked libraries 
+dynamic cross compilers perform optimistic optimizations recompile assumptions strong johnston sw may hcu ck 
+compiler run time translation fast improved performance pays overhead dynamic compilation addition code quality may worse static cross compiler dynamic code analysis may need cut corners order minimize compiler running time 
+interpreter specifics unavailable tool listed general interpreter gi 
+tools listed aug emu execute instructions host hardware 
+note input forms lacking symbolic information exe especially hard process statically static tools trouble determining code data trouble optimizing multiple host instructions may lb 
+contrast tools perform dynamic analysis including interpreters dynamic cross compilers discover program structure execution 
+translation techniques mixed technique optimistically performance fallback fails 
+implementations added complexity rely having translators magnusson vf 
+bugs ok describes tool robust face application errors memory addressing errors divide zero errors 
+typically simulator checks addressing errors requires extra checks instruction writes memory 
+systems checks simple range checks tools support multiple address spaces sparse address spaces generally require full address translation 
+indicates checking turned performance worse 
+
+cross architecture simulation table summarizes various features tools cross architecture simulation 
+translation units column shows translation time tradeoffs analysis complexity performance 
+assumptions shows assumptions relationship host target machines assumptions usually simplify speed simulator 
+performance shows approximate slowdown tool compared native execution 
+notes shows special missing features simulator 
+columns described detail 
+translation units number target instructions translated time 
+bigger chunks reduces dispatching costs increases opportunities optimization target instructions 
+larger translation units typically require better analysis dynamic flexibility order ensure program jumps take valid path may lb 
+translation units include individual instructions basic blocks bb extended basic blocks single entry exits ebb procedural proc interprocedural ip 
+assumptions describes assumptions tool relationship host target machines including byte ordering bo numeric representation nr including size format number registers host target machines regs access host machine privileged hardware ph order implement system level simulation 
+performance estimate number simple instructions executed simple simulated instruction 
+indicates applicable target virtual machine 
+dash indicates unknown performance 
+estimates necessarily inexact performance different tools reported different ways 
+notes describes particular features pages detailed memory simulation fp simulation omits floating point numbers fp prec simulation set run fast faithfully emulate target machine align tools omit simulation unaligned accesses compile dynamic compilers compile time included performance large effect vm spec tools emulate virtual machine designed carefully improve portability simulation speed mixed code simulators call host target code application dynamically link fast running host code libraries 
+
+comparison shade improves tools simulating important machine features signals dynamic linking 
+improves dynamic compilation tools techniques reduce simulation overhead maintaining flexibility code quality dynamic compilation 
+improves tracing tools dynamically integrating cross simulation tracing code trace dynamically linked code handle dynamic changes tracing level save detailed trace information efficiently 
+tools avoid cross architecture execution omit machine features 
+choices improve execution efficiency limit tool applicability 
+exceptions derivatives magnusson magnusson somewhat efficient shade accelerator mx vest perform tracing translators optimistic conservative achieve high efficiency 
+shade supports execution faithfully executes important machine features signals self modifying code dynamic linking wide variety applications 
+simulators dynamic compilation typically flexible compiled code performs 
+previous systems imposed limitations shade eliminates 
+example mimic compiler may produces high quality code expense performance worse shade shade reduces compilation overhead allowing multiple translations application instruction chaining reduce cost branches tlb minimize space overhead branches 
+mint vf unable simulate changing code reclaims space inactive translations 
+tracing tools typically produce address traces run machine trace desired 
+tools allow cross architecture simulation tend limit generality machine simulation tracing facilities order maintain efficiency fc hp 
+shade supports tracing simulates user mode operation detail 
+currently lacks kernel mode tracing facilities provided tools tools limit machine features require hand instrumentation key kernel code 
+shade collects trace information tools lacks timing level simulation mg 
+shade analyzer select amount trace data collects analyzers consume little trace data pay little tracing overhead 
+typically analysis tools limit performance 
+tool building tools listed permit extended tracing shade provides efficient variable extensibility shade inlines common trace operations 
+shade analyzers extension language ng 
+note shade designed debugging shade back debugger evans 
+shade flexibility performance come penalty 
+example shade performs inter instruction analysis host code generation shade complex portable 
+shade presently lacks multiprocessor kernel mode supporting shade slower complicate simulation address translation loads stores increase translated code size 
+
+shade custom trace generator fast flexible providing individual features tracing tools tool 
+shade achieves flexibility dynamic tion caching giving analyzers detailed control data collection 
+analyzers pay data 
+shade fast analyzers recreate traces demand large stored traces 
+shade speed enables collection analysis realistically long traces 
+shade simulates machine details including dynamic linking asynchronous signals synchronous exceptions 
+providing detailed simulation freeing user preprocessing steps require source code complicated build procedures shade satisfies wide variety analysis needs single tool 
+
+shade owes predecessors particularly immediate predecessor shadow created peter hsu hsu 
+robert cmelik developed shade numerous suggestions david keppel 
+steve richardson malcolm wing shade user community provided useful user interface feedback helped debug shade 
+robert alex peter magnusson anonymous sigmetrics referees gave helpful comments earlier versions 
+authors systems related section went way help understand tools apologize errors omissions 
+supported sun microsystems nsf cda nsf pyi mip 
+andrews duane sand migrating cisc computer family risc object code translation proc 
+fifth international conference architectural support programming languages operating systems asplos oct 
+ash anant agarwal richard sites mark horowitz new technique capturing address traces microcode proc 
+th international symposium computer architecture jun 
+baumann robert baumann mu byte oct 
+eric brewer dellarocas adrian william weihl proteus high performance parallel architecture simulator mit lcs tr massachusetts institute technology 
+robert efficient architecture simulation techniques winter usenix conference jan 
+robert multicomputer tradeoffs multicomputer architecture doctoral dissertation university washington department comp 
+sci 
+eng preparation 
+bkw anita borg kessler david wall generation analysis long address traces proc 
+th annual symposium computer architecture may 
+chow killian weber engineering risc compiler system ieee compcon mar 
+ck robert cmelik david keppel shade fast instruction set simulator execution profiling sun microsystems laboratories university washington :10.1.1.13.6511
+cmelik robert cmelik shade user manual sun microsystems laboratories feb 
+covington mehta jump sinclair rice parallel processing testbed acm sigmetrics 
+cul craig chambers david ungar lee efficient implementation self dynamically typed object oriented language prototypes oopsla proceedings oct 
+peter davies philippe john mark horowitz technique efficient machine simulation appear quantum effect design stanford university 
+ds peter deutsch alan schiffman efficient implementation smalltalk system th annual symposium principles programming languages jan 
+susan eggers david keppel eric henry levy techniques efficient inline tracing shared memory multiprocessor acm sigmetrics may 
+evans doug evans personal comm dec 
+fc richard fujimoto william campbell efficient instruction level simulation computers transactions society computer simulation 
+gh stephen goldschmidt john hennessy accuracy trace driven simulations multiprocessors csl tr stanford university computer systems laboratory sep 
+hcu urs craig chambers david ungar optimizing dynamically typed object oriented languages polymorphic inline caches proc 
+european conference object oriented programming ecoop jul 
+hj reed hastings bob joyce purify fast detection memory leaks access errors proc 
+winter usenix conference jan 
+mat personal comm jul 
+hp john hennessy david patterson computer organization design hardware software interface appendix james larus morgan kaufman 
+hsu peter hsu shadow sun microsystems jul 
+gordon personal comm feb 
+james david james multiplexed busses endian wars continue ieee micro magazine jun 
+johnston ronald johnston dynamic incremental compiler apl apl quote quad association computing machinery acm jun 
+kane gerry kane mips risc architecture prentice hall englewood cliffs new jersey 
+david keppel susan eggers robert henry case runtime code generation university washington comp 
+sci 
+eng 
+tr nov 
+keppel david keppel portable interface fly instruction space modification proc 
+symposium architectural support programming languages operating systems asplos iv apr 
+killian earl killian personal comm feb 
+lb james larus thomas ball rewriting executable files measure program behavior software practice experience feb 
+magnusson peter magnusson design efficient simulation multiprocessor proc 
+international workshop modeling analysis simulation computer telecommunication systems mascots la jolla california jan 
+magnusson peter magnusson partial translation swedish institute computer science mar 
+may cathy may mimic fast simulator proc 
+acm sigplan symposium interpreters interpretive techniques sigplan notices jun 
+mips mips languages programmer manual mips computer systems 
+ng david notkin william griswold extension software development proc 
+th international conference software engineering april 
+nielsen robert nielsen dos dock mar apr 
+pittman thomas pittman level hybrid interpreter native code execution combined space time program efficiency acm sigplan symposium interpreters interpretive techniques jun 
+ramsey norman ramsey personal comm jun 
+reinhardt hill larus lebeck lewis wood wisconsin wind tunnel virtual prototyping parallel computers measurement modeling computer systems acm sig metrics jun 
+richardson stephen richardson caching function results faster arithmetic avoiding unnecessary computation tr sun microsystems laboratories sep 
+richard sites anton chernoff matthew maurice marks scott robinson binary translation cacm feb 
+se gabriel kemal lu architectural framework supporting heterogeneous instruction set architectures ieee computer jun 
+se amitabh srivastava alan eustace atom system building customized program analysis tools proc 
+acm conference programming language design implementation pldi appear 
+sjf craig bob janssens kent fuchs address tracing parallel systems microprocessors microsystems 
+tool program directing proc 
+acm conference programming language design implementation pldi jun 
+sparc sparc architecture manual version sparc international 
+sunos sunos manual sun microsystems mar 
+sunos sunos manual sunsoft jun 
+sw weiss software high performance apl interpreter apl quote quad jun 
+manual mips computer systems 
+vf jack veenstra robert fowler mint front efficient simulation shared memory multiprocessors proc 
+second international workshop modeling analysis simulation computer telecommunication systems mascots jan 

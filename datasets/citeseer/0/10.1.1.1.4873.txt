@@ -1,0 +1,446 @@
+efficient tcp connection failover web server clusters web clusters continue widely large enterprises organizations host online services 
+providing services interruption critical revenue perceived image hosts content providers 
+server node failure recovery invisible clients 
+existing fault tolerance schemes simply dispatching client requests failed server 
+recover connections handled node time failure failure visible clients 
+making failure transparent requires application layer transport layer mechanisms 
+atomic application layer primary backup failover schemes addressed length previous literature transport layer scheme necessary order invisible clients 
+describe transparent tcp connection failover mechanism 
+transparency solution highly efficient need dedicated hardware support 
+today increasing number organizations enterprises providing services online 
+large stake reliability server clusters hosting web sites 
+web site failure may significant shortterm revenue loss long term reputation damage 
+famous example bay hour service outage cost dollars side effects 
+typical server cluster consists front dispatcher back servers fail time 
+depending functionality failed node strategies deal failure may quite different 
+failure front lead complete service interruption failure avoided possible 
+common practice add hot standby dispatcher keeps monitoring primary dispatcher take responsibility crashes 
+contrast back server fails dispatcher simply excludes working set avoiding dispatching requests comes back 
+connections processed crash occurs lost 
+consequently unlucky clients exposed failure resubmit requests 
+impression unreliable web site may return thing service providers willing see 
+completely hide server failure users support transport layer application necessary 
+transport layer transparently migrates zhang abdelzaher john stankovic department computer science university virginia charlottesville va rz stankovic cs virginia edu ongoing connections failed node healthy 
+connections migrated user requests reissued application 
+applications transaction semantics 
+application decide execute reissued requests order preserve transaction semantics 
+focus transport layer effort transparently migrate connections 
+preserve transaction semantics depends application scope 
+transparent connection migration challenging solution satisfy conditions order applicable real systems accepted service providers compatibility 
+considering extremely large number internet users solution require modifications client side software including operating system 
+example connection migration require modifications client side tcp need cooperation client 
+low cost 
+server cluster usually large number back servers techniques active backup dedicated network connections servers costly feasible 
+reason connection migration rely support special dedicated hardware 
+low overhead 
+system throughput degrade technique applied 
+normal operating conditions failures occur clients experience extra delay 
+techniques proposed literature address failover problem 
+exhibits properties 
+detailed discussion related provided section novel solution transparent failover problem satisfies aforementioned conditions requires server side kernel modification ii back servers back fashion extra hardware needed iii overhead small delay introduced normal operation 
+rest organized follows 
+design implementation details section ii 
+ieee ieee infocom optimization techniques described section iii 
+report evaluation results prototype section iv 
+related section section vi discusses implementation issues 
+concludes section vii 
+ii 
+design implementation prototype failover protocol designed implemented local testbed 
+section basic architecture 
+optimization techniques reduce implementation overhead described section iii 
+overview normal clusters web cluster consists front back ends connected lan 
+front receives new connection request choose appropriate back handle connection 
+factors affect backend selection load balancing locality awareness 
+incoming packets connection forwarded back front 
+hash table maintained front mapping connection back handling connection 
+table updated new connection request received connection torn 
+front single point failure cluster 
+techniques proposed implemented address issue 
+architecture normal cluster connection handled back back aware existence state connection 
+order achieve connection fault tolerance scheme connection visible back ends primary server possibly backup servers 
+normal operation connection processed primary server incurring small overhead backups 
+failure primary connection migrates backup 
+backup able resume connection transparently client tcp times 
+backup tcp interface server application look client re issued request failed connection primary 
+online services require transaction semantics application needs decide re issued request executed order preserve transaction semantics 
+decision depends application designed scope 
+backup active primary fails new backup selected 
+organize back servers ring 
+general back backup server fixed number predecessor back ends ring 
+similarly connections assigned back front backed fixed number successors 
+current implementation supports 
+focus single backup configuration 
+extensions support multiple backups discussed section vi 
+extensions simple believe need practice expects correlated failures affect primary backup machines 
+correlated failures may reduced preventive techniques putting machines different power circuits 
+probability correlated failures primary backup lower single machine failures today clusters 
+example cluster configuration backend backup backend backend backup backend backend backup backend 
+connection front designate primary backend server process 
+successor backup back connection 
+similarly back connections primary server called primary connections connections backup server called backup connections 
+front forwards packet primary server backup server 
+primary backup servers see set packets connection state consistent 
+back server fails backups notified recover connections maintained connection state 
+describe key components architecture failure detection ring maintenance connection state tracking connection failover 
+internet client frontend backend backend fig 
+
+ring configuration example backend failure detection reliable failure detection focus 
+technique independent failure detection scheme 
+failure detection scheme integrated architecture 
+current implementation heartbeat scheme adopted due simplicity 
+periodically back sends heartbeat message front 
+message piggyback load information back improve load balance 
+front heard back duration called failure detection window back considered dead 
+consequently packet loss considered happen optimization techniques applied shown section iii 
+ieee ieee infocom backups notified take connections 
+ring maintenance invoked repair ring structure 
+ring maintenance ring maintenance needed cases back crashes previously crashed back comes back 
+back fails 
+example 
+assume backend fails backup backend assigned responsibilities 
+notified take connections previously served failed backend 
+state connections available backend 
+failed backend backup backend crash backend replace backend backup backend 
+notice backend point information current connections backend 
+backend needs synchronize current connection state new backup backend 
+connection state variables needed backup application data received far including order packets transmitted new backup 
+achieve tcp stack backend keep data packets delivered applications 
+packets available backend synchronization 
+consequently connections recovered backend client requests replayed application 
+fortunately online services incoming tcp packets pure acks 
+small number tcp packets carry application data 
+overhead synchronization formidable considering servers equipped large memory 
+current implementation avoid complexity possible race conditions front temporarily stops forwarding packets backend synchronization finished 
+improved complex implementation 
+back 
+backend comes back ring structure needs adjusted follows backend new backup backend backend backup backend 
+synchronization procedure may executed 
+addition backup information connections backend kept backend discarded 
+connection state tracking connection state tracking backup servers achieved cooperation front back 
+front receives packet client forward primary server backup servers 
+obviously back ends process assume back fails time 
+multiple failure case handled similarly 
+request send reply client 
+achieve result implement protocol named btcp backup tcp top ip 
+front forwards packets backup servers change protocol field ip header btcp btcp layer tcp layer backup servers process packets 
+application tcp btcp ip mac fig 
+
+protocol stack back ends btcp basically silent version tcp processes incoming packet similar way tcp sends back reply client interacts applications 
+backup connection creates small data structure backup sock track state 
+important state variables connection sequence number syn sent server iss sequence number syn received server irs sequence number unacknowledged byte client snd una window size course application data sent client 
+backup sock created connection established destroyed connection torn 
+backup observe incoming traffic important information available directly needs inferred information 
+tcp connection ceases exist 
+tcp connection ceases exist sides sent fin packet acknowledged side 
+backup observe packets sent client know client side closed connection client send packets pure acks 
+time primary server closes connection unknown backup 
+timeout address problem 
+primary sending data client client reply ack packets 
+backup received ack packets connection duration received fin assume connection exist anymore 
+note timeout duration properly chosen application 
+timeout duration short backup destroy state information connections prematurely able recover 
+hand longer timeout leads extra memory usage keep state nonexistent connections 
+worse connection recovery required attempt recover nonexistent connections including regeneration replies ieee ieee infocom applications 
+replies resent client client responds rst connection exist anymore 
+lots resources wasted procedure 
+second optimization technique discussed section iii alleviates problem 
+derive server iss 
+initial sequence number server side iss chosen primary server sent client reply syn packet backup know value directly 
+derive value backup receives syn packet sequence number packet irs recorded 
+client sends ack packet complete way handshake backup verifies sequence number seq field packet irs 
+seq value correct assume packet acceptable 
+ack value iss 
+case ack value invalid primary server sends rst abort connection remember primary backup server receive packets possible cost unnecessary backup sock nonexistent connection 
+timeout structure reclaimed kernel packets arrive connection 
+connection failover back requested take failed server steps taken backup connection backup sock converted normal tcp socket represent connection connection request constructed inserted accept queue application backup machine accept connection application backup accepts connection data packets previously received primary delivered application 
+mentioned requests re issued application application responsibility decide requests executed 
+stateless applications serving static web page safe resend requested web page 
+applications transaction semantics blindly re executing requests cause trouble 
+example user credit card may charged twice 
+application carefully designed handle issue 
+note primary server may sent back data client crash 
+backup server sends data replay network bandwidth wasted 
+know amount data including initial syn successfully delivered client snd una iss 
+application begins send back data tcp layer simply discards amount application data sending packets remaining data client 
+maintaining logical transport layer connection server machine failure connection migration scheme fact improves performance case connections failed servers restarted repeated clients 
+mechanisms transparent independent application 
+obviously cpu cycles application generate data connection replay wasted 
+overhead may eliminated help application knowledge upper layer protocol discussed section vi 
+iii 
+optimization obvious basic implementation introduces extra overhead 
+specifically front needs cpu cycles forward packet twice network bandwidth consumption required back needs cpu cycles process incoming packets backup connections 
+part techniques reduce overhead 
+mac layer multicast cluster machines presumably lan multicast efficient way forward packets 
+backend assigned unique mac multicast address 
+backups subscribe primary multicast group 
+front receives packet connection looks hash table decide primary server connection 
+protocol field ip header set btcp btcp layer back ends intercept packet 
+mac header added destination address packet multicast address primary server 
+ring maintenance protocol extended multicast address primary back sent backup server primary backup pair changes 
+consequently back join mac multicast groups primary backup primary server 
+note primary backup receive identical packet need information decide primary backup server connection 
+destination mac address packet answer question 
+btcp back receives packet recall front changes protocol field ip header btcp examines destination mac address packet 
+address multicast address means primary server connection 
+packet redirected tcp layer continues journey normal tcp packet 
+back backup server connection btcp logic invoked process packet 
+packets forwarded cpu consumption front network bandwidth requirement reduced normal cluster 
+extra benefit atomicity packet forwarding primary backups receive forwarded packet receives 
+don worry inconsistent connection state perceived primary backup servers due packet loss 
+selective multicast basic implementation backup server process packet order keep track connection ieee ieee infocom state 
+incoming packets connection classified categories packets connection control information syn rst fin push application data pure ack packets 
+selective multicast front multicasts category packets primary backup back ends 
+forwards pure ack packets primary back 
+incoming packets pure acks scheme save lot processing time backup server 
+backup server see ack packets loses track sliding window state connection 
+connection failover requested probe packet sent client 
+probe packet empty tcp packet seq field iss 
+packet unacceptable client client sends ack reply 
+ack backup server knows sliding window state connection continue normal connection failover actions 
+discussed section ii btcp backup relies acks decide connection existence 
+ack forwarded backup btcp backup may destroy connection state prematurely 
+forwarding policy enforced client sends fin ack forwarded backup client sends fin front forwards acks backup 
+example forward acks forward ack minutes 
+mentioned earlier inability backups see primary server fin packets requires algorithm timeout infer connection termination 
+failure occur timeout expires resources may wasted recover regenerate replies previously terminated connections 
+probe message alleviate problem 
+message precede recovery connection longer exists probe message leads rst reply client terminating recovery procedure early stage saving resources 
+iv 
+evaluation evaluation scheme implemented system prototype 
+experiments conducted testbed consisting machines connected mbps lan 
+front back machines slower machines equipped amd mhz cpu mb memory 
+faster machines having amd athlon ghz cpu mb memory generate workload 
+intentionally arranged order stress cluster prominent overhead introduced technique 
+front backends run linux kernel version kernel patch applied 
+workload generator machines run linux kernel version 
+assume sequence number space reused lifetime connection 
+reuse believe quite rare situation 
+table request rate reply size evaluate optimization techniques reply size request rate bandwidth requirement bytes mbps bytes mbps bytes mbps bytes mbps bytes mbps bytes mbps effect optimization group experiments designed demonstrate effectiveness optimization techniques evaluating fault tolerance schemes described basic scheme described section ii optimized ones described section iii 
+comparison overheads easier configured cluster experiment special way isolates overhead backups distinctly letting incurred separate machine 
+special arrangement back ends acted solely backup 
+front dispatch client requests backup machine 
+cpu utilization machine measure cost maintaining backup information primary servers 
+measure cpu utilizations front single backup different optimizations 
+machines running httperf generate client requests 
+experiment repeated different request rates reply sizes reveal relationship workload cpu utilization 
+reply size chose request rate saturate back server cpus network 
+reply size small back server cpus bottleneck reply size big network bandwidth bottleneck 
+actual request rates reply sizes listed table cpu utilization front backup server different backup techniques described previous sections compared respectively 
+refer techniques forwarding methods differ primarily front forwards data back ends 
+observe front cpu utilization follows similar trend matter forwarding method 
+front task maintain proper state connection forward incoming packets back 
+workload cpu utilization proportional connection rate number incoming packet ar bp values may depend forwarding method formula generally true 
+traffic listed table surprising cpu utilization peaks reply size kbytes 
+notice multicast forward packets reduce front cpu utilization substantially 
+selective multicast noticeable impact front ieee ieee infocom cpu util reply size fig 
+
+front cpu utilization basic multicast selective multicast compared multicast 
+results anticipated 
+cpu util reply size basic multicast selective multicast fig 
+
+backup server cpu utilization important observations regarding utilization single backup machine aggregates overhead backing backend servers 
+selective multicast reduce cpu utilization backup machine considerably surprising number packets processed case 
+second overhead selective multicast depends request rate 
+different overheads approaches grow reply size request rate nearly constant appreciated comparing data points 
+basic forwarding method simple multicast backup process packet clients send server 
+follows similar pattern shape different values different 
+selective multicast overhead decided number connections 
+cpu utilization decreases request rate decreases see table 
+observe single backup overhead approximately estimated table ii request rate reply size measure overhead reply size request rate bandwidth requirement bytes mbps bytes mbps bytes mbps bytes bytes bytes dividing curves number primary servers backed 
+calculation maximum overhead imposed selective multicast scheme seen machine 
+operational overhead previous experiments successfully demonstrated efficacy different optimization techniques isolated respective overheads special setting 
+step quantify overhead best scheme actual operational setting implementation ring back ends 
+study overhead experiment cluster back ends 
+acts backup 
+experiment repeated different request rates different reply sizes 
+reply size rate chosen saturate backends network 
+actual workload parameters listed table ii 
+compares cpu utilization front cases fault tolerance support enabled ft cluster disabled normal cluster 
+cpu utilization back ends conditions compared 
+cpu util normal cluster ft cluster fig 
+
+reply size front cpu utilization figures gap curves overhead 
+see terms cpu utilization adding fault tolerance support incurs negligible overhead frontend overhead back consistent previous calculation similar loads 
+ieee ieee infocom cpu util reply size fig 
+
+back cpu utilization normal cluster ft cluster terms memory usage front needs extra bytes connection extra bytes service ftp www back bytes back store information multicast address 
+back normal socket data structure augmented bytes backup connection needs bytes 
+numbers big concern 
+extra network traffic resulting scheme periodic heartbeat messages normal udp packets byte payload 
+suppose back sends heartbeats second network bandwidth usage back byte 
+summary implementation low overhead terms cpu utilization memory consumption network bandwidth requirement successfully meeting third requirement mentioned section failover time overhead important performance metric failover time long takes recover interrupted connection backup back 
+depicts breakdown failover time 
+failure occurs td tc tr ta tf failure detected send probe client reply application send st packet fig 
+
+failover time breakdown tcp send st packet td failure detection latency determined configurable heartbeat period crash detection window 
+tc time takes kernel reconstruct tcp connection backup 
+tr duration moment probe message sent moment packet received client 
+tr shorter roundtrip time client may start retransmit packet receives probe message 
+ta time application spends reading parsing request 
+tf application sending silently discarded tcp portion reply client received 
+basically time takes read generate portion data 
+time may depend applicationlevel primary backup failover schemes enabled server 
+tr ta may overlap sliding window state needed application begins send data 
+give realistic estimate failover time set relatively realistic environment workload generated remote site local machines workload generated surge simulate realistic traffic 
+surge web workload generator generate traffic matching empirical models server file size distribution file popularity distribution reply size distribution temporal locality request think time distribution 
+file set experiment consisted unique files occupying mbytes disk space 
+machine remote site simulated clients sending requests cluster 
+experiment running seconds network cable backend server simulate failure 
+failure detected front backup server notified take 
+total connections recovered backup 
+connection recovery involves memory copy packet transmission delay unexpectedly long 
+investigation reason delay kernel thread recover connections 
+thread compete user processes cpu 
+time waiting cpu performing recovery 
+problem alleviated giving thread higher priority 
+attempted modification deem current delay relatively insignificant client anyway 
+repeated experiment normal cluster backup schemes implemented introducing failure 
+response times observed remote site experiments collected 
+compares cumulative distributions response time experimentation period cases 
+observe close means normal conditions faulttolerance support introduce extra delay 
+show delay incurred connection failover isolate requests sent seconds seconds experiments 
+seconds crash 
+plot cumulative distribution response times 
+see requests log analysis shows requests exact extra delay incurred connection failover seconds attributed delay caused kernel thread 
+case extra delay quite acceptable users 
+failover scheme efficient virtually transparent user 
+ieee ieee infocom percentage percentage ft cluster failure normal cluster failure response time fig 
+
+cdf response time requests normal cluster failure ft cluster failure response time fig 
+
+cdf response time requests happened related providing fault tolerance server clusters drawn attention industry academia 
+clustering solution described linux 
+provides useful software packages 
+heartbeat monitor back ends inform front dies 
+heartbeat scheme similar 
+project aiming health checking clusters 
+implements framework layer checks layer layer layer 
+integrated scheme failure detection component 
+built open source project aiming building highly scalable available server cluster 
+help software achieve certain level availability load balancer mask failed back ends put back service come back load monitoring prevent load balancer single point failure 
+backends fail established connections lost 
+complementary 
+adopts standby backup server achieve client transparent fault tolerance 
+basic idea ensure incoming packets seen standby server primary server complete copy reply sent backup packet sent client 
+implementation userlevel proxy incurs high processing overhead 
+version switches kernel level implementation 
+overhead version 
+case primary server throughput reduced 
+extra backup server needed scheme 
+solution needs extra hardware 
+server layer inserted application tcp layer inserted tcp ip 
+layers turn communicate logger running separate machine 
+connection states maintained logger 
+authors mention deal logger machine failure 
+dedicated high speed connection server logger critical keep overhead throughput latency low 
+dedicated connection server logger mb throughput decrease latency increase times 
+scheme outperforms schemes terms lower overhead 
+don need dedicated network connections extra machines 
+solution fault resilience web cluster 
+front pre forks number persistent connections back ends 
+client tries connect cluster front accepts connection binds connection connection content user requests 
+front acts tcp gateway 
+rewrites relays packets user connection connection 
+major drawback solution incoming outgoing packet go front significantly reducing system throughput outgoing packets typically outnumber incoming packets 
+approach problem 
+ft proposes infrastructure dynamically replicating services internetwork recover partially processed requests 
+serious performance issue fault tolerance supported system throughput drop 
+authors introduce migratory tcp connection migration 
+migratory tcp designed handle connection migration case server failure requires voluntary state transfer new server old server 
+connection migration initiated client client transparent 
+example client aware connection failover 
+transport layer ieee ieee infocom client side fully aware connection migration assume responsibility picking new server connection 
+major limitation schemes require modification tcp stack client side think better avoid common applications consider 
+vi 
+discussion section discuss additional implementation issues optimization possibilities 
+describe directions plan explore 
+multiple backups situations useful backup primary server 
+scheme easily extended satisfy requirement 
+back ends back mutually backup primary server means back backup primary server 
+consequently back join multiple multicast groups primary backup primary servers 
+table needed back map backup connection primary server 
+back fails front find backups notify take connections notify discard connection states maintained failed node 
+fail model current scheme designed assumption server failure follows fail model send information disturb normal operation tcp connections crashes 
+generally true server failure hardware failure power failure nic failure 
+case server just quiet immediately exactly fail 
+true caused kernel bugs 
+things different application software fails buffer overflow parsing extremely long url 
+operating systems process terminates files opened including network connections closed 
+terms tcp fin rst packet sent client essentially closes aborts connection 
+longer possible migrate connection 
+disallow operating systems closing connections order migrate effort may pay problem arise new machine cause failure connection migrated url parsing resumes 
+connection migration necessary beneficial failure caused hardware 
+optimized recovery connection recovered backup server application generates reply client received part reply 
+serious problem web requests previous studies shown web replies bytes 
+introduce considerably longer delays requested file large 
+steps needed speed recovery process large files connection recovered kernel modifies request adding range header 
+range specifies portion file sent back client 
+words excludes portion file client received 
+low range derived subtracting size header reply number bytes client acknowledged high range unspecified allowed protocol specification kernel know file size 
+ways know size header reply kernel scans data passed application application notifies kernel 
+approach application transparent efficient kernel scan connection notify backup server small file requested 
+second flexible efficient application decide pass information kernel requested file large 
+application begins send reply sends reply header 
+client waiting kernel silently removes header passes remaining data client 
+evaluate techniques report result 
+assumes reply generated backup connection recovered different generated originally primary 
+hard concatenate replies 
+situation occur requested file modified connection recovery progress 
+occur request dynamic content 
+plan investigate problem 
+direction plan explore apply technique stateful protocols ftp ssl 
+protocols application level state information associated connection 
+simply migrating connection backup server protocols 
+apparently help upper layer protocol application may necessary 
+vii 
+reliability server cluster critical large online service providers 
+back server fails better transparently migrate connections serviced note similar technique applied fast recovery ftp connections 
+ieee ieee infocom working server 
+proposed novel scheme achieve goal 
+implemented prototype system evaluation shows overhead small 
+need modification client side software need support dedicated extra hardware 
+acknowledgment reported supported part nsf ccr ccr muri 
+authors huang yu valuable suggestions help experiment 
+benefited detailed insightful comments anonymous reviewers 
+regan ebay hour outage online 
+available com perl story html implementation evaluation transparent fault tolerant web service kernel level support th ieee international conference computer communications networks 
+client transparent fault tolerant web service th ieee international performance computing communications conference pp 
+
+
+yang 
+luo realizing fault resilience web server cluster international conference high performance computing communications 
+
+luo 
+yang constructing zero loss web services infocom 
+iftode transport layer support network services department computer science rutgers university tech 
+rep dcs tr 
+iftode migratory tcp connection migration service continuity internet nd international conference distributed computing systems 
+snoeren andersen balakrishnan fine grained failover connection migration proc 
+rd usenix symposium internet technologies systems usits 
+shenoy ft network support dependable services international conference distributed computing systems pp 
+
+alvisi bressoud el marzullo wrapping server side tcp mask connection failures info com pp 
+
+high availability linux project online 
+available www 
+linux ha org high availability online 
+available www 
+org html transmission control protocol rfc sept 
+mosberger jin httperf tool measuring web server performance workshop internet server performance 
+acm june pp 
+
+barford crovella generating representative web workloads network server performance evaluation measurement modeling computer systems pp 
+
+lvs high availability online 
+available sourceforge net linux virtual server online 
+available www 
+org yu state art locally distributed web server systems acm computing surveys vol 
+pp 
+june 
+cunha bestavros crovella characteristics world wide web client traces boston university cs dept boston ma tech 
+rep bucs tr april 
+breslau cao fan phillips shenker web caching zipf distributions evidence implications infocom pp 
+
+postel reynolds file transfer protocol ftp rfc oct 
+fielding gettys mogul frystyk masinter leach berners lee hypertext transfer protocol rfc june 
+ieee ieee infocom 

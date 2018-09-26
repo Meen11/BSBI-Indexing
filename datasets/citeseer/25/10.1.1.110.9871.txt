@@ -1,0 +1,394 @@
+fast multiprocessor memory allocation hans 
+boehm hewlett packard laboratories page mill rd palo alto ca hans boehm hp com extended garbage collecting memory allocator provide performance multi threaded applications multiprocessors 
+basic design similar approach previously pursued 
+concentrate issues important common small scale multiprocessors specific issues reported 
+argue reasonable level garbage collector scalability achieved relatively minor additions underlying collector code 
+furthermore scalable collector need appreciably slower uniprocessor 
+collector serve plug replacement malloc free opportunity compare scalable malloc free implementations notably hoard :10.1.1.1.4174
+somewhat surprisingly collector significantly outperforms hoard tests property shared garbage collecting allocator 
+argue garbage collectors currently require significantly synchronization explicit allocators may possible derive significantly faster explicit allocators observation 
+speedy access thread local storage significant issue design allocators conform standard calling conventions 
+empirical evidence presence garbage collector accomplished faster thread independent way standard thread library facilities casting doubt utility 
+
+increasing interest performance memory allocators garbage collectors multiprocessors motivated factors ffl authors large scale numerical programs multiprocessors considering programming lan see www hpl hp com personal hans boehm gc guages styles encourage support require dynamic memory allocation 
+ffl large scale commercial java applications common illustrated adoption spec jbb benchmark naturally multi threaded principal benefit multiprocessors 
+java virtual machines provided concurrent allocation number years garbage collector single threaded bottleneck 
+ffl small scale multiprocessors economical far common 
+appears quite possible desktop computers contain multiple processors manufactured single chip 
+interesting parallelize ordinary desktop applications may rely heavily dynamic memory allocation 
+previously developed garbage collector replacement malloc free style explicit memory allocator 
+number research programming language implementations variety systems written including substantial commercial systems 
+java implementations notably runtime runtime gnu static java compiler served basis geodesic systems great circle garbage collector product 
+original design goals collector included ffl thread safety platforms possible 
+ffl allocator throughput degrade client threads processors added 
+note second goal appear trivial fact 
+number standard allocator implementations fail meet goal 
+particular systems standard lock implementations result excessive context switching yielded prematurely multiprocessor possibly resulted cf 
+
+older versions collector reasonably successful meeting goal required custom lock implementation flavor adaptive locks platforms 
+see www org osg jbb see sources redhat com java see www geodesic com original set goals include increased throughput multiple processors 
+vast majority garbage collection allocation code protected single lock ensuring allocation garbage collection eventually bottleneck tried scale applications larger numbers processors 
+address additional goals ffl allocation garbage collection bottleneck scale applications larger numbers threads processors 
+requires allocation garbage collection throughput scale close linearly number processors 
+ffl single threaded applications benefit somewhat multiprocessors garbage collector utilize available processors 
+due easy availability rest world concentrated low multiprocessor spectrum bus connected systems intel processors 
+meant extreme scalability goal projects 
+implied afford sacrifice uniprocessor performance scalability processors initial performance loss 
+set specific goal making single threaded applications run fast processor thread safe environment single processor thread unsafe environment 
+concurrency collector synchronization allocator 
+
+related efforts create processor scalable implementations malloc free style allocators :10.1.1.1.4174
+see involves significantly different set problems 
+hope measurements inspire improvement allocators requiring explicit deallocation 
+traditionally concurrency garbage collection concentrated allowing collector run concurrently mutator client supporting multiple collector threads cf 
+
+allows visible garbage collection pauses reduced believe explicit incremental collection allocations usually better approach avoids scheduling issues 
+case largely orthogonal issue mutator collector concurrency prevent collector bottleneck large number mutator threads collector collector parallelism mildly reduces pause times 
+small amount allowing individual threads collect local heaps concurrently cf 
+
+far exhibited limited benefit scalability collector probably locality benefit 
+endo yonezawa previously parallelized earlier version collector publicly available 
+heavy techniques differs number ways collector accompanying papers retrieved www yl tokyo ac jp gc ffl primary goal performance large supercomputer scale systems 
+result emphasis describe extreme scalability 
+base performance small systems appears emphasis 
+contrast wanted library competitive uniprocessors single library uniprocessors multiprocessors 
+see appears reflected final performance profiles collectors 
+ffl wanted integrate standard collector distribution continue single threaded platforms continue provide original feature set sequential collector builds original features possible parallel collector builds 
+wanted avoid breaking ports sequential collector platforms windows ce benefit parallel collection 
+argue approaches minimally disturb sequential collector code 
+contrast university tokyo provides separate source code distributions shared distribute memory multiprocessors respectively 
+diverge substantially sequential collector 
+ffl wanted preserve ability link collector unmodified programs malloc replacement 
+current parallel collector collector linked programs designed traditional malloc free implementation facility tends require platform specific tuning deal initialization ordering issues 
+forced pay attention data issues discussed 
+default configuration university tokyo collector dedicating register allocator 
+ffl measurements performed different environment compare different systems leading somewhat different insights 
+newer java virtual machines employ collectors 
+common address allocator synchronization issues 
+parallel collector jalapeno virtual machine appears ambitious efforts somewhat superficially described literature 
+collector confined java virtual machine normally dedicate general register pointer non architecture presume thread local storage issues discussed arise 
+uses shared list perform parallel marking copying detailed characteristics implementation appear different 
+particular list data structure appears closer large part issue sharing code sequential collector 
+
+context allocator collector organizes heap big bag pages page heap dedicated objects single size 
+page associated descriptor contains mark bits objects page descriptive information page size individual objects 
+collector mark lazy sweep algorithm objects pointer reachable roots program variables marked 
+unmarked objects reclaimed incrementally allocation calls 
+collector may take advantage compiler programmer supplied type information locate pointers may operate fully conservative mode treat potential pointer 
+collector moves objects 
+collector supports limited form generational garbage collection measurements 
+performance competitive applications 
+techniques described old generation collector multiple generations 
+marker uses explicit stack store objects known reachable contents examined grey objects entry stack contains base address mark descriptor indicating location possible pointers relative starting address 
+mark descriptors typically take form simple length specification bit vector describing pointer locations 
+mark stack entries describe roots heap objects 
+mark process started pushing starting addresses mark descriptors root segments mark stack 
+nearly marking time spent relatively small loop repeatedly removes object top mark stack finds previously unmarked objects marks pushes stack 
+mark phase page descriptors pages heap scanned 
+completely empty pages recycled entirety touched collector 
+nearly full pages eliminated consideration 
+remaining pages enqueued object size sweeping 
+allocator satisfies large object requests going directly page level allocator 
+maintains separate various small object sizes 
+free list requested small object size empty sweeping enqueued page containing objects right size pages obtaining new page large object allocator dividing appropriately sized objects 
+
+parallel allocation allocators java virtual machines provide allocation arenas avoid synchronization small object allocation 
+collectors compact memory arenas typically contiguous regions memory 
+size arenas usually limited page mean heap section usually length necessarily physical page 
+refer chunk heap block 
+arena dedicated thread go unused thread allocates small objects 
+similar scheme 
+move objects scheme relies thread local free lists contiguous arenas 
+introduce new thread local allocation procedure 
+old global free list allocator remains available internally see 
+thread associated array free list headers 
+header corresponds different object size 
+requests objects larger covered handled old global free list mechanism require lock acquisition allocation 
+allocations expensive anyway part object initialized locking cost amortized larger amount 
+large object allocations tend far frequent 
+avoid filling thread local discover particular thread allocates object requested size 
+free list header may contain small count allocated memory size pointer suitable free list 
+initialized zero count 
+initially allocations object size satisfied corresponding global free list count incremented 
+count exceeds threshold page size start local free list thread object size 
+add page time thread local free list ensures reserve memory thread allocated factor 
+thread local free list mechanism place refill global free lists 
+relatively easy longer acquire main allocator lock free list construction allowing threads build free lists concurrently 
+mutual exclusion needed large block allocation remove page waiting swept queue 
+relatively fast operations limit scalability moderate numbers processors 
+
+parallel marking difficult parallelize mark phase garbage collector 
+turned require surprisingly little additional code 
+process startup arrange create gamma specialized marker threads available number processors 
+garbage collection initiated allocating client thread 
+client thread stops client threads original collector 
+carries mark phase jointly gamma marker threads utilizing available processors 
+data structure originally mark stack serves global list waiting mark tasks 
+retain old representation array stack pointer fact serves queue 
+initialized descriptors root set 
+objects removed atomically replacing bit machines allocate multiples bytes free lists cover requests byte objects 
+bit machines allocation granularity bytes headers limit bytes 
+clean code somewhat enable 
+local mark stacks marker thread cleared mark data structure grey objects mark descriptor zero descriptor indicating pointers remain followed 
+stack pointer decremented reset collection 
+marker threads repeatedly removes small number entries shared queue currently depending number remaining entries copies bottom local mark stack proceeds mark sequential case pushing newly objects local mark stack 
+local mark stack emptied object descriptors remove global queue 
+picture data structure marker threads 
+shaded sections represent grey objects objects traced 
+thin arrows represent possible movement object descriptors 
+note marker threads operate primarily local mark stacks data structure traversed depth fashion probably resemble allocation order exhibit better spatial locality 
+removal object global mark queue requires synchronization whatsoever 
+descriptor simply overwritten 
+assume aligned word writes atomic 
+guarantee object traced exactly marker thread 
+repeated tracing occur minor performance impact guaranteed remain correctness 
+speed search queue entry maintain shared pointer entry mark queue possibly nonzero descriptor 
+updated atomic compare swap thread discovers larger safe value 
+guaranteed increase monotonically collection 
+objects may added back global queue 
+currently requires locking expected rare 
+addition initial addition root set happens 
+mark thread discovers global queue empty multiple entries local mark stack 
+condition checked relatively rarely page tracing 
+necessary load balancing single thread may tracing data structure 
+far know modern multiprocessors satisfy constraint 
+
+local mark stack danger overflowing 
+rare may happen long linked lists certain kinds 
+necessary split large objects marking tracing duties objects shared threads 
+overflow queue handled code handled mark stack overflow sequential case 
+
+issues affecting absolute formance focussed heavily absolute performance encountered issues apparently pointed prior mark bit representation mentioned collector page associated array mark bits 
+sequential collector reserved bit word 
+setting mark bit implemented architectures reading containing addressable unit word historical reasons oring appropriate bit writing result back 
+parallel collector adjacent mark bits may set concurrently multiple threads 
+means find way setting mark bits appear atomic naive implementation scheme may lose bits written thread read write operations 
+explored ways resolving issue 
+update mark bits atomic compare swap instruction 
+compute word containing new mark bit 
+write back atomic compare swap instruction ensure word mark bit array concurrently modified 
+discover concurrent modification retry process starting read operation 
+advantage heap mark bits consume amount memory sequential case 
+disadvantage added overhead mark phase atomic compare swap typically significantly expensive simple store instruction 
+
+expand mark bit byte 
+partially compensate space overhead restrict object sizes multiple words allocate mark byte words heap 
+case word objects usually required alignment reasons anyway 
+unclear optimal 
+allows mark bit retrieved quickly object address allows single word objects short character strings allocated efficiently 
+adds space overhead necessary 
+architecture mips compaq alpha load locked instruction read mark word store conditional instruction write back 
+issues 
+quadruples space overhead mark bits 
+bit machines eighth heap size 
+affect number cache misses encountered marker threads 
+forces objects allocated double word objects 
+positive side reduces number instructions executed memory operations sequential case 
+setting mark bit requires just byte store operation 
+unfortunately alternative clear winner cases 
+mark bytes infeasible architectures atomic byte stores old compaq alpha machines 
+mark bit approach infeasible machines atomic compare swap instruction 
+machines support substantially outperform different platforms 
+particular machines tried cache overhead mark bytes appeared outweigh cheaper instructions 
+itanium decided mark byte implementation similar experiments 
+thread specific data thread specific free lists need way quickly generate pointer thread specific data structure containing free lists 
+
+java virtual machines handled maintaining thread context pointer register times 
+thread context contain free list headers 
+unfortunately approach viable obey standard calling conventions 
+conventions include register reserved thread identifier may fact point data structure describing thread 
+contents data structure typically determined implementor thread library opaque client directly extensible 
+thread interfaces posix address issue providing way store retrieve thread data 
+case posix threads accomplished primarily functions pthread key create creates key value refer thread local storage 
+approximate win equivalent 
+pthread sets value associated key current thread 
+approximate win equivalent 
+pthread retrieves thread local value associated key current thread 
+approximate win equivalent 
+cases including pthread performance critical thread data pointer data structure containing free list headers header 
+register poor architectures may expensive dedicate general register purpose possibly jvm 
+alternatives dedicate useful register segment register techniques discuss 
+see example description pthread functions www unix systems org online html au au jj tid val hash table tid indexed cache indexed key thread specific value lookup started pthread way 
+requires called allocation 
+unfortunately performance turned inadequate spite individually reasonable design decisions implementation 
+believe typical implementations thread local storage 
+typical implementations pthread small integers keys 
+pthread typically involves call dynamic library routine associated overhead 
+proceeds obtaining pointer thread data structure maintained thread library 
+data structure contain array thread specific values indexed key 
+environment linuxthreads versions multilevel data structure avoid small upper bound number keys 
+cost pthread increased slightly fact needs error check key argument 
+fortunately possible implement nearly interface entirely code better performance 
+small integers keys keys pointers data structures containing kinds data 
+chained hash table mapping thread ids associated thread specific data 
+insertions deletions table require locking 
+take care fields representing thread id corresponding thread local value chain entry remains valid hash table manipulations 
+lookups need acquire lock 
+
+second hash table cache faster lookups described 
+data structure pictured 
+note case val field represents pointer free list headers 
+fast path lookup procedure works follows quickly compute value quick thread id uniquely identifies thread 
+conventional thread id require quick thread id unique thread different threads generate quick thread id register thread pointer available 
+experiments top bits stack pointer approximate address local variable 
+quick thread id index cache array 
+entry cache array pointer invalid hash chain entry points hash chain entry corresponding quick thread id appropriate hash value 
+quickly check right entry store quick thread id access particular entry entry 
+find non matching quick thread id revert lookup main hash table 
+successful lookup cache requires memory test load key value load cache entry load quick thread id target check matches load return associated value 
+code easily inlined allocator 
+resulting execution times benchmarks table 
+note thread library independent implementation consistently faster thread 
+unfortunately appears nontrivial carry non garbage collected environment 
+environment hash chain entries simply dropped thread exit 
+reader thread happens accessing entry continue able 
+thread finishes collector reclaims entry 
+appears nontrivial explicitly deallocate hash chain entries requiring kind synchronization readers data structure 
+course issue applications start unbounded number threads lifetime 
+
+collector measurements measured performance sequential parallel collectors processor pentium pro machine running redhat linux 
+machine single mhz system bus 
+see possible garbage collector memory bandwidth limited 
+allocators compare allocators included cases rh standard glibc malloc free implementation distributed redhat linux distribution 
+somewhat scalable allocator de requires thread stacks spacing 
+normally true anyway unmapped pages help detect thread stack overflows 
+approach require careful attention underlying memory model sure new entries fully initialized visible threads 
+unfortunately release measurements measurements primary target platform 
+hope able modern machine additional benchmarks final 
+prefetching techniques mark phase pentium pro processors implement pentium iii prefetch instruction 
+rived doug lea malloc 
+liked pthreads library force locking 
+rh single allocator application linked pthreads library 
+course thread safe avoids locking measurably faster single threaded case rh 
+hoard hoard scalable memory allocator :10.1.1.1.4174
+requires explicit deallocation 
+gc extrapolated garbage collector run processor 
+multiprocessor throughput numbers computed multiplying uniprocessor number number processors 
+included purposes achievable 
+measurements garbage collector performed version similar alpha reproducible alpha 
+gc process multiple copies single threaded thread safe benchmark run concurrently separate processes 
+scalability limited memory kernel issues garbage collector scalability multiple garbage collector instances interact 
+gc thread parallel garbage collector run multiple client threads 
+stated set number marker threads equal number client threads 
+gc seq collector parallel collection allocation disabled 
+similar original collector 
+gc single collector thread unsafe mode 
+university tokyo scalable collector default configuration 
+benchmarks give throughput measurements various benchmarks 
+cases speedup graphs hide information interested base uniprocessor performance varies tremendously allocators 
+test processors number processors appearing bottom axis 
+number marker threads applicable number concurrent client threads set number processors 
+low multiprocessors machine appears memory bandwidth limitations limit scalability programs parallelize perfectly 
+note artificial benchmarks little allocate memory 
+expect point allocation contention issues processors exhibited larger machines real code 
+discuss benchmark turn number processors pthread gc custom table mt execution times vs thread local storage impl 
+rh single rh hoard gc thread theta theta theta theta theta gc single gc seq throughput ghostscript benchmark ghostscript zorn allocation benchmarks arguably interesting member publicly available suite runtime largest input long accurately measurable heap size significantly exceeds cache size commodity machines 
+older version ghostscript built custom memory allocator disabled 
+real program collection 
+unfortunately hard turn multi threaded benchmark attempt 
+parallel garbage collected case benefits multiple processors garbage collector running multi threaded mode 
+benchmark tailored garbage collection 
+versions larson benchmark deallocation logic remains garbage collected case deallocation performed 
+garbage collector heuristics setting heap size 
+throughput measurements benchmark iterations minute 
+benchmark appears relatively unfavorable garbage collection 
+appears explicit deallocation significant amount memory deallocated available ftp ftp cs colorado edu pub misc reallocated leaving cache happen garbage collector 
+average object size environment bytes relatively large leads frequent collections 
+exhibits significantly different performance characteristics artificial benchmarks follow real programs repeatedly build destroy large data structures allocate smaller objects may fact behave artificial benchmarks 
+mt mt essentially runs multiple concurrent copies commonly criticized garbage collector benchmark 
+garbage collected runs heap size set number client threads times mb 
+benchmark alternately builds drops complete binary trees various heights 
+explicit deallocation case recursive tree traversals added explicitly deallocate trees 
+throughput measurements expressed benchmark iterations minute 
+note case gc thread performs nearly gc process suggesting gc algorithm highly parallel tracing complete binary trees 
+tree nodes allocated benchmark bytes size plus allocator required overhead 
+relatively large heap size favorable garbage collecting allocators 
+surprising gc thread outperform malloc free implementations wide margin 
+larson slightly modified version benchmark originally introduced larson krishnan obtained benchmark hoard web site modified call memset fully initialize newly allocated object :10.1.1.1.4174
+original touches cache line newly allocated objects producing unrealistically favorable results allocator fails touch object 
+benchmark run garbage collector default mode malloc replacement explicit heap expansion 
+benchmark challenge malloc free implementations allocates memory thread deallocates different 
+bit challenge garbage collector creates destroys threads initially allocate global heap 
+available www hpl hp com hans boehm gc gc bench html garbage collecting allocator initializes objects effectively written twice garbage collected case 
+second write extremely hit cache relatively minor cost 
+points probably preferable pass freelist headers completed threads new ones reclaim long unused free list headers occasionally 
+gc extrapolated gc process gc thread theta theta theta theta theta hoard rh gc seq throughput mt benchmark ran benchmark parameters suggested readme file 
+results allocation objects size uniformly distributed bytes probably larger real applications 
+throughput measurements expressed allocations second 
+larson small benchmark parameters set allocate objects bytes 
+throughput measurements expressed allocations second 
+observations explicit de allocation mt larson small benchmarks parallel garbage collectors significantly outperformed parallel malloc implementations 
+allocate primarily small objects gain limited cache benefit immediate memory reuse 
+single threaded case occurs occasionally conservative garbage collector tends cheaper recycle large groups objects process individually 
+requires average object size heap occupancy sufficiently low deallocation economy scale outweighs tracing cost 
+situation appears getting common due cache issues observed connection ghostscript benchmark 
+parallel case garbage collectors appear additional advantages haven implemented 
+observed similar results benchmark report results :10.1.1.1.4174
+hoard gc thread rh gc seq theta theta theta theta theta throughput larson benchmark gc thread hoard gc seq rh theta theta theta theta theta throughput larson small benchmark ffl object lock acquisition deallocation 
+objects deallocated en masse need acquire release lock object deallocated 
+ffl object lock acquisition allocation 
+easy allocate objects memory previously assigned thread local free list arena 
+allocate lock acquisition release cycle object 
+relatively easy obtain group approximately adjacent objects allocate free lists naturally sorted 
+collectors allocate contiguous memory 
+explicit deallocation case free lists sorted idea operating group objects natural 
+hoard allocator example requires lock acquisition release object allocation deallocation 
+raises question gc strategy operates larger batches objects improve performance explicit deallocation preserving performance advantages explicit deallocation cases 
+objects moved control groups enqueued deallocated groups lock acquisitions amortized multiple objects 
+know allocator attempts 
+
+alpern attanasio barton burke cheng 
+choi cocchi fink grove hind hummel lieber litvinov mergen ngo russell sarkar serrano shepherd smith sreedhar srinivasan whaley 
+jalapeno virtual machine 
+ibm systems journal 
+appel ellis li 
+real time concurrent collection stock multiprocessors 
+sigplan conference programming language design implementation pages june 
+berger mckinley blumofe wilson :10.1.1.1.4174
+hoard scalable memory allocator multithreaded applications 
+proceedings international conference architectural support programming languages operating systems pages november 
+gray price 
+convoy phenomenon 
+operating systems review 
+
+boehm 
+reducing garbage collector cache misses 
+proceedings international symposium memory management pages 
+
+boehm demers shenker 
+parallel garbage collection 
+sigplan conference programming language design implementation pages june 
+detlefs zorn 
+memory allocation costs large programs 
+software practice experience 
+dijkstra lamport martin scholten 
+fly garbage collection exercise cooperation 
+communications acm november 
+arora kuiper 
+java server performance case study building efficient scalable jvms 
+ibm systems journal 
+doligez gonthier 
+portable unobtrusive garbage collection multiprocessor systems 
+conference record annual acm symposium principles programming languages pages 
+kolodner petrank 
+generational fly garbage collector java 
+sigplan conference programming language design implementation pages june 
+endo yonezawa 
+scalable mark sweep garbage collector large scale shared memory machines 
+proceedings high performance networking computing sc november 
+harris 
+dynamic adaptive pre 
+proceedings international symposium memory management pages october 
+karlin li manasse owicki 
+empirical studies competitive spinning shared memory multiprocessor 
+proceedings acm symposium operating system principles 
+
+larson krishnan 
+memory allocation long running server applications 
+proceedings international symposium memory management pages october 
+detlefs 
+generational concurrent garbage collector 
+proceedings international symposium memory management pages october 
+
+thread specific heaps multi threaded programs 
+proceedings international symposium memory management pages 

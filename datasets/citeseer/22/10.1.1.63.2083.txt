@@ -1,0 +1,400 @@
+electronic notes theoretical computer science url www elsevier nl locate entcs volume html pages redux dynamic dataflow tracer nicholas nethercote alan mycroft computer laboratory university cambridge cambridge united kingdom redux tool generates dynamic dataflow graphs 
+generates graphs tracing program execution recording value producing operation takes place building complete computational history value produced 
+execution considering parts graph reachable system call inputs choose see dataflow affects outside world 
+redux works program binaries restricted programs written particular language 
+explain redux works show dynamic dataflow graphs give essence program computation 
+show redux debugging program slicing consider range possible uses 
+redux tool generates dynamic dataflow graphs 
+graphs represent entire computational history program 
+overview redux supervises program executes records dataflow inputs outputs operation produces value 
+register word memory shadowed pointer sub graph shows value computed 
+program behaviour seen outside world entirely dictated system calls execution assuming ignore timing issues 
+includes exit status comes exit system call 
+program terminates considering parts ddfg reachable system call inputs show computations email njn cam ac uk email am cl cam ac uk cfl published elsevier science nethercote mycroft directly affect behaviour 
+captures essence program computation ignores uninteresting book keeping details 
+redux runs machines running linux works directly program binaries requiring recompilation relinking source code language independent 
+contributions contributions follows 
+ffl introduce dynamic dataflow graph 
+basically agrawal horgan dynamic dependence graph ddg minus control nodes edges lower level abstraction instructions statements arrows reversed 
+claim ignoring control flow crucial making graphs widely useful 
+ffl introduce tool redux computes 
+redux tool know traces program computations detail tied particular programming language language implementation 
+ffl show graphs just data structures need built achieve goal program slicing useful right program visualisation uses improving presentation important 
+ffl claim represent essence program computation show programs compute thing highly different ways similar identical 
+organisation structured follows 
+section introduces examples 
+section describes redux works 
+section shows programs computing thing different ways similar identical 
+section discusses possible uses redux 
+section describes difficulties problems redux 
+section discusses related section concludes 
+dynamic dataflow graphs dynamic dataflow graph ddfg directed acyclic graph 
+multi set nodes representing value producing operations multiple executions operation represented distinctly 
+set edges denoting dynamic dataflow nodes contains edges denoting state dependencies important capture program behaviour 
+section gives example produced redux 
+behaviour sense 
+nethercote mycroft int int int ans ans ans return ans int main void return exit dec dec dec int int return return int main void return exit dec dec dec fig 
+
+iterative recursive fac factorial shows programs compute factorial iteratively recursively resultant 
+node types shown 
+labelled represent constants 
+short code indicates constants appeared literally code letter short long indicates bits 
+operation nodes dec dec short decrement contain operation name colon separated operation result operands seen input edges 
+exit node shows program exit status returned exit system call system call nodes shown darker borders 
+nethercote mycroft operations produce values represented nodes arithmetic logic operations system calls 
+book keeping computations produce values shown loads stores memory pointer register register moves function calls direct indirect 
+control flow shown ddfg considered section 
+module boundaries irrelevant 
+ddfg represents values produced inputs operations producing 
+represent exact location inputs outputs address instructions produced 
+hello world shows hello world program versions ddfg 
+consider larger ddfg left hand side 
+explain ddfg components analyse see tells program execution 
+consider smaller ddfg 
+static constants written prefix 
+system call temporal order preserved side effects affecting program behaviour shown dotted state dependency edges 
+sequencing operations unimportant obvious dataflow constraints observed 
+system call arguments shown way arithmetic operations operands 
+system calls indirect arguments accessed direct pointer arguments memory inputs important 
+example hello world nn memory input shown extra argument write system call 
+address parentheses show paired direct pointer argument 
+system calls produce memory outputs pointers 
+shown dashed edges dashed nodes contain offset word memory block 
+fstat call st blocksize field bytes output struct stat buffer 
+top node contains inlined argument sb 
+default computational histories stack pointer esp frame pointer ebp tracked 
+computations producing pointers usually long uninteresting chains small constant additions subtractions 
+nodes represent lea instructions programs integer addition 
+tiny program measures taken ddfg compact readable possible non shared constants inlined descendent nodes chain increment nodes abbreviated dashed edge indicating number elided nodes string argument write pretty printed compact way 
+sense linux system calls pointers indirectly access flat memory blocks reads linked data structures 
+nethercote mycroft fstat mmap xffffffffl sb xffffff write lea el hello world exit include int main void printf hello world io printf sb io cleanup hello world exit fig 
+
+hello world analysis 
+interpret program operation quite precisely ddfg 
+function printf checks standard output file descriptor writable fstat system call 
+allocates buffer mmap 
+static string hello world nn copied buffer passed write 
+arguments write standard output string length difference string start addresses address incrementing variable character copied buffer shown abbreviated chain nodes 
+buffer freed exit terminates program 
+nethercote mycroft redux create fold option specify functions nodes edges conflated 
+right hand side shows hello world ddfg io printf io cleanup folded 
+function io cleanup invoked library main exits look glibc source code determine name 
+function output nodes similar system call memory output nodes show values produced function system call nodes includes return value subsequently computation reachable system call argument 
+redux works implementation framework redux implemented skin plugs valgrind generic program supervision framework 
+valgrind executes programs dynamic binary translation instrument code program including libraries needing source code 
+valgrind handles complicated task executing supervised program 
+redux instrument code provide runtime support instrumentation 
+overview graphs built dependence wise node points inputs 
+natural way things operation operands created operation takes place operation fixed number operands system calls memory inputs operation result number times 
+graphs drawn dataflow wise node points nodes value 
+intuitive read 
+basic implementation idea simple 
+register memory word shadowed pointer graph node showing computed 
+graph initially empty 
+register shadows initialised point special unknown register value node word static memory shadow initialised see section details 
+program progresses node added graph value producing instruction executed 
+termination redux draws nodes graph directly affected system call arguments program behaviour 
+worth noting instrumentation added change basic behaviour program instrumentation effects take place program execution 
+particular instrumentation affect program terminates 
+folded io printf name appears glibc symbol table valgrind relies detect entry function printf just alias 
+nethercote mycroft building sharing nodes nodes hold tag indicating type pointers operands 
+execution new node built value producing operation executed 
+denote shadow pointer register reg sh reg 
+instruction assembly code syntax addl eax ebx instrumented update shadow registers follows sh ebx sh ebx sh eax represents node 
+instructions move existing values moves loads stores instrumented shadows copied appropriately 
+example movl ebx ecx instrumented update shadow registers follows sh ecx sh ebx consider instructions movl eax movl ebx addl eax ebx incl ebx instructions constant nodes built sh eax sh ebx set point shown 
+instruction node built constant nodes operands sh ebx updated point 
+node stores result operation node result equal value ebx 
+invariant result node pointed directly register memory word shadow equal value register memory word 
+instruction node built operand node sh ebx updated 
+invariant holds ebx value matches node longer matches node sh ebx indirectly points 
+shadows deallocated memory words set point special unknown memory node 
+nodes appear program graph probably indicates bug program 
+valgrind uses risc intermediate representation called simpler code 
+see code directly examples quite representative 
+ideas results 
+nethercote mycroft ebx sh ebx eax sh eax instruction eax sh eax ebx sh ebx instruction eax sh eax ebx sh ebx instruction fig 
+
+building graph system calls system calls handled differently arithmetic operations 
+takes place arguments shadows registers shadow registers easily 
+memory inputs trickier difficult valgrind provides hooks tell skin system call reads memory 
+happens redux gathers shadow words memory input block aggregate chunk node additional input system call node 
+memory outputs handled similarly 
+valgrind tells redux system call written memory redux builds new system call memory output nodes word written call 
+sub word operations register memory shadowing done word bit level 
+instructions byte operands 
+requires special read byte read word nodes extracting sub words split nodes combining 
+consider instruction moves significant byte register eax ebx movb bl instrumented update shadow registers follows sh ebx split sh eax sh ebx sh ebx sh ebx sh eax split sh eax sh eax nethercote mycroft sh eax sh eax bn node represents extraction nth byte note split sh eax place overwriting previous unsplit shadow 
+essential part eax subsequent byte operation having done avoid having split 
+reduces number nodes built 
+unfortunately eax may byte operation node unnecessarily split operand ddfg larger 
+remove unnecessary splits rewrite stage see section 
+split nodes complicate implementation significantly 
+possibility shadow byte memory separately merge nodes word sized operations 
+bloat memory operations done word level current approach best 
+allocating nodes redux manages memory pool allocating nodes 
+nodes allocated sequentially mb superblocks simple fast 
+garbage collection done need programs looked small required megabytes nodes section discusses scaling redux bigger programs 
+garbage collection implemented counting probably suitable mark sweep copy collection 
+root set execution huge shadow register shadow memory word tracing prohibitively slow 
+cycles cause problems 
+allocate bits node track count saturate node referenced times deallocated 
+practice tiny fraction nodes 
+lazy node building important optimisation reduces number nodes built 
+word static memory initialised startup build node tag lowest bit shadow 
+distinguishes ordinary pointers redux allocator ensures nodes word aligned bottom bits real node pointers zero 
+reading node shadow word redux checks bottom bit marked bit builds constant node word 
+nodes built static words 
+hello world avoids building unnecessary nodes lot static memory particularly code data 
+nethercote mycroft rewriting printing program terminates redux performs passes parts ddfg reachable root set system call nodes 
+pass counts times node input node rewritten aggressively 
+second pass performs rewriting making peephole simplifications graph compact 
+third pass prints graphs 
+factorial examples nodes built operations main shown exit node built outside main 
+outside main nodes built valgrind traces pretty including dynamic linker links functions shared objects demand account 
+comparison empty program just returns zero redux builds nodes main constant zero book keeping nodes building tearing stack frame appear drawn ddfg 
+redux supports graph formats 
+dot directed graph drawer produces postscript graphs part graphviz package 
+second interactive graph viewer 
+dot graphs interactivity gives flexibility example node layout algorithm changed 
+programs similar input languages supporting difficult 
+examples drawn dot 
+section considers possible ways comparing program equivalence shows programs perform computation different ways similar identical 
+program equivalence various ways think programs equivalent 
+extreme consider visible behaviour important thing system calls order inputs 
+input programs executed system calls order inputs equivalent respect input ignore timing issues 
+extreme consider programs equivalent respect input execute instruction sequence input idea equivalence rigid useless programs probably identical fit definition 
+compare programs gives definition equivalence dataflow extremes 
+call nethercote mycroft level detail shown essence program 
+reason word hopefully clear examples 
+factorial showed computing factorial iteration na ive recursion 
+graphs nodes perform operations different shapes dataflow different 
+define fac recursively way equivalent dataflow iterative version accumulator tail recursive int int int acc return acc return acc graph version identical iterative version left hand side 
+factorial stack machine encouraged result wrote iterative factorial program small stack machine language interpreter 
+program resulting ddfg shown 
+folded function read file reads stack machine program file produces outputs seen nodes integers converted ascii characters read program file underlined 
+immediately obvious part graph computing factorial identical seen previously 
+difference decl instruction decrement loop counter stack machine program uses subl instruction argument 
+redux sees pure dataflow workings interpreter pushes pops loads stores memory intermediate results completely transparent 
+redux extracted essence computation identical version 
+factorial haskell tried experiment lazy purely functional language haskell glasgow haskell compiler 
+program graph shown 
+previous programs compute factorial return value 
+computes factorial na ive recursion accumulator recursion adds results nethercote mycroft push asg mul push asg asg push asg sub asg goto push zero halt read file sb exit fig 
+
+iterative fac interpreted stack machine prints sum 
+haskell programs return zero operating system halt exception 
+chose fold functions initialise terminate haskell runtime system consist calls system calls sigaction times interest 
+factorial computations graph top right hand corner 
+clearly identical 
+rest graph shows conversion answer characters written write 
+despite program different execution method essence computation 
+possible uses pretty immediately obvious solution looking problem 
+section describes specific uses implemented possible uses 
+debugging standard debuggers allow backwards execution 
+shame usual debugging approach find breakpoint bug manifested variable incorrect value repeatedly sets breakpoints earlier execution restarting program time erroneous line identified 
+redux backwards execution provide history previous computations information highly readable way 
+invoking print command incorrect variable memory register breakpoint user invoke nethercote mycroft sb ioctl bd write sb lea bd bd chunk div div mod mod bd main putstrln show acc acc acc acc fig 
+
+iterative recursive fac haskell command prints sub graph reachable specified variable 
+graph show entire computational history variable hopefully simple identify bug 
+example implemented haskell factorial program defined wrongly 
+generated graph running program normally result final node zero 
+immediate reaction look back code see problem looked carefully graph 
+tracing back erroneous node value zero see shape computation identical result node zero 
+instantly obvious problem zero initial accumulator value 
+clear problem example caused nethercote mycroft incorrect number recursive calls 
+implementing simple support sub graph inspection redux quite straightforward printing sub graph specific variable part way execution barely different printing graph program 
+required way specify breakpoints 
+added client requests valgrind mechanism allows program supervised pass message skin 
+case client request indicated address variable interest 
+technique requires recompiling client program specify new variable inspect unfortunate 
+better way specify breakpoints command line arguments interactively 
+quite possible valgrind better utilising debug information implemented 
+dynamic program slicing debugging sub graph inspection short step dynamic program slicing 
+sub graph reachable variable represents operations contributed current value 
+annotate node address originating instruction addresses nodes sub graph form non executable dynamic data slice variable respect program input 
+slice projection sub graph code 
+
+adding instruction addresses nodes simple 
+printed slice information format readable cg annotate source annotation script comes distributed valgrind 
+example shows program slice exit status iterative factorial program 
+int fac int int ans ans ans return ans 
+int main int argc char argv return fac numbers line indicate constant non constant nodes originated 
+represents zero 
+compare slice stack machine implementation fac 
+line neg example notable haskell programs notoriously difficult debug 
+nethercote mycroft line case add stk sp stk sp stk sp sp break case sub stk sp stk sp stk sp sp break case stk sp stk sp line sp break case mul stk sp stk sp stk sp sp break case div int stk sp stk sp stk sp nodes arose conversion digit characters integers hidden folding read file 
+note nodes built literal constants time containing instruction executed 
+rest nodes come actions dealing stack machine sub mul instructions 
+comparison emphasises just redux see program book keeping 
+disadvantage approach compared sub graph printing relevant source code may available 
+second example nodes represented came glibc code source 
+obvious debugging 
+subgraph difficult interpret having direct connection program source variable computational history easier understand 
+way program slicing program differencing software maintenance regression testing slicing techniques lower overheads appropriate 
+uses examples just starting point 
+list suggestions 
+achieved redux current form feasible practice give idea range uses 
+ffl program comprehension generalisation debugging find bugs generally improve understanding exactly program doing data flows 
+ffl de obfuscation redux see simple kinds obfuscation 
+example running program kind interpreter hide doing redux stack machine interpreter example section showed 
+highly obfuscated programs ddfg provide starting point understanding program doing 
+ddfg useful analysing cryptographic code way 
+ffl value debugging sub graphs considers past history nethercote mycroft value 
+dual consider value rest program 
+reach 
+information useful understanding programs better especially security aspects 
+idea forward slicing 
+similar feel perl taintedness tracking values untrusted sources user input way runtime error occurs 
+redux changed support way graphs built node points back nodes built past record value 
+change difficult 
+ffl program comparison redux sees essence program computation provide semi rigorous comparison programs 
+useful determining programs share part code algorithm compute 
+implications software patent issues 
+comparisons described section preliminary quite promising looks area worthy study 
+ffl decompilation standard approaches decompilation consider static program 
+decompiler decompile part program way dynamic information ddfg helpful 
+ffl limits parallelism ddfg represents bare bones computation gives idea level parallelism program computation independent exactly computation programmed 
+parallelism somewhat higher level instruction level parallelism 
+speaking generally wider ddfg implies inherent parallelism program 
+ffl test suite generation redux tracked conditional branches branch taken possible back ddfg conditional test inputs determine program input changed branch goes way 
+useful automatically extending test suites increase coverage 
+nice idea practice difficult problems redux tracking conditional branches described section 
+difficulties redux tracking entire computational history program quite ambitious 
+encountered multiple practical difficulties 
+section describes approached hesitate enter legal swamp 
+nethercote mycroft varying levels success 
+normalisation claim ddfg represents essence program computation kind normalisation take place small unimportant differences ignored 
+example saw section difference node node 
+specific example lea instruction calculating addresses quasi address alternative address add instruction 
+instruction reg reg subl reg reg zero register reg shorter instruction movl reg 
+currently transformations hard wired graph rewriting printing passes 
+example reg reg node transformed constant node indicates value comes special instruction produces zero 
+general approach kind mini language specifying transformations sub graphs clear idea 
+loop rolling redux basic loop rolling case long chains repeated dec nodes 
+important avoid drawn graphs boring chains 
+loop rolling hard wired graph printing phase nodes removed graph 
+small step chains nodes add subtract constant seen case graphs programs 
+bigger challenge find general method rolling loops 
+clear loops simple dataflow dependencies operations hard difficulty jumps greatly loops grow dataflow tangled 
+representation rolled loops issue representation obvious simple factorial loops 
+conditional branches far considered conditional branches 
+best thing conditions critical 
+consider program int main int argc char argv complex condition argc argv 
+return ddfg exit return ddfg exit nethercote mycroft ignore condition interesting part program useless graph exit exit 
+unfortunately tiny fraction conditionals interesting choosing ones show difficult 
+way show annotate edges node representing branch branches taken edge created 
+branch node inputs values conditional test 
+small example edge node exit node annotated branch node represents complex condition 
+interesting part computation included 
+properly know scope conditional know conditional branches instruction dominated 
+unfortunately know determine dynamic instruction stream redux sees 
+possibility modify compiler insert client requests tell redux start conditional scopes 
+fear graphs terribly uninteresting conditions 
+scaling obvious pressing problem redux scaling 
+works small programs unclear useful larger programs 
+main aspects problem 
+firstly bigger difficulty drawing presenting graphs 
+shows compression program bzip kb executable stripped symbol information left graph compressing byte file right graph compressing byte file 
+mhz athlon running bzip redux took seconds cases graph drawer dot took seconds draw graph minutes draw second graph 
+interactive graph viewer similar difficulties 
+problem graphs highly connected long edges distant nodes slow things particularly 
+presenting graphs intelligible way important 
+graphs unwieldy 
+effort put making graphs compact 
+fold option figures start mitigating problems times larger folding 
+secondly recording information costly 
+unavoidable extent lot room current implementation reduce overhead instrumentation build fewer nodes adding garbage collection 
+memory space required nodes proportional running time program removed streaming disk 
+concentrated issue scaling problems drawing graphs limiting moment 
+nethercote mycroft sigaction sigaction xbffff sb xffffff xbffff dec xffffffffl cc xbffff sb xffffff xbffff xbffff sb xbffff dec xffffffffl cc xbffff sb xbffff xbffff chunk fb xf dec cc shl xffffffffl sigaction xbffff sb xffffff xbffff dec xffffffffl cc xbffff sb xffffff xbffff xbffff sb xbffff dec xffffffffl cc xbffff sb xbffff xbffff chunk fb xf dec cc shl xffffffffl sigaction xbffff sb xffffff xbffff dec xffffffffl cc xbffff sb xffffff xbffff xbffff sb xbffff dec xffffffffl cc xbffff sb xbffff xbffff chunk xf dec cc shl xffffffffl sigaction xbffff sb xffffff xbffff dec xffffffffl cc xbffff sb xffffff xbffff xbffff sb xbffff dec xffffffffl cc xbffff sb xbffff xbffff chunk xf dec cc shl xffffffffl open fb xbffff sb xffffff xbffff dec xffffffffl cc xbffff sb xffffff xbffff xbffff sb xbffff dec xffffffffl cc xbffff sb xbffff xbffff chunk xf dec cc shl xffffffffl close fb homes njn grind head byte file lstat fb open sb xffffff xbffff fb homes njn grind head byte file lstat fb homes njn grind head byte file bz open fb sb xffffff xbffff fb homes njn grind head byte file open fstat read read read close fb homes njn grind head byte file chmod fstat write close homes njn grind head byte file bz homes njn grind head byte file bz mmap xffffffffl sb xffffff lea mmap xffffffffl sb xffffff rep lea chunk shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl shr ecf fl shr ecf fl edb xd shl xb feb bb ebl shl xffffffffl xffffff neg shl shl neg shl shl neg shl shl neg shl shl lb neg xffffffffl shl shl xc xc shl shl neg xffffffffl shl shl neg shl shl shl neg shl shl shl neg xffffffffl shl shl neg xffffffffl shl neg shl shl shl neg shl shl neg shl shl shl neg lea lea xb xb shl xb neg shl neg lea shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl xb shl shr rol neg xb xb shl xe shl neg shl xf shl neg xf xf shl xf shl neg xf lstat fb chmod eb ea sb xffffff xbffff fb homes njn grind head byte file utime homes njn grind head byte file bz chown sb xffffff xbffff homes njn grind head byte file bz xbffff chunk rmdir fb homes njn grind head byte file bz unlink fb fb homes njn grind head byte file exit fb homes njn grind head byte file sigaction sigaction xbffff esp ebp xffffff xbffff dec xffffffffl cc xbffff esp ebp xffffff xbffff xbffff esp ebp xbffff dec xffffffffl cc xbffff esp ebp xbffff chunk fb xf dec cc shl xffffffffl ac ac ae sigaction xbffff esp ebp xffffff xbffff dec xffffffffl cc xbffff esp ebp xffffff xbffff xbffff esp ebp xbffff dec xffffffffl cc xbffff esp ebp xbffff chunk fb xf dec cc shl xffffffffl ac ac ae sigaction xbffff esp ebp xffffff xbffff dec xffffffffl cc xbffff esp ebp xffffff xbffff xbffff esp ebp xbffff dec xffffffffl cc xbffff esp ebp xbffff chunk xf dec cc shl xffffffffl ac ac ae sigaction xbffff esp ebp xffffff xbffff dec xffffffffl cc xbffff esp ebp xffffff xbffff xbffff esp ebp xbffff dec xffffffffl cc xbffff esp ebp xbffff chunk xf dec cc shl xffffffffl ac ac ae open fb xbffff esp ebp xffffff xbffff dec xffffffffl cc xbffff esp ebp xffffff xbffff xbffff esp ebp xbffff dec xffffffffl cc xbffff esp ebp xbffff chunk xf dec cc shl xffffffffl ac ac ae close homes njn grind head byte file lstat fb open esp ebp xffffff xbffff homes njn grind head byte file lstat fb homes njn grind head byte file bz open fb esp ebp xffffff xbffff homes njn grind head byte file open fstat read read read close homes njn grind head byte file chmod fstat write close homes njn grind head byte file bz homes njn grind head byte file bz mmap xffffffffl esp ebp xffffff lea mmap xffffffffl esp ebp xffffff rep lea chunk shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg shl shl neg xe shl shl xe shr xe shr xe el xf fe el shl xf shl bdd xc ddl shl ca bb eb bbl ca bbl shl xd xc shl xa aa shl afc xe cbc xb afc shl xd shl xc cd fec shl shl xffffffffl xffffff neg shl shl neg shl shl neg shl shl neg shl shl lb neg xffffffffl shl shl xc xc shl xc shl neg xffffffffl shl neg shl shl shl shl neg shl shl neg shl neg shl neg shl neg shl neg shl shl shl neg xffffffffl shl neg shl shl shl lea neg shl shl neg xd xd shl xd xc shl xc neg shl neg shl neg shl shl shl shl shl shl shl shl shl neg lea lea neg lea lea xa xa shl xa xa shl neg lea neg lea lea lea neg shl neg neg shl neg lea shl xb neg xffffffffl shl xe shl xc neg xc xc shl xe xc neg lea shl neg shl shl xe neg shl xa shl neg xa xa shl shl neg xa shl shl xa neg shl shl neg shl xc shl shr rol neg xd xd shl shl neg shl shl neg shl shl neg lstat fb chmod eb eb esp ebp xffffff xbffff homes njn grind head byte file utime homes njn grind head byte file bz chown esp ebp xffffff xbffff homes njn grind head byte file bz chunk rmdir fb homes njn grind head byte file bz unlink fb homes njn grind head byte file exit homes njn grind head byte file fig 
+
+compressing byte file byte file bzip way deal problems selective 
+currently reachable nodes shown default functions folded user specifies 
+inverted default show small amount information user specify interesting parts program 
+able interactively zoom parts graph useful 
+added support outputting graphs format reason allows groups nodes folded 
+chance experiment facility 
+alternatively automatic factoring compacting similar sub graphs useful done hard say done 
+limitations implementation redux prototype tried great range programs 
+handle programs floating point arithmetic threaded programs 
+fundamental reasons matter time 
+tried programs larger mentioned bzip 
+nethercote mycroft related static dataflow graphs commonly static analysis programs 
+ddfg partial unfolding non value producing operations assignments removed control flow instantiated way omits control flow decisions 
+differences crucial ddfg omits lot information precise means potential uses different 
+example factorial programs examined section varied making useful finding essence program 
+manage perform loop rolling described section rolled similar fundamentally different 
+dynamic dependence graph quite similar ddfg additional control nodes edges 
+additional control representation graph representation program 
+agrawal dynamic slicing dynamic dependence graph far tell spyder debugger annotated code way similar described section redux spyder slices included control statements 
+choi similar dynamic graph parallel program debugger ppd 
+similar tracing tools redux find tracing visualising debugging execution haskell programs 
+hat transforms haskell programs order trace execution 
+text tools view traces hat trail allows backwards exploration trace 
+haskell object observation debugger hood library containing combinator observe inserted programs trace intermediate values particularly data structures 
+presents trace information text way 
+tools inspired fact conventional debugging techniques impossible haskell lazy 
+seen redux tool drawing dynamic dataflow graphs programs 
+graphs show computational history program reduce programs minimal essence programs compute thing multiple ways identical similar graphs 
+uses redux completely clear discussed debugging program slicing speculative uses 
+discussed challenges difficulties implementation 
+feel great potential get heart programs computing 
+hope range ways understanding debugging improving programs 
+nethercote mycroft julian seward creating valgrind harald peter stuckey stack machine interpreter 
+author gratefully acknowledges financial support trinity college cambridge 
+absint angewandte informatik gmbh 
+graph visualisation 
+www absint com 
+agrawal demillo spafford 
+dynamic slicing presence unconstrained pointers 
+proceedings tav pages victoria british columbia canada oct 
+agrawal demillo spafford 
+debugging dynamic slicing backtracking 
+software practice experience june 
+agrawal horgan 
+dynamic program slicing 
+proceedings pldi pages white plains new york usa june 
+labs research 
+graphviz 
+www research att com sw tools graphviz 
+runciman wallace 
+transforming haskell tracing 
+proceedings ifl madrid spain sept 
+appear 
+
+choi miller netzer 
+techniques debugging parallel programs analysis 
+acm transactions programming languages systems oct 
+cifuentes 
+reverse compilation techniques 
+phd thesis faculty information technology queensland university technology australia july 
+gill 
+debugging haskell observing intermediate data structures 
+proceedings haskell workshop montreal canada sept 
+glasgow haskell compiler 
+www haskell org ghc 
+horwitz reps binkley 
+interprocedural slicing dependence graphs 
+acm transactions programming languages systems jan 
+mycroft 
+type decompilation 
+proceedings esop volume lncs pages amsterdam netherlands mar 
+nethercote seward 
+valgrind program supervision framework 
+proceedings rv boulder colorado usa july 
+appear 
+nethercote mycroft peyton jones 
+haskell language libraries 
+cambridge university press 
+tip 
+survey program slicing techniques 
+journal programming languages sept 
+wall 
+limits instruction level parallelism 
+research report digital western research laboratory palo alto california usa nov 
+wall christiansen orwant 
+programming perl 
+reilly rd edition 
+

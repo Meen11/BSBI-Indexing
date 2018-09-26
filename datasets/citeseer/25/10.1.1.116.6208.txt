@@ -1,0 +1,939 @@
+manageability availability performance porcupine highly scalable cluster mail service yasushi saito brian bershad henry levy university washington describes motivation design performance porcupine scalable mail server 
+goal porcupine provide highly available scalable electronic mail service large cluster commodity pcs 
+designed porcupine easy manage emphasizing dynamic load balancing automatic configuration graceful degradation presence failures 
+key system manageability availability performance sessions data underlying services distributed homogeneously dynamically nodes cluster 
+categories subject descriptors computer communication networks distributed systems distributed applications performance systems reliability availability computer system implementation servers operating systems reliability fault tolerance information storage retrieval systems software distributed systems information storage retrieval communications applications electronic mail general terms algorithms performance management reliability additional key words phrases distributed systems email cluster group membership protocol replication load balancing 
+growth internet led need highly scalable highly available services 
+describes porcupine scalable electronic mail service 
+porcupine achieves scalability clustering small machines pcs enabling efficient supported darpa national science foundation eia 
+earlier version appeared th acm symposium operating systems principles sosp kiawah island resort sc dec 
+porcupine project web page porcupine cs washington edu 
+authors address mbox department computer science engineering university washington seattle wa email yasushi bershad levy cs washington edu 
+permission digital hard copy part personal classroom granted fee provided copies distributed profit commercial advantage copyright notice title publication date appear notice copying permission acm copy republish post servers redistribute lists requires prior specific permission fee 
+acm acm transactions computer systems vol 
+august pages 
+manageability availability performance porcupine manner 
+section describe system requirements porcupine relate rationale choosing mail application target 
+system requirements porcupine defines scalability terms essential system aspects manageability availability performance 
+requirements follow manageability requirements 
+system may physically large easy manage 
+particular system self configure respect load data distribution self heal respect failure recovery 
+system manager simply add machines disks improve throughput replace break 
+time system nodes perform differing capacities differences masked managed system 
+availability requirements 
+nodes time 
+despite component failures system deliver service users times 
+practice failure nodes may prevent users accessing mail 
+strive avoid failure modes groups users find mail service short period 
+performance requirements 
+porcupine single node performance competitive single node systems aggregate performance scale linearly number nodes system 
+porcupine target system scales hundreds machines sufficient service mail messages day today commodity pc hardware system area networks 
+porcupine meets requirements uniquely 
+key principle design porcupine functional homogeneity 
+node execute part transaction delivery retrieval mail 
+principle porcupine uses techniques meet scalability goals 
+transaction dynamically scheduled ensure uniformly distributed nodes cluster 
+second system automatically reconfigures nodes added removed transiently 
+third system user data automatically replicated number nodes ensure availability 
+shows relationships goals key features techniques system 
+example dynamic scheduling automatic reconfiguration system manageable changes size quality machines user population workload handled automatically 
+similarly automatic reconfiguration replication improve availability making email messages user profiles auxiliary data structures survive failures 
+acm transactions computer systems vol 
+august 
+yasushi saito fig 
+
+primary goal porcupine scalability defined terms manageability availability performance requirements 
+turn requirements met combinations key techniques shown 
+today porcupine runs cluster pcs connected high speed network show designed scale 
+performance linear respect number nodes cluster 
+system adapts automatically changes workload node capacity node availability 
+data available despite presence failures 
+rationale mail application porcupine mail system underlying services architecture appropriate systems data frequently written performance availability manageability high volume demanded 
+example usenet news community bulletin boards large scale calendar services candidates deployment porcupine 
+configured porcupine act web server usenet news node 
+focus system large scale electronic mail server 
+chose mail application reasons 
+need large scale commercial services handle messages day 
+anticipating continued growth goal porcupine handle billions messages day pc cluster 
+second email presents challenging application served conventional web servers shown quite scalable 
+particular workload electronic mail write intensive web scaling techniques stateless transformation fox caching chankhunthod pai useless workloads 
+consistency requirements mail compared distributed file database system weak encourage replication techniques efficient highly available 
+organization remainder describes porcupine architecture implementation performance 
+section presents overview system architecture compares architecture alternatives 
+section describes system adapts changes configuration automatically acm transactions computer systems vol 
+august 
+manageability availability performance porcupine section presents porcupine approach availability 
+section describe system scalable approach fine grained load balancing 
+section evaluates performance porcupine prototype node cluster 
+section discusses system scalability limitations areas 
+section discuss related draw section 
+system architecture overview porcupine cluster internet mail service supports smtp protocol postel sending receiving messages internet 
+users retrieve messages mail user agent supports pop imap retrieval protocols myers rose crispin 
+key aspect porcupine functional homogeneity node perform function 
+greatly simplifies system configuration system capacity grows shrinks number aggregate power nodes logically configured 
+consequently need system administrator specific service data placement decisions 
+attribute key system manageability 
+functional homogeneity ensures service available offers guarantees data service may managing 
+replicated state serves purpose 
+kinds replicated state porcupine manage hard state soft state 
+hard state consists information lost maintained stable storage 
+example email message user password hard state 
+porcupine replicates hard state multiple nodes increase availability survive failures 
+soft state consists information lost reconstructed existing hard state 
+example list nodes containing mail particular user soft state reconstructed distributed disk scan 
+soft state maintained node instant reconstructed hard state failure 
+exception directories name locate states soft state 
+directories replicated node improve performance 
+approach minimizes persistent store updates message traffic consistency management overhead 
+disadvantage soft state may need reconstructed distributed persistent hard state failure 
+design seeks ensure reconstruction costs low scale size system 
+section demonstrate validity design showing reconstruction nominal overhead 
+subsections describe porcupine data structures management 
+acm transactions computer systems vol 
+august 
+yasushi saito key data structures porcupine consists collection data structures set internal operations provided managers running node 
+key data structures porcupine mailbox fragment 
+collection mail messages stored user node called mailbox fragment fragment unit mail replication 
+porcupine mailbox logical entity consisting single user mailbox fragments distributed replicated number nodes 
+single mailbox structure containing user mail 
+mailbox fragment hard state 
+mail map 
+list describes nodes containing mailbox fragments user 
+mail map soft state 
+sake brevity pretend user mailbox fact porcupine supports multiple mailboxes user mail map maps pair user mailbox set nodes 
+user profile database 
+database describes porcupine client population contains user names passwords persistent changes infrequently user partitioned replicated nodes 
+user profile database hard state 
+user profile soft state 
+porcupine separates storage management user profile distributed dynamically improve performance 
+porcupine node uniquely stores soft state copy subset profile database entries 
+accesses updates profile database entry node holding soft state copy entry 
+data structure soft state 
+user map 
+user map table maps hash value user name node currently responsible managing user profile soft state mail map 
+user map soft state replicated node 
+cluster membership list 
+node maintains view set nodes currently functioning part porcupine cluster 
+time nodes perceive membership node arrival departure may cause short term inconsistencies system establishes new membership 
+network partition inconsistencies may long time 
+various system data services user map load balancer automatically respond changes cluster membership list 
+cluster membership list soft state replicated node 
+data structure managers preceding data structures distributed maintained node essential managers shown 
+user manager manages soft state including user profile soft state mail maps 
+spreading responsibility servicing accesses user profile acm transactions computer systems vol 
+august 
+manageability availability performance porcupine fig 
+
+node porcupine runs set modules shown picture 
+solid arrow shows module calls module node dotted arrow shows module calls module remote node rpc module 
+database nodes system larger user populations supported simply adding machines 
+managers mailbox manager user database manager maintain persistent storage enable remote access mailbox fragments user profiles 
+replication manager node ensures consistency replicated objects stored node local persistent storage 
+membership manager node maintains node view cluster state 
+tracks nodes contents user map 
+participates membership protocol track state 
+load balancer node maintains load disk usage nodes picks best set nodes store read messages 
+rpc manager supports remote intermodule communication 
+top managers node runs delivery proxy handle incoming smtp requests retrieval proxies handle pop imap requests 
+porcupine architecture leads rich distribution information mail storage decoupled user management 
+example acm transactions computer systems vol 
+august 
+yasushi saito fig 
+
+picture shows node cluster distribute email messages 
+user map shown entry wide picture entry wide implementation replicated node 
+example node learns bob managed node hash value string bob entry number user map read bob messages mail client consults user manager obtain bob profile password shown mail map contacts node mail map read bob messages 
+shows sample porcupine configuration consisting nodes users 
+simplicity messages shown replicated 
+user manager node maintains alice bob soft state consists user profile database entries mail maps 
+similarly user manager node maintains chuck soft state 
+mail transaction progress failure free operation mail delivery retrieval follows 
+mail delivery 
+shows flow control mail delivery 
+external mail transfer agent mta delivers message user hosted porcupine cluster discovering ip address porcupine cluster node internet domain name service step 
+function execute node need special front request routers cisco systems networks system prevents 
+initiate mail delivery mta uses smtp connect designated porcupine node acts delivery proxy step 
+proxy job store message disk 
+applies hash function recipient name looks user map learns name recipient user manager step 
+retrieves mail map user manager steps asks load balancing service choose best node list 
+list empty choices poor example overloaded disk space proxy free select acm transactions computer systems vol 
+august 
+manageability availability performance porcupine fig 
+
+picture shows external mail transfer agent mta delivers message bob 
+mta picks dns rr smtp session partner steps 
+obtains bob mailbox fragment steps determines best node store message step 
+updates bob mailbox fragment storing message steps 
+node step 
+proxy forwards message chosen node mailbox manager storage step 
+storing node ensures participation reflected user mail map step 
+message replicated information user profile proxy selects multiple nodes store message 
+mail retrieval 
+external mail user agent mua retrieves messages user mail stored porcupine cluster pop imap transfer protocols 
+mua contacts node cluster initiate retrieval 
+contacted node acting proxy authenticates request user manager client discovers mail map 
+contacts mailbox manager node storing user mail request mail digest information returns mua 
+message requested proxy fetches message appropriate node nodes 
+mua deletes message proxy forwards deletion request appropriate node nodes 
+message user removed node node removes user mail map 
+advantages trade offs decoupling delivery retrieval agents storage services user manager way system balance mail delivery tasks dynamically node store mail user single node permanently responsible user mail soft profile information 
+user mail replicated arbitrary set nodes independent replication factor users 
+user manager goes take manager users 
+advantage system extremely fault tolerant able deliver retrieve mail user nodes storing user existing mail acm transactions computer systems vol 
+august 
+yasushi saito unavailable 
+final advantage system able react configuration human intervention 
+newly added nodes automatically receive share mail session storage management tasks 
+crashed retired nodes excluded membership list mail maps automatically leaving residual information nodes 
+system architecture reveals key tension addressed implementation 
+specifically user mail may distributed large number machines doing complicates delivery retrieval 
+delivery time user mail stored node containing mail user user mail map potentially remote data structure updated 
+retrieval aggregate load increases somewhat number nodes storing retrieving user mail 
+consequently beneficial limit spread user mail widening primarily deal load imbalances failure 
+way system behaves performs statically partitioned system failures load balanced dynamically partitioned system 
+section discusses trade detail 
+alternative approaches existing large scale mail systems assign users data statically specific machines 
+front traffic manager directs external client request appropriate node 
+believe statically distributed write oriented services scale poorly 
+particular user base grows service demand met adding machines 
+unfortunately new machine configured handle subset users requiring users data migrate older machines 
+machines added likelihood grows diminishing availability users data machines 
+addition users accounts slower machines tend receive worse service faster machines 
+statically distributed system susceptible overload traffic distributed nonuniformly user base 
+date systems relying static distribution worked reasons 
+service organizations willing substantially computing capacity mitigate short term load imbalances 
+second organizations willing employ people reconfigure system manually order balance load long term 
+degree determines short term gives way long term static systems costly terms hardware people 
+small static systems costs substantial example doubling size small manageable system may yield system small manageable 
+number machines large order dozen disparate fast slow machines fast slow disks large small acm transactions computer systems vol 
+august 
+manageability availability performance porcupine disks continually increasing gross unacceptably expensive terms hardware people 
+alternative approach adopt typical web server architecture distributed file system store hard state run shelf software large number stateless front nodes serve clients fox pai 
+approach successful services deliver read data web servers search engines front nodes take significant load file system utilizing file caches 
+write intensive services email exhibit low access locality caching nearly useless approach email requires file system highly scalable changing workload system configuration 
+file systems exist xfs anderson frangipani thekkath early research stage due sheer complexity 
+available manageability availability match porcupine file systems offer generic single copy semantics sacrifice availability way 
+example tolerate limited number node failures entire system stops functioning network partitioned 
+porcupine hand tolerates number node failures continues serve users network partition relaxing data consistency guarantees 
+approach build email system top cluster operating system supports membership agreement distributed locking resource fail vogels sun microsystems ibm 
+solution simplifies architecture software tends cost previous solutions systems run proprietary hardware 
+limited scalability tens nodes 
+importantly primary means fault tolerance systems shared disks statically tie node specific data items create manageability availability problems approach albeit lesser degree 
+obvious solution large monolithic server reliable storage raid chen 
+approach simplest terms architecture administration rarely employed internet services main reasons 
+large server machine far expensive set small machines aggregate performance 
+scale single server certain limit scrap machine buy faster model 
+notice problem making single node fast available orthogonal problem making cluster fast available 
+porcupine solves problem perfectly reasonable build porcupine cluster large scale server nodes applications single node handle entire workload 
+acm transactions computer systems vol 
+august 
+yasushi saito fig 
+
+schematic view different architectures trade cost performance availability manageability 
+porcupine architecture available manageable cheap time solutions need sacrifice cost manageability 
+summarizes cost manageability trade offs solutions 
+porcupine seeks provide system structure performs scales adjusts automatically changes configuration load easy manage 
+vision single system administrator responsible hardware supports mail requirements users processing messages day 
+system begins run capacity administrator improve performance users simply adding machines disks system 
+lastly administrator users attend failure machines replacing urgency replaces light 
+
+self management porcupine deal automatically diverse changes including node failure node recovery node addition network failure 
+addition change come bursts creating long periods instability imbalance unavailability 
+goal porcupine manage change automatically order provide service periods system flux 
+sections describe porcupine services detect respond configuration changes 
+membership services porcupine cluster membership service provides basic mechanism tolerating changes 
+maintains current membership set detects node failures recoveries notifies services changes system membership distributes new system state 
+assume symmetric transitive network steady state nodes eventually converge consistent membership set provided new failure occurs sufficiently long period seconds 
+acm transactions computer systems vol 
+august 
+manageability availability performance porcupine cluster membership service uses variant round membership protocol trm christian schmuck detect membership changes 
+trm round begins node detects change configuration coordinator 
+coordinator broadcasts new group message lamport clock lamport acts proposed epoch id identify particular membership incarnation uniquely 
+nodes attempt coordinator time proposing largest epoch id wins 
+second round nodes receive new group message reply coordinator proposed epoch id timeout period coordinator defines new membership nodes received reply 
+third round coordinator broadcasts new membership epoch id nodes 
+membership established coordinator periodically broadcasts probe packets network 
+probing facilitates merging partitions coordinator receives probe packet node current membership list initiates trm protocol 
+newly booted node acts coordinator group member 
+probe packets sufficient notify network recovered 
+ways node may discover failure 
+timeout occurs normally part remote operation 
+addition nodes membership set periodically ping highest neighbor ip address order largest ip address pinging smallest 
+ping responded attempts pinging node coordinator initiates trm protocol 
+user map purpose user map distribute management responsibility evenly live nodes cluster 
+membership services detect configuration change system reassign management responsibility 
+membership list user map replicated nodes recomputed membership change side effect trm protocol 
+second round coordinator computes new user map removing failed nodes current map uniformly redistributing available nodes user map hash buckets user map buckets node typically assigned bucket 
+coordinator minimizes changes user map simplify reconstruction soft state described section 
+entry user map associated epoch id shows bucket management responsibility assigned node 
+phase trm node piggybacks reply packet index associated epoch ids user map entries node acm transactions computer systems vol 
+august 
+yasushi saito fig 
+
+example membership reconfiguration 
+arrows show messages exchanged nodes 
+upper boxes user map show assignments buckets nodes lower boxes show epoch ids buckets 
+example node crashes recovers 
+node fails receive membership renewal crash 
+shaded area user maps show entries nodes recognize changed 
+manages 
+bucket changed assignment coordinator assigns current epoch id entry 
+hand bucket assignment remains unchanged coordinator reuses epoch id returned participant node 
+epoch ids user map nodes determine entries user map changed 
+shows example user map reconfiguration 
+example node crashes 
+new membership computed node packet containing new membership fails reach node recovers receives new membership new user map identical old epoch id bucket managed renewed 
+epoch ids user maps unable detect assignment bucket user map changed 
+soft state reconstruction user map reconstructed necessary reconstruct soft state user managers new user responsibilities 
+specifically soft state user profile soft state mail map user 
+essentially node pushes soft state corresponding hard state new user managers responsible soft state 
+reconstruction step process completely distributed unsynchronized 
+step occurs immediately third round membership reconfiguration 
+node compares previous acm transactions computer systems vol 
+august 
+manageability availability performance porcupine current user maps identify buckets having new assignments 
+node considers bucket assignment new bucket previous epoch id match current epoch id recall user map associates nodes hash buckets relevant soft state belonging node corresponding users hash buckets assigned node 
+node proceeds independently second step 
+node identifying new bucket assignment sends new manager bucket soft state corresponding hard state bucket maintained sending node 
+node locates mailbox fragments belonging users newly managed bucket requests new manager include node users mail maps 
+second node scans portion stored user profile database sends new manager pertinent user profiles 
+user database replicated replica largest ip address functioning transfer 
+hard state stored node bucketed directories quickly reviewed collected change corresponding bucket user map 
+cost rebuilding soft state intended constant node long term regardless cluster size reason 
+cost reconfiguration node failure roughly proportional total number mailboxes discovered node disk scan far expensive operation entire reconfiguration process 
+second number mailboxes discovered determined number user map assuming mailboxes evenly distributed hash bucket 
+third number user map single node crash recovery inversely proportional cluster size node manages cluster size user map 
+consequently cost reconfiguration node failure inversely proportional cluster size 
+frequency reconfiguration increases linearly cluster size assuming independent failures factors cancel reconfiguration cost node time remains regardless cluster size 
+effects configuration changes mail sessions node fails smtp pop imap sessions hosted node abort unavoidable result difficulty tcp session fail 
+abortion smtp sessions transparent senders recipients delay possible duplicate message delivery remote retry delivery 
+aborted pop imap sessions users reconnect cluster 
+smtp session hosted node store messages failed node node storage succeeds 
+node failure masked remote server sender recipient mail 
+pop imap session hosted node may report error tries read message failed node acm transactions computer systems vol 
+august 
+yasushi saito session continues running able retrieve messages stored nodes 
+combination mail map update mechanism section automatic reconfiguration mechanism user mail map consistent respect mailbox fragments locations introducing complexity solutions atomic transactions gray reuter 
+argue sessions affected node failures keep mail maps consistent considering different failure scenarios 
+node fails just message stored new mailbox fragment disk corresponding mail map updated 
+case causes problem copy message node failure 
+replication service section ensures copy message available 
+node fails just message mailbox fragment disk deleted corresponding mail map updated 
+node periodically scans mail maps manages removes dangling links nodes membership 
+links restored failed nodes rejoin cluster 
+node stores message new mailbox fragment disk corresponding user manager node fails mail map updated 
+message discovered disk scan algorithm runs membership reconfiguration added mail map new user manager node 
+node deletes message mailbox fragment disk corresponding user manager node fails mail map updated 
+argument applied new user manager receive result disk scan excludes deleted mailbox 
+node addition porcupine automatic reconfiguration procedure easy add new node system 
+system administrator simply installs porcupine software node 
+software boots noticed membership protocol added cluster 
+nodes see configuration change upload soft state new node 
+host accessible outside porcupine administrator may need update border naming routing services 
+occasionally background service replicated email messages user database entries nodes cluster 
+summary porcupine dynamic reconfiguration protocols ensure mail service available user allow reconstruction distribution soft state constant overhead 
+client activities current implementation run manually 
+acm transactions computer systems vol 
+august 
+manageability availability performance porcupine affected minimally failure ensuing reconfiguration process soft state restored correctly regardless ongoing client activities 
+section discusses maintenance hard state 
+
+replication availability section describes object replication support porcupine 
+previous systems fox porcupine defines semantics tuned application requirements 
+permits careful balance behavior performance 
+porcupine replicates user database mailbox fragments ensure availability 
+replication service provides guarantees behavior internet electronic mail protocols 
+example internet email may arrive order occasion may reappear deleted 
+anomalies artifacts nature internet mail protocols 
+porcupine loses electronic mail nodes mail replicated lost 
+replication properties general unit replication porcupine object simply named byte array corresponds single mail message profile single user 
+detailed view porcupine replication strategy includes high level properties update 
+update initiated replica 
+improves availability updates need await revival primary 
+strategy eliminates requirement failure detection precise need agreement primary node 
+eventual consistency 
+periods failure replicas may inconsistent short periods time conflicts eventually resolved 
+recognize single copy consistency gray reuter strong requirement internet services replica inconsistencies tolerable long resolved eventually 
+strategy improves availability accesses may occur reconciliation periods network partitioning 
+total update 
+update object totally overwrites object 
+email messages rarely modified reasonable restriction greatly simplifies update propagation replica reconciliation keeping overheads low 
+lock free 
+distributed locks 
+improves performance availability simplifies recovery 
+ordering loosely synchronized clocks 
+nodes cluster loosely synchronized clocks mills order operations replicated objects 
+acm transactions computer systems vol 
+august 
+yasushi saito update attribute combined fact porcupine node may act delivery agent means incoming messages blocked assuming node remains functional 
+delivery agent crashes delivery initiating host exists outside porcupine reconnect porcupine node 
+candidate mailbox manager fails delivery delivery agent select candidate succeeds 
+behaviors potential anomalous outcome failure occurs message written stable storage acknowledgment delivered user may receive message 
+believe reasonable price pay service continually available 
+eventual consistency attribute means earlier updates object may disappear replica inconsistencies reconciled 
+behavior confusing believe tolerable alternatives block access data replica contents inconsistent 
+practice eventual consistency email means message deleted may temporarily reappear 
+visible users attempt retrieve mail temporary inconsistency expected seconds 
+lock free attribute means multiple mail reading agents acting behalf user time may see inconsistent data temporarily 
+pop imap protocols require consistent outcome multiple clients concurrently accessing user mail 
+user profile database replicated mechanisms mail messages 
+possible client perceive inconsistency replicated user database entry node recovery 
+operations globally ordered loosely synchronized clocks sequence updates user profile database eventually converge consistent state 
+assume maximum clock skew nodes interarrival time externally initiated order dependent operations create user change password 
+practice clock skew usually order tens microseconds mills order dependent operations separated networking latencies milliseconds 
+wall clocks lamport clocks lamport synchronize updates wall clocks order events logically related external agent contacting nodes cluster serially 
+describe replication manager email operations replicas details updating replicated objects 
+replication manager replication manager running host exchanges messages nodes ensure replication consistency 
+manager oblivious format replicated object define specific policy regarding replicas created 
+replication manager acm transactions computer systems vol 
+august 
+manageability availability performance porcupine exports interfaces creation deletion objects higher level delivery retrieval agents interfacing specific managers responsible maintaining disk data structures 
+replication manager coordinate object reads mail retrieval proxies free pick replica read directly 
+sending retrieving replicated mail user mail replicated user mail map reflects set nodes fragment replicated 
+example alice fragments replicated nodes replicated nodes mail map alice records 
+retrieve mail retrieval agent contacts loaded node replicated mailbox fragment obtain complete mailbox content alice 
+create new replicated object occur delivery mail message agent generates object id set nodes object replicated 
+object id simply opaque unique string 
+example mail messages object id form type username type type object mail message username recipient unique mail identifier mail header 
+updating objects object id intended replica set delivery retrieval agent initiate update request object sending update message replica manager set 
+delivery agent update corresponds storing message 
+retrieval agent update corresponds deletion modification message 
+receiving replica acts update coordinator propagates updates peers 
+replication manager node maintains persistent update log record updates objects accepted replica peers maintaining object 
+entry update log tuple timestamp objectid target nodes timestamp tuple wallclock time nodeid wallclock time time update accepted coordinator named nodeid 
+timestamp uniquely identifies totally orders update 
+target nodes set nodes receive update 
+remaining nodes set peer nodes acknowledged update 
+initially remaining nodes equal target nodes pruned coordinator acknowledgments arrive 
+coordinating replication manager works log attempting push updates nodes remaining nodes field entry 
+contact remaining node manager sends replica contents log entry peer 
+updates acm transactions computer systems vol 
+august 
+yasushi saito objects total multiple pending updates object peer synchronized discarding newest timestamp 
+pending update exists update request newest object peer adds update log modifies replica sends acknowledgment coordinator 
+coordinator receives acknowledgments replica peers notifies participants update including completion update 
+participants retire completed update entry log freeing log space waiting sufficiently long period filter updates arrive order 
+wait period minutes prototype set sum maximum clock skew nodes maximum network packet lifetime time long packets reach destination 
+retirement mechanism variant messaging algorithm synchronized clocks liskov 
+coordinator fails responding initiating agent agent select coordinator 
+updates new object case new mail message initiating agent create new object select new possibly overlapping set replicas 
+helps ensure degree replication remains high presence failed coordinator 
+design may deliver message user 
+duplicate delivery problem fairly common internet today may happen network transmission failure simply user pressing send button twice 
+message duplication due node failures far rarer duplication due causes 
+coordinators participants force update log disk applying update ensure replicas remain consistent 
+optimization replica receiving update message remaining node need force log applying update 
+replicas date sole remaining node current update 
+practice means coordinator forces log way replication 
+coordinator fail responding initiating target update applied replicas remaining replica coordinator bring date 
+multiple replicas coordinator case replicas discard duplicate updates comparing timestamps 
+absence node failures update log remains relatively small reasons 
+log contains update object 
+second updates propagated quickly logged deleted soon replicas acknowledge 
+timely propagation narrows window inconsistency perceived 
+node fails long time update logs nodes grow indefinitely 
+prevent updates remain update log week 
+node restored time reenter acm transactions computer systems vol 
+august 
+manageability availability performance porcupine porcupine cluster new node recovering 
+node deleting hard state system 
+summary porcupine replication scheme provides high availability consistency semantics weaker strict single copy consistency strong service internet clients protocols 
+inconsistencies occur short lived update propagation latency functioning hosts internet standards 
+
+dynamic load balancing porcupine uses dynamic load balancing distribute workload nodes cluster order maximize throughput 
+mentioned porcupine clients select initial contact node deliver retrieve mail 
+contact node uses system load balancing services select best set nodes servicing connection 
+developing system load balancer goals 
+fine grained making decisions granularity message delivery 
+second support heterogeneous cluster nodes equivalent power 
+third automatic minimize magic constants thresholds tuning parameters need manually adjusted system evolves 
+fourth throughput primary goal needs resolve tension load affinity 
+specifically order best balance load messages stored idle nodes 
+expensive store retrieve message nodes contain mail message recipient 
+scheduling reduces amount memory needed store mail maps increases sequentiality disk accesses decreases number internode rpcs required read write delete message 
+porcupine delivery retrieval proxies load balancing decisions 
+centralized load balancing node service node keeps track load nodes decisions independently 
+load information collected ways collect liveness information section side effect rpc operations rpc request reply packet contains load information sender virtual ring load information aggregated message passed ring 
+approach gives timely possibly narrow view system load 
+second approach ensures node eventually discovers load node 
+load node components boolean indicates disk full integer number pending remote procedure calls require disk access 
+node full disk considered loaded operations read delete existing messages 
+acm transactions computer systems vol 
+august 
+yasushi saito tion best exclude diskless operations load keep stale quickly 
+disk operations slow node pending disk operations stay loaded time 
+delivery proxy uses load information select best node store message tend distribute user mailbox nodes 
+result broad distribution reduce system throughput reasons mentioned earlier 
+consequently define user spread spread soft upper bound number different nodes user mail stored 
+bound soft permit delivery agent violate spread nodes storing user mail responding 
+mailbox consists fewer fragments spread limit delivery proxy adds random set nodes message arrival candidate set 
+adding random set nodes helps system avoid herd behavior herd nodes choose node idle moment instantly overloading node moment mitzenmacher 
+shown section spread limiting load balancer substantial effect system throughput relatively narrow spread 
+benefit user mail relatively nodes nodes change entirely time user retrieves deletes mail server 
+
+system evaluation section presents measurements porcupine prototype running synthetic workloads node cluster 
+characterize system scalability function size terms key requirements performance 
+show system performs single node scales linearly additional nodes 
+show system outperforms statically partitioned configuration consisting cluster standard smtp pop servers fixed user mapping 
+availability 
+demonstrate replication reconfiguration low cost 
+manageability 
+show system responds automatically rapidly node failure recovery continuing provide performance 
+show incremental hardware improvements automatically result systemwide performance improvements 
+lastly show automatic dynamic load balancing efficiently handles highly skewed workloads 
+platform workload porcupine system runs linux pcs system services node executing part multithreaded process 
+measurements ran cluster nodes connected gb second ethernet hubs 
+expected large cluster system acm transactions computer systems vol 
+august 
+manageability availability performance porcupine contains different hardware configurations mhz machines mb memory gb scsi disks mhz machines mb memory gb ide disks mhz machines mb memory gb ide disks 
+key attributes system implementation follow system runs linux uses ext file system storage ts 
+system consists major components written 
+total system size lines code yielding mb executable 
+mailbox fragment stored files regardless number messages contained 
+file contains message bodies contains message index information 
+user map contains buckets 
+mailbox fragment files grouped stored directories corresponding hash user names ann hash value fragment files ann ann idx 
+design allows discovery mailbox fragments belonging particular hash bucket critical operation membership reconfiguration performed single directory scan 
+node memory consumed soft user profile state 
+current implementation user entry takes bytes plus bytes mailbox fragment 
+example system users running nodes mb node devoted user soft state 
+developed synthetic workload evaluate porcupine users site receive email drive system overload condition 
+design workload generator model traffic patterns observed departmental mail servers 
+specifically model mean message size kb fairly fat tail mb 
+mail delivery smtp accounts transactions mail retrieval pop accounting 
+smtp session sends message user chosen population zipf distribution noted text 
+purposes comparison measure tightly configured conventional mail system users services statically partitioned nodes cluster 
+configuration run smtp pop redirector nodes front 
+back run modified versions widely sendmail ids servers 
+front nodes accept smtp pop requests route back nodes way hash user name 
+keep front ends bottleneck determined empirically need run front back ends 
+tables graphs follow include front ends count system size 
+priori knowledge workload defined hash function distribute users perfectly back nodes 
+optimize configuration disabled acm transactions computer systems vol 
+august 
+yasushi saito fig 
+
+throughput scales number hosts 
+graph shows porcupine sendmail system scale respect cluster size 
+security checks including user authentication client domain name lookup system log auditing 
+porcupine conventional system defined user population size equal times number nodes cluster users node configuration 
+database distributed porcupine authentication performed conventional platform size user base nearly irrelevant measurements 
+pop session selects user zipf distribution collects deletes messages awaiting user 
+porcupine configuration generator initiates connection porcupine node selected random nodes 
+conventional configuration generator selects node random front nodes 
+default load generator attempts saturate cluster probing maximum throughput increasing number outstanding requests fail complete seconds 
+point generator reduces request rate resumes probing 
+demonstrate performance showing maximum number messages system receives second 
+message deliveries counted message retrievals occur part workload 
+really reflects number messages cluster receive write read delete second 
+error margin smaller confidence interval values sections 
+scalability performance shows performance system function cluster size 
+graph shows different configurations message replication message replication message replication nvram logs conventional configuration sendmail 
+replicates porcupine replication case outperforms conventional sendmail 
+difference primarily due conventional system temporary files excessive process forking lock files 
+effort believe conventional system scale porcupine replication 
+acm transactions computer systems vol 
+august 
+manageability availability performance porcupine table resource consumption single node disk resource replication replication cpu utilization disk utilization network send mb second mb second network receive mb second mb second systems functionally identical porcupine allows users read incoming messages nodes storing user existing messages 
+replication performance porcupine scales linearly incoming message replicated nodes 
+substantial slowdown relative case replication increases number synchronous disk writes threefold replica update coordinator log 
+worse hardware configuration log mailbox fragments share disk node 
+way improve performance replication nonvolatile ram log 
+updates usually complete propagation retire log quickly writes nvram need go disk execute memory speeds 
+machines nvram installed simulate nvram simply keeping log standard memory 
+shown nvram improves throughput throughput half case system twice disk operations message 
+table shows cpu disk network load incurred single mhz porcupine node running peak throughput 
+configuration table indicates disk primary impediment single node performance 
+demonstrate measurements clusters nodes increased capacity 
+single mhz node ide disk scsi disks delivered throughput messages second opposed messages second ide disk 
+configured node cluster ide disk scsi disks 
+machines able handle messages second assuming nvram 
+results normalized single node throughput summarized 
+lastly measured cluster disks assumed infinitely fast 
+case system store messages disk records digests main memory 
+shows simulated system disk bottleneck achieves improvement measured system 
+point cpu bottleneck 
+porcupine replication performs comparatively better real system 
+high performance observed node clusters due internode rpcs function calls happens small clusters 
+acm transactions computer systems vol 
+august 
+yasushi saito fig 
+
+summary single node throughput variety configurations 
+fig 
+
+throughput system configured infinitely fast disks 
+balanced nodes network clearly bottleneck 
+case message travels network times internet delivery agent mailbox manager retrieval agent internet 
+average message size kb gb second network handle messages second 
+single disk loaded node able handle messages second roughly nodes saturate network process messages day 
+messages replicated nodes network handle fewer messages message copied additional time replica messages second messages day 
+throughput numbers measured faster disks level performance achieved nvram nodes nodes nvram 
+messages handled increasing aggregate network bandwidth 
+address issue section 
+load balancing previous section demonstrated porcupine performance assuming uniform workload distribution homogeneous node performance 
+practice workloads uniformly distributed speeds cpus disks nodes differ 
+create substantial management challenges system administrators reconfigure system manually adapt load configuration imbalance 
+acm transactions computer systems vol 
+august 
+manageability availability performance porcupine fig 
+
+replicated throughputs node system various degrees workload skew 
+graph shows close view throughputs uniform workload 
+section shows porcupine automatically handles workload skew heterogeneous cluster configuration 
+adapting workload skew 
+shows impact porcupine dynamic spread limiting load balancing strategy throughput function workload skew node configuration single slow disk 
+replicated cases shown 
+skew axis reflects inherent degree balance incoming workload 
+skew equals zero recipients chosen hash distributes uniformly buckets 
+skew recipients chosen hash single user map bucket corresponding highly workload 
+graphs compare random static dynamic load balancing policies 
+random policy labeled graph simply selects host random store message received effect smoothing nonuniformity distribution 
+static spread policy shown lines labeled selects node hash user name spread nodes respectively 
+dynamic spread policy porcupine selects nodes storing mailbox fragments recipient 
+shown graph 
+spread value controls maximum number nodes absence failure store single user mail 
+acm transactions computer systems vol 
+august 
+yasushi saito message receipt size current mail map recipient smaller maximum spread porcupine increases spread choosing additional node selected randomly cluster 
+static spread manages affinity lead load activity concentrated just nodes 
+static spread corresponds sendmail configuration users statically partitioned different machines 
+effect shown graph conventional sendmail configuration sm 
+contrast dynamic spread policy continually monitors load adjusts distribution mail available machines spread 
+case new mailbox manager chosen user time mailbox emptied allowing system repair affinity driven imbalances necessary 
+graphs show random dynamic policies insensitive workload skew static policies poorly workload evenly distributed 
+random performs worse dynamic inability balance load tendency spread user mail machines 
+static policies larger spread sizes perform better skewed workload utilize larger number machines mail storage 
+uniform workload smaller spread sizes perform better respect affinity 
+key exception difference spread spread 
+spread system unable balance load 
+spread load balanced throughput improves 
+widening spread improves balance slightly substantially 
+reason demonstrated previously eager follows system likelihood host overloaded selecting loaded spread hosts yield placement decision loaded host probability chance making decision avoiding overloaded host improves exponentially spread 
+nearly perfectly balanced system small small yields choices 
+effect loss affinity larger spread sizes pronounced linux ext file system creates deletes files synchronous directory modification ts 
+operating systems load balancing policies larger spread sizes penalized increased frequency directory operations 
+performance uniform workload 
+shows system throughput uniform workload 
+interesting see porcupine load balancing service improve system performance workload uniform 
+perform difference statistically insignificant 
+emulates statically partitioned system performs worse rest lack load balancing 
+uniform workload loadbalancing service improves performance mainly avoiding nodes undergoing periodic buffer flush activities stall acm transactions computer systems vol 
+august 
+manageability availability performance porcupine fig 
+
+performance improvement porcupine load balancing mechanism replication replication 
+axis number nodes fast disks 
+bottom bar shows performance baseline system particular loadbalancing mechanism height bar shows relative improvement baseline system 
+disk operations seconds 
+perform worse different reasons 
+performs worse lacks load balancing ignores message affinity 
+performs worse lacks load balancing tends overload nodes happen host users 
+hand host users multiple nodes load balancer able split workload fine grain keep load nodes low 
+adapting heterogeneous configurations 
+mentioned previous section easiest way improve throughput configuration increase system disk capacity 
+done adding machines adding faster disks machines 
+statically partitioned system necessary upgrade disks machines ensure balanced performance improvement 
+contrast porcupine functional homogeneity automatic load balancing improve system throughput users simply improving throughput machines 
+system automatically find exploit new resources 
+shows absolute performance improvement node configuration adding fast scsi disks mhz nodes replication 
+improvement porcupine shows dynamic load balancing mechanism fully utilize added capacity 
+spread slightly outperforms spread policy include faster nodes spread 
+nodes times faster rest case setting spread size needs increased 
+hand described section larger spread sizes tend reduce system efficiency 
+spread size parameter needs revisited system heterogeneous 
+contrast statically partitioned random message distribution policies demonstrate little improvement additional disks 
+acm transactions computer systems vol 
+august 
+yasushi saito fig 
+
+reconfiguration timeline replication 
+fig 
+
+reconfiguration timeline replication 
+assignment improves performance subset users 
+failure recovery described previously porcupine automatically reconfigures nodes fail restart 
+figures depict annotated timeline events occur failure recovery nodes node system replication 
+figures show behavior 
+nodes fail throughput drops things occur 
+system goes reconfiguration protocol increasing load 
+reconfiguration smtp pop sessions involve failed node abort 
+seconds system determines new membership throughput increases remaining nodes take failed ones 
+failed nodes recover seconds rejoin cluster time throughput starts rise 
+case acm transactions computer systems vol 
+august 
+manageability availability performance porcupine fig 
+
+time breakdown failure recovery procedure 
+timeline scale 
+put increases back level immediately 
+replication throughput rises slowly failed nodes reconcile concurrently serving new requests 
+shows timing events take place reintegration node node cluster 
+seconds spent reconfigure membership recover soft state 
+seconds spent membership protocol 
+ongoing client sessions blocked period computational networking overheads membership protocol minimal 
+seconds spent recover soft state 
+ongoing client sessions existing nodes affected period soft state recovery affects nodes limited way ms scan user profile ms scan mailbox fragments 
+hand needs scan entire email spool directories discover mailboxes fill nodes mail maps step 
+addition needs receive assigned portions user profile database mail map nodes steps 
+notice cost step orders magnitude larger steps combined depends node disk capacity number nodes cluster 
+analysis demonstrates porcupine failure recovery scales cluster size 
+
+limitations porcupine architecture implementation designed run large clusters 
+aspects design acm transactions computer systems vol 
+august 
+yasushi saito environment deployed may need system grows larger configurations 
+porcupine communication patterns flat node talk node 
+gb second heavily switched network able serve messages second messages day replication 
+replication network handle messages second messages day 
+faster networks network topology aware load balancing strategies required continue scaling 
+membership protocol may require adjustments system grows 
+presently membership protocol coordinator receiving acknowledgment packets participants short period time 
+participants currently insert randomized delay responding smooth packet bursts receiver need evaluate works large scale 
+experimenting hierarchical membership protocol eliminates problem 
+time may replace porcupine current protocol 
+strategy reconstructing user profile soft state may need revisited systems single user manager manages millions users users machines 
+transferring user profile soft state bulk modify system fetch profile entries cache 
+reduce node recovery time possibly expense making user lookups slower 
+
+related prototypical distributed mail service grapevine schroeder wide area service intended support users 
+grapevine users statically assigned user visible registries 
+system scales addition new registries having sufficient power handle populations 
+grapevine administrators challenged balance users mail servers 
+contrast porcupine implements flat name space managed single cluster automatically balances load 
+grapevine provided replicated user database optimistic replication replicate mail messages 
+porcupine uses optimistic replication mail user database 
+described earlier contemporary email cluster systems deploy storage nodes partition user population statically distributed file system protocol 
+demonstrate static approach difficult manage scale limited fault tolerance 
+numerous fault tolerant clustered computing products described past vogels ibm sun microsystems 
+clusters designed specifically database fail limited scalability require proprietary hardware software 
+systems porcupine goal acm transactions computer systems vol 
+august 
+manageability availability performance porcupine scale hundreds thousands nodes standard shelf hardware software 
+fox describe infrastructure building scalable network services cluster computing 
+introduce data semantics called base basically available soft state eventual consistency offers advantages web search document filtering applications 
+shares goals building scalable internet services semantics weaker traditional databases 
+fox observe acid semantics gray reuter may strong target applications define data model equal model system clients 
+base semantics support write intensive applications requiring persistent data 
+services distributed replicated uniformly nodes greater scalability statically partitioned function 
+large body exists general topic load sharing targeted mainly systems long running cpu bound tasks 
+example eager show effective load sharing accomplished simple adaptive algorithms random probes determine load 
+dahlin mitzenmacher propose class load distribution algorithms random spread nodes selection spread cached load information 
+results show spread optimal wide variety situations homogeneous cluster 
+context clusters web commercial products automatically distribute requests cluster nodes typically form round robin load dispatching cisco systems networks resonate platform computing 
+pai describe locality aware request distribution mechanism cluster web services 
+front node analyzes request content attempts direct requests optimize buffer cache back nodes balancing load 
+porcupine uses load information part distribute incoming mail traffic cluster nodes 
+previous load balancing studies assumed complete independence incoming tasks balance write traffic message affinity consideration 
+transparent automatic reconfiguration studied context disks networks 
+autoraid wilkes disk array moves data disks automatically response failures usage pattern changes 
+autonet schroeder local area networking system automatically reconfigures response router failures 
+porcupine uses replicated user maps partition user management task nodes 
+technique called hash routing attracted wide attention web serving pai ross karger operating system function distribution anderson feeley thiel 
+porcupine system combines group membership protocol acm transactions computer systems vol 
+august 
+yasushi saito hash routing node determine exact change hash map 
+replication mechanism porcupine viewed variation optimistic replication schemes timestamped updates pushed peer nodes support replication agrawal wuu bernstein 
+porcupine total object update property allows single timestamp object timestamp matrices order updates 
+addition updates idempotent porcupine retire updates aggressively 
+differences porcupine approach replication simpler efficient scale 
+file systems scalability fault tolerance goals similar porcupine anderson birrell lee thekkath liskov thekkath 
+systems porcupine uses semantics various data structures maintains exploit special properties order increase performance decrease complexity 
+
+described architecture implementation performance porcupine scalable mail server 
+shown porcupine meets primary goals manageability 
+porcupine automatically adapts changes configuration workload 
+porcupine masks heterogeneity providing seamless system growth time latest technology components 
+availability 
+porcupine continues deliver service clients presence failures 
+system software detects recovers automatically failures integrates recovering nodes 
+performance 
+porcupine single node performance competitive systems throughput scales linearly number nodes 
+experiments show system find exploit added resources benefit 
+porcupine achieves goals combining key architectural techniques principle functional homogeneity automatic reconfiguration dynamic transaction scheduling replication 
+hope construct deploy evaluate configurations larger powerful ones described 
+acknowledgments eric hoffman david becker members porcupine project valuable discussions comments porcupine design 
+anonymous reviewers helping improve 
+acm transactions computer systems vol 
+august 
+manageability availability performance porcupine agrawal abbadi 
+epidemic algorithms replicated databases 
+th acm symp 
+princ 
+database systems tucson az may pp 
+
+acm 
+anderson dahlin neefe patterson roselli wang 
+serverless network file systems 
+th symposium operating systems principles copper mountain dec 
+acm 
+birrell hisgen mann swart 
+echo distributed file system 
+technical report september compaq systems research center 
+
+rfc dns support load balancing 
+www cis ohio state 
+edu rfc rfc html 
+chankhunthod danzig neerdaels schwartz worrell 
+hierarchical internet object cache 
+winter usenix technical conference jan 
+chen lee gibson katz patterson 
+raid high performance reliable secondary storage 
+acm computing surveys june 
+
+highly scalable electronic mail service open systems 
+symposium internet technologies systems monterey ca dec 
+usenix 
+christian schmuck 
+agreeing processor group membership asynchronous distributed systems 
+technical report cse uc san diego 
+cisco systems 
+
+local director 
+www cisco com warp public index 
+html 
+crispin 
+rfc internet message access protocol version rev 
+www cis ohio state edu rfc rfc html 
+dahlin 
+interpreting stale load information 
+th international conference distributed computing systems icdcs austin tx may 
+ieee 
+
+clusters help allocate computing resources 
+www washington edu tech home windows issue clusters html 
+eager lazowska zahorjan 
+adaptive load sharing homogeneous distributed systems 
+ieee trans 
+software engineering may 
+feeley morgan karlin levy thekkath 
+implementing global memory management workstation cluster 
+th symposium operating systems principles copper mountain pp 
+
+acm 
+networks 
+
+switch 
+www com 
+html 
+fox gribble chawathe brewer gauthier 
+cluster scalable network services 
+th symposium operating systems principles st malo france oct pp 
+
+acm 
+gray reuter 
+transaction processing concepts techniques 
+morgan kaufmann 
+ibm 
+
+high availability cluster multi processing aix 
+available www rs ibm com doc link en doc lib index html 
+karger lehman leighton panigrahy levine lewin 
+consistent hashing random trees distributed caching protocols relieving hot spots world wide web 
+symposium theory computing el paso tx pp 
+
+acm 
+levy strecker 
+closely coupled distributed system 
+acm trans 
+computer systems 
+lamport 
+time clocks ordering events distributed system 
+communications acm july 
+lee thekkath 
+petal distributed virtual disks 
+th international conf 
+architectural support prog 
+lang 
+operating systems cambridge ma oct pp 
+
+acm 
+acm transactions computer systems vol 
+august 
+yasushi saito liskov ghemawat gruber johnson shrira williams 
+replication harp file system 
+th symposium operating systems principles pacific grove ca oct pp 
+
+acm 
+liskov shrira wroclawski 
+efficient messages synchronized clocks 
+acm trans 
+computer systems 
+mills 
+rfc network time protocol version 
+www cis ohio state 
+edu rfc rfc html 
+mills 
+improved algorithms synchronizing computer network clocks 
+sigcomm london uk sept pp 
+
+acm 
+mitzenmacher 
+useful old information 
+technical report feb compaq systems research center 
+myers rose rfc post office protocol version 
+www cis 
+ohio state edu rfc rfc html 
+pai aron banga druschel zwaenepoel 
+locality aware request distribution cluster network servers 
+th international conf 
+architectural support prog 
+lang 
+operating systems san jose ca oct pp 
+acm 
+platform computing 
+
+lsf 
+www platform com 
+postel 
+rfc simple mail transfer protocol 
+www cis ohio state edu rfc rfc html 
+resonate 
+
+central dispatch 
+www resonate com products central dispatch 
+resonate schroeder 
+automatic reconfiguration autonet 
+th symposium operating systems principles pacific grove ca pp 
+
+acm 
+schroeder birrell needham 
+experience grapevine growth distributed system 
+acm transactions computer systems february 
+thiel 
+vax vms distributed lock manager 
+digital technical journal 
+sun microsystems 
+
+sun cluster architecture 
+available www sun com cluster wp clusters arch pdf 
+thekkath mann lee 
+frangipani scalable distributed file system 
+th symposium operating systems principles st malo france oct pp 
+
+acm 
+ts 
+ext home page 
+web mit edu www linux ext html 
+ross 
+cache array routing protocol 
+internet draft 
+www ircache net cache icp carp txt 
+vogels birman massa short vert barrera gray 
+design architecture microsoft cluster service 
+th international symposium fault tolerant computing munich germany june pp 
+
+ieee 
+wilkes golding staelin sullivan 
+hp autoraid hierarchical storage system 
+th symp 
+operating systems principles copper mountain dec pp 
+
+acm 
+wuu bernstein 
+efficient solutions replicated log dictionary problems 
+proceedings rd symposium principles distributed computing vancouver canada august pp 
+
+acm 
+received january accepted june acm transactions computer systems vol 
+august 

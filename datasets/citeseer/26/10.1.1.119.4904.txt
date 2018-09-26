@@ -1,0 +1,441 @@
+desirable reasons clarity portability efficiency write parallel programs number processes independent number available processors 
+modern operating systems support process address space overhead creating synchronizing kernel processes high 
+runtime environments implement lightweight processes threads user space approach usually results second class status threads making difficult impossible perform scheduling operations appropriate times current thread blocks kernel 
+addition lack common assumptions may difficult parallel programs library routines dissimilar thread packages communicate synchronize access shared data 
+describe set kernel mechanisms conventions designed accord class status user level threads allowing reasonable way traditional kernel provided processes leaving details implementation userlevel code 
+key features approach shared memory asynchronous communication kernel user software interrupts events require action part user level scheduler scheduler interface convention facilitates interactions user space dissimilar kinds threads 
+incorporated mechanisms psyche parallel operating system implement different kinds user level threads 
+argue approach terms flexibility performance 
+supported part nsf number ccr nsf iip number cda darpa nasa graduate research parallel processing 
+class user level threads brian marsh michael scott thomas leblanc evangelos markatos computer science department university rochester rochester ny marsh scott leblanc markatos cs rochester edu 
+desirable reasons clarity portability efficiency write parallel programs number user processes threads independent number available processors 
+processes provided kernel represent user level threads approach important disadvantages semantic inflexibility 
+users want different runtime environments define threads various kinds may incompatible kernel notion process 
+environments expect thread run time coroutine scheduling distributed processes lynx 
+want build cactus stacks dynamic allocation activation records mesa 
+want customized scheduling policies priority scheduling application 
+want processes interact communication synchronization mechanisms difficult implement kernel provided operations 
+simply want create large number threads kernel support 
+poor performance 
+processes employed parallel programs sake performance just conceptual clarity overhead kernel process management important 
+kernel provided operations slower user provided operations partly overhead switching supervisor mode overhead features required applications 
+thread may may need address space priority private file descriptors signal interface 
+may may need save floating point registers context switches 
+features provided kernel unused user space incur unwarranted costs 
+overcome problems commonplace construct lightweight thread packages user space 
+packages multiplex potentially large number user defined threads top single kernel implemented process 
+limits allow user implement customized processes communication scheduling inside application 
+user level thread packages avoid kernel overhead thread operations satisfy need flexibility introduce new problems blocking system calls 
+user level thread packages require kernel provide full set non blocking system calls 
+system call performed single user level thread prevent execution runnable threads 
+kernel interfaces include nonblocking implementations important system calls particular provide large number blocking calls 
+lack coordination scheduling synchronization 
+synchronization threads address space overlapping address spaces may adversely affected kernel scheduling decisions 
+thread preempted kernel may performing operations running threads wait 
+simplest case preempted thread may hold mutual exclusion lock forcing threads spin wasting cycles block denying application fair share available cpu resources 
+generally preempted thread may performing computation threads waiting wait slowing execution 
+lack conventions sharing thread packages 
+user level thread packages program may need synchronize access data shared kind thread 
+claim premises multi model parallel programming simultaneous model parallelism different applications different pieces single application 
+spin locks easily implemented solution appropriate 
+blocking synchronization semaphores requires mechanism allows kind thread invoke scheduling operations different kind thread 
+true data abstractions code shared thread packages possible single body code invoke appropriate operations relevant kind thread 
+new problems arise user level threads recognized supported kernel 
+goal class status user level threads allowing reasonable way traditional kernel provided processes leaving details implementation user level code 
+example class status requires threads able execute blocking operations denying service peers different kinds threads separate overlapping address spaces able synchronize access shared data structures 
+definition class status necessity informal exhaustive list required characteristics threads 
+attempted provide userlevel code sort timely information scheduling options normally available kernel expectation operations reasonable kernel reasonable user space 
+section rationale approach brief overview specific mechanisms propose 
+describe mechanisms detail section 
+discuss mechanisms support note blocking system calls unix include read write open close ioctl mkdir rmdir rename link unlink stat 
+construction class user level threads section 
+discuss related section 
+implementation mechanisms production quality supports useful performance experiments report section 
+section 
+rationale approach developed part psyche parallel operating system running bbn butterfly plus multiprocessor 
+design thread mechanisms heavily influenced need support multi model parallel programming primary goal psyche 
+particular attempted ensure kernel assumptions nature threads minimized 
+example assume threads contiguous array stacks 
+similarly assume address space multithreaded want allow address space contain single kernel level process thread package able interact shared memory user level synchronization mechanisms address spaces 
+design mechanisms influenced need provide acceptable performance numa nonuniform memory access multiprocessor butterfly 
+particular high cost moving thread state numa processor motivated avoid migration possible 
+designed psyche kernel interface primarily user level thread packages application programmers 
+assume user level thread package create maintain state threads bulk short term scheduling occurs user space 
+kernel remains charge coarse grain resource allocation protection 
+maintaining thread state user space satisfy goals flexibility performance 
+userlevel thread package organize thread state way likes 
+thread operations including creation destruction synchronization context switching occur user space entering kernel 
+kernel intervention required protected operations system calls coarse grain resource allocation preemptive scheduling 
+kernel intervene execution kernel user level thread package need cooperate access information maintained 
+example kernel performs blocking system call needs identify user thread making call subsequent response directed appropriate thread 
+scheduling event detected kernel timer expiration preemption needs interrupt execution notify thread package scheduling event 
+execution thread interrupted kernel state thread saved architectural features implement context switching register windows sparc may require privileged instruction 
+architectures implement thread operations kernel trap case sparc required system call suffer excessive generality 
+location accessible thread package 
+data abstractions shared address spaces operations synchronize need access information scheduling different kinds threads 
+general observations suggest kernel access thread state information maintained thread package thread package accept scheduling interrupts kernel thread package schedulers provide standard interface 
+specifically solution kernel thread package share important data structures 
+kernel user shared data easy convey information efficiently directions synchronous communication required 
+read access kernel managed data obvious example system call needed determine current processor number process id opposite direction user writable data specify ought happen response events timer expiration 
+mechanism allows changes desired behavior occur frequently example switching threads user space 
+allowing kernel user communicate efficiently allow communicate frequently 
+kernel provides thread package software interrupts signals upcalls scheduling decision may required 
+examples include timer expiration imminent preemption commencement completion blocking system calls 
+timer interrupts support time slicing threads 
+warnings prior preemption allow thread package coordinate synchronization kernel level scheduling 
+interrupt delivered time thread blocks kernel system call non blocking default modifying replacing kernel interface provides uniform entry mechanism user level scheduler thread blocked unblocked 
+single threaded applications disable selected interrupts order blocking calls 
+operating system establishes standard interface user level schedulers provides locations list functions implement interface 
+abstractions shared thread packages invoke appropriate operations block unblock different kinds threads 
+kernel calls operations identifies kernel user data area user level code invoke depending referencing environment particular programming language thread package 
+describe mechanisms detail 
+
+mechanisms psyche kernel processes implement virtual processors execute user level threads 
+respects notion virtual processor resembles kernel implemented threads multiprocessor operating systems mach topaz taos 
+virtual processors created response system call traditional kernel implemented processes 
+obtain true parallelism application creates virtual processor address space different physical processors 
+possible create virtual processor address space processor parallel programs seldom 
+node physical machine kernel time slices virtual processors residing node 
+
+shared kernel user data structures presents kernel user data structures scheduling psyche 
+structures rooted set pseudo registers physical processor mapped read user address space static fixed address 
+pseudo registers contain identity physical processor pointers currently executing virtual processor currently active address space 
+kernel changes indicators appropriate context switching virtual processors 
+address space virtual processor pointers refer data structures writable user 
+address space data structure lies data address space created kernel address space 
+data structure contains software interrupt vectors virtual processors address space additional information relevant scheduling 
+kernel defines default action type interrupt performs appropriate vector null 
+virtual processor data structure contains bulk information required coordinate kernel user level process management 
+resides location specified user virtual processor created 
+contents pointer stack deliver software interrupts collection flags values controlling behavior interrupts pointer data structure representing current thread 
+data structure identifies scheduler routines appropriate thread contains additional thread state stack saved registers 
+software interrupts discussed detail section scheduler interfaces discussed section 
+thread data structure contains thread identifier kernel uses create link requested operation thread making request 
+thread blocking system call kernel records thread identifier notifies thread package 
+identifier kernel distinguish different calls functionality provided implicitly kernel process systems 
+system call completes kernel notifies thread package passing thread identifier parameter 
+
+software interrupts wishes deliver software interrupt psyche kernel checks virtual processor data structure see interrupts currently disabled masked 
+obtains address appropriate user level handler address space data structure address appropriate interrupt stack virtual processor data structure 
+pushes user old program counter stack pointer stack volatile registers pushes additional information needed describe interrupt sets interrupt masking flag virtual processor data structure updates kernel data read user mode pseudo registers virtual processor physical processor address space statistics 
+user data read write user mode program counter stack pointer enters user space 
+user level interrupt handler free information 
+return kernel software interrupt kernel retains information interrupt entering user space 
+kernel wishes deliver software interrupt interrupts masked queues interrupt sets flag virtual processor data structure indicating interrupts queued 
+kernel sorts queue relative importance interrupts 
+program faults example queued ahead timer expirations 
+necessary set interrupt priorities user space adding priority field software interrupt vectors stored address space data structure 
+hardware interrupts handlers software interrupts designed finish quickly 
+done necessary information interrupt stack switched different stack typical handler re enables interrupts inspects flag indicates interrupts queued 
+finds bit set gives kernel opportunity deliver queued interrupt executing system call blocks virtual processor kernel interrupt give 
+software interrupts delivered local instance kernel runs mutual exclusion user code 
+kernel sees flag indicating interrupts masked assume remain control re enters user space 
+likewise user code sees flag indicating interrupts queued assume remain virtual processor executes block interrupt system call 
+kernel delivers software interrupts moment arise provided masked queued virtual processor thread software interrupts disabled 
+software interrupts queued 
+preemption warning period preemption imminent 
+preemption interrupt desired 
+timers software interrupt stack address space software interrupt vectors shared kernel user data structures psyche thread scheduler routines thread id thread package data stack saved registers response system call 
+mechanisms suffice avoid race conditions kernel userlevel code 
+conventional device drivers deadlock avoided masking software interrupts acquiring lock resource required interrupt handler 
+partial list software interrupts psyche virtual processor initialization thread blocked kernel thread unblocked kernel signal virtual processor timer expiration imminent preemption program faults virtual processor begins execution handler initialization interrupt 
+interrupt vectors specified address space data structure exist virtual processor created 
+enters interrupt handler response timer expiration signals virtual processors various sorts faults divide zero protection violation 
+slightly complicated rules apply blocking system calls virtual processor preemption 
+system call block large amount time kernel delivers software interrupt allows user level thread package run different thread 
+operation completes kernel delivers second interrupt allows thread package reschedule thread 
+single threaded application disable scheduling hooks arranging traditional blocking calls specifying null handlers interrupts associated system calls 
+sake locality numa machine virtual processors migrate physical processors 
+notification thread unblocked kernel delivered virtual processor running physical processor received earlier notification thread blocked kernel 
+user level scheduler free move threads virtual processors address space thread packages want build migration assumption kernel interface 
+user level scheduler numa machine move threads state unusually small 
+principal blocking system call psyche rpc mechanism called protected procedure call ppc 
+ppc requests directed address space kernel chooses idle random virtual processor target address space delivers interrupt 
+kernel may may immediately deliver blocked kernel interrupt virtual processor running client thread 
+interrupt gets delivered requested operation execute processor may delayed operation executed locally allowing server virtual processor execute 
+server finishes quickly executing reply ppc system call single quantum kernel simply resumes client 
+server finish quickly kernel delivers blocked kernel interrupt client start quantum unblocked kernel interrupt server replies 
+minimize undesirable interactions scheduling user level synchronization kernel provides virtual processor minute warning prior preemption 
+user level thread packages set actual duration warning subject maximum writing value virtual processor data structure 
+indicate suffices kernel set warning flag interrupt required 
+minute flag avoid acquiring spin lock near virtual processor quantum 
+warning period exceeds maximum length critical section virtual processor usually avoid preemption holding spin lock yields processor voluntarily acquire lock warning bit set 
+software interrupts consume part minute period virtual processor reduce probability preemption masking software interrupts holding protected procedure calls subsume psyche 
+requests cast server programs 
+servers memory mapped device registers low level non blocking system calls access physical devices 
+ppc requests directed address space decided associate software interrupt vectors containing address interrupt handlers address space virtual processor 
+retrospect decision mistake implementation numa multiprocessor interrupt vector translated address local memory 
+addition different kinds threads share address space interrupts redirected handler appropriate thread package 
+lock just required software interrupt handler 
+minute warning flag provides inexpensive way user level code poll kernel determine preemption imminent 
+minute warning interrupt contrast allows virtual processor perform necessary clean actions lose processor 
+actions vary application thread package 
+application performing loosely synchronized heuristic search warning handler flush knowledge current thread globally visible blackboard 
+program uses central run queue threads minute warning save current thread queue 
+program uses separate run queues processor alternative numa machine save current thread global data structure virtual processors examine run local 
+preempted thread working important computation needs continued physical processor minute warning handler save state thread send explicit interrupt virtual processor address space prompting migrate run preempted thread 
+minute warning handler modify state locks held current thread way threads desiring acquire lock block spinning 
+guarantee fixed minute warning interval sufficient implement actions 
+result preemption possible minute warning 
+goal minute warning minimize likelihood preemption prevent entirely 
+long minute interval suffices time periodic failure deal preemption adequately significantly affect performance 
+
+scheduler interfaces thread data structure shared kernel user identifies scheduler routines block unblock current thread 
+additional fields specify operations create destroy threads require 
+purpose scheduler interface facilitate construction data abstractions shared dissimilar thread packages 
+code data atomic queue example shared thread packages thread package attempts remove item queue empty dequeue operation trace pointers pseudo registers find scheduler routines currently executing thread 
+place pointer current thread unblock routine data queue call block routine 
+thread package enqueues item find saved routine call unblocking thread thread packages lie single address space application reluctant yield processor minute warning interrupt preferring rest quantum 
+concern proved serious fairness paramount importance kernel add unused portion current quantum 
+scheduler operations invoked ordinary procedure calls 
+thread packages lie distinct overlapping address spaces unblock routine invoked ppc 
+details 
+
+putting mirroring behavior physical machine memory interrupts approach provides writers thread packages familiar model concurrent programming 
+system implementors accustomed model operating systems signal programs unix 
+day day programmers need see kernel interface assume system calls filtered thread package library language run time system 
+typical thread package employs virtual processor physical processors see 
+virtual processors share collection scheduling routines data including state user level threads 
+pseudo registers processor point data structures describing currently executing virtual processor address space 
+thread field virtual processor data structure points data thread package 
+software interrupt vectors address space data structure scheduler operation list thread data structure point scheduling routines thread package 
+virtual processor execute scheduler routines startup response program faults timers ppc requests 
+execute scheduler routines system call blocks kernel call completes 
+polling minute warning flag asking minute interrupts virtual processor arrange execute scheduler code immediately prior preemption yielding explicitly immediately resumption 
+application level available parallelism fluctuates thread package thread thread thread virtual virtual processor processor kernel thread scheduling code address space thread virtual processor pseudo pseudo pseudo regs regs regs typical psyche thread package dynamically virtual processors yield run 
+running virtual processors re awaken peers explicit signals new created arrives ppc 
+implementation thread packages top psyche especially difficult 
+packages available ported systems 
+port took month mainly uncovered kernel bugs ports took month 
+packages integrated general system cross model synchronization communication course month period 
+
+discussion returning issues enumerated section consider degree mechanisms support construction class user level threads 
+semantic flexibility 
+order provide implementors user level thread packages flexibility possible attempted minimize assumptions embodied kernel 
+particular kernel leaves space management including allocation interrupt stacks user level code thread operations implemented entirely user space 
+ensure integrity scheduling thread package kernel provides software interrupts point scheduler action required 
+experiments psyche successfully ported implemented multilisp futures uniform system tasks lynx threads heavyweight single threaded programs different thread libraries 
+performance 
+user level thread packages ability create destroy schedule synchronize threads assistance kernel keeps cost operations low 
+shared data structures allow kernel user provide information efficiently asynchronously 
+virtual processor change interrupt stack example simply changing pointer 
+psyche facility allows thread package minimize amount parameter copying protected procedure call 
+parameters arrive interrupt stack virtual processor interrupt handler stack thread perform requested operation allocates new stack interrupts 
+nonblocking system calls 
+general purpose blocked kernel interrupt attractive property providing hooks user level scheduling requiring different classes system calls blocking non blocking 
+scheduler code needed triggered automatically interrupts 
+code invokes system calls usually return right away may occasion block need check blocking 
+library routines may invoked single multithreaded applications need worry blocking non blocking calls call knowing multi threaded applications handle scheduler interrupts needed single threaded applications disable 
+existence blocked kernel interrupts means acceptable user level code trigger kernel operations implicitly mechanisms system calls 
+psyche example bus error resulting attempt call subroutine invalid address certain circumstances interpreted request ppc 
+coordination scheduling synchronization 
+minute warning mechanism avoid undesirable interactions user level synchronization kernel level scheduling 
+provides virtual processor time pursue courses action just prior preemption 
+useful singlethreaded address space order synchronize access data structures shared address spaces 
+length minute warning decision provide minute warning established dynamically 
+conventions sharing thread packages 
+standardizing interfaces user level schedulers listing entry points current scheduler known location allow user level thread packages synchronize access shared data share synchronizing code 
+threads address space invoke scheduler operations ordinary procedure calls 
+threads different address spaces invoke ppc 
+listed standard kernel user data structures scheduler routines tracing pointers known static address help required compilers linkers run time support routines 
+layout contents kernel user data structures psyche set software interrupts assuming covers interesting events 
+additional data interrupts required production quality system 
+key point software interrupts allow user level thread package establish scheduling policies kernel user shared data permits fast asynchronous communication kernel interface allows user level thread package control behavior software interrupt system 
+
+related mechanisms support firstclass user level threads purposes earlier systems 
+example shared data kernel user new user structure dot unix bsd readable user space contains information current process implement machine dependent mechanisms signal trampoline 
+unix user structure shared processes writable user mode convey information thread package kernel 
+part project new york university proposed set parallel programming extensions unix kernel interface including support user level scheduling 
+particular describe new meta system call provides asynchronous wrapper existing blocking calls quantum extending mechanism designed avoid preemption critical sections 
+meta system call specifies unix system call perform provides additional return arguments indicating call completed immediately announced signal 
+goal mechanism admit asynchronous system calls introducing small change kernel interface possible maintaining compatibility existing unix programs 
+temporary non preemption mechanism employs counter user space location known kernel 
+entering critical section user level code increment counter 
+reason kernel refrain preempting process counter non zero 
+subtracts time spent normal quantum process quantum 
+mechanism suffices avoid performance problems due preemption fine grain critical sections 
+may cheaper minute warning incurs overhead extra clock interrupt process critical section normal quantum 
+ability request temporary quantum suffice program requires asynchronous notification trigger explicit action 
+university washington anderson explored user level scheduling context topaz operating system dec src firefly multiprocessor workstation uma machine :10.1.1.13.9310
+rely software interrupts kernel provide user level thread packages appropriate scheduling hooks mechanisms differ respects mechanisms address problems considered including page faults simulation traditional kernel threads 
+address space anderson maintain pool virtual processors called scheduler activations kernel 
+scheduler activation preempted blocks kernel kernel freezes state sends new activation pool user space 
+new activation running activations address space examine state old activation 
+kernel reclaims old activations returning pool explicitly notified user level scheduler state longer required 
+running uma machine anderson reasonably recover preemption critical sections avoid 
+activation preempted physical processor immediately preempt activation second processor send new activation user space second processor passing old activations arguments 
+mechanism obviates need worry accomplished minute interval 
+requires address space multi threaded running processor time wants handle preemption interrupts 
+requires application move threads processors wants clean state preempted thread completing critical section 
+requirements restrictive environment scheduler activations designed problematical psyche 
+order write multi model parallel programs want allow single threaded application component receive preemption interrupts synchronize share data application components 
+numa machine want able reach clean point preemption time requiring thread migration 
+mechanisms discussed allow user programs control scheduling behavior 
+black proposed programs provide operating system scheduler hints 
+describes set system calls mach allow virtual processor mach thread suggest kernel de scheduled possession processor handed specified virtual processor 
+calls example yield control spinning lock hope holder lock run pass control holder name known 
+scheduler activations issue preemption critical sections handled detection recovery difference lies delaying recovery thread waits lock letting thread take responsibility solving problem 
+efficient recovery depends cheap migration 
+various approaches dealing preemption principally motivated unpredictable nature kernel scheduling 
+need special mechanisms deal preemption machine shared physical partitions time slicing 
+processor partitioning application receives set dedicated processors relatively long period time preemption reallocate processors medium term scheduling 
+processor partitioning may preferred scheduling policy selfcontained compute intensive parallel programs particularly machines large numbers processors 
+effective processor partitioning may difficult implement boundaries programs poorly defined large multi model applications small number processors allocate 
+processor partitioning may waste cycles applications fail balance computation evenly processes 
+cases mechanism avoid preemption minute warning attractive alternative 
+user level scheduling cooperation kernel scheduler aspect multi model parallel programming 
+general problem addressed part presto agora programming environments washington cmu respectively 
+presto unusually flexible user level thread package 
+constructed object oriented style internal structure users plug wide variety process communication abstractions 
+suffers standard problems user level thread packages traditional operating system multi model programs span languages address spaces performance suffer blocking kernel preemption 
+agora collection libraries interface compilers allow users connect distributed programs stylized shared memory abstractions rpc stub generator allows users connect programs message passing abstraction 
+agora built top mach uses mach kernel implemented threads 
+
+performance implications goals flexibility performance user level threads 
+achieve acceptable performance features provided thread package cheap frequently 
+section argue system providing kernel support class userlevel threads perform better system kernel implemented processes system employing conventional user level thread packages 
+performance figures derived implementation psyche bbn butterfly plus multiprocessor contains mc processors clocked mhz 
+experiments quantify performance advantages class user level threads kernel processes conventional user level threads 
+
+comparison kernel implemented processes widely recognized kernel implemented processes inherently expensive threads 
+difference attributed trap overhead degree functionality designed process abstraction meant meet needs disparate applications 
+resulting difference context switch time substantial 
+weiser demers hauser report context switch time user level threads portable common runtime sparc workstation 
+context switch time thread package psyche experiments 
+anderson reports time fastthreads package processor :10.1.1.13.9310
+comparable times kernel implemented processes order magnitude slower case psyche butterfly topaz 
+depending frequency synchronization threads impact disparity application performance large 
+assess impact context switch time performance measured running time applications different implementations user level threads user level context switch mechanism kernel processes kernel scheduling 
+application performs gaussian elimination element matrix 
+second sorts array elements 
+application run physical processors threads control 
+implementation kernel processes virtual processors created distributed evenly physical processors 
+second implementation user level threads created distributed evenly virtual processors mapped toone physical processors 
+results appear table 
+kernel level user level application virtual processors threads gaussian elimination sec sec parallel sort sec sec seen table performance improves user level context switching gaussian elimination program parallel sort 
+improvement large cases frequency context switching applications 
+sort program centralized barriers requires context switching threads processes physical processor 
+context switch kernel processes takes expect sort program spend seconds execution just context switch kernel processes 
+gaussian elimination program barriers tree barrier introduce context switches level tree 
+performance advantage user level threads substantial cases expect parallel applications produce comparable results systems 
+show pathological examples particularly respect number threads measured speedup gaussian elimination program processors varied number threads processor varying amount performed thread 
+results appear 
+threads excess physical level parallelism induce additional overhead matter implemented 
+user level threads speedup processors degrades thread processor threads processor 
+impact application speedup pronounced case kernel threads degrade speedup nearly kernel process processor kernel processes processor 
+
+comparison conventional thread packages uniprocessor completion time application suffer user level threads block kernel deny service peers 
+thread packages utilize non blocking portions kernel interface possible 
+ignoring possibility threads different processors waiting simply blocking threads processor serious impact performance 
+thread package blocking system call ms expected service time ms able quarters available cpu believe anomaly processors artifact tree barrier implementation 
+
+
+speedup physical processors function number kernel processes dotted user threads solid processor 
+cycles runnable threads 
+requiring explicitly non blocking interface approach allows thread package regain control processor system call blocks 
+kernel level scheduling coordinated user level synchronization threads may block locks held threads preempted virtual processors conditions true threads preempted virtual processors 
+zahorjan report performance degradations neighborhood processes may preempted arbitrary times sharing lock time 
+describes variation performance degradation function lock utilization 
+lock time reports round robin scheduling performs worse processor allocation scheme processes application run concurrently 
+lock time performance degradation increases 
+similar effects occur programs condition synchronization 
+common models parallel programming employs collection worker processes processor repeatedly dequeue execute tasks central queue 
+things task may generate tasks 
+task certain kind finish 
+central queue programs considered generalization barriers parallel execution continues long queue remains non empty stops tasks generated preempted task completed 
+barrier programs expected suffer preemption programs spin locks probability high process working critical progress barrier time 
+tucker gupta observe impact preemption queue programs reduced introducing mechanism preempt worker processes finish task task removed queue 
+experimented technique psyche uniform system program iterative structure characteristic gaussian elimination algorithm dynamic programming algorithm transitive closure pairs shortest path 
+uniform system program runs virtual processor worker physical processors 
+proceeds series phases 
+phase generates tasks places queue 
+generate tasks existing ones completed achieving implicit barrier phases 
+virtual processors spin discover tasks removed queue completed 
+task requires approximately ms complete 
+quantum size ms implying processors able finish barriers phases quantum 
+measured completion time program various levels multiprogramming avoidance minute warning flag 
+varied level multiprogramming placing unrelated virtual processors executing infinite loop physical processors 
+minute warning set ms workers check flag prior dequeuing new task yield set 
+average completion times appear table individual runs varied seconds 
+multiprogramming minute warning level disabled enabled competitors competitor seen table slowdown execution matches multiprogramming level closely minute warning 
+believe slightly better linear slowdown due reduced contention 
+minute warning preemption worker middle task causes workers spin time queue exhausted time preempted worker gets run significantly increasing execution time 
+minute warning avoid preemption improve performance factor presence multiprogramming 
+absence multiprogramming minute warning imposed performance penalty percent 
+penalty stems checking flag prior executing task yielding processor explicitly preempted 
+earlier version experiment observed little benefit minute warning implementation uniform system tasks created single process 
+minute warning worker processes avoid task queue just prior preemption avoid preemption critical task generator 
+task generator able execute just prior preemption expect queue exhausted long task generator ready execution causing worker process spin 
+possible solution problem minute warning interrupt signal save state task generator process migrate processor 
+depending amount state migrated cost migration architecture option may may viable quantum 
+case migration quantum cost effective minute warning mechanism sufficient solve problem 
+decentralize task generation allowing process generate tasks appropriate time 
+minute warning ensure process task generation complete 
+
+attempts provide support multi model parallel programming encountered flexibility performance problems conventional processes user level thread packages 
+kernel implemented processes provide variety semantics required parallel programs expensive fine grain operations 
+user level thread packages suffer performance losses threads block kernel preempted critical sections 
+lack mechanism blocking unblocking threads preventing construction multimodel programs 
+address problems employed mechanisms accord class status user level threads kernel thread package communicate shared memory possible avoid need synchronous interaction 
+shared memory provides qualitative quantitative benefits feasible change parameters kernel user interface thread context switch 
+capability especially important scheduling threads kind single virtual processor 
+kernel provides thread package software interrupts scheduling decision may required 
+conjunction shared flags full set software interrupts allows thread package reacquire processor threads blocks kernel coordinate synchronization kernel level scheduling 
+operating system establishes standard interface scheduler routines block unblock user level threads 
+interface conventions allow data abstractions incorporating blocking synchronization shared dissimilar thread packages scheduler operations invoked shared code 
+support class threads psyche allowed construct wide variety user level thread packages employ construction multi model programs 
+largest demonstration running robot lab employs different user level process models integrated checkers playing program 
+vision module central queue uniform system tasks analyzes video camera input determine move human opponent conventional checkers set 
+strategy module message passing multi threaded lynx processes performs parallel alpha beta search chose appropriate counter move 
+motion planning module written multilisp develops plan effect move puma robot arm 
+arm controller single threaded program 
+modules share representation state board block unblock necessary coordinate 
+experiences application suggest class user level threads provide flexibility performance offer advantages kernel implemented processes conventional user level threads 
+acknowledgments tom anderson brian bershad david black jan carla ellis ed lazowska hank levy help improving 
+researchers rochester contributed design implementation psyche kernel applications 
+accetta baron bolosky golub rashid tevanian young mach new kernel foundation unix development proceedings summer usenix technical conference june pp 
+
+anderson bershad lazowska levy scheduler activations effective kernel support user level management parallelism proceedings thirteenth acm symposium operating systems principles october :10.1.1.13.9310
+bbn advanced computers incorporated inside butterfly plus cambridge ma october 
+bershad lazowska levy wagner open environment building parallel programming systems proceedings acm conference parallel programming experience applications languages systems july pp 
+
+forin multilanguage parallel programming heterogeneous machines ieee transactions computers august pp 
+
+black scheduling support concurrency parallelism mach operating system computer may pp 
+
+brinch hansen distributed processes concurrent programming concept communications acm november pp 
+
+crovella das leblanc markatos multiprogramming multiprocessors tr computer science department university rochester february revised may 
+jr threads system support concurrent programming technical report cs department computer science brown university 
+schonberg process management highly parallel unix systems note courant institute april 
+halstead jr multilisp language concurrent symbolic computation acm transactions programming languages systems october pp 
+
+lampson redell experience processes monitors mesa communications acm february pp 
+
+leffler mckusick karels quarterman design implementation bsd unix operating system addison wesley publishing reading ma 
+leutenegger issues multiprogrammed multiprocessor scheduling ph 
+thesis tr department computer sciences university wisconsin madison august 
+markatos crovella das leblanc effects multiprogramming barrier synchronization tr computer science department university rochester may 
+marsh multi model parallel programming ph 
+thesis computer science department university rochester july 
+marsh brown leblanc scott becker das karlsson rochester checkers player multi model parallel programming animate vision tr computer science department university rochester june 
+mccann zahorjan dynamic processor allocation policy multiprogrammed shared memory multiprocessors tr department computer science engineering university washington march revised february 
+scott leblanc marsh design rationale psyche general purpose multiprocessor operating system proceedings international conference parallel processing august pp 
+
+scott leblanc marsh evolution operating system large scale shared memory multiprocessors tr computer science department university rochester march 
+scott leblanc marsh multi model parallel programming psyche proceedings second acm symposium principles practice parallel programming march pp 
+
+scott lynx distributed programming language motivation design experience computer languages pp 
+
+sun microsystems lightweight processes sunos programming utilities libraries march 
+sun part number 
+thacker stewart firefly multiprocessor workstation ieee transactions computers august pp 
+
+thomas uniform system approach runtime support large scale shared memory parallel processors proceedings international conference parallel processing august pp 
+
+tucker gupta process control scheduling issues multiprogrammed shared memory multiprocessors proceedings twelfth acm symposium operating systems principles december pp 
+
+weiser demers hauser portable common runtime approach interoperability proceedings twelfth acm symposium operating systems principles december pp 
+
+zahorjan lazowska eager effect scheduling discipline spin overhead shared memory parallel systems ieee transactions parallel distributed systems april pp 
+

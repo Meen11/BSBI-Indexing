@@ -1,0 +1,1487 @@
+dynamic optimization automatic runtime specialization john whaley submitted department electrical engineering computer science partial fulfillment requirements degrees bachelor science computer science master engineering electrical engineering computer science massachusetts institute technology may fl john whaley 
+rights reserved 
+author mit permission reproduce distribute publicly electronic copies thesis document part 
+author department electrical engineering computer science may certified martin rinard assistant professor thesis supervisor accepted arthur smith chairman department committee graduate students dynamic optimization automatic runtime specialization john whaley submitted department electrical engineering computer science may partial fulfillment requirements degrees bachelor science computer science master engineering electrical engineering computer science profile driven optimizations dynamic optimization specialization taken optimizations new level 
+actual run time data optimizers generate code specially tuned task hand 
+existing compilers perform optimizations require separate test runs gather profile information user annotations code 
+thesis describe run time optimizations dynamic compiler perform automatically user annotations utilizing real time performance data 
+describe implementation dynamic optimizations framework java virtual machine give performance results 
+thesis supervisor martin rinard title assistant professor acknowledgments foremost past members jalape team ibm watson research bowen alpern dick attanasio john barton michael burke perry cheng jong deok choi anthony cocchi stephen fink david grove michael hind susan hummel derek lieber litvinov mark mergen ton ngo igor jim russell vivek sarkar mauricio serrano janice shepherd steve smith sreedhar srinivasan 
+contributed way thesis 
+am grateful allowing opportunity dream project 
+done 
+especially vivek sarkar ibm thesis advisor interest compilers compiler research 
+hours spent helping understand compilers insights conferences writing compiler research papers 
+martin rinard mit thesis advisor help advice numerous insights compiler research 
+enthusiasm subject absolutely contagious part research writing papers enjoyable 
+excellent role model regret didn get chance 
+coworkers ibm permission describe thesis 
+sections compiler backend sections heavily writings ibm 
+graphs figures thesis due coworkers ibm prior publications 
+sections describe ongoing ibm subject publications 
+jong deok choi acting ibm sitting attempted explanations teaching compilers writing 
+brothers theta xi delta chapter supportive rushed finish thesis endeavours 
+wonderful girlfriend pushing get started writing thesis 
+anyway acknowledging trying 
+contents background partial evaluation programmer directed dynamic compilers profile driven optimization dynamic code specialization automatic dynamic specialization respect data dynamic compiler overview intermediate representation core ir auxiliary information converting bytecode ir overview symbolic state initialization main loop interpretation loop splitting basic blocks rectifying state control flow joins greedy ordering basic block generation control flow java subroutines combining optimizations analyses ir generation limited copy propagation dead code elimination unreachable code elimination constant propagation folding strength reduction calculation information control flow optimizations reaching definitions null pointer check elimination type analysis extended basic blocks full ssa form method inlining basic block specialization loop peeling object escape analysis side effect analysis specialization benefit prediction bytecode verification compiler stages lowering ir building dependence graphs burs code generation instruction scheduling register allocation outputting retargetable code weighted calling context graph description data structure building maintenance timer tick profiler instrumented code analyses preloaded wccg invalidating wccg controller deciding call sites inline specialization respect method parameters specializing parameter types values specialization respect fields static fields object fields directing online measurement system adding instrumentation adding instrumentation evaluate specialization opportunities adding basic block level trace level profiling removing instrumentation directing garbage collector reorder code performing dynamic optimizations speculative inlining method specialization parameters method specialization fields back results description benchmark effectiveness concurrent optimizations null pointer checks eliminated type checks eliminated reduction size ir reduction code generation time reduction run time effectiveness dynamic optimizations effectiveness speculative inlining related bc ir converting stack code register code java compilers interpretation combining analyses negative time optimization speculative inlining specialization benefit prediction backing specialization optimizations list figures overview dynamic compilation system overview compilation stages heavyweight dynamic compiler examples ir instructions operand types example java program 
+hir method foo 
+virtual registers local variables temporary operands respectively 
+graphical overview bc ir algorithm java bytecodes effects symbolic state example layout statements forces basic blocks split 
+bc ir know branch loop exists parsed loop body incorrectly appended instructions previous basic block 
+lattice operands example meet operation stacks choosing topological order may result having regenerate blocks 
+refined topological order allows avoid having regenerate block 
+example limited copy propagation dead code elimination assuming incoming edges invokevirtual throw null pointer exception 
+getfield putfield possibly throw null pointer exceptions context 
+data flow equations null pointer check elimination lattice type information example redundant checkcast operation lir method foo dependence graph basic block method foo example tree pattern matching powerpc mir method foo virtual registers scheduling algorithm mir method foo physical registers algorithm building inlining plan example inlining plan algorithm choosing specialize respect method parameters algorithm choosing specialize respect field algorithm performing inlining inlining plan controller example profile directed speculative inlining static number null pointer checks eliminated null pointer check elimination optimization bc ir static number run time type checks eliminated type analysis bc ir size generated ir number instructions different bc ir optimization options time ms spent dynamic compilation pbob different bc ir optimization options execution times ms pbob compiled different bc ir optimization options execution times pbob ms speculative inlining enabled chapter ya ni ari wa thought crossing waters 
+river merely heard men say road 
+journal sixteenth night moon thirteenth century 
+traditional optimizers optimize code regard actual run time characteristics program 
+optimizations benefit additional knowledge available run time data 
+optimizations static compilers benefit run time information simple rough estimates nature data 
+example restructuring loops elimination induction variables loop invariant code motion assume loop execute large number times 
+loop unrolling register allocation algorithms simplifying assumption loop execute number times 
+optimizations benefit actual runtime performance data 
+having run time data available new optimizations available static compilation 
+example trace scheduling profile information static compiler minimize dynamic instruction count critical paths 
+specialize procedures common argument values 
+calling context tree actual branch percentages optimize branches typical case maximize cache locality putting related code 
+utilize actual execution frequencies reorder elseif constructs put common cases top compile switch statements huffman tree minimize average lookup time 
+hash tables come hash function suited actual data program 
+static compiler writers realized benefit actual performance data profile directed optimization incorporated modern commercial compilers 
+profile directed static compilation faults 
+profile directed static compilers require number test runs collect profile information prime compilation 
+profile program test runs different actual execution compiler primed wrong data may choices reduce performance actual execution 
+finding typical inputs program difficult applications 
+priming misses common cases cases may sufficiently poor performance negate gains cases 
+priming manages cover typical cases test runs low optimized heavily instrumented code 
+profile code may drastically different profile final optimized application 
+correctness profile data aside fundamental problem profile directed static compilation 
+programs go number stages modes different things 
+example simple programs go loading initialization stage followed sort computation stage 
+interactive applications may hundreds different modes different characteristics 
+ideally compiler able different versions code suited particular stage 
+today static compilers rely post mortem profile information distinguish stages initialization shutdown lumped indistinguishable 
+profile information time sensitive static compiler need sort runtime support handle switching modes 
+static compilers problem adapting different architectures 
+due rapid advancement hardware technology new microprocessors released quickly 
+program optimized assuming particular processor may ideal performance processors line 
+running system processor performance may wildly different 
+external factors cache size cache flush policies motherboard type bus speed amount free memory hard disk speed affect performance cause optimizer different decisions match system different specifications 
+performing profile directed optimizations run time solve problems 
+information available actual run time accurate model current execution 
+profile directed optimizations run continuously track changing modes program 
+optimizer tuned specific system running 
+performing optimizations run time opens door new optimizations intractable impossible perform statically 
+example partial evaluation run time code generation mechanisms run time optimizer create specialized code generated knowledge certain invariants true 
+code compiled invariants times efficient general code 
+invariants known compile time run time static compiler generate code 
+performing profile directed optimizations run time share problems 
+foremost additional runtime overhead due collection management profile data extra time resources spent analyzing data performing optimizations extra overhead runtime support features 
+analysis optimization occurs run time compile time time spent performing factored equation amount time spent performing optimizations greater amount time gained performing optimizations strategy loser better attempted runtime optimizations 
+difficult justify expensive optimizations 
+difficult anticipate benefit optimization bring going ahead performing optimization 
+reason performing profile directed optimizations run time worse results performing compile time 
+run time optimizations know happen 
+decisions events occurred 
+fine past events representative case 
+program profile random poorly run time optimizer optimizer operating wrong information 
+profile directed static optimizer operates post mortem profile data entire profile fingertips optimize 
+currently types run time optimizers experimented 
+type utilizes code profile information information code program executes 
+code profile directed optimization strategy dynamic systems code program may available priori static analysis possible 
+optimizer uses information hot spots program decide concentrate efforts 
+second type utilizes information run time data values 
+data directed optimization strategy dynamic compilation systems 
+dynamic compiler generate code specialized particular set data values 
+generate faster code code executed times time spent dynamic compiler 
+thesis describes aggressive approach previously attempted dynamic optimization technique 
+current code profile directed optimization strategies rudimentary simply profile information decide spend time compiling optimizing 
+propose sophisticated information optimize hot traces reorder code blocks memory 
+current data directed optimizations programmer specified annotations special constructs 
+unsatisfactory solution 
+programmers rough guesses apply optimizations presumably optimizer potentially identify locations programmer overlook cumbersome specify 
+propose scheme automatically identify exploit opportunities data directed optimizations 
+simplifying assumptions successful dynamic compilation difficult problem general 
+full coverage issues involved dynamic compilation unfortunately scope masters thesis 
+thesis simplifying assumptions focus key issues 
+assumption run time information collected zero overhead 
+thesis focused optimization collection run time information algorithms techniques efficiency information gathering taken consideration 
+believe reasonable assumption reasons 
+techniques exist minimizing cost gathering profiling information fine grained exact basic block level profile information gathered low overhead :10.1.1.138.7451:10.1.1.111.6293
+second overhead brought significantly additional hardware profiling support added 
+dynamic compilation systems mainstream may see hardware profiling support 
+second assumption priori static program analysis allowed 
+allowing offline static program analysis opens plethora new issues including analysis optimization performed offline compile time versus run time 
+assumption necessity implementation context java virtual machine supports dynamic loading unseen classes assume static analysis information available 
+fact necessitates dynamic ap proach allows focus dynamic analysis compilation optimization techniques get caught evaluating static analysis techniques 
+third assumption target system designed longrunning applications server applications 
+allows focus heretofore unexplored area performing heavyweight dynamic optimizations overly concerned dynamic compilation overhead 
+organization approach investigating heavyweight dynamic compilation strategies thesis compilation stages similar static compiler 
+convert bytecode intermediate representation ir perform optimizations ir backend generate machine code 
+dynamic compiler compilation efficiency concern 
+functionality compilation process compressed single pass conversion process described chapter section called bc ir 
+largest step incorporates interesting dynamic compilation methods thesis focuses bc ir gives cursory overview remainder dynamic compilation process 
+information rest dynamic compiler rest system publications 
+java 
+implemented dynamic compiler java virtual machine number reasons ffl java popular 
+popularity java academia industry easy find interesting typical diverse applications 
+different aspects language fairly understood means avoid explaining idiosyncrasies concentrate relevant issues 
+relevant wider audience 
+ffl java portable 
+java portable doing tied particular machine architecture relevant wider audience 
+ffl java easy 
+allowed implement things quickly spend time important issues wasting time implementation 
+ffl java inherently dynamic language 
+code contained dynamically loaded class files machine independent bytecode format efficiently executed directly typical microprocessors form run time code generation necessary 
+fact code may available priori static analysis reinforces need effective dynamic compilation techniques 
+organization document thesis organized follows 
+chapter provides background dynamic compilation outlining existing area 
+chapter describes dynamic compiler infrastructure system 
+chapter describes weighted calling context tree data structure 
+chapter describes criteria choose invoke optimizing compiler 
+chapter describes dynamic optimizations performed 
+chapter gives preliminary experimental results 
+chapter outlines related chapter concludes 
+chapters ongoing covered detail publications 
+chapter background nite sae wa ya gazing boat goes see hills hills moving 
+don pine trees know 
+ki journal tenth century 
+serious look run time code generation rtcg performance improvement calton pu henry massalin synthesis kernel 
+synthesis kernel rtcg optimize frequently kernel routines queues buffers context interrupt handlers system call dispatchers specific situations 
+simple optimizations constant folding propagation procedure inlining 
+rtcg limited fill blanks code generation programmer directed automatic 
+kept rtcg lightweight limited circumstances 
+rtcg manually applied specific routines pattern framework rtcg 
+despite simplicity optimizations able get impressive performance improvements applications 
+results encouraged look deeply area rtcg 
+partial evaluation pu massalin drew heavily partial evaluation 
+partial evaluation program transformation technique specializing programs respect parts input 
+partial evaluation traditionally source source transformation 
+developed sixties lisp spread independently developed areas artificial intelligence applications compiling compiler generation string pattern matching computer graphics numerical computation circuit simulation hard real time systems 
+major step forward partial evaluation eighties mix partial evaluator 
+mix partial evaluator different earlier efforts self applicable apply partial evaluation partial evaluator specializing partial evaluator input partial evaluator 
+order partial evaluators self applicable drastically simplified result new paradigms partial evaluation developed 
+programmer directed dynamic compilers great interest programmer directed dynamic code generation systems 
+tempo partial evaluator perform compiletime run time specialization programmer hints simple program analysis 
+extension ansi allows programmer compose arbitrary fragments dynamically generated code 
+includes dynamic compilers dcg relatively heavyweight second vcode faster lightweight :10.1.1.25.8634
+system uses programmer annotations specify variables code dynamic compilation take place 
+uses binding time analysis compute set run time constants point dynamic region 
+profile driven optimization profile driven optimization relatively new field 
+static compilers utilize profile information prior test runs perform better optimizations example trace scheduling improving cache locality traditional optimizations 
+profile driven optimizations shown commercial products 
+profile information dynamic compilers scheme self cecil ml :10.1.1.43.7639
+upcoming hotspot dynamic compiler java claims perform profile driven optimizations 
+dynamic code specialization self compiler system incorporate automatic code specialization 
+self completely dynamically typed language advanced specialization techniques required order get adequate performance 
+largest overhead self came dynamic dispatch focused converting dynamic calls static calls type feedback polymorphic inline caches reduce overhead 
+derivative area 
+burger dybvig describe profile driven dynamic recompilation system scheme 
+describe profile information reorder basic blocks improve branch prediction instruction cache locality 
+automatic dynamic specialization respect data automatic dynamic specialization data values unexplored area computer science 
+dynamic compilation projects state automatic dynamic optimization eventual goal current state art 
+results available area preliminary 
+wolfe describe analysis automatically identify called variables variables change infrequently candidates specialization 
+analysis static dynamic doesn take account dynamic execution frequency profile information 
+execution frequency estimated simply loop nesting level 
+proposal dynamo project contains paragraph plans profile information help identify candidate variables specialization 
+mention plan profile information 
+chapter dynamic compiler ono ni zo echo axes hills proves sound men trees 
+sei pillow book tenth century 
+dynamic compiler different design criteria compared static compiler 
+compilation occurs run time dynamic compiler imperative resource usage minimized 
+dynamic compiler able effectively utilize extra information program running example path profile information run time data values system support loading code dynamically compiler able deal incomplete knowledge program 
+traditional compiler wisdom states compiler writer split functionality compiler separate small simple independent pieces possible 
+example optimization passes traditionally implemented output suboptimal code dead code code uses extra registers expectation compiler pass clean output 
+optimization passes simply invalidate auxiliary information recompute incrementally update information 
+simplifies design system individual piece compiler writers concentrate making compiler pass correct worry complicated interactions passes 
+modularity comes inefficiency 
+piece traditional compiler able operate independently typically efficient multiple pieces combined 
+example calculating reaching definitions performing sparse conditional constant propagation traditionally separate compilation passes 
+easily combined saving overhead set traversing ir multiple times 
+furthermore possible better job optimizing optimization passes combined compared invoked separately regardless order number times invoked 
+dynamic compiler efficiency utmost concern 
+reason dynamic compilers forego traditional idea compilation stages intermediate representation altogether 
+simple table driven compilation fill blanks compilation 
+code quality sacrificed course intermediate representation staged compiler despite longer compile times pay long run applications 
+reason system employs distinct compilers 
+quick baseline compiler job generate decent code quickly 
+online measurements system keeps track particularly hot spots program instrumenting baseline compiled code sampling 
+controller selectively invokes heavyweight dynamic compiler selected pieces code certain plan 
+controller continues monitor performance system selectively re invokes heavyweight dynamic compiler different plans information accurate program profile changes 
+thesis focuses entirely heavyweight dynamic compiler controller mechanism interesting dynamic optimization opportunities exploit fact performing heavy optimization baseline quick compiler executable code unoptimized code instrumented online measurements controller optimizing compiler adaptive optimization system context sensitive profile information optimization plan code bytecode optimized code translation bytecode overview dynamic compilation system run time explored 
+context dynamic compiler played part decision java virtual machine dynamically loads code unoptimized form amenable efficient execution substantial dynamic compiler required performance 
+design decision heavyweight dynamic compilation strategy independent compiler passes difficult justify 
+reason compilation passes typically separate traditional compilers combined single pass dynamic compiler 
+amount resources consumed compiler pass linear size code compiled enabling optimizations reduce code size dead code elimination null pointer check elimination reduces total compilation time 
+combining optimizations single pass benefit exposing optimization opportunities need iterate optimization passes 
+compiler designed dynamic compilation stages especially conversion process available dynamic information 
+support dynamic features specialization respect data values section 
+fact dynamic compiler operating constraints java virtual machine dynamically load classes means compiler able deal incomplete knowledge program 
+known design criteria system designed support incomplete information conservative assumptions necessary 
+overview shows overview stages dynamic compiler 
+java source code compiled offline static compiler bytecode distributed machine independent class file format 
+dynamic compiler starts converting bytecode easy manipulate intermediate representation ir 
+bytecode hir hir optimized hir optimization hir front optimization lir hir lir lir lir mir optimization mir mir optimized lir final assembly optimized mir back executable code machine description parameters profile information burs grammar hardware parameters hir high level intermediate representation lir low level intermediate representation mir machine specific intermediate representation burs bottom rewrite system overview compilation stages heavyweight dynamic compiler operator operand meaning int add int int int long return long return method constant value ifeq cond equal zero branch call ref tostring ref call method tostring argument put result bounds check ref int array bounds check array constant index 
+examples ir instructions optimizations analyses happen part conversion process 
+optimizations performed ir target code generated 
+thesis focuses conversion step called bc ir unique piece steps briefly outlined section 
+section describes intermediate representation compiler uses 
+section describes basics bc ir step section describes optimizations analyses performed part bc ir 
+section briefly outlines compiler steps bc ir 
+intermediate representation describe format intermediate representation ir give example 
+section describes essential pieces ir section describes auxiliary information ir contain 
+core ir reasons simplicity efficiency versatility ir designed modular 
+core ir simply set instructions 
+instruction consists operator number operands 
+see 
+instructions organized number different data structures depending manipulations expected occur 
+commonly organized operand type description register symbolic register intconst integer constant long constant float constant double constant string constant null constant location exception exception handler method target method call object static field access location location memory track memory aliasing type represents type type check instruction branch target branch label instruction point basic block condition condition code branch operand types doubly linked list ease manipulation 
+code motion transformations expected occur organized array structure 
+control flow graph available instructions organized respective basic blocks 
+optimizations concerned format instruction stream access interface calls 
+operators divided ranges 
+roughly high level range hir operators similar java bytecode low level range lir replaces higher level constructs lower level operations range mir corresponds instruction set architecture target machine 
+output bc ir step consists hir operators viz non stack manipulation operators java bytecode plus notable additions move operators different types move values symbolic registers separate operators check run time exception conditions example null check bounds check run time exception checks defined explicit check instructions easily moved eliminated 
+keeping exception checks separate instructions easier code motion optimizations obey exception semantics 
+class static float foo float float float return example java program 
+operand types described 
+common type operand register represents symbolic register 
+operands represent constants different types branch targets method signatures types label float float float nonnull float 
+float float float float nonnull 
+float float float float float float nonnull getfield float 
+float float float float float float float hir method foo 
+virtual registers local variables temporary operands respectively 
+shows example java source program class 
+shows hir method foo class 
+number column hir instruction index bytecode instruction generated 
+loading class class loaded class 
+result hir instructions accessing fields class bytecode indices getfield unresolved hir instruction accessing field class bytecode index regular getfield instruction 
+notice bc ir fly optimizations eliminated redundant null check instruction second getfield unresolved instruction 
+auxiliary information ir includes space caching optional auxiliary information control flow graph reaching definition sets data dependency graph 
+auxiliary information computed demand optimizations require auxiliary information compute available cache result 
+transformations performed potentially invalidate piece auxiliary information cached copy marked invalid 
+design possible easily add remove reorder compilation stages suit particular situation 
+simplifies implementation optimizations required maintain auxiliary information transformations 
+auxiliary information kept side tables stored ir 
+information easily invalidated dominator information kept side tables 
+benefit keeping ir small 
+pieces auxiliary information stored ir 
+includes information control flow graph small convenient program transformations local code transformations update control flow graph little 
+control flow graph control flow graph represented set basic blocks basic block start instruction instruction set edges set edges set exception edges 
+start instruction label instruction instruction instruction 
+exception edges point exception handlers current method protect basic block 
+facilitate backward pass analyses edge block ends explicit return uncaught throw instruction special exit basic block 
+control flow may enter start block potentially leave middle block trap method call 
+words method calls potential trap sites basic blocks 
+similar superblocks traces 
+basic blocks linked normal edges exception edges 
+see complete description control flow graph structure benefits 
+decision extended basic blocks fact large number instructions potentially throw exceptions forcing basic blocks instructions greatly increase number control flow edges greatly reduce size basic blocks 
+optimizations effective shorter running times basic blocks larger fewer control flow edges 
+forward pass analyses support exception edges modifications 
+backward analyses support exception edges little 
+dominators dominators represented separate tree structure basic blocks nodes tree node dominates nodes subtree 
+dominator information optimizations code motion transformations 
+information register operands contain bit information valid corresponds register 
+useful register allocation optimizations efficient free resources allocated keeping track register reached 
+reaching definitions register operands uses contain set defs reach 
+register ssa form singleton set 
+information variety optimizations 
+upwardly exposed uses exposed defs basic blocks set upwardly exposed uses register operands basic block reaching defs outside basic block 
+set exposed defs defs exposed blocks 
+computing reaching definitions 
+branch trace frequency information side tables contain frequency information collected online measurement system number times trace branch taken 
+information controller trace scheduler decisions hot traces code generator organize code improve branch prediction hit rates instruction cache hit rates optimizations 
+information required available optimizations static prediction routines 
+type value frequencies tables contain type frequencies dynamically dispatched method calls frequencies method parameter values 
+collected online measurement system 
+controller dynamic optimizations 
+ssa form ssa form useful simplify analyses 
+maintaining full ssa form desirable dynamic compiler performing optimizations analyses benefit ssa time spent converting maintaining ssa form wasted 
+ssa form greatly increases number registers usually necessitates register allocation step non ssa version may simply fit registers having perform allocation 
+furthermore wanted ir form post register allocation uniformity facilitate reordering optimizations 
+ir force particular convention regard ssa 
+ir typically uses hybrid approach registers ssa form compiler generated temporaries local variables 
+individual register marked ssa non ssa 
+furthermore non ssa registers numbered consecutively analyses efficiently build tables register numbers 
+method wide information information stored method level 
+information inter procedural analysis example method side effects results escape analysis falls category 
+gives easy way perform simple inter procedural analysis 
+assumptions code generation stored method level allow multiple specialized copies single method exist distinguishable aid invalidation process new classes loaded converting bytecode ir order business dynamic compiler convert input java bytecode form amenable optimization ir described previous section 
+ways converting stack java bytecode register ir see sections 
+methods time consuming due fact multi pass 
+experimentation discovered parsing bytecodes takes significant amount time 
+see chapter 
+conversion process occur run time efficiency utmost concern 
+minimize parse time decided bc ir operate single pass bytecodes 
+overview initialize state main loop interpretation loop parse bytecode update state rectify state successor basic blocks main initialization choose basic block set graphical overview bc ir algorithm bc ir interpretation engine 
+bytecodes abstractly interpreted performing actions symbolic state 
+side effect interpretation bc ir generates instruction stream control flow information 
+see graphical overview algorithm 
+section covers symbolic state sections give overview steps algorithm sections go detail aspects algorithm 
+symbolic state symbolic state maintained bc ir state symbolic stack 
+symbolic stack state stored array operands index variable indicating top stack 
+maximum stack depth method available java class file array pre allocated correct size needs grown 
+extensions bc ir require maintaining symbolic state information 
+performing bytecode verification effective type analysis requires keeping track types local variables 
+performing constant propagation local variables effective method inlining basic block specialization requires keeping track types values local variables 
+performing optimizations maintain array operands indexed local variable number 
+various extensions symbolic state described section 
+initialization bc ir begins initializing basic block set 
+set implemented balanced tree basic blocks indexed starting bytecode index 
+set contains basic blocks discovered far 
+interpretation continues basic blocks discovered added basic block set 
+basic blocks contain authors prefer term symbolic execution interpretation emphasizes fact interpretation loop 
+initial state corresponds symbolic state machine start basic block 
+initial state known marked unknown 
+parsing bytecodes basic blocks known 
+basic block bytecode empty initial stack 
+bytecode indices exception handlers start basic blocks initial stack state known contain single exception operand 
+start indices try ranges denote basic block boundaries known initial state 
+main loop initialization bc ir enters main loop 
+main loop searches basic block set basic block fully known initial state 
+information order basic block set searched see section 
+block generation complete 
+finds initializes state initial state stored basic block enters interpretation loop 
+interpretation loop interpretation loop core piece bc ir 
+iteration interpretation loop symbolically executes current bytecode updates current state accordingly 
+loop terminates current bytecode index reaches basic block boundary 
+side effect symbolic execution instructions generated added current basic block new basic blocks discovered added basic block set initial states basic blocks updated control flow graph updated 
+effect bytecode symbolic state follows straightforwardly java bytecode specification 
+see table containing effects bytecodes symbolic state ir instructions generate 
+bytecode effect stack instructions generated ends basic block 
+pop pop dup 
+perform appropriate action stack iconst null 
+push constant iload 
+push local variable istore 
+pop value replace copies local new temps copy stack move new temp local move local popped val 
+pop index array push new temp null check array ref bounds check array ref index new temp array load array ref index iadd fmul 
+pop operands push new temp new temp op operands idiv pop operands push new temp zero check denominator new temp op operands replace copies local new temps copy stack move new temp local local add local amount checkcast 
+pop value push new temp new temp conv op value instanceof pop value push new temp new temp instanceof value type ireturn 
+pop value return value pop value null check value value push new temp new temp field pop value field value getfield pop obj ref push new temp null check obj ref new temp getfield obj ref field putfield pop obj ref value null check obj ref putfield obj ref field value invokestatic pop args push new temp new temp call method invokevirtual 
+pop args obj ref push new temp void null check obj ref new temp call method obj ref new push new temp new temp new type newarray 
+pop size push new temp new temp newarray type size pop array ref push new temp null check array ref new temp array ref pop obj ref null check obj ref monitor obj ref goto 
+goto target ifeq 
+pop value value target 
+pop value switch value jsr ret see section 
+java bytecodes effects symbolic state java source code java bytecode 
+loop loop body loop body iload loop 
+example layout statements forces basic blocks split 
+bc ir know branch loop exists parsed loop body incorrectly appended instructions previous basic block 
+splitting basic blocks due backward branches basic block boundary may known bytecodes boundary parsed instructions generated 
+happen source code uses statement 
+see 
+guarantee state backward branch identical state interpretation loop reached target bytecode bc ir split basic block 
+bc ir keeping track stack state stack empty states identical basic block split 
+instructions bytecode index corresponds bytecode came 
+bc ir encounters backward branch middle basic block searches basic block instruction bytecode index lower target 
+basic block split point 
+stack empty backward branch middle generated basic block basic block regenerated states may match 
+current java compilers generate code performs backward branches non empty stack situation currently encountered practice 
+rectifying state control flow joins control flow join state may different different incoming edges 
+define meet operation state 
+meet number states result elementwise meet components 
+lattice pictured type refers constants type type refers registers type 
+cint 
+
+rint 
+
+
+lattice operands meet stacks stack elements results meet operation corresponding elements see example 
+stack stack result meet rint meet example meet operation stacks greedy ordering basic block generation bc ir generates code basic block assuming initial state may incorrect due unseen control flow joins 
+cases basic block may regenerated order take account general initial state 
+choose basic blocks order number basic blocks regenerated minimized 
+state empty backward branches visiting basic blocks topological order avoid regeneration correct initial state known 
+bc ir keeping track state information stack state may empty backward branches regeneration may necessary 
+minimize regeneration traversing back edges early possible state back edge corrupt minimal number basic blocks 
+see example 
+choosing topological order may result having regenerate blocks 
+refined topological order allows avoid having regenerate block 
+optimal order basic block generation refined topological order topological order edges lead loop paths taken edges exit loops 
+bc ir computes control flow graph pass compute optimal order priori 
+somewhat surprisingly programs compiled current java compilers simple greedy algorithm find optimal ordering ignoring exceptional similar reverse post order 
+control flow uses clauses exception catches 
+selecting block generate set valid blocks choose block lowest starting bytecode index 
+reason simple greedy algorithm find optimal ordering follows 
+ignoring loops non exceptional control flow constructs generated topological order 
+means non loops bytecode order optimal order 
+ignoring exceptional control flow control flow graph reducible loops multiple headers 
+control flow graph thought string graph language reductions graph language grammar correspond reduction control flow graph java language control flow construct generated 
+non loops topological order edges branch prior bytecode indices arisen java loop construct 
+furthermore graph reducible loop single entry single header 
+greedy algorithm specifies loop edge traversed edges algorithm complete loop continuing 
+graph reducible loop summarized header control flow graph additional edges corresponding loop exits 
+collapsing node graph reducible correspond string graph language grammar algorithm continues loop single node 
+algorithm correct decision loop constructs entering loops non loops non loop constructs topological order loops contain summarized single node algorithm finds optimal order 
+control flow java subroutines java supports intra method subroutines jsr ret bytecodes 
+existence subroutines complicates control flow data flow analyses 
+suggested resolutions problem duplicate entire subroutine jsr instruction change java virtual machine specification 
+constraints java bytecode possible compute control flow information intra method subroutines efficiently pass sections 
+instruction jsr jsr instruction may returned single ret instruction 
+
+jsr jsr instruction may recursively call subroutine subroutine subroutine call chain 
+
+instance type returned 
+ret instruction returns point subroutine call chain ret instruction corresponding instance type instance return address 
+
+executing ret instruction implements return subroutine possible subroutine instruction returning 
+different subroutines merge execution single ret instruction 
+constraints imply subroutine defined jsr target address ret instruction corresponds exactly subroutine 
+ret instruction maps jsr target address 
+specified explicitly jvm specifications bc ir assumes subroutines distinct subroutines share regions code 
+case verification constraint undecidable problem 
+subroutines share region code third subroutine third subroutine return different location depending called constraint verifiable case 
+subroutine keep track return site set contains locations subroutine return ret block basic block containing current java compilers generate bytecode property 
+consider due inaccurate specification broken compilers 
+code encountered easily detected compilation reverts baseline compiler 
+ret instruction subroutine state state interpreting ret instruction 
+define subtype basic block type extra fields subroutine basic block basic blocks mark start subroutine subtype 
+jsr jsr bytecodes handled follows looks basic block corresponding bytecode jsr 
+doesn exist created initial stack state marked unknown 
+looks basic block corresponding target jsr 
+doesn exist call subroutine encountered subroutine basic block created return site set initialized contain element basic block jsr 
+exist algorithm encountered call subroutine states rectified 
+subroutine basic block valid ret block control flow edge added ret block basic block state copied subroutine basic block basic block 
+doesn valid ret block simply adds block return site set 
+subroutine operand pushed stack state rectified initial state contained subroutine basic block 
+ends current basic block 
+similarly ret wide ret bytecodes starts setting current block ret block current subroutine 
+adds blocks contained return site set subroutine successors current block 
+ends current basic block 
+combining optimizations analyses ir generation section describes extensions bc ir 
+conversion general interpretation framework straightforward extend bc ir concurrently perform number forward pass analyses optimizations 
+analyses thirteen optimizations implemented far 
+java bytecode generated ir generated ir optimization optimization iload int add int int int add int int iconst int move int int iadd istore example limited copy propagation dead code elimination traditional optimizers static compilers perform optimizations independently 
+compile time critical design choices favor simplicity implementation efficiency 
+example static compilers recompute analysis information code transformations update incrementally incremental update efficient 
+optimization stages leave code suboptimal state knowing pass clean 
+difficult justify dynamic compiler 
+performing optimizations analyses incrementally pass efficient 
+note optimizations analyses near identical versions operate independently ir directly 
+versions method converted ir example dynamic compiler compiled method wants perform analyses optimizations 
+limited copy propagation dead code elimination java bytecode contains sequences perform calculation store result local variable 
+see 
+simple peephole optimization eliminate unnecessary temporaries 
+storing temporary local variable bc ir looks back generated instruction 
+result temporary instruction mutated write value directly local variable 
+stack manipulation bytecode encountered duplicates temporary stack pointer generated instruction reset temporarily disable optimization 
+simple technique catches cases unnecessary copy instructions speeds ir generation reduction number instructions generated 
+see section 
+unreachable code elimination algorithm generates code encountered obviously generate unreachable code 
+obviously exception handler protects range exception thrown range caught exception handler exception handler considered unreachable code generated 
+limited java compilers typically allow compile programs unreachable code 
+conjunction optimizations constant propagation branch optimizations method inlining useful 
+constant propagation folding constant propagation folding easy values stack 
+constants implicitly propagated stack arithmetic operation performed operands constant result operation simply pushed back stack instruction generated 
+constant propagation local variables requires extending state include values local variables 
+current state local variables stored local variable file 
+default entries local variable file contain register operand corresponding local variables 
+constant stored local variable variable entry local variable file replaced constant 
+pushing value local variable operations throw exception divide zero simply changed explicit throw instruction remainder basic block considered unreachable 
+stack bc ir uses operand contained local variable file constant 
+meet operation local variable state similar stacks pairwise meet entry local variable file 
+constant propagation local variables useful basic block specialization method inlining 
+strength reduction strength reduction optimization straightforward perform fly 
+transformations result better code example replacing division constant power right shift arithmetic performed 
+calculation information keeping track compiler generated temporary straightforward 
+temporary pushed stack flag set signifying temporary 
+stack manipulation operations simply maintain invariant multiple copies temporary stack closest bottom flag set 
+computing information local variables backwards analysis performed bc ir 
+performed step 
+control flow optimizations bc ir replace unnecessary branches storing forwarding address basic blocks unconditionally branch 
+optimization improve code quality speeds data flow calculations limits superfluous basic blocks 
+efficient perform optimization bc ir separate pass performing optimization may catch cases 
+reaching definitions bc ir concurrently calculate reaching definitions 
+algorithm similar forward pass analysis described 
+calculating reaching defs compiler generated temporaries straightforward ssa form single reaching def operand generated definition known reaching def set initialized correct value 
+calculating reaching defs local variables complicated 
+add new piece state information reaching def set array local variables 
+array indexed local variable number set definitions reach current program point 
+keep track exposed def array basic block exposed defs local variables 
+simple array indexed local variable number initialized nulls definitions local variable write definition slot array overwriting 
+start bc ir reaching def set array basic block initialized refer parameters method 
+main loop reaching def set initialized copying initial state contained basic block 
+uses local variables set reaching defs appropriate slot reaching def set array 
+defs local variables overwrite slot new set containing single new definition 
+reaching defs implemented sets upwardly exposed uses local variable refer set updating initial state reaching def set array basic block simultaneously updates reaching defs upwardly exposed uses 
+control flow graph loops may necessary iterate control flow graph 
+iteration fast sets computed deal entire basic block time 
+thing may def local variable exposed def set acts kill set entry exposed def set non null local variable defined basic block definitions local variable aload invokevirtual foo aload getfield aload label aload putfield label 
+assuming incoming edges invokevirtual throw null pointer exception 
+getfield putfield possibly throw null pointer exceptions context 
+killed 
+data flow equations identical 
+null pointer check elimination noted section ir contains explicit exception check instructions 
+gives compiler uniform way keeping track locations exceptions possibly thrown code motion optimizations inadvertently violate exception semantics 
+possible analysis prove null check instructions unnecessary 
+having separate instruction simply remove constrain optimizations 
+appear large number locations null pointer exceptions thrown 
+field access array access non static method call exception throw potential throw null pointer exception 
+large number potential exception sites severely constrains potentially profitable code reordering optimizations instruction scheduling 
+separate null check instruction greatly expands size ir slowing optimizations analyses 
+best interest compiler avoid generating eliminate unnecessary null check instructions 
+certain null check instructions superfluous 
+example see 
+sequence operations single basic block variable null check string const ref new object ref ref ref ref ffl ref gamma ref ifnull ref gamma ref true branch ref false branch ref ref true branch gamma ref false branch intersection pred exception handler caught exception start instance method pointer data flow equations null pointer check elimination variable change null check necessary fact control flow progressed past null check implies variable null null checks superfluous 
+performing null check variable way imply variable null number interesting cases 
+example bytecodes perform allocations new return null pointer virtual method null caught exception null string constants certain static final fields null 
+conditional branches comparing variable null imply variable non null branches 
+non null property modeled data flow problem specifying sets terms sets sets refer set non null 
+see data flow equations 
+implementation null check elimination bc ir follows straightforwardly data flow equations 
+analysis conservative eliminates null checks java code 
+see section optimization benefit code quality ways example conditionals comparison value null eliminated 
+performing optimization decreases time spent ir generation extra time spent performing optimization time spent generating superfluous instructions 
+see section type analysis int long float double class hierarchy null type java lang object lattice type information bc ir concurrently perform simple type analysis 
+extend operands include type field 
+instructions push operands stack set type field specific type possible 
+performing checkcast run time type test operation operand causes field updated specific type conditionals instanceof tests propagate refined type information operand target basic blocks 
+extend meet operation include type information 
+lattice computing type information shown 
+primitive types int long float double set types 
+types include class hierarchy exceptions special null type corresponds type null pointer 
+include bit signifies type exact 
+type analysis allows method calls inlined 
+removes redundant checkcast operations 
+example see 
+case type checkcast instruction known bar redundant checkcast ignored 
+instanceof checkcast pattern common java bytecode large number run time type tests eliminated 
+java source java bytecode instanceof bar instanceof bar ifeq lab 
+bar aload checkcast bar example redundant checkcast operation operations eliminated array type known exactly 
+extended basic blocks may limitless number possible paths code method typical programs handful taken significant frequency 
+dynamic profile information discover frequently executed dominant paths method generate ir branches dominant path considered traps basic blocks 
+see section optimizations better larger basic blocks performing trace scheduling dominant path improve performance typical case 
+avoid compiling code non dominant paths dynamic compilation time reduced 
+extending bc ir support extended basic blocks simple 
+interpretation loop forward conditional branch instruction encountered code cases generated auxiliary data structure described section holds dynamic profile data consulted 
+condition occurred condition conditional branch changed conditional trap inverting conditional necessary loop continues dominant path basic block 
+case backward conditional branch instruction case taken case conditional branch changed operations run time type checks occur object stored object array 
+conditional trap loop continues dominant path 
+full ssa form bc ir compiler generated temporaries ssa default leaves local variables 
+useful registers including locals ssa form 
+simple extension allows bc ir concurrently convert local variables ssa form oe nodes necessary 
+converting straight line code ssa form straightforward 
+slot local variable file contains local variable ssa temporary represents local variable 
+loads local variable temporary 
+storing local variable new ssa temporary generated replaces old value slot 
+control flow joins element local variable file differs current oe node variable oe node inserted original value new value 
+oe node exists new value added oe node 
+target block generated upwardly exposed uses original value modified point result oe function 
+oe nodes added necessary relatively rare 
+variables modified basic block take account heretofore unknown control flow edges 
+recognizing common java constructs interpretation pessimistically add oe nodes avoid large number cases required modifying uses 
+identical pessimistic generalization state described section 
+algorithm oe node placement come optimal oe node placement comes reasonably close practice 
+method inlining beneficial optimizations java method inlining 
+java programs written heavily object oriented fashion large number calls methods small bodies 
+method inlining yield substantial performance increases due reduction dynamic dispatch call overhead improved optimization opportunities 
+know want inline method inlining trivially straightforward 
+encounter method want inline simply save away current state initialize new state corresponding start inlined method abstractly interpreting bytecodes inlined method 
+completes change return instructions store return value register branch back calling method 
+code generated method replaced bytecodes method optimizations analyses apply inlined method method body automatically specialized call site 
+example constant parameters inlined method call propagated folded inlined method body null pointer checks eliminated type information outside method propagate inside improving optimizations opportunities 
+basic block specialization loop peeling keeping track state information local variable file type information non null bits allows better job code generation increases chance 
+specific information assume state assumption incoming edges seen hold unseen incoming edge 
+cases prior solution regenerate basic block assuming general initial state 
+reason throw away version basic block worked hard generate 
+basic block generated assuming constraints optimized 
+keep optimal code incoming edges satisfy tighter constraints specialized version specialized version 
+indiscriminately specialize basic blocks lead explosive code growth 
+code growth increases dynamic compile time resulting code efficient may disrupt cache locality 
+recognizing common patterns java bytecode possible gain fine control basic block specialization performed 
+example current java compilers output loop constructs specific order entrance loop unconditional branch loop condition bottom loop 
+constructs laid bc ir encounters unconditional forward branch past block seen assume entering loop construct pessimistically generalize state point 
+refraining generalizing state peel iterations loop specializing peeled iterations respect constant values information propagated loop condition state information available 
+peeling iteration loop allows common subexpression elimination optimization implicitly perform loop invariant code motion 
+object escape analysis significant portion jvm run time spent garbage collection 
+typical java programs objects die quickly 
+performing escape analysis determine objects escape current method 
+object said escape method exits live object 
+object escape method allocated stack heap generalization state usually involves converting constants registers nonnull attributes possibly null 
+possibilities include changing register types general form done register type rarely changes loop iteration 
+implicitly garbage collected method returns 
+saves number garbage collections performed speed collections 
+synchronization operations non escaping objects unnecessary removed 
+information escape analysis java optimizations facilitates see 
+implemented simple object escape analysis part bc ir framework 
+object creation sites tracked registers include attributes stating refer objects created site 
+location contain object created particular object creation site putfield operation objects created site said escape 
+escape analysis implements simple interprocedural analysis 
+location refer objects created site return instruction objects created site said escape returned value 
+method call modeled function parameters 
+method parameters types 
+type objects passed particular parameter escape outright 
+second type objects passed parameter escape return value 
+third type objects passed parameter escape 
+method call encountered targets known analyzed algorithm uses summary information target method 
+analysis method completes summary information method stored 
+side effect analysis implemented simple side effect analysis 
+keeps track fields read written method profile information static estimates profile information unavailable estimate number reads writes sort interprocedural analysis necessary due fact created objects constructor methods called 
+simplicity argument instruction said escape 
+cycle encountered call graph algorithm pessimistically assumes worst case escapes outright 
+field 
+specialization benefit prediction compiling dynamically allows take advantage actual run time information selectively specialize respect data value 
+specialization respect values allow order magnitude increases performance 
+specialization significant cost time memory careful attempt specialize values 
+implemented extension bc ir allows analyze method prediction better knew particular parameter parameter field constant knew parameter parameter field specific type 
+information controller chapter frequency information decisions specialize respect data values specialize 
+predicting benefit specializing respect parameter value type algorithm follows 
+register operand include extra information specifies value contained register constant parameter constant parameter need constant 
+attribute modeled simple data flow problem modeling straightforward go detail 
+predicting specialization benefit parameter constant benefit number associated parameter 
+register derived parameter operation parameter benefit number parameter derived incremented amount relative expected savings cost operation specified operand constant 
+example addition operands method parameter increment small division operation denominator method parameter increment larger 
+benefit numbers associated combinations parameters 
+allocated needed rarely 
+branch discovered depends entirely registers come parameters algorithm calculates expected benefit gained conditional branch eliminated changed unconditional branch 
+follows 
+branch propagates information code dominated outcome branch 
+costs operations branch scaled estimated frequency outcome branch occur 
+uses dynamic information available uses static prediction 
+scaled value added benefit number 
+control flow merge occurs incoming edge dominated particular branch outcome code merge dominated outcome merge function dominator information intersection 
+predicting benefit parameter known type works similar fashion case benefit number updated operations optimized type checkcast operations virtual method calls 
+predicting specialization benefit parameter field similar 
+performing getfield operation register operand comes parameter causes value tracked analogous tracking parameter values 
+synchronization points kill information fields reloaded synchronization points 
+bytecode verification interpretation engine performs number steps similar java bytecode verifier described 
+example manner type information propagated tracking local variables subroutine identical 
+adding bytecode verification support bc ir relatively simple 
+implicitly assuming constraints true explicitly verifies 
+bc ir optimized sun verifier implementation traverses basic blocks optimal order assuming field marked volatile 
+perform bytecode verification concurrently generate ir quickly sun verifier perform just bytecode verification 
+see chapter 
+compiler stages section briefly describes stages compiler 
+focus thesis bc ir covered detail 
+see complete treatment compiler stages 
+lowering ir high level analyses optimizations performed hir lowered lir 
+lir expands instructions operations specific virtual machine object layouts parameter passing conventions 
+example operations hir invoke methods object consist single instruction closely matching invokevirtual bytecode 
+single instruction hir operations lowered converted multiple instruction lir operations invoke methods virtual function table layout 
+multiple lir operations expose opportunities low level optimizations 
+label float float float nonnull float 
+float float float float nonnull float float float float float float nonnull float float float float float float float return float lir method foo shows lir method foo example 
+notice lir similar hir 
+differences getfield bytecode lowered float load return float lowered return 
+labels far right instruction indicate corresponding node data dependence graph shown section 
+building dependence graphs reg true reg true reg true reg true reg true control reg true reg true reg true reg true dependence graph basic block method foo instruction level dependence graph basic block constructed captures register true anti output dependences control dependencies dependencies preserve java memory model exception semantics 
+graph burs code generation section 
+synchronization constraints modeled introducing synchronization dependence edges synchronization operations monitor enter monitor exit memory operations 
+edges prevent code motion memory operations synchronization points 
+java exception semantics modeled exception dependence edges connect different exception points basic block 
+exception dependence edges added register write operations local variables exception points basic block 
+exception dependence edges register operations exceptions points need added corresponding method catch blocks 
+precise modeling dependence constraints allows perform aggressive code generation 
+shows dependence graph single basic block method foo 
+graph constructed lir method shows register true dependence edges exception dependence edges control dependence edge instruction instruction basic block 
+memory dependence edges basic block contains loads stores need load load dependencies fields marked volatile 
+exception dependence edge created instruction tests exception null check instruction depends result test getfield 
+burs code generation machine specific code generated optimized lir 
+dependence graph basic block partitioned trees input tree pattern matching system bottom rewriting system burs 
+previous approaches partitioning dags tree pattern matching approach considers partitioning presence memory exception dependences register true dependences partitioning algorithm incorporates code duplication 
+input lir dag tree input grammar relevant rules move cmp lbl emitted instructions andc 
+bne lbl cmp move rule pattern cost reg register reg move reg reg reg reg reg reg reg cmp reg integer stm reg stm cmp reg reg zero example tree pattern matching powerpc shows simple example pattern matching powerpc 
+data dependence graph partitioned trees burs 
+pattern matching applied trees grammar relevant fragments illustrated 
+grammar rule associated cost case number footnote tests conjecture reads eng theses submitted 
+instructions rule generate 
+rule example zero cost coalesce register moves 
+rules parse tree pattern matching selects rules ones cost cover tree 
+rules selected cover tree selected code emitted mir instructions 
+powerpc instructions emitted input lir instructions 
+shows mir method foo 
+notice null pointer checks eliminated implemented hardware traps virtual machine 
+label float float float float nonnull 
+float float float float nonnull 
+float float float float float float float nonnull float float float float float float return float mir method foo virtual registers instruction scheduling instruction scheduling allows compiler improve code quality reordering instructions increase utilization processor resources eliminate stalls 
+priority list scheduling algorithm bitmapped resource management 
+target machine specified collection independent resources different types 
+instructions grouped instruction classes instructions class resource usage pattern 
+resource usage pattern list resource reservations consisted resource type start time usage relative instruction issue time 
+compiler builds possible resource patterns instruction class offline step adding latency information instruction classes 
+instruction associated list resources required 
+scheduler reserve particular resources instruction long resource conflicts 
+current target architecture compiler powerpc contains types functional units fixed point unit fpu floating point unit bru branch unit load store unit complex fixed point unit 
+architecture contains multiple instances 
+model machine added pseudo resource class issue issue slot 
+deal certain peculiarities architecture added artificial resource classes cr control register reserve memory reservation 
+instructions straightforward resource allocation 
+example floating point arithmetic instructions belong float arith instruction class reserve floating point unit cycle 
+pipeline length results instructions available cycles 
+instructions required special treatment 
+example integer divide instruction non pipelined means reserve fixed point unit executing entire time execution cycles 
+load store multiple instructions variable latency depends operand 
+instructions conservative approach instructions occur rarely practice 
+instructions manipulate data instruction cache effects difficult model conservatively reserve resources long time avoid possible instructions 
+scheduling algorithm greedy list scheduler see instructions arranged list priority 
+algorithm constructing priority list deliberately left unspecified scheduling algorithm 
+scheduler picks available instruction priority list finds available slot schedule starting instruction earliest start time 
+dependence graph see section compute earliest start times instructions 
+schedule just dimensional bitmap bitwise operations build dependence graph bb initialize schedule set earliest start time instruction instruction propagate earliest start time build priority list pl bb instruction pl earliest start time scheduled time set scheduling time propagate earliest start time rearrange instructions bb scheduling times scheduling algorithm check resource usages 
+algorithm run basic block method 
+register allocation dynamic compiler register allocation framework supports different allocation schemes available time spent optimizing method 
+linear scan register allocator currently employed 
+linear scan algorithm graph coloring allocates registers variables single linear time scan variables live ranges greedy fashion 
+algorithm times faster algorithms graph coloring results code efficient obtained complex allocators 
+lir reaches register allocator contains types symbolic registers temporaries obtained converting stack simulation registers locals obtained java locals specified bytecode 
+higher priority allocating physical registers temporaries live range span basic block 
+registers temporaries allocated second pass allocates remaining registers consecutively locals performing flow analysis 
+simple scheme appropriate small methods typical object oriented programs 
+observed powerpc architecture registers methods need spill locations 
+large methods source program inlining may merit better register allocator avoid spills 
+shows foo method register allocation 
+output register allocator includes prologue method 
+label fp int fp int int int fp int int lr int int fp int float float float float nonnull 
+float float float float nonnull 
+float float float float float float float nonnull float float float float float float int fp int lr int int fp int fp int lr int mir method foo physical registers outputting retargetable code final phase compiler emits binary executable code int instruction array called method body 
+assembly phase exception table stack map instruction array converting offsets ir offsets machine code 
+instruction array stored field object instance method 
+method object hold multiple method bodies bytecodes specialized factors call site contexts values parameters 
+selection particular method body invoked particular invocation site compile time lir generated actual invocation time 
+chapter weighted calling context graph ran ka ya cho ni su transfers wings butterfly 
+matsuo seventeenth century 
+dynamic compiler walk delicate line 
+compilation occurs run time selective decides compile decides compile 
+dynamic compiler spend extra time analyzing compiling piece code reasonable chance extra time spent compilation run time 
+dynamic compiler timid decision making may opportunities optimization lead slow performance 
+aggressive dynamic compiler ability beat best static compilers information actual run time performance system available specialize code data suit situation 
+guide decisions dynamic compile optimize prior behavior system expectation past provide indication 
+information gathered online measurement system timer sample profiling code instrumentation 
+information gathered online measurement system stored form allows fast updates allows salient information easily extracted 
+primary data structure online measurement system weighted calling context graph wccg 
+maintains context sensitive profile information method calls 
+similar calling context tree data structure introduced major distinction wccg may multiple roots entire call stack may analyzed sample point due time constraints 
+chapter describes wccg 
+section describes data structure section describes wccg built maintained 
+description data structure weighted calling context graph graph necessarily connected edges go call sites methods 
+edge corresponds calls call site resolve method 
+different call sites treated different nodes greater precision 
+edges weights correspond approximate frequencies call 
+addition weights edges node contain extra information 
+method node contain number corresponds approximate time spent body method 
+include time spent methods called method 
+contain results specialization benefit prediction algorithm described results pertinent analyses side effect analysis 
+edges contain tables break edge frequencies precise information 
+example table associated edge contain combinations parameter types associated frequencies 
+numbers associated entry correspond approximate frequencies edge traversed types parameters matched types listed entry 
+tables record frequency information combinations parameter values parameter field values 
+building maintenance information wccg come different places 
+timer tick profiler periodically samples currently executing context 
+second instrumented code records method entries exits third analyses bc ir 
+wccg preloaded values 
+sections cover turn 
+timer tick profiler source wccg information timer tick sample profiler 
+sample profiling inexpensive way quickly determine time spent system 
+precise 
+timer tick profiler default profile strategy virtual machine startup 
+timer tick profiler works follows 
+interrupt set fire defined frequency approximately millisecond 
+interrupt fires interrupt service routine looks program counter stack pointer determine method currently executing 
+begins walking stack constructing calling context 
+continues walking stack reaches cycle top stack runs time 
+updates wccg new information timer tick occurred calling context constructing new nodes edges necessary 
+instrumented code second source wccg information instrumented code 
+controller decides precise information methods introduces instrumentation measure information exact number times edge wccg traversed exact amount time spent method conditions method calls 
+see section instrumented code call appropriate routine online measurement system record pertinent information 
+routine analyzes stack find calling context traverses wccg find correct edge node updates information stored 
+analyses third source wccg information code analyses 
+analyses specialization benefit prediction side effect analysis record results wccg locations 
+preloaded wccg online measurement system development constructed wccg offline step 
+functionality exists system extensively testing purposes 
+easily envision functionality allow profile information prior executions current execution 
+invalidating wccg program profiles typically change time program goes different modes operation initialization input computation output program profile may entirely different mode decisions assuming conditions mode may suboptimal executing different mode 
+furthermore system runs data collected newer data important due fact data collected data smaller smaller portion 
+data weighted heavily earlier potentially obsolete data 
+attempt age data invalidate portions data decided simply throw away wccg gets old obsolete due new information code transformations decided complicated time consuming implement aging invalidation data 
+changes system cause system performance change throwing away data insured decisions new data 
+avoids problem incredible expanding data data thrown away memory consumption wccg grows large 
+chapter controller white waves cascade rocks blow 
+difficult ford waters mountain stream 
+lady lady century 
+controller heart dynamic compilation system 
+main functionalities 
+decisions invoke dynamic compiler 
+second drives online measurement system selectively introducing instrumented code profiling data gathering purposes 
+third gives hints garbage collector placement code memory 
+section covers controller decides call sites inline 
+second section covers controller decides methods specialize respect parameters 
+third section describes controller decides methods specialize respect field values 
+fourth section covers controller directs online measurement system fifth section describes controller gives hints garbage collector code relocation purposes 
+deciding call sites inline object oriented language java small method calls 
+bc ir support fly inlining see section benefit fly optimizations performed bc ir automatically performed inlined code necessary repeat optimizations inlining 
+inlining important optimizations system 
+needlessly inlining call sites rarely executed don considerably improve code quality wasteful inlining increases code size compilation time compilation time counts run time dynamic compiler careful inlines 
+controller decides apply inlining information wccg static information method call site 
+controller traverses wccg looks edges execution weights greater certain threshold 
+edges calculates utility function decide request call site inlined 
+utility function combination number metrics different weighting functions 
+strongest weighted factor method size smaller better followed execution frequency larger better 
+specialization benefit prediction information available call site parameters constant known type expected benefit specializing method respect constant type added 
+result utility function greater certain threshold call site added inline plan caller method 
+see algorithm 
+timer tick profile information available execution weights synthesized looking number timer ticks caller vs callee 
+parameters constant actual specialization benefit prediction information available uses default estimate constant parameters 
+output worklist list root methods compiled inlining 
+method worklist inlining plan specifies inlining done compiling algorithm select subset wccg edges inlining edge frequency target method size parameters call constant specialization benefit prediction information available 
+define inlining graph ig subgraph wccg contains edges selected inlining 
+general ig forest small trees 
+initialize worklist empty list tree ig contains nodes method corresponding root node exists worklist entry root method merge decision inline edges tree existing plan method case multiple trees ig method root 
+performing cloning effectively merging ig trees root method 
+create new worklist entry root method set plan field method inlining plan inlines call sites corresponding edges tree algorithm building inlining plan assume cct returned online measurements follows call virtual method call calls direct calls cct main call assume subset edges selected inlining graph follows ig call planning phase create worklist single entry inlining plan call example inlining plan algorithm method time spent threshold initialize totals zero edge target wccg combination parameter types values associated specialization benefit prediction increment total associated frequency method total threshold add method list methods specialize sorted total algorithm choosing specialize respect method parameters specialization respect method parameters controller select specialize respect method parameters 
+method specialization somewhat similar inlining key difference single specialized method shared multiple call sites inlined call definition particular call site 
+means call sites added point specialized method 
+controller finished making inlining decisions chooses methods specialize specialize 
+uses extra table information associated edges wccg 
+see section section describes controller detects opportunities specialize parameter types values 
+specializing parameter types values controller detects opportunities specialization parameter types values information frequency combinations parameter types values associated wccg graph edges results tion benefit prediction algorithm 
+controller selects methods amount time spent certain threshold 
+methods looks edges method combination parameter types values scales frequency results specialization benefit prediction algorithm parameter combination 
+number added total associated combination parameter types values method 
+controller finishes totals certain threshold controller chooses specialize methods 
+dynamic compiler finishes specializing methods patches call sites edges frequency types values check parameter types values conditionally branch new version 
+specialization respect fields values want specialize passed method parameters stored static fields object fields 
+controller specializes methods respect object fields 
+static fields specializing method respect static field forms method specialization specialization benefit prediction algorithm 
+uses execution frequencies wccg side effect analysis results see section 
+controller attempts specialize respect static fields confident 
+controller confident static field performed side effect analysis executed methods potentially access static field added profile instrumentation side effect analysis stated store specified static field 
+controller traverses wccg keeps track number static field confident reported side effect analysis method 
+method scales number estimated uses algorithm initialize totals zero method wccg threshold execution frequency confident field expected number uses increment total confident field total threshold method uses expected number uses execution frequency threshold add list method specialized current value algorithm choosing specialize respect field static field execution frequency method adds total static field 
+method encountered wccg modifies static field side effect number static field removed static field longer tracked 
+controller traversed wccg number associated field signifies approximate dynamic number uses system static field 
+controller considers static fields turn 
+number certain threshold controller specializes methods encountered estimated number dynamic uses field higher certain threshold respect current value static field 
+object fields controller decides specialize respect object fields different ways 
+method analogous deciding specialize respect method parameters types values extra frequency information associated edges wccg 
+second method similar method decide specialize respect static fields 
+analysis proceeds similar manner actual specialization proceeds differently value method specialized taken frequency information wccg edges run time check introduced checks value object field branches correct version 
+directing online measurement system certain synergy controller online measurement system 
+controller base decisions information provided online measurement system directs online measurement system information try collect 
+adding instrumentation controller adds instrumentation method headers information gathering purposes 
+information gathered instrumentation range simple counter counts number executions table frequency information values method parameters 
+virtual machine starts timer tick profiler method gaining information 
+controller uses information profiler decide methods add instrumentation 
+controller adds instrumentation hot methods subgraph methods hot methods static call graph certain depth 
+instrumentation records number invocations method amount time spent method wccg see section adding instrumentation evaluate specialization opportunities controller adds instrumentation results static analysis look promising needs way justify performing specialization optimization 
+controller adds instrumentation methods anticipated specialization benefit high 
+instrumentation records types values potentially beneficial parameters uses information update frequencies stored tables attached edges wccg see section situation controller adds instrumentation static analysis controller detects may beneficial specialize respect field confidence specialization see sections 
+case adds instrumentation count frequencies methods side effect modifying specified field 
+adding basic block level trace level profiling controller adds instrumentation measure information 
+execution time dominated small number methods controller adds basic block level profiling trace profiling methods 
+profiling methods store frequency information ir method see section information trace scheduler basic block reordering algorithm optimizations 
+placement instrumentation code basic block level profiling algorithm similar ball larus 
+maximal spanning tree method control flow graph determine optimal placement instrumentation counters 
+placement instrumentation trace profiling uses ball larus algorithm 
+priority search algorithm finding minimum spanning tree 
+removing instrumentation thesis assume instrumentation code comes free charge actual implementation case 
+system support explicit removal instrumentation code 
+instrumentation implicitly removed methods dynamically recompiled optimized 
+directing garbage collector reorder code functionality controller give hints garbage collector pieces code call located near memory maximize instruction cache locality 
+controller traverses wccg keeps track total call frequencies methods separate graph 
+controller completes graph passed garbage collector garbage collection guide relocate code memory 
+garbage collector uses relocation algorithm similar 
+chapter performing dynamic optimizations mo times dozens trips tiny boat go return reeds know 
+ise tales ise tenth century 
+controller identifies opportunities dynamic optimization compiler needs perform 
+interesting aspect system fact speculatively perform specialization operations 
+stems fact dynamic compiler context java virtual machine dynamically load classes able support incomplete information 
+dynamic compiler pessimistic decisions wouldn able optimizations 
+speculatively performs optimization leaves way back optimization necessary 
+ability back optimizations necessary adequate performance correct functionality presence dynamic class loading 
+algorithm root method worklist compile method obeying inlining decisions plan call site inlined virtual call generate dual path code target test perform inlining case target test corresponding desired wccg edge returns true 
+algorithm performing inlining inlining plan controller mechanism exists system speculatively perform specialization optimizations selectively ignore pieces program execute rarely 
+process backing time consuming event rare specialization benefit may worthwhile 
+chapter describes speculative dynamic optimizations performed system back mechanism 
+section describes speculative inlining 
+section describes method specialization parameters section describes specialization fields 
+speculative inlining inlining performed inlining plan see section 
+dynamic compiler takes inlining plan performs inlining decisions listed plan 
+see algorithm 
+inlining speculative meaning call site potentially call method body different inlined body run time check method target inserted 
+run time check implemented check target instruction 
+check target similar instructions maintain exception semantics null check bounds check basic block 
+think target different exceptional event just run time exception walking stack exception handler exception occurs branches code calculates correct method target branches 
+see example written high level code 
+check target instructions eliminated due precise type information propagated prior check target instructions 
+example nested inlining cases initial call requires check target instruction target matching implies targets match 
+method specialization parameters dynamic compiler supports method specialization respect parameter types values 
+see section description methods selected specialized 
+specializing method respect parameter types values works follows 
+dynamic compiler compiles version method assuming parameters constraints 
+see section call sites specialization plan specifies rewrites call site call routine checks constraints parameters 
+constraints satisfied specialized version called general version called 
+method specialization fields method specialization fields complicated due java memory model 
+specification states fields reread synchronization point 
+specializing respect field values compile specialized version method assuming field change values include run time check value potential synchronization point field value potentially point 
+value change back general version 
+see section 
+original code method 
+
+
+call 
+call 
+
+call structure compiled code method inlining 
+
+
+inlined copy goes 
+call call get inlined 
+
+try throw inlined copy goes catch call example profile directed speculative inlining back executing method specialized respect field having particular value value changes execution method need back version method specialized respect field 
+backing accomplished enforcing mapping synchronization points specialized method original method 
+synchronization point specialized method corresponds exactly synchronization point unspecialized method variables live unspecialized method marked live specialized method 
+back needs occur affected stack frames rewritten match layout unspecialized version return addresses updated point unspecialized version 
+control flow continues unspecialized version 
+backing specialization program profile changes back mechanism strictly necessary speculative inlining specialization respect parameters assumptions change code correct 
+program profile changes code may inefficient 
+case recompilation triggered basic block level instrumentation see section controller adds basic block level profiling method begins take significant portion time 
+large number mispredictions occur due fact earlier assumption incorrect time method increase 
+time spent method small large number mispredictions significantly adversely affect run time small portion time spent method anyway 
+significantly increase method time controller eventually recompile method updated edge weights wccg decision optimal currently occurring program 
+chapter results ya ni eagerly await fifth month festival time people pull sweet flags counting sum grown roots 
+mother gossamer journal tenth century 
+chapter effectiveness compiler large transacting processing benchmark program called portable bob portable business object benchmark 
+section provides description benchmark justification section shows effectiveness concurrent optimizations bc ir 
+section provides preliminary performance results effectiveness dynamic optimizations 
+description benchmark portable bob portable business object benchmark benchmark designed quantify performance simple transactional server workloads written java 
+source code minus libraries approximately lines 
+models typical electronic order entry business scenario 
+business model business model tpc benchmark tm standard specification revision april benchmark chosen model typical application dynamic compilation system long running dynamic server type application 
+written typical modern business application written emulate common coding practices necessarily practices providing best possible performance 
+reason interesting benchmark obvious way dynamic compilation 
+applications huge gains dynamic compilation obvious specialization opportunities 
+showing performance effectiveness benchmark obvious specialization opportunities better evaluate dynamic compilation system useful general special specific cases 
+effectiveness concurrent optimizations section shows effectiveness concurrent optimizations bc ir actual code 
+sections stated numbers code portable bob benchmark minus libraries different bc ir options 
+null pointer checks eliminated shows number null pointer checks ir null pointer check elimination optimization described section 
+shows null pointer checks eliminated simple null pointer check elimination optimization 
+optimization especially effective reduces compile time due reduction size ir 
+type checks eliminated null check elimination null check elimination static number null pointer checks eliminated null pointer check elimination optimization bc ir type analysis type analysis static number run time type checks eliminated type analysis bc ir shows static number runtime type checks ir type analysis bc ir see section 
+shows significant number type checks checkcast instructions eliminated due type analysis performed bc ir 
+reduction size ir optimizations null check elimination type analysis copy propagation size generated ir number instructions different bc ir optimization options shows size ir number instructions different bc ir optimization options enabled 
+null pointer check elimination gives largest gain 
+copy propagation effective 
+reduction code generation time shows amount time taken compile methods benchmark different bc ir optimization options 
+compilation time strongly dependent size ir optimizations reduce size ir reduce compilation time 
+reduction run time optimizations null check elimination type analysis copy propagation time ms spent dynamic compilation pbob different bc ir optimization options optimizations null check elimination type analysis copy propagation execution times ms pbob compiled different bc ir optimization options shows reduction execution time different optimization options enabled bc ir 
+shows optimizations reduce dynamic compile time improve code quality 
+effectiveness dynamic optimizations section presents preliminary performance results effectiveness dynamic optimizations 
+results appear publications 
+effectiveness speculative inlining dynamic optimizations speculative inlining execution times pbob ms speculative inlining enabled shows effect speculative inlining optimization described section 
+enabling speculative inlining major impact objectoriented style benchmark calls virtual single target method bodies small 
+chapter related sound bells echoes things 
+color flowers reveals truth decline 
+proud endure dream spring night fall dust wind 
+tale thirteenth century 
+bc ir bc ir step see chapter incorporates ideas different areas 
+section compares bc ir prior related areas 
+converting stack code register code problems compiling stack code efficient code register machines known programming language forth 
+forth uses general stack machine model stack depth differ depending path code taken stack eliminated 
+java specifications state program point stack size regardless path stack eliminated process translation greatly simplified 
+java compilers section compares current java compilers bc ir algorithm described chapter 
+cacao just time compiler dec alpha 
+translates java bytecode simple intermediate representation performs register allocation emits target code 
+bc ir keeps track stack state bytecodes parsed attempts reduce number superfluous copy instructions generated registers 
+bc ir requires multiple passes code extract bytecodes place fixed length instructions compute basic block control flow information third generate ir 
+support combining analyses ir generation 
+resulting ir designed rapid code generation performing optimization 
+daisy vliw architecture supports jit compilation different architectures including java bytecode 
+supports single pass translation performing depth traversal bytecode perform concurrent analyses optimizations 
+extension freely available kaffe jit compiler allow perform advanced optimizations 
+starts kaffe ir representation computes control flow graph def information 
+caffeine static java compiler includes stage generates ir bytecode 
+supports simple translation scheme maintains stack sophisticated uses registers exclusively 
+cream system static optimizer java bytecode 
+transforms bytecode step process including construction control flow graph inference stack depth points 
+eliminates stack abstraction treating different stack depths different registers 
+toba harissa convert java class files similar technique remove stack abstraction 
+designed static compilation systems attempt perform optimizations translation 
+count optimization phases remove extra registers redundant copy instructions 
+interpretation interpretation alternatively symbolic execution mainly logic functional languages 
+develop provably correct program analyses 
+recognized powerful technique performing flow sensitive data flow analyses highly optimizing compilers 
+far know bc ir interpretation engine operates java bytecode 
+combining analyses negative time optimization various sources fact combining analyses efficient lead better results running analyses separately 
+system intra interprocedural data flow analysis allows run multiple analyses parallel achieve precision single monolithic analysis preserving modularity reusability 
+click mentioned finding constants common subexpressions parsing reduced peak intermediate representation size reduced total compilation time due fact global analyses faster 
+fact optimizations reduce amount time spent optimizations mentioned discussions order perform optimizations 
+aware negative time optimization 
+speculative inlining specialization benefit prediction believe specialization benefit prediction algorithm outlined section unique 
+attempting predict benefit inlining inlining trials 
+compiler experimentally performs inlining records result database consulted guide inlining decisions 
+designing accurate static predictors profile information 
+backing specialization optimizations partial program invalidation specialization optimizations selective recompilation 
+system different incorporates run time checks validate assumptions ability revert currently executing optimized method unoptimized version 
+chapter wa wa yo painful scatter soon please view year spring departs shall returned city 
+eleventh century 
+dynamic compilation attractive research area holds promise significant performance improvements applications 
+automatically identifying exploiting opportunities dynamic optimization difficult problem holds incredible promise 
+step eventual goal allowing programmers concentrate system aspects performance maintainability reliability thesis dynamic compilation system suitable relatively long running dynamic java applications server applications 
+system centered interpretation engine converts java bytecode register intermediate representation single pass concurrently performing numerous optimizations analyses 
+conversion process single pass due efficiency considerations 
+thesis data structures routines gathering organizing runtime performance data techniques information improve system performance 
+preliminary results show dynamic compilation techniques reasonable 
+bibliography ali reza adl tabatabai michal cierniak yuan parikh james 
+fast effective code generation just time java compiler 
+acm sigplan notices may 
+agesen palsberg schwartzbach 
+type inference self analysis objects dynamic multiple inheritance 
+nierstrasz editor european conference object oriented programming lncs pages kaiserslautern germany july 
+springer 
+ole agesen 
+design implementation pep java just time translator 
+theory practice object sytems 
+ole agesen david detlefs 
+finding java stacks 
+peter paul wilson editors oopsla workshop garbage collection memory management october 
+ole agesen david detlefs 
+garbage collection live variable liveness java virtual machines 
+proceedings sigplan conference programming languages design implementation acm sigplan notices montreal june 
+acm press 
+ole agesen urs 
+type feedback vs concrete type analysis comparison optimization techniques object oriented languages 
+technical report computer science department university california santa barbara march 
+aho sethi ullman 
+compilers principles techniques tools 
+addison wesley reading ma 
+bowen alpern anthony cocchi derek lieber mark mergen vivek sarkar 
+jalape compiler supported java tm virtual machine servers 
+proceedings acm sigplan workshop compiler support system software atlanta georgia may 
+acm press 
+glen ammons thomas ball james larus 
+exploiting hardware performance counters flow context sensitive profiling 
+sigplan conference programming language design implementation 
+andersen 
+partial evaluation applied ray tracing 
+diku research report diku university copenhagen denmark 
+wing yee au daniel weise scott seligman 
+automatic generation compiled simulations program specialization 
+acm sigda ieee editor proceedings th acm ieee design automation conference pages san francisco ca june 
+acm press 
+wolfe 
+initial results variable analysis 
+international journal parallel programming february 
+ball james larus 
+optimal profiling tracing programs 
+conference record nineteenth annual acm symposium principles programming languages acm sigplan notices pages 
+acm press january 
+thomas ball james larus 
+efficient path profiling 
+proceedings th annual international symposium microarchitecture pages paris france december 
+ieee computer society tc micro acm 
+beckman partial evaluator programming tool 
+artificial intelligence 
+berlin 
+partial evaluation applied numerical computation 
+conference lisp functional programming pages 
+acm sigplan sigact sigart 
+blair 
+descartes dynamically adaptive compiler run time system continual profile driven program multi specialization 
+burger 
+efficient compilation profile driven dynamic recompilation scheme 
+phd thesis indiana university bloomington february 
+robert burger kent dybvig 
+infrastructure profile driven dynamic recompilation 
+proceedings ieee conference computer languages iccl 
+ieee april 
+michael burke jong deok choi stephen fink david grove michael hind vivek sarkar mauricio serrano sreedhar srinivasan john whaley 
+jalape dynamic optimizing compiler java tm proceedings acm sigplan java grande conference san francisco ca june 
+acm press 
+burn 
+interpretation functional languages 
+burn gay ryan editors theory formal methods proceedings imperial college department computing workshop theory formal methods workshops computer science isle thorns conference centre gate sussex uk march 
+springer verlag 
+business object benchmark java 
+www ibm com developer performance bob pdf 
+gary carleton david sehr 
+programmer profile guided optimizations 
+may 
+chambers dean grove 
+framework selective recompilation presence complex intermodule dependencies 
+proceedings th international conference software engineering pages april 
+chambers dean grove 
+frameworks intra interprocedural dataflow analysis 
+technical report tr university washington department computer science engineering november 
+chambers dean grove 
+program optimization objectoriented languages 
+technical report tr university washington january 
+chambers ungar lee 
+efficient implementation self 
+lisp symbolic computation 
+craig chambers 
+design implementation self compiler optimizing compiler object oriented programming language 
+phd thesis stanford university palo alto california march 
+craig chambers david grove greg defouw jeffrey dean 
+call graph construction object oriented languages 
+acm sigplan notices october 
+craig chambers igor vivek sarkar mauricio serrano srinivasan 
+dependence analysis java 
+proceedings acm workshop languages compilers parallel computing 
+acm press 
+submitted 
+craig chambers david ungar 
+customization optimizing compiler technology self dynamically typed object oriented programming language 
+acm sigplan notices july 
+craig chambers david ungar 
+iterative type analysis extended message splitting optimizing dynamically typed object oriented programs 
+lisp symbolic computation july 
+chang daniel wen mei hwu 
+effect code expanding optimizations instruction cache design 
+technical report crhc coordinated science lab university illinois january 
+chang scott mahlke william chen wen mei hwu 
+profile guided automatic inline expansion programs 
+software practice experience may 
+chang scott mahlke wen mei hwu 
+profile information assist classic code optimizations 
+software practice experience 
+chen mahlke warter 
+hwu hank gyllenhaal 
+profile information assist advanced compiler optimization scheduling 
+lecture notes computer science 
+jong deok choi david grove michael hind vivek sarkar 
+efficient precise modeling exceptions analysis java programs 
+proceedings acm sigplan sigsoft workshop program analysis software tools engineering paste toulouse france september 
+acm press 
+cierniak li 
+optimizing java bytecodes 
+concurrency practice experience june 
+michal cierniak wei li 
+flexible java compiler 
+technical report tr university rochester computer science department may 
+thu jul gmt 
+lars clausen 
+java bytecode optimizer side effect analysis 
+geoffrey fox wei li editors ppopp workshop java science engineering computation las vegas june 
+acm 
+jr click clifford noel 
+combining analysis combining optimizations 
+technical report tr rice university april 
+consel danvy 
+partial evaluation pattern matching strings 
+information processing letters 
+consel hornof noel 
+uniform approach compile time run time specialization 
+lecture notes computer science 
+consel khoo 
+semantics directed generation prolog compiler 
+technical report yaleu dcs rr yale university new haven connecticut may 
+charles consel olivier danvy 
+static dynamic semantics processing 
+acm editor popl 
+proceedings eighteenth annual acm symposium principles programming languages january orlando fl pages new york ny usa 
+acm press 
+charles consel olivier danvy 
+partial evaluation principles perspectives 
+previous version tutorial appeared proceedings th annual acm sigplan sigact symposium principles programming languages jan south carolina january 
+thomas conte kishore menezes mary ann hirsch 
+accurate practical profile driven compilation profile buffer 
+proceedings th annual international symposium microarchitecture pages paris france december 
+ieee computer society tc micro acm 
+thomas conte patel stan cox 
+branch handling hardware support profile driven optimization 
+proceedings th annual international symposium microarchitecture pages san jose california november december 
+acm ieee computer society tc micro 
+thomas conte patel kishore menezes stan cox 
+hardware profiling effective technique profile driven optimization 
+international journal parallel programming april 
+cormen leiserson rivest 
+algorithms 
+mit press mcgraw hill book th edition 
+patrick cousot radhia cousot 
+systematic design program analysis frameworks 
+conference record sixth annual acm symposium principles programming languages pages 
+acm acm january 
+
+machines environnement pour la reduction evaluation 
+phd thesis universite paris vii 
+henry fraser proebsting 
+burg fast optimal instruction selection tree parsing 
+sigplan conference programming language design implementation 
+ron cytron jeanne ferrante barry rosen mark wegman kenneth zadeck 
+efficient method computing static single assignment form 
+technical report cs department computer science brown university october 
+sun jul gmt 
+ron cytron jeanne ferrante barry rosen mark wegman kenneth zadeck 
+efficiently computing static single assignment form control dependence graph 
+acm transactions programming languages systems october 
+ron cytron jeanne ferrante 
+efficiently computing oe nodes fly 
+acm transactions programming languages systems may 
+danvy 
+semantics directed compilation non linear patterns 
+information processing letters 
+dean chambers 
+training compilers better inlining decisions 
+technical report tr university washington 
+dean chambers grove 
+identifying profitable specialization object oriented languages 
+technical report tr university washington department computer science engineering february 
+dean grove chambers 
+optimization object oriented programs static class hierarchy analysis 
+lecture notes computer science 
+jeffrey dean craig chambers 
+better inlining decisions inlining trials 
+conference lisp functional programming pages 
+acm sigplan sigact sigart lisp pointers july september 
+jeffrey dean craig chambers david grove 
+selective specialization object oriented languages 
+acm sigplan notices june 
+kemal ebcioglu erik altman erdem 
+java ilp machine fast dynamic compilation 
+mascots international workshop security efficiency aspects java 
+engler kaashoek 
+dpf fast flexible message demultiplexing dynamic code generation 
+proceedings acm sigcomm conference applications technologies architectures protocols computer communications volume acm sigcomm computer communication review pages new york august 
+acm press 
+dawson engler :10.1.1.25.8634
+vcode retargetable extensible fast dynamic code generation system 
+acm sigplan notices may 
+dawson engler todd proebsting 
+dcg efficient retargetable dynamic code generation system 
+proceedings sixth international conference architectural support programming languages operating systems pages san jose california october 
+acm sigarch sigops sigplan ieee computer society 
+anton ertl 
+new approach forth native code generation 
+conference proceedings pages mpe hill lane southampton 
+af uk october 
+forth interest group 
+anton ertl 
+implementation stack languages register machines 
+dissertation technische universitat wien austria 
+anton ertl 
+fast high quality compilation 
+seminar ibm watson research center yorktown heights august 
+anton ertl 
+optimal code selection dags 
+th annual acm symposium principles programming languages january 
+fisher 
+trace scheduling technique global microcode compaction 
+ieee trans 
+comput 
+fisher 
+trace scheduling extension trace scheduling 
+laboratories 
+garrett dean grove chambers 
+measurement application dynamic receiver class distributions 
+technical report tr university washington department computer science engineering march 
+mock philipose chambers eggers 
+expressive annotation directed dynamic compiler technical report tr university washington 
+grove dean garrett chambers 
+profile guided receiver class prediction 
+acm sigplan notices october 
+sheila margaret 
+efficient compilation dynamic object oriented language 
+proceedings acm workshop partial evaluation semantics program manipulation pages san francisco june 
+association computing machinery 
+harrison 
+interpretation production compiler 
+dagstuhl seminar interpretation august 
+harrison 
+interpretation mainstream compiler technology lecture notes computer science 
+
+trace directed program restructuring aix executables 
+ibm journal research development september 
+hickey smith 
+partial evaluation clp languages 
+partial evaluation semantics program manipulation new haven connecticut sigplan notices vol 
+september pages 
+new york acm 
+urs holzle ole agesen 
+dynamic versus static optimization techniques object oriented languages 
+theory practice object sytems 
+urs holzle craig chambers david ungar 
+optimizing dynamically typed object oriented languages polymorphic inline caches 
+lecture notes computer science 
+urs holzle craig chambers david ungar 
+debugging optimized code dynamic deoptimization 
+sigplan notices july 
+proceedings acm sigplan conference programming language design implementation 
+hotspot compiler 
+java sun com sessions slides tt title htm 
+
+hsieh gyllenhaal hwu 
+java bytecode native code translation caffeine prototype preliminary results 
+ieee editor proceedings th annual ieee acm international symposium microarchitecture december paris france pages spring street suite silver spring md usa 
+ieee computer society press 
+cheng hsieh marie conte teresa johnson john gyllenhaal wen mei hwu 
+optimizing net compilers improved java performance 
+computer june 
+hwu chang 
+achieving high instruction cache performance optimizing compiler 
+michael gabriel editors proceedings th annual international symposium computer architecture pages jerusalem israel june 
+ieee computer society press 
+intel compiler plug 
+developer intel com design icl icl htm 
+cox howell conte 
+profile driven optimization 
+trevor mudge bruce shriver editors proceedings th annual hawaii international conference system sciences 
+volume architecture pages los alamitos ca usa january 
+ieee computer society press 
+jones sestoft sndergaard 
+experiment partial evaluation generation compiler generator 
+
+jouannaud editor rewriting techniques applications france 
+lecture notes computer science vol 
+pages 
+berlin springer verlag 
+jones sndergaard 
+mix self applicable partial evaluator experiments compiler generation 
+lisp symbolic computation 
+jesper jrgensen 
+generating pattern matching compiler partial evaluation 
+simon peyton jones graham hutton carsten kehler holst editors proceedings glasgow workshop functional programming workshops computing pages london august 
+springer verlag 
+kelly macdonald marriott sndergaard stuckey yap 
+optimizing compiler clp 
+montanari rossi editors principles practice constraint programming cp lecture notes computer science pages 
+springer verlag 
+khoo 
+compiling inheritance partial evaluation 
+proceedings symposium partial evaluation semantics program manipulation volume pages new haven cn june 
+andreas krall reinhard 
+cacao bit just time compiler 
+geoffrey fox wei li editors ppopp workshop java science engineering computation las vegas june 
+acm 
+peter lee mark leone 
+optimizing ml run time code generation 
+proceedings acm sigplan conference programming language design implementation pages philadelphia pennsylvania may 
+leone dybvig 
+dynamo staged compiler architecture dynamic program optimization 
+technical report indiana university computer science department indiana university bloomington september 
+mark leone peter lee 
+deferred compilation automation run time code generation 
+technical report cmu cs carnegie mellon department computer science pittsburgh pa december 
+mark leone peter lee 
+lightweight run time code generation 
+proceedings acm sigplan workshop partial evaluation semantics program manipulation pages 
+technical report department computer science university melbourne june 
+mark leone peter lee 
+declarative approach run time code generation 
+workshop compiler support system software february 
+mark leone peter lee 
+dynamic specialization fabius system 
+acm computing surveys es september 
+article 
+tim lindholm frank yellin 
+java virtual machine specification 
+addison wesley reading ma usa second edition 
+bertram raphael 
+lisp language incremental computer 
+report mac massachusetts institute technology lab cambridge massachusetts march 
+massalin 
+synthesis efficient implementation fundamental operating system services 
+phd thesis columbia university 
+massalin pu 
+lock free multiprocessor os kernel 
+technical report cucs columbia university 
+henry massalin calton pu 
+threads input output synthesis kernel 
+proceedings th acm symposium operating systems principles pages park az usa december 
+acm 
+henry massalin calton pu 
+fine grain adaptive scheduling feedback 
+computing systems winter 
+henry massalin calton pu 
+reimplementing synthesis kernel sony news workstation 
+workshop micro kernels kernel architectures pages seattle wa usa april 
+usenix 
+wen mei hwu scott mahlke william chen chang nancy warter roger roland richard hank holm 
+superblock effective technique vliw superscalar compilation 
+journal supercomputing may 
+mogensen 
+application partial evaluation ray tracing 
+master thesis diku university copenhagen denmark 
+steven muchnick 
+advanced compiler design implementation 
+morgan kaufmann san francisco ca 
+gilles muller moura fabrice charles consel 
+harissa flexible efficient java environment mixing bytecode compiled code 
+proceedings rd conference object oriented technologies systems pages berkeley june 
+usenix association 
+gilles muller ulrik pagh schultz 
+harissa hybrid approach java execution 
+ieee software march april 
+gilles muller volanschi renaud marlet 
+scaling partial evaluation optimizing sun commercial rpc protocol 
+proceedings acm sigplan symposium partial evaluation program manipulation pages amsterdam netherlands june 
+vivek william pugh 
+partial evaluation high level imperative programming languages applications hard real time systems 
+acm editor conference record nineteenth annual acm sigplan sigact symposium principles programming languages papers symposium albuquerque new mexico january pages new york ny usa 
+acm press 
+jason patterson 
+accurate static branch prediction value range propagation 
+acm sigplan notices june 
+karl pettis robert hansen 
+profile guided code positioning 
+sigplan notices june 
+proceedings acm sigplan conference programming language design implementation 
+massimiliano poletto dawson engler frans kaashoek 
+tcc system fast flexible high level dynamic code generation 
+proceedings acm sigplan conference programming language design implementation pldi volume acm sigplan notices pages new york june 
+acm press 
+massimiliano poletto vivek sarkar 
+linear scan register allocation 
+acm toplas 
+appear 
+todd proebsting 
+personal communication 
+todd proebsting gregg townsend patrick bridges john hartman tim scott 
+toba java applications way ahead time wat compiler 
+proceedings rd conference object oriented technologies systems pages berkeley june 
+usenix association 
+calton pu henry massalin 
+overview synthesis operating system 
+technical report cucs university columbia 
+calton pu henry massalin 
+composition synthesis kernel 
+luis felipe cabrera russo marc shapiro editors international workshop object orientation operating systems pages palo alto ca usa october 
+ieee ieee computer society press 
+calton pu henry massalin john ioannidis 
+synthesis kernel cucs 
+technical report university columbia 
+calton pu henry massalin john ioannidis 
+synthesis kernel 
+usenix association editor computing systems winter volume pages berkeley ca usa winter 
+usenix 
+queinnec 
+
+partial evaluation applied pattern matching intelligent backtracking 
+editors wsa static analysis bordeaux france september 
+vols pages 
+rennes irisa 
+samples 
+compiler implementation adts profile data 
+uwe kastens peter editors compiler construction th international conference compiler construction volume lecture notes computer science pages paderborn germany october 
+springer 
+alan samples 
+profile driven compilation 
+technical report ucb csd university california berkeley department computer science 
+vivek sarkar mauricio serrano barbara simons 
+retargeting optimized code matching tree patterns directed acyclic graphs patent application submitted december 
+sreedhar guang gao 
+linear time algorithm placing oe nodes 
+conference record nd acm sigplan sigact symposium principles programming languages popl pages san francisco california january 
+acm press 
+
+www com prod st index st html 
+tpc benchmark tm standard specification revision 
+www com handbook pdf 
+david ungar randall smith 
+self 
+power simplicity 
+lisp symbolic computation july 
+preliminary version appeared proc 
+acm symp 
+object oriented programming systems languages applications 
+tim wagner vance susan graham michael harrison 
+accurate static estimators program optimization 
+acm sigplan notices june 
+john whaley martin rinard 
+compositional pointer escape analysis java programs 
+object oriented programing systems languages applications oopsla denver november 
+appear 
+wilkinson 
+kaffe free virtual machine run java code 
+www kaffe org march 
+

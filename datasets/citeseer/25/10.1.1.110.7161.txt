@@ -1,0 +1,914 @@
+serverless network file systems thomas anderson michael dahlin neefe david patterson drew roselli randolph wang computer science division university california berkeley propose new paradigm network file system design serverless network file systems 
+traditional network file systems rely central server machine serverless system utilizes workstations cooperating peers provide file system services 
+machine system store cache control block data 
+approach uses location independence combination fast local area networks provide better performance scalability traditional file systems 
+machine system assume responsibilities failed component serverless design provides high availability redundant data storage 
+demonstrate approach implemented prototype serverless network file system called xfs 
+preliminary performance measurements suggest architecture achieves goal scalability 
+instance node xfs system active clients client receives nearly read write throughput see active client 
+
+serverless network file system distributes storage cache control cooperating workstations 
+approach contrasts traditional file systems nfs sand andrew sprite nels central server machine provides file system services :10.1.1.14.473
+central server performance reliability bottleneck 
+serverless system hand distributes control processing data storage achieve scalable high performance migrates responsibilities failed components remaining machines provide high availability scales gracefully simplify system management 
+factors motivate serverless network file systems opportunity provided fast switched supported part advanced research projects agency national science foundation cda california micro foundation digital equipment hewlett packard ibm siemens sun microsystems xerox 
+anderson supported national science foundation presidential faculty fellowship neefe national science foundation graduate research fellowship roselli department education fellowship 
+authors contacted tea dahlin neefe patterson drew cs berkeley edu 
+copyright association computing machinery permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage new copies bear notice full citation page 
+copyrights components owned acm honored 
+abstracting credit permitted 
+copy republish post servers redistribute lists requires prior fee 
+request permissions publications dept acm appeared th symposium operating systems principles december 
+lans expanding demands users fundamental limitations central server systems 
+switched local area networks atm myrinet bode enables providing aggregate bandwidth scales number machines network 
+contrast shared media networks ethernet fddi allow client server transmit time 
+addition move low latency network interfaces basu enables closer cooperation machines possible past 
+result lan backplane harnessing physically distributed processors memory disks single system 
+generation networks enable require allowing applications place increasing demands file system 
+demands traditional applications increasing time bake new applications enabled fast networks multimedia process migration parallel processing pressure file systems provide increased performance 
+instance continuous media workloads increase file system demands workstations simultaneously running video applications swamp traditional central server 
+coordinated networks workstations allow users migrate jobs machines permit networked workstations run parallel jobs doug ande 
+increasing peak processing power available users increase peak demands file system 
+unfortunately current centralized file system designs fundamentally limit performance availability read misses disk writes go central server 
+address performance limitations users resort costly schemes try scale fundamentally unscalable file systems 
+installations rely specialized server machines configured multiple processors channels processors 
+alas machines cost significantly desktop workstations amount computing capacity 
+installations attempt achieve scalability distributing file system multiple servers partitioning directory tree 
+approach moderately improves scalability coarse distribution results hot spots partitioning allocates heavily files directory trees single server wolf 
+expensive requires human system manager effectively part file system moving users volumes disks servers balance load 
+afs attempts improve scalability caching data client disks 
+sense ethernet today fast lans fetching data local disk order magnitude slower server memory remote striped disk 
+similarly central server represents single point failure requiring server replication walk pope high availability 
+replication increases cost complexity central servers increase latency writes system replicate data multiple servers 
+contrast central server designs objective build truly distributed network file system central bottleneck 
+designed implemented xfs prototype serverless network file system investigate goal 
+xfs illustrates serverless design principles ways 
+xfs dynamically distributes control processing system file granularity utilizing new serverless management scheme 
+second xfs distributes data storage storage server disks implementing software raid patt chen log network striping similar zebra hart :10.1.1.130.4550
+xfs eliminates central server caching advantage cooperative caching leff dahl harvest portions client memory large global file cache 
+sets contributions 
+xfs synthesizes number innovations taken provide basis serverless file system design 
+xfs relies previous areas scalable cache consistency dash alewife chai disk striping raid zebra log structured file systems sprite lfs rose bsd lfs cooperative caching :10.1.1.117.5365
+second addition borrowing techniques developed projects refined serverless system 
+instance transformed dash scalable cache consistency approach general distributed control system fault tolerant 
+improved zebra eliminate bottlenecks design distributed management parallel cleaning subsets storage servers called stripe groups 
+implemented cooperative caching building prior simulation results 
+primary limitation serverless approach appropriate restricted environment machines communicate fast network trust kernels enforce security 
+expect environments common 
+instance systems provide high speed networking trust run parallel distributed jobs 
+similarly xfs group department fast lans connect machines uniform system administration physical building security allow machines trust 
+file system serverless principles appropriate scalable server architectures currently researched 
+xfs mixed environment containing core trusted machines connected fast networks fringe clients connected core slower network trusted 
+environment core machines act traditional scalable reliable cost effective file server fringe clients 
+xfs permits clients nfs sand fringe protocol allowing core xfs system act scalable reliable nfs server unmodified unix clients :10.1.1.14.473
+built prototype demonstrates xfs key features including distributed management network disk striping parity multiple groups cooperative caching 
+section details pieces implementation remain done notably implement cleaner recovery dynamic reconfiguration code 
+simulation results xfs design preliminary measurements prototype 
+prototype largely untuned demonstrates remarkable scalability 
+instance node xfs system clients client receives nearly read write bandwidth see active client 
+rest discusses issues detail 
+section provides overview research results exploited xfs design 
+section explains xfs distributes data metadata control 
+section describes xfs distributed log cleaner section outlines xfs approach high availability section addresses issue security describes xfs mixed security environment 
+describe prototype section including initial performance measurements 
+section describes related section summarizes 
+
+background xfs builds ongoing research efforts achieve goal distributing aspects file service network 
+xfs network disk storage exploits high performance availability redundant arrays inexpensive disks raids 
+log structured file system lfs organize storage largely zebra demonstrated exploit synergy raid lfs provide high performance reliable writes disks distributed network 
+distribute control network xfs draws inspiration multiprocessor cache consistency designs 
+xfs evolved initial proposal wang describe relationship design previous versions xfs design :10.1.1.28.3386
+
+raid xfs exploits raid style disk striping provide high performance highly available disk storage 
+raid partitions stripe data data blocks parity block exclusive corresponding bits data blocks 
+stores data parity block different disk 
+parallelism raid multiple disks provides high bandwidth parity storage provides fault tolerance reconstruct contents failed disk exclusive remaining data blocks parity block 
+xfs uses single parity disk striping achieve benefits plan cope multiple workstation disk failures multiple parity blocks blau 
+raids suffer limitations 
+overhead parity management hurt performance small writes system simultaneously overwrite blocks stripe read old parity old data disks compute new parity 
+unfortunately small writes common environments bake larger caches increase percentage writes disk workload mixes time 
+expect cooperative caching workstation memory global cache workload trend 
+second drawback commercially available hardware raid systems significantly expensive non raid commodity disks commercial raids add specialpurpose hardware compute parity 
+
+lfs xfs incorporates lfs provides high performance writes simple recovery flexible method locate file data stored disk 
+lfs addresses raid small write problem buffering writes memory committing disk large contiguous fixed sized groups called log segments threads segments disk create logical append log file system modifications 
+raid segment log spans raid stripe committed unit avoid need recompute parity 
+lfs simplifies failure recovery modifications located near log 
+log storage simplifies writes potentially complicates reads block located log depending written 
+lfs solution problem provides general mechanism handle location independent data storage 
+lfs uses file inodes similar fast file system ffs store pointers system data blocks :10.1.1.114.9535
+ffs inodes reside fixed locations lfs inodes move log time modified 
+lfs writes file data block moving log updates file inode point new location data block writes modified inode log 
+lfs locates mobile inodes adding level indirection called imap 
+imap contains current log pointers system inodes lfs stores imap memory periodically checkpoints disk 
+checkpoints form basis lfs efficient recovery procedure 
+crash lfs reads checkpoint log rolls forward reading segments log find new location inodes written checkpoint 
+recovery completes imap contains pointers system inodes inodes contain pointers data blocks 
+important aspect lfs log cleaner creates free disk space new log segments form generational garbage collection 
+system overwrites block adds new version block newest log segment creating hole segment data reside 
+cleaner coalesces old partially empty segments smaller number full segments create contiguous space store new segments 
+overhead associated log cleaning primary drawback lfs 
+rosenblum original measurements relatively low cleaner overheads small overhead cleaner bottleneck distributed environment 
+workloads transaction processing incur larger cleaning overheads 
+
+zebra zebra provides way combine lfs raid distributed environment lfs large writes writes network raid efficient implementation software raid commodity hardware workstation disks networks addresses raid cost disadvantage reliability lfs raid feasible distribute data network 
+lfs solution small write problem particularly important zebra network striping reading old data recalculate raid parity network operation zebra 
+illustrates zebra client coalesces writes private client log 
+commits log disks fixed sized log segments log fragments sends different storage server disks lan 
+log striping allows clients efficiently calculate parity fragments entirely local operation store additional storage server provide high data availability 
+zebra log structured architecture significantly simplifies failure recovery 
+lfs zebra provides efficient recovery checkpoint roll forward 
+roll log forward zebra relies deltas stored log 
+delta describes modification file system block including id modified block pointers old new ver client memories client write log log segment 
+log fragments parity fragment network client write log log segment 
+log fragments parity fragment storage server disks 
+log striping zebra xfs 
+client writes new file data single append log stripes log storage servers 
+clients compute parity segments individual files 
+sions block allow system replay modification recovery 
+deltas greatly simplify recovery providing atomic commit actions modify state located multiple machines delta encapsulates set changes file system state occur unit 
+zebra points way factors limit zebra scalability 
+single file manager tracks clients store data blocks log manager handles cache consistency operations 
+second zebra lfs relies single cleaner create empty segments 
+zebra stripes segment system storage servers 
+increase numbers storage servers system zebra reduce fragment size reducing efficiency writes increase size segment increasing memory demands clients system increase segment size syncs force clients write partial segments disk reducing write efficiency bake :10.1.1.124.4563
+
+multiprocessor cache consistency network file systems resemble multiprocessors provide uniform view storage system requiring track blocks cached 
+information allows maintain cache consistency invalidating stale cached copies 
+multiprocessors dash alewife chai scalably distribute task dividing system physical memory evenly processors processor manages cache consistency state physical memory locations 
+unfortunately fixed mapping physical memory addresses consistency managers approach unsuitable file systems 
+goal graceful recovery load rebalancing number machines xfs changes reconfiguration occurs machine crashes new machine joins xfs 
+show section directly controlling machines manage data improve locality reduce network communication 
+
+previous xfs design xfs evolved considerably original proposal wang dahl 
+original design stored system data client disk caches managed cache consistency hierarchy metadata servers rooted central server 
+new implementation eliminates client disk caching favor network striping take advantage high speed switched lans 
+believe aggressive caching earlier design different technology assumptions particular efficient network suited wireless wide area network 
+new design eliminates central management server favor distributed metadata manager provide better scalability locality availability 
+
+context scalable multiprocessor consistency state referred directory 
+avoid terminology prevent confusion file system directories provide hierarchical organization file names 
+previously examined cooperative caching client memory global file cache simulation dahl focus issues raised integrating cooperative caching rest serverless system :10.1.1.120.5
+
+serverless file service raid lfs zebra multiprocessor cache consistency discussed previous section leaves basic problems unsolved 
+need scalable distributed metadata cache consistency management flexibility dynamically reconfigure responsibilities failures 
+second system provide scalable way subset storage servers groups provide efficient storage 
+log system provide scalable log cleaning 
+section describes xfs design relates problems 
+section provides overview xfs distributes key data structures 
+section provides examples system functions important operations 
+entire section disregards important details necessary design practical particular defer discussion log cleaning recovery failures security sections 
+
+metadata data distribution xfs design philosophy summed phrase data metadata control located system dynamically migrated operation 
+exploit location independence improve performance advantage system resources cpus dram disks distribute load increase locality 
+location independence provide high availability allowing machine take responsibilities failed component recovering state redundant log structured storage system 
+typical centralized system central server main tasks server stores system data blocks local disks 
+server manages disk location metadata indicates disk system stored data block 
+server maintains central cache data blocks memory satisfy client misses accessing disks 
+server manages cache consistency metadata lists clients system caching block 
+uses metadata invalidate stale data client caches 
+xfs system performs tasks builds ideas discussed section distribute machines system 
+provide scalable control 
+note nfs server keep caches consistent 
+nfs relies clients verify block current 
+rejected approach allows clients observe stale data client tries read client wrote 
+disk metadata cache consistency state xfs splits management metadata managers similar multiprocessor consistency managers 
+multiprocessor managers xfs managers dynamically alter mapping file manager 
+similarly provide scalable disk storage xfs uses log network striping inspired zebra dynamically clusters disks stripe groups allow system scale large numbers storage servers 
+xfs replaces server cache cooperative caching forwards data client caches control managers 
+xfs types entities clients storage servers managers mentioned cleaners discussed section cooperate provide file service illustrates 
+key challenge xfs locating data metadata dynamically changing completely distributed system 
+storage client storage client storage client server server server cleaner manager cleaner manager cleaner manager client client storage server network client manager network storage server client cleaner storage server client manager cleaner 
+simple xfs installations 
+machine acts client storage server cleaner manager second node performs roles 
+freedom configure system complete 
+managers cleaners access storage client interface machines acting managers cleaners clients 
+rest subsection examines key maps purpose manager map imap file directories stripe group map 
+manager map allows clients determine manager contact file imap allows manager locate files stored disk log 
+file directories serve purpose xfs standard unix file system providing mapping human readable name metadata locator called index number 
+stripe group map provides mappings segment identifiers embedded disk log addresses set physical machines storing segments 
+rest subsection discusses data structures giving example file reads writes 
+table provides summary key xfs data structures 
+section illustrates components 
+
+manager map xfs distributes management responsibilities globally replicated manager map 
+client uses mapping locate file manager file index number extracting index number bits index manager map 
+map simply table indicates physical machines manage groups index numbers time 
+indirection allows xfs adapt managers enter leave system 
+multiprocessor cache consistency distribution relies fixed mapping physical addresses managers xfs change mapping index number manager changing manager map 
+map act coarse grained load balancing mechanism split overloaded managers 
+support reconfiguration manager map order magnitude entries managers 
+rule thumb allows system balance load assigning roughly equal portions map manager 
+new machine joins system xfs modify manager map assign index number space new manager having original data structure purpose location section manager map maps file index number manager 
+globally replicated 
+imap maps file index number disk log address file index node 
+split managers 
+index node maps file offset disk log address data block 
+disk log storage servers 
+index number key locate metadata file 
+file directory 
+file directory maps file name file index number 
+disk log storage servers 
+disk log address key locate blocks storage server disks 
+includes stripe group identifier segment id offset segment 
+index nodes imap 
+stripe group map maps disk log address list storage servers 
+globally replicated 
+cache consistency state lists clients caching holding write token block 
+split managers 
+segment utilization state utilization modification time segments 
+split clients 
+files disk cleaner state cleaner communication recovery 
+disk log storage servers 
+file disk copy imap recovery 
+disk log storage servers 
+deltas log modifications recovery roll forward 
+disk log storage servers 
+manager checkpoints record manager state recovery 
+disk log storage servers 
+table 
+summary key xfs data structures 
+table summarizes purpose key xfs data structures 
+location column indicates structures located xfs section column indicates structure described 
+managers send corresponding part manager state new manager 
+section describes system reconfigures manager maps 
+note prototype implemented dynamic reconfiguration manager maps 
+xfs globally replicates manager map managers clients system 
+replication allows managers know responsibilities allows clients contact correct manager directly number network hops system centralized manager 
+feel reasonable distribute manager map globally relatively small hundreds machines map tens kilobytes size changes correct load imbalance machine enters leaves system 
+manager file controls sets information cache consistency state disk location metadata 
+structures allow manager locate copies file blocks 
+manager forward client read requests block stored invalidate stale data clients write block 
+block cache consistency state lists clients caching block client write ownership 
+subsection describes disk metadata 
+
+imap managers track file blocks cached disk log stored 
+xfs uses lfs imap encapsulate disk location metadata file index number entry imap points file disk metadata log 
+lfs imap scale xfs distributes imap managers manager map managers handle imap entries cache consistency state files 
+disk storage file thought tree root imap entry file index number leaves data blocks 
+file imap entry contains log address file index node 
+xfs index nodes lfs ffs contain disk addresses file data blocks large files index node contain log addresses indirect blocks contain data block addresses double indirect blocks contain addresses indirect blocks 
+
+file directories index numbers xfs uses data structures described locate file manager file index number 
+determine file index number xfs ffs lfs uses file directories contain mappings file names index numbers 
+xfs stores directories regular files allowing client learn index number reading directory 
+xfs index number listed directory determines file manager 
+file created currently choose index number file manager machine client created file 
+section describes simulation results effectiveness policy reducing network communication 
+plan examine policies assigning managers 
+instance plan investigate mod directories permit xfs dynamically change file index number manager created 
+capability allow fine grained load balancing file manager map entry basis permit xfs improve locality switching managers different machine repeatedly accesses file 
+optimization plan investigate assigning multiple managers different portions file balance load provide locality parallel workloads 
+
+stripe group map zebra xfs bases storage subsystem simple storage servers clients write log fragments 
+improve performance availability large numbers storage servers stripe segment storage servers system xfs implements stripe groups proposed large raids chen 
+stripe group includes separate subset system storage servers clients write segment stripe group system storage servers 
+xfs uses globally replicated stripe group map direct reads writes appropriate storage servers system configuration changes 
+manager map xfs globally replicates stripe group map small seldom changes 
+current version prototype implements reads writes multiple stripe groups dynamically modify group map 
+stripe groups essential support large numbers storage servers reasons 
+stripe groups clients stripe segments disks system 
+organization require clients send small inefficient fragments storage servers buffer enormous amounts data segment write large fragments storage server 
+second stripe groups match aggregate bandwidth groups disks network bandwidth client resources efficiently client writes full network bandwidth stripe group client different group 
+third limiting segment size stripe groups cleaning efficient 
+efficiency arises cleaners extract segments live data skip completely empty segments read partially full segments entirety large segments linger partially full state longer small segments significantly increasing cleaning costs 
+stripe groups greatly improve availability 
+group stores parity system survive multiple server failures happen strike different groups large system random failures case 
+cost improved availability marginal reduction disk storage effective bandwidth system parity server group entire system 
+stripe group map provides pieces information group group id members group group current obsolete describe distinction current obsolete groups 
+client writes segment group includes stripe group id segment identifier uses map list storage servers send data correct machines 
+client wants read segment uses identifier stripe group map locate storage servers contact data parity 
+xfs distinguishes current obsolete groups support reconfiguration 
+storage server enters leaves system xfs changes map active storage server belongs exactly current stripe group 
+reconfiguration changes membership particular group xfs delete group old map entry 
+marks entry obsolete clients write current stripe groups may read current obsolete stripe groups 
+leaving obsolete entries map xfs allows clients read data previously written groups transferring data obsolete groups current groups 
+time cleaner move data obsolete groups current groups hart cleaner removes block live data obsolete group xfs deletes entry stripe group map :10.1.1.130.4550
+
+system operation section describes xfs uses various maps described previous section 
+describe reads writes cache consistency simulation results examining issue locality assignment files managers 
+
+reads caching illustrates xfs reads block file name offset file 
+complex complexity architecture designed provide performance fast lans 
+today fast lans fetching block local memory faster fetching remote memory turn faster fetching disk 
+name offset directory index offset unix cache mgr 
+map access local data structure possible network hop data metadata block cache globally replicated data local portion global data data block client mgr 
+mgr 
+index id offset cache consistency state imap open file client reads file parent directory labeled diagram determine index number 
+note parent directory data file read procedure described 
+ffs xfs breaks recursion root kernel learns index number root mounts file system 
+top left path indicates client checks local unix block cache block block request done 
+follows lower path fetch data network 
+xfs uses manager map locate correct manager index number sends request manager 
+manager located client message requires network hop 
+manager tries satisfy request fetching data client cache 
+manager checks cache consistency state possible forwards request client caching data 
+client reads block unix block cache forwards data directly client originated request 
+manager adds new client list clients caching block 
+client supply data dram manager routes read request disk examining imap locate block index node 
+manager may find index node local cache may read index node disk 
+manager read index node disk uses index node disk log address stripe group map determine storage server contact 
+manager requests index block storage server reads block disk sends back manager 
+manager uses index node identify log address data block 
+shown detail file large manager may read levels indirect blocks find data block address manager follows procedure reading indirect blocks reading index node 
+client id unix cache 
+procedure read block 
+circled numbers refer steps described section 
+network hops labelled possible clients managers storage servers run machines 
+example xfs tries locate manager file machine client file avoid network hops 
+ss abbreviation storage server index node addr 
+data block addr 
+mgr 
+client index stripe group map stripe group map offset unix cache ss id mgr 
+ss index node addr 
+ss id mgr 
+ss data block addr 
+client client data block ss ss disk mgr 
+offset ss disk ss client index node data block manager uses data block log address stripe group map send request storage server keeping block 
+storage server reads data disk sends data directly client originally asked 
+important design decision cache index nodes managers clients 
+caching index nodes clients allow read blocks storage servers sending request manager block doing significant drawbacks 
+reading blocks disk contacting manager clients lose opportunity cooperative caching avoid disk accesses 
+second clients read data block directly need notify manager fact cache block manager knows invalidate block modified 
+approach simplifies design eliminating client caching cache consistency index nodes manager handling index number directly accesses index node 
+
+writes clients buffer writes local memory committed stripe group storage servers 
+xfs uses log file system write changes disk address modified block 
+client commits segment storage server client notifies modified blocks managers managers update index nodes periodically log changes stable storage 
+zebra xfs need simultaneously commit index nodes data blocks client log includes delta allows reconstruction manager data structures event client manager crash 
+discuss deltas detail section 
+bsd lfs manager caches portion imap memory storing disk special file called 
+system treats file exception index nodes 
+system locates blocks manager checkpoints described section 
+
+cache consistency xfs utilizes token cache consistency scheme similar sprite nels afs xfs manages consistency block file basis 
+client modifies block acquire write ownership block 
+client sends message block manager 
+manager invalidates cached copies block updates cache consistency information indicate new owner replies client giving permission write 
+client owns block client may write block repeatedly having ask manager ownership time 
+client maintains write ownership client reads writes data point manager revokes ownership forcing client writing block flush changes stable storage forward data new client 
+xfs managers state cache consistency cooperative caching 
+list clients caching block allows managers invalidate stale cached copies case forward read requests clients valid cached copies second 
+
+management distribution policies xfs tries assign files client manager colocated machine 
+section presents simulation study examines policies assigning files managers 
+show locating file management client creates file significantly improve locality reducing number network hops needed satisfy client requests compared centralized manager 
+xfs prototype uses policy call writer 
+client creates file xfs chooses index number assigns file management manager located client 
+comparison simulated centralized policy uses single centralized manager located clients 
+examined management policies simulating xfs behavior day trace clients nfs accesses file server berkeley computer science division dahl :10.1.1.135.7948
+simulated caches day trace gathered statistics rest 
+expect workloads yield different results evaluating wider range workloads remains important 
+simulator counts network messages necessary satisfy client requests assuming client mb local cache manager located client storage servers remote 
+artifacts trace affect simulation 
+trace gathered snooping network include reads resulted local cache hits 
+omitting requests resulted local hits trace inflates average number network hops needed satisfy read request 
+simulate larger caches traced system factor alter total number network requests policy smit relative metric comparing policies 
+second limitation trace finite length allow determine file writer certainty files created trace 
+assign management files random managers start trace written trace reassign management writer trace 
+write sharing rare block overwrites deletes block previous writer heuristic yield results close true writer policy 
+shows impact policies locality 
+writer policy reduces total number network hops needed satisfy client requests 
+difference comes improving write locality algorithm little improve locality reads deletes account small fraction system network traffic 
+illustrates average number network messages satisfy read block request write block request delete file request 
+communication read block re quest includes network hops indicated 
+despite large number network hops incurred requests average request quite low 
+read requests trace satisfied local cache noted earlier local hit rate higher trace included local hits traced system 
+average local read costs hops writer policy local normally requires hops client asks manager manager forwards request storage server client supplies data time avoid hop manager located client making request client supplying data 
+centralized writer policies read occasionally incur additional hops read index node indirect block storage server 
+writes benefit dramatically locality 
+write requests required client contact manager establish write ownership manager colocated client time 
+manager invalidate stale cached data cache invalidated network messages delete hops write hops read hops centralized writer management policy 
+comparison locality measured network traffic centralized writer management policies 
+network hops request centralized writer hops read hops write hops delete 
+average number network messages needed satisfy read block write block delete file request centralized writer policies 
+hops write column include charge writing segment containing block writes disk segment write asynchronous block write request large segment amortizes block write cost 
+note number hops read lower trace included local hits traced system 
+local third time 
+clients flushed data disk informed manager data new storage location local operation time 
+deletes rare benefit locality file delete requests went local manager clients notified caching deleted files local manager 
+
+cleaning lfs system xfs writes data appending complete segments log deletes overwrites blocks old segments leaving holes contain data 
+lfs systems log cleaner coalesce live data old segments smaller number new segments creating completely empty segments full segment writes 
+cleaner create empty segments quickly system writes new segments single sequential cleaner bottleneck distributed system xfs 
+xfs architecture provides distributed cleaner completed implementation cleaner prototype 
+lfs cleaner centralized distributed main tasks 
+system keep utilization status old segments holes contain holes appeared wise decisions segments clean rose :10.1.1.117.5365:10.1.1.117.5365
+second system examine bookkeeping information select segments clean 
+third cleaner reads live blocks old log segments writes blocks new segments 
+rest section describes xfs distributes cleaning 
+describe xfs tracks segment utilizations identify subsets segments examine clean coordinate parallel cleaners keep file system consistent 
+
+distributing utilization status xfs assigns burden maintaining segment utilization status client wrote segment 
+approach provides parallelism distributing bookkeeping provides locality clients seldom write share data bake client writes usually affect local segments utilization status 
+simulated policy examine reduced overhead maintaining utilization information 
+input simulator trace described section caching issue gather statistics full day trace time warm caches 
+shows results simulation 
+bars summarize network communication necessary monitor segment state policies centralized pessimistic centralized optimistic distributed 
+centralized pessimistic policy clients notify centralized remote cleaner time modify existing block 
+centralized optimistic policy uses cleaner remote clients clients send messages modify blocks local write buffers 
+results policy optimistic changed log blocks centralized pessimistic centralized optimistic 
+simulated network communication clients cleaner 
+bar shows fraction blocks modified deleted trace time client modified block 
+blocks modified different client originally wrote data client seconds previous write client seconds passed 
+centralized pessimistic policy assumes modification requires network traffic 
+centralized optimistic scheme avoids network communication client modifies block wrote previous seconds distributed scheme avoids communication block modified previous writer 
+cause simulator assumes blocks survive clients write buffers seconds overwritten whichever sooner assumption allows simulated system avoid communication real system account segments written disk early due syncs bake :10.1.1.124.4563
+unfortunately syncs visible traces 
+distributed policy client tracks status blocks writes needs network messages modifying block writer 
+days trace blocks written clients overwritten deleted modified seconds client required network communication centralized optimistic policy 
+distributed scheme better reducing communication factor eighteen workload compared centralized optimistic policy 
+
+distributing cleaning modified different client clients store segment utilization information 
+implement files normal xfs files facilitate recovery sharing files different machines system 
+file contains segment utilization information segments written client stripe group clients write files client directories write separate files directories segments stored different stripe groups 
+leader stripe group initiates cleaning number free segments group falls low wa distributed modified client modified client ter mark group idle 
+group leader decides cleaners clean stripe group segments 
+sends cleaners part list files contain utilization information group 
+giving cleaner different subset files xfs specifies subsets segments cleaned parallel 
+simple policy assign client clean segments 
+attractive alternative assign cleaning responsibilities idle machines 
+xfs assigning files active machines cleaners running idle ones 
+
+coordinating cleaners bsd lfs zebra xfs uses optimistic concurrency control resolve conflicts cleaner updates normal file system writes 
+cleaners lock files cleaned invoke cache consistency actions 
+cleaners just copy blocks blocks old segments new segments optimistically assuming blocks process updated 
+conflict client writing block cleaned manager ensure client update takes precedence cleaner update 
+algorithm distributing cleaning responsibilities simultaneously asks multiple cleaners clean segment mechanism allow strict probabilistic divisions labor resolving conflicts cleaners 
+
+recovery reconfiguration availability key challenge distributed system xfs 
+xfs distributes file system machines able continue operation machines fail 
+fortunately techniques provide highly available file service potentially unreliable components known 
+raid striping allows data stored disk accessed despite disk failures zebra demonstrated extend lfs recovery distributed system 
+zebra approach organizes recovery hierarchy lower levels recovery performed followed higher levels depend lower levels illustrates 
+scheme recovery proceeds steps recover log segments stored disk 
+recover managers disk imap metadata reading manager checkpoint subsequent deltas log 
+recover managers cache consistency state querying clients 
+recover cleaners state reading cleaner checkpoints rolling forward update files 
+order recovery cache consistency cleaner manager imap disk logs dependencies 
+bottom recovery xfs zebra rests persistent state stored reliably logs 
+xfs leaves basic techniques place modifying avoid centralized bottlenecks 
+techniques allow xfs resilient uncorrelated failures instance users kicking power network cords sockets 
+xfs machine fails access unaffected clients managers storage servers continue 
+xfs continue operation multiple machines single storage group fail network partition prevents storage servers regenerating segments 
+prototype currently implements limited subset xfs recovery functionality storage servers recover local state crash automatically reconstruct data parity storage server group fails clients write deltas logs support manager recovery 
+implemented manager checkpoint writes checkpoint recovery reads delta reads roll forward 
+current prototype fails recover cleaner state cache consistency state implement consensus algorithm needed dynamically reconfigure manager maps stripe group maps 
+complexity recovery problem early state implementation continued research needed fully understand scalable recovery 
+rest section explores issues involved scaling basic zebra recovery model discusses additional aspect recovery reaching consensus manager maps stripe group maps 
+
+persistent state storage servers provide keystone system recovery availability strategy storing system persistent state redundant log structured file system 
+base storage servers recovery zebra design crash storage server reads local checkpoint block 
+checkpoint preserves sets state storage server internal mapping xfs fragment ids fragments physical disk addresses storage server map free disk space list locations storage server planning store fragments arrive checkpoint 
+reading checkpoint storage server examines locations stored data just crash 
+computes simple checksum determine contain live data updating local data structures 
+incomplete fragments written time crash fail checksum discarded 
+help recover stripe group map crash xfs includes field fragment lists stripe group storage servers group 
+storage server recovery scale xfs storage server independently recover local state storage servers local checkpoints allow examine small fractions disks locate incomplete fragments 
+
+manager metadata recover managers disk location metadata xfs managers checkpoint roll forward method developed lfs zebra split responsibility rolling forward different components logs scalability 
+normal operation managers store modified index nodes modified blocks logs standard client interface 
+holds imap containing pointers index nodes log locate log crash managers checkpoints periodically store logs 
+bsd lfs xfs checkpoints consist primarily lists pointers disk storage locations time checkpoints 
+checkpoint lists segment id segment client log time checkpoint 
+recover manager state zebra manager begins reading log backwards log finds checkpoint 
+manager reads checkpoint get pointers blocks looked time checkpoint 
+pointers manager recovers imap 
+account modifications manager reads clients logs starting time checkpoint rolling forward checkpoint state information logs deltas play back modification 
+generalize approach handle multiple managers xfs allows new manager recover separate portion imap state 
+scalability issues arise 
+recovering manager read manager log 
+second replaying deltas system read client log 
+third machine involved recovery locate tail logs read 
+assign manager read manager log xfs uses consensus algorithm described section recovery create initial manager map assigns manager log new managers 
+manager recovers checkpoint log restoring portion imap handled manager wrote log 
+assigning log manager parallelize recovery manager recovers subset system metadata parallel recovery efficient reading log 
+xfs takes similar approach reading deltas clients logs 
+assigns client manger read log replay deltas 
+note manager log contained information interest manager client log contains deltas potentially affect managers 
+machine reading deltas client log sends delta manager delta affects 
+zebra managers version numbers included deltas order conflicting updates data different clients 
+enable machines locate tails logs recover storage server keeps track newest segment stores client manager 
+machine locate log recover asking storage groups choosing newest segment 
+parallelism efficiency provided xfs approach manager recovery needed evaluate scalability 
+design observation procedures described require communications steps refers number clients managers storage servers phase proceed parallel machines done phase limited decreasing interval checkpoints 
+instance locate tails systems logs machines involved recovery query storage servers locate newest segment log recovered 
+requires total messages machine ask storage server group newest log segment stored group client manager needs contact storage server groups clients managers proceed parallel provided take steps avoid recovery storms machines simultaneously contact single storage server bake 
+plan randomization accomplish goal 
+recovering log checkpoint rolling forward logs raises similar scaling issues 
+manager client potentially contact storage servers read logs log recovered parallel 
+fact actual number storage servers contacted log controlled interval checkpoints shortening interval reduces far back log system scan reduces storage servers manager client contact 
+
+cache consistency state managers recovered rolled forward imap recover cache consistency state associated blocks manage 
+xfs server driven recovery bake 
+manager contacts system clients send manager list blocks caching write ownership indicated portion index number space 
+manager state communication phase tempered way parallelism 
+
+cleaner state xfs cleaners state consists segment utilization information resides files 
+files normal xfs files earlier levels recovery recover 
+clients buffer writes files files may completely date lower levels recovery rolled forward deltas logs files may account modifications time failure 
+cleaners combat problem checkpoint roll forward protocol 
+cleaner periodically flushes files disk writes cleaner checkpoint regular file directory 
+checkpoint indicates segment client written log time checkpoint 
+xfs recovers files checkpoints cleaner rolls forward utilization state stored files asking client summary modifications cleaner checkpoint 
+client responds list segments controlled cleaner client modified time cleaner checkpoint 
+list includes count holes client created modified segment 
+cleaner updates files decrementing utilization segment total number holes created clients cleaner checkpoint 
+clients create summaries scan logs main xfs roll forward phase 
+client reads deltas segment tallies modifications writes segment segments 
+drawback approach decrement segment utilization twice modification 
+instance cleaner store file disk time cleaner checkpoint crash 
+case cleaner client summaries include modifications reflected files 
+mistake result segment cleaned early permanent damage done 
+cleaner cleans segment reads deltas segment correctly identifies live blocks moves new segment 
+
+reconfiguration consensus xfs reconfigures manager map stripe group map system recovers crash machines added removed 
+implemented dynamic reconfiguration data structures prototype plan follows 
+system detects configuration change initiates global consensus algorithm elects leader active machines supplies leader list currently active nodes 
+adapt spanning tree algorithm autonet reconfiguration purpose schr :10.1.1.141.5436
+leader computes new manager stripe group map distributes rest nodes 
+case incremental configuration changes machine added removed small number machines crash system continue operation process 
+stripe group map reconfiguration clients continue read soon obsolete stripe groups old map try write storage server left system find missing machine rewrite segment new stripe group simply write segment parity protection 
+case manager map change access unaffected managers continue accesses portions map reconfigured wait management assignments transferred 
+
+security xfs described appropriate restricted environment machines communicate fast network trust kernels enforce security 
+xfs managers storage servers clients cleaners run secure machines protocols described far 
+xfs support trusted clients different protocols require trust traditional client protocols albeit cost performance 
+current implementation allows unmodified unix clients mount remote xfs partition standard nfs protocol 
+file systems xfs trusts kernel enforce firewall untrusted user processes kernel subsystems xfs 
+xfs storage servers managers clients enforce standard file system security semantics 
+instance xfs storage servers store fragments supplied authorized clients xfs managers read write tokens authorized clients xfs clients allow user processes appropriate credentials permissions access file system data 
+expect level trust exist settings 
+instance xfs group department administrative domain machines administered way trust 
+similarly xfs appropriate users trust remote nodes run migrated processes behalf 
+environments trust desktop machines xfs trusted core desktop machines servers physically secure compute servers file servers machine room parallel server architectures researched 
+cases xfs core provide scalable reliable cost effective file service trusted fringe clients running restrictive protocols 
+downside core system exploit untrusted cpus memories disks located fringe 
+client trust concern xfs xfs ties clients intimately rest system traditional protocols 
+close association improves performance may increase opportunity clients interfere system 
+xfs traditional system compromised client endanger data accessed user machine 
+damaged xfs client wider harm writing bad logs supplying incorrect data cooperative caching 
+plan examine techniques guard unauthorized log entries encryption techniques safeguard cooperative caching 
+current prototype allows unmodified unix fringe clients access xfs core machines nfs protocol illustrates 
+xfs client core exports xfs file system nfs nfs client employs procedures mount standard nfs partition xfs client 
+xfs core client acts nfs server nfs client providing high performance employing remaining xfs core machines nfs clients xfs core 
+xfs core acting scalable file server unmodified nfs clients 
+satisfy requests satisfied local cache 
+multiple nfs clients utilize xfs core scalable file server having different nfs clients mount xfs file system different xfs clients avoid bottlenecks 
+xfs provides single machine sharing semantics appears nfs clients mounting file system server 
+nfs clients benefit xfs high availability mount file system available xfs client 
+course key nfs server performance efficiently implement synchronous writes prototype exploit non volatile ram optimization commercial nfs servers bake best performance nfs clients mount partitions unsafe option allow xfs buffer writes memory :10.1.1.124.4563:10.1.1.124.4563
+
+xfs prototype section describes state xfs prototype august presents preliminary performance results measured node cluster sparcstation results preliminary expect tuning significantly improve absolute performance suggest xfs achieved goal scalability 
+instance microbenchmarks clients achieved aggregate large file write bandwidth mb close linear speedup compared single client mb bandwidth 
+tests indicated similar speedups reads small file writes 
+rest section summarizes state prototype describes test environment presents results 
+
+prototype status prototype implements xfs key features including distributed management network disk striping single parity multiple groups cooperative caching 
+completed implementation number features 
+glaring deficiency xfs crash recovery procedures 
+system automatically reconstruct data storage server crashes completed implementation manager state checkpoint roll forward 
+implemented consensus algorithms necessary calculate distribute new manager maps storage group maps system currently reads mappings non xfs file change 
+implemented code change file index number dynamically assign new manager created implement cleaner 
+xfs best characterized research prototype system stable time considerable stress testing needed real users want data 
+
+current version xfs source tree available cs berkeley edu xfs release sosp snapshot tar code available provide detailed documentation design august illusion able download code start running xfs 
+plan provide stable releases xfs directory 
+prototype implementation consists main pieces 
+implemented small amount code loadable module solaris kernel 
+code provides xfs interface solaris node layer accesses memory file cache 
+implemented remaining pieces xfs daemons outside kernel address space facilitate debugging 
+xfs kernel code satisfy request buffer cache sends request client daemon 
+client daemons provide rest xfs functionality accessing manager daemons storage server daemons network 
+
+test environment testbed total machines dual processor sparcstation single processor sparcstation machines mb physical memory 
+uniprocessor mhz ss ss specint ratings copy large blocks data memory memory mb mb respectively 
+nfs tests ss nfs server remaining machines nfs clients 
+xfs tests machines act storage servers managers clients noted 
+experiments fewer machines include ss starting powerful ss xfs storage servers store data mb partition gb seagate st disk 
+disks advertised average seek time ms rotate rpm 
+measured peak bandwidth read raw disk device memory mb disks 
+xfs tests log fragment size kb noted storage server groups machines data parity xfs tests include overhead parity computation 
+nfs server uses faster disk xfs storage servers gb dec rz va peak bandwidth mb raw partition memory 
+nfs server uses nvram card acts buffer disk writes bake :10.1.1.124.4563
+nvram buffer xfs machines xfs log buffer provides similar performance benefits 
+high speed switched myrinet network bode connects machines 
+link physical network peak mb bandwidth rpc tcp ip protocol overheads place lower limit throughput achieved 
+throughput fast networks myrinet depends heavily version patch level solaris operating system 
+xfs measurements kernel compiled solaris source release 
+measured tcp throughput mb kb packets source release 
+nfs measurements binary release solaris augmented binary patches recommended sun june 
+release provides better network performance tcp test achieved throughput mb setup 
+alas get sources patches xfs measurements penalized slower effective network nfs 
+rpc overheads reduce network performance systems 
+
+performance results section presents set preliminary performance results xfs set microbenchmarks designed stress file system scalability 
+examine read write throughput large files write performance small files 
+performance results preliminary 
+noted significant pieces xfs system remain implemented 
+current prototype implementation suffers inefficiencies attack 
+xfs currently implemented set user level processes redirecting vnode layer calls afs 
+took approach simplify debugging hurts performance user kernel space crossing requires kernel schedule user level process copy data user process address space 
+fix limitation working move xfs kernel 
+rpc tcp ip overheads severely limit xfs network performance 
+begun port xfs communications layer active messages address issue 
+done little profiling tuning 
+expect find fix inefficiencies 
+despite limitations prototype sufficient demonstrate scalability xfs architecture 
+absolute performance expect tuned xfs 
+implementation matures expect xfs client significantly outperform nfs client bandwidth multiple disks cooperative caching 
+eventual performance goal single xfs client achieve read write bandwidths near maximum network throughput multiple clients realize aggregate bandwidth approaching system aggregate local disk bandwidth 
+
+scalability figures illustrate scalability xfs performance large writes large reads small writes 
+tests number clients increases xfs aggregate performance 
+contrast nfs single server saturated just clients tests limiting peak throughput 
+illustrates performance disk write throughput test client writes large mb private file invokes sync force data disk data stay nvram case nfs 
+single xfs client limited mb half mb throughput single nfs client difference largely due extra kernel crossings associated data copies user level xfs implementation high network protocol overheads 
+increase number clients nfs throughput increase xfs configuration scales peak bandwidth mb clients appears clients available experiments achieve bandwidth xfs storage servers managers 
+illustrates performance xfs nfs large reads disk 
+test machine flushed memory file cache sequentially read client mb file 
+single nfs client outperforms single xfs client 
+nfs client read mb user level xfs implementation network overheads limit xfs client mb case writes xfs exhibits scalability clients achieve read throughput mb contrast clients saturate nfs peak throughput mb illustrates performance client creates files containing kb data file 
+benchmark xfs scale absolute performance greater nfs client 
+xfs client create files second nfs client create files second 
+single client aggregate large write bandwidth mb mb mb mb mb mb xfs mb nfs mb clients 
+aggregate disk write bandwidth 
+axis indicates number clients simultaneously writing private mb files axis indicates total throughput active clients 
+xfs groups storage servers managers 
+nfs peak throughput mb clients xfs mb clients 
+aggregate large read bandwidth mb mb mb mb mb mb mb nfs xfs mb clients 
+aggregate disk read bandwidth 
+axis indicates number clients simultaneously reading private mb files axis indicates total throughput active clients 
+xfs groups storage servers managers 
+nfs peak throughput mb clients xfs mb clients 
+case benchmark benefits xfs log striping network disk efficiency outweigh limitations current implementation 
+xfs demonstrates scalability benchmark 
+xfs clients able generate total files second nfs peak rate files second clients 
+
+storage server scalability measurements node xfs system machines acted clients managers storage servers bandwidth small write performance scaled 
+section examines impact different storage server organizations scalability 
+shows large write performance vary number storage servers change stripe group size 
+small file creates second files files files files files xfs files nfs files clients 
+aggregate small write performance 
+axis indicates number clients simultaneously creating kb files 
+axis average aggregate number file creates second benchmark run 
+xfs groups storage servers managers 
+nfs achieves peak throughput files second clients xfs scales files second clients 
+aggregate large write bandwidth mb mb mb mb mb mb mb xfs ss group xfs ss group mb storage servers 
+large write throughput function number storage servers system 
+axis indicates total number storage servers system axis indicates aggregate bandwidth clients write mb file disk 
+ss line indicates performance stripe groups storage servers default ss shows performance groups storage servers 
+increasing number storage servers improves performance spreading system requests cpus disks 
+increase bandwidth falls short linear number storage servers client overheads significant limitation system bandwidth 
+reducing stripe group size storage servers reduces system aggregate bandwidth different measurements 
+attribute difference increased overhead parity 
+reducing stripe group size reduces fraction fragments store data opposed parity 
+additional overhead reduces available disk bandwidth system groups servers 
+
+manager scalability shows importance distributing management multiple managers achieve parallelism locality 
+varies number managers handling metadata clients running small write benchmark 
+graph indicates single manager significant bottleneck benchmark 
+increasing system manager increases throughput system managers doubles throughput compared single manager system 
+continuing increase number managers system continues improve performance xfs writer policy 
+policy assigns files managers running machine clients create files section described policy detail 
+system managers create files second small file creates second files files files files files writer policy nonlocal manager files storage servers clients files managers 
+small write performance function number managers system manager locality policy 
+axis indicates number managers 
+axis average aggregate number file creates second clients simultaneously creating small kb files 
+lines show performance writer policy locates file manager client creates file nonlocal policy assigns management machine 
+hardware failure ran experiment groups storage servers clients 
+maximum point xaxis managers 
+
+due hardware failure ran experiment groups storage servers clients 
+system managers policy 
+improvement comes load distribution locality larger fraction clients host managers algorithm able successfully locate managers clients accessing file 
+nonlocal manager line illustrates happen locality 
+line altered system management assignment policy avoid assigning files created client local manager 
+system managers throughput peaks algorithm managers longer significant bottleneck benchmark 
+
+limitations measurements measurements suggest xfs architecture significant potential great deal remains fully evaluate design 
+workloads examined microbenchmarks provide significant parallelism spread load relatively evenly xfs components 
+real workloads include hot spots may limit scalability xfs may require xfs rely heavily capacity reconfigure responsibilities avoid loaded machines 
+second limitation measurements compare nfs 
+reasons doing practical nfs known system easy compare provides frame limitations respect scalability known 
+nfs installations attacked nfs limitations buying multiprocessor servers interesting compare xfs running workstations nfs running powerful server machines available 
+
+related section discussed number projects provide important basis xfs 
+section describes efforts build decentralized file systems 
+file systems cfs pier bridge vesta distribute data multiple storage servers support parallel workloads lack mechanisms provide availability component failures 
+parallel systems implemented redundant data storage intended restricted workloads consisting entirely large files file striping appropriate large file accesses reduce stress centralized manager architectures 
+instance swift cabrera sfs love provide redundant distributed data storage parallel environments tiger services multimedia workloads 
+cao sns lee autoraid implement raid derived storage systems :10.1.1.119.6793
+systems provide services similar xfs storage servers require serverless management provide scalable highly available file system interface augment simpler disk block interfaces 
+contrast log striping approach taken zebra xfs raid level patt architecture cal parity small writes expensive disks distributed network 
+sns problem raid level mirrored architecture approach approximately doubles space overhead storing redundant data 
+autoraid addresses dilemma storing data actively written raid level migrating inactive data raid level 
+serverless file systems distribute file system server responsibilities large numbers cooperating machines 
+approach eliminates central server bottleneck inherent today file system designs provide improved performance scalability availability 
+serverless systems cost effective scalable architecture eliminates specialized server hardware convoluted system administration necessary achieve scalability current file systems 
+xfs prototype demonstrates viability building scalable systems initial performance results illustrate potential approach 
+acknowledgments owe members berkeley communications abstraction layer group david culler liu rich martin large debt helping get node myrinet network 
+extensive modified version mendel rosenblum lfs cleaner simulator 
+eric anderson john hartman provided helpful comments earlier draft 
+program committee particularly john ousterhout shepherd anonymous referees comments initial drafts 
+comments greatly improved technical content presentation 
+ande anderson culler patterson team 
+case networks workstations 
+ieee micro pages february 
+bake baker hartman kupfer shirriff ousterhout 
+measurements distributed file system 
+proc 
+th symp 
+operating systems principles pages october 
+bake baker ousterhout seltzer :10.1.1.124.4563
+non volatile memory fast reliable file systems 
+asplos pages september 
+bake baker 
+fast crash recovery distributed file systems 
+phd thesis university california berkeley 
+basu basu vogels von eicken 
+net user level network interface parallel distributed computing 
+proc 
+th symp 
+operating systems principles december 
+birrell hisgen mann swart 
+echo distributed file system 
+technical report digital equipment systems research center september 
+blau brady menon 
+optimal scheme tolerating double disk failures raid architectures 
+proc 
+st symp 
+computer architecture pages april 
+blaze 
+caching large scale distributed file systems 
+phd thesis princeton university january 
+bode boden cohen seitz su 
+myrinet gigabit second local area network 
+ieee micro pages february 
+cao cao lim venkataraman wilkes 
+parallel raid architecture 
+proc 
+th symp 
+computer architecture pages may 
+chai kubiatowicz agarwal 
+limitless directories scalable cache coherence scheme 
+asplos iv proceedings pages april 
+chen chen lee gibson katz patterson 
+raid high performance reliable secondary storage 
+acm computing surveys june 
+corbett feitelson 
+overview vesta parallel file system 
+computer architecture news december 
+cypher ho messina 
+architectural requirements parallel scientific applications explicit communication 
+proc 
+th international symposium computer architecture pages may 
+dahl dahlin wang anderson patterson :10.1.1.135.7948
+quantitative analysis cache policies scalable network file systems 
+proc 
+sigmetrics pages may 
+dahl dahlin wang anderson patterson :10.1.1.120.5
+cooperative caching remote client memory improve file system performance 
+proc 
+symp 
+operating systems design implementation pages november 
+scott 
+striping bridge multiprocessor file system 
+computer news september 
+doug douglis ousterhout 
+transparent process migration design alternatives sprite implementation 
+software practice experience july 
+hart hartman ousterhout :10.1.1.130.4550
+zebra striped network file system 
+acm trans 
+computer systems august 
+howard kazar menees nichols satyanarayanan sidebotham west 
+scale performance distributed file system 
+acm trans 
+computer systems february 
+kazar 
+replicated servers easy 
+proc 
+second workshop workstation operating systems pages september 
+keeton anderson patterson 
+logp quantified case low overhead local area networks 
+proc 
+hot interconnects august 
+kistler satyanarayanan 
+disconnected operation coda file system 
+acm trans 
+computer systems february 
+kubiatowicz agarwal 
+anatomy message alewife multiprocessor 
+proc 
+th internat 
+conf 
+supercomputing july 
+heinrich simoni gharachorloo chapin baxter horowitz gupta rosenblum hennessy 
+stanford flash multiprocessor 
+proc 
+st internat 
+symp 
+computer architecture pages april 
+lee lee 
+highly available scalable network storage 
+proc 
+compcon 
+leff leff yu wolf 
+policies efficient memory utilization remote caching architecture 
+proc 
+internat 
+conf 
+parallel distributed information systems pages december 
+lenoski laudon gharachorloo gupta hennessy 
+directory cache coherence protocol dash multiprocessor 
+proc 
+th internat 
+symp 
+computer architecture pages may 
+liskov ghemawat gruber johnson shrira williams 
+replication harp file system 
+proc 
+th symp 
+operating systems principles pages october 
+litzkow solomon 
+supporting checkpointing process migration outside unix kernel 
+proc 
+winter usenix pages january 
+love nanopoulos milne wheeler 
+sfs parallel file system cm 
+proc 
+summer usenix pages 
+major powell 
+overview operating system 
+proc 
+winter pages january 
+mckusick joy leffler fabry :10.1.1.114.9535
+fast file system unix 
+acm trans 
+computer systems august 
+nels nelson welch ousterhout 
+caching sprite network file system 
+acm trans 
+computer systems february 
+patt patterson gibson katz 
+case redundant arrays inexpensive disks raid 
+internat 
+conf 
+management data pages june 
+pier pierce 
+concurrent file system highly parallel mass storage subsystem 
+proc 
+fourth conf 
+hypercubes concurrent computers applications pages 
+pope popek guy page heidemann 
+replication ficus distributed file system 
+proc 
+workshop management replicated data pages november 
+rashid 
+microsoft tiger media server 
+networks workstations workshop record october 
+rose rosenblum ousterhout :10.1.1.117.5365
+design implementation log structured file system 
+acm trans 
+computer systems february 
+sand sandberg goldberg kleiman walsh lyon :10.1.1.14.473
+design implementation sun network filesystem 
+proc 
+summer usenix pages june 
+schr schroeder birrell burrows murray needham satterthwaite thacker :10.1.1.141.5436
+autonet high speed self configuring local area network point point links 
+ieee journal selected areas communication october 
+seltzer bostic mckusick staelin 
+implementation log structured file system unix 
+proc 
+winter usenix pages january 
+seltzer smith balakrishnan chang padmanabhan :10.1.1.1.8150
+file system logging versus clustering performance comparison 
+proc 
+winter usenix january 
+smit smith 
+methods efficient analysis memory address trace data 
+ieee trans 
+software engineering se january 
+von eicken culler goldstein schauser 
+active messages mechanism integrated communication computation 
+proc 
+asplos pages may 
+walk walker popek english kline thiel 
+locus distributed operating system 
+proc 
+th symp 
+operating systems principles pages october 
+wang wang anderson :10.1.1.28.3386
+xfs wide area mass storage file system 
+fourth workshop workstation operating systems pages october 
+wilkes golding staelin sullivan :10.1.1.119.6793
+hp autoraid hierarchical storage system 
+proc 
+th symp 
+operating systems principles december 
+wolf wolf 
+placement optimization problem practical solution disk file assignment problem 
+proc 
+sigmetrics pages may 

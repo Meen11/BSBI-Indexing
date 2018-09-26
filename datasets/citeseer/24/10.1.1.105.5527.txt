@@ -1,0 +1,705 @@
+usenix association proceedings third usenix conference file storage technologies san francisco ca usa march april usenix association rights reserved information usenix association phone fax email office usenix org www www usenix org rights individual papers remain author author employer 
+permission granted noncommercial reproduction educational research purposes 
+copyright notice included reproduced 
+usenix acknowledges trademarks 
+tracefs file system trace charles wright erez zadok stony brook university file system traces years analyze user behavior system software behavior leading advances file system storage technologies 
+existing traces difficult captured specific changed vital information stale time goes easily distributed due user privacy concerns 
+forms traces block level nfs level system call level contain deficiencies limiting usefulness wider range studies 
+developed tracefs thin stackable file system capturing file system traces portable manner 
+tracefs capture uniform traces file system modifying file systems traced 
+tracefs capture traces various degrees granularity users groups processes files file names file operations transform trace data aggregate counters compressed encrypted anonymized streams buffer direct resulting data various destinations sockets disks 
+modular extensible design allows uses traditional file system traces tracefs wrap file systems debugging feeding user activity data intrusion detection system 
+implemented evaluated prototype tracefs linux 
+evaluation shows highly versatile system small overheads 
+file system traces past analyze user access patterns file system software performance 
+studies traces helped community devise better software hardware accommodate changing computing needs 
+example traces determine dynamic access patterns file systems rate file creation distribution read write operations file sizes file lifetimes frequency file system operation information collected traces useful determine file system bottlenecks 
+help identify typical usage patterns optimized provide valuable data improving performance 
+primary traces file system performance studies uses exist security debugging 
+file system tracing useful security auditing 
+monitoring file system operations help detect intrusions assess damage 
+tracing conducted file system wide suspected user program process 
+file system tracing potential computer forensics roll back replay traced operations revert file system state prior attack 
+second file system tracing useful debugging file systems 
+fine grained tracing facility allow file system developer locate bugs points failure 
+example developer may want trace just system call file system calls particular process turn tracing dynamically critical times 
+tracing file system easily layered stacked top file system particularly suitable debugging requires modification file system os 
+previous tracing systems customized single study 
+systems built adhoc manner documented research texts 
+emphasis studying characteristics file system operations developing systematic reusable infrastructure tracing 
+studies published traces released 
+traces excluded useful information conducting new studies information excluded concern initial state machines hardware traces collected file system operations arguments pathnames 
+example block level traces lack specific information file system operations user activity 
+nfs level traces lack information state applications users running clients servers state 
+system call level traces information system call activity translated multiple actions lower layers os 
+traces nfs servers system call activity seen server 
+illustrate typical problems past traces describe experiences 
+past years conducted study comparing growth rate disk sizes growth rate users disk space consumption required information growth rate various types files 
+determine file types files extensions 
+traces able access proved unsuitable needs 
+sprite bsd traces old meaningful today fast changing systems 
+include full file pathname size 
+labyrinth passive nfs traces available time conducted study show patterns seen nfs protocol lacking client server information 
+eventually traces combined provide data required seer roselli traces 
+contact authors traces request additional information systems traces taken 
+attempted draw combination distinct traces ideal situation precise studies 
+verify capture traces correlate past traces 
+experience uncommon time wasted available traces unsuitable tasks hand 
+traces useful study include information necessary years 
+flexible tracing system allow traces captured wide range fine grained conditions 
+efficient time space system trace desired support buffering compression 
+secure trace system support strong encryption powerful anonymization 
+designed implemented system called tracefs 
+tracefs uses highly flexible composable set modules 
+input filters efficiently determine trace users groups processes sessions file system operations file names attributes 
+output filters control trace data manipulations encryption compression buffering checksumming aggregation operators count frequencies traced operations 
+output drivers determine amount buffering trace data stream directed raw device file local remote socket 
+traces portable self describing preserve usefulness 
+set userlevel tools anonymize selective parts trace encryption keys unlock desired subsets anonymized data 
+design decomposes various components system extensible manner allow write additional input output filters drivers 
+chose stackable file system implementation tracefs requires changes operating system file systems traced 
+stackable file system capture traces ease running individual clients local file systems ext ffs network file system mounts nfs directly nfs file servers 
+developed prototype tracefs system linux 
+evaluation shows negligible time overheads moderate levels tracing 
+tracefs demonstrates overhead normal user operations intensive workload 
+rest organized follows 
+section describes design tracefs 
+section discusses interesting implementation aspects 
+section presents evaluation tracefs 
+section surveys related 
+conclude section discuss directions 
+design considered design goals flexibility flexibility important consideration tracing file system tracefs 
+traditionally tracing systems collected large amounts traces cumbersome store parse focused specific areas study useful studies 
+designed tracefs support different combinations traced operations verbosity tracing trace destination security performance features 
+performance essential tracing incur performance overhead 
+tracing inherently expensive operation requires disk network designing tracing mechanisms tradeoffs performance functionality 
+design addressed performance issues buffering provisions limiting data traced exactly relevant study 
+convenience analysis designed tracefs simple binary format generated traces 
+traces self contained incorporate information trace data parsed interpreted 
+security uses tracing file system monitor malicious activity system 
+essential generated traces protected attacks subversion 
+incorporated encryption keyed checksums provide strong security 
+privacy public distribution traces raises concerns privacy traces may contain personal information 
+information simply removed traces required correlation 
+address privacy concerns designed system anonymize traces retaining information required correlation 
+data fields traces selectively anonymized providing flexibility choosing parts traces need anonymized 
+portability achieved portability stackable file system available multiple platforms 
+stackable file system allows easily trace underlying file system 
+tracefs implemented kernel module kernel modifications required enable tracing 
+section describe component architecture tracefs sections discuss component detail 
+section describe trace file structure 
+section describe traces anonymized 
+section discuss usage scenarios 
+component architecture tracefs implemented stackable file system stacked top underlying file system 
+shows tracefs thin layer virtual file system vfs file system 
+filesystem related system calls invoke vfs calls turn invoke underlying file system 
+tracefs stacked top file system vfs calls intercepted tracefs passed underlying file system 
+invoking underlying file system tracefs calls hooks tracers trace operation 
+hook called operation trace return value 
+user process system calls virtual file system file system operations tracefs 
+tracefs helper applications tracer tracer tracer traced file system ext nfs user kernel architecture tracefs stackable file system 
+tracefs intercepts operations invokes hooks tracers passing operations underlying file system 
+stacking inherent advantages tracing 
+tracefs trace file system 
+memory mapped traced file system level 
+natural study file system characteristics terms file system operations system calls 
+server side operations network file systems performed directly kernel system calls 
+depicts high level architecture tracing infrastructure 
+consists major components input filter assembly driver assembly driver 
+assembly driver chain assembly drivers kernel thread buffers asynchronous filter optional output filter 
+output filter output driver chain output filters output driver architecture tracefs tracer 
+assembly drivers generate trace stream transformed output filters written output driver 
+optional asynchronous filter buffers trace stream processed separate kernel thread 
+input filters assembly drivers output filters output drivers 
+input filters invoked hooks file system layer 
+input filters determine operations trace 
+assembly drivers convert traced operation parameters stream format 
+output filters perform series stream transformations encryption compression output drivers write trace stream kernel external entity file socket 
+combination input filter assembly drivers output filters output driver defines tracer 
+tracefs supports multiple tracers possible trace system simultaneously different trace configurations 
+emphasized simplicity extensibility designing interfaces assembly drivers output filters output drivers 
+component defined api 
+apis extend functionality tracefs 
+writing custom drivers requires little knowledge kernel programming file system internals 
+output driver output filter defines operations initialize release write flush get preferred block size 
+assembly driver requires implementation pre call post call stubs vfs operation interest 
+including initialization cleanup assembly driver operations linux 
+pre call methods invoke assembly driver actual operation passed lower level file system post call methods invoke assembly driver call lower level file system 
+example assembly driver interested counting frequency file creation deletion need implement methods create unlink 
+custom drivers plugged existing infrastructure easily 
+input filters input filters specify expression determines operations traced 
+file system operation expression evaluated determine operation needs traced 
+user specify arbitrary boolean expressions built set basic predicates uid gid pid session id process name file name vfs operation type system call name input filters provide flexible mechanism generating specific traces user requirements 
+input filter implemented kernel directed acyclic graph dag represents boolean expression 
+adapted popular efficient code representing expressions berkeley packet filter pcap library 
+evaluate input filter file system objects passed parameters call current process task structure 
+fields structures define tracing context evaluating truth value trace expression 
+name foo 
+start uid 
+op open 
+true false gid 
+directed acyclic graph representing trace condition uid name foo gid op op en shows example expression dag representation 
+non terminal vertex graph represents simple predicate outgoing edges labeled true false 
+graph terminal vertices representing final result evaluation 
+evaluation starts root vertex 
+step predicate vertex evaluated outgoing edges taken result evaluation 
+procedure repeated graph traversal reaches terminal vertices 
+chose approach standard tree representation compact allows simple traversal start terminal vertex recursion complex threaded traversal trees 
+enables sharing nodes 
+set tracing dag constructed user space passed kernel array 
+kernel validates data fields verifies dag contain cycles 
+way kernel need parse text expressions construct graphs 
+assembly drivers input filter determined certain operation traced filter passes corresponding vfs objects series assembly drivers determine content generated traces 
+assembly driver invoked defined interface easy chain multiple assembly drivers 
+describe assembly drivers stream aggregate 
+stream driver stream driver default assembly driver 
+converts fields vfs objects stream format 
+stream driver generates message logged file system operation 
+describe stream format section 
+stream driver various verbosity options determine information logged 
+verbosity options allow user choose combination fields vfs objects dentry inode file inode number link count size 
+return values timestamps second microsecond resolution checksum data data operations process id session id process group id user id group id process name system call number file name file extension aggregate driver popular applications tracing collect statistical distributions operations logging operation 
+traditionally performed post processing vast amounts trace data tallying number times operation invoked 
+wasteful log operation parameters information discarded post processing 
+applications developed aggregate driver keeps track number calls tracing session records values session 
+aggregate driver conjunction input filters determine specific statistical properties file system operations example determine access patterns individual users 
+output filters assembly drivers generate stream output feed series output filters 
+output filters perform operations stream bytes knowledge vfs objects trace file format 
+filter transforms input stream feeds filter chain 
+output filters provide added functionality encryption compression checksum calculation 
+trace setup user specify output filters order 
+filters inserted order stream 
+output filter chain feeds trace stream output driver writes trace stream destination 
+output filter maintains default block size kb 
+chose kb default page size systems reasonably small unit operation 
+output filters designed operate streams block sizes different output filter 
+block size configured trace setup 
+describe output filters checksum compression encryption asynchronous filter 
+checksum filter checksum filter verify integrity traces 
+calculates block block hmac md digest writes block 
+uses default block size kb overridden 
+block size determines frequently checksums generated overhead checksumming size trace file 
+block numbered sequence number included digest calculation modification traces removal reordering blocks detected 
+trace file uses serial number included block block trace file replaced block sequence number file 
+checksum filter ensures trace files protected malicious modifications 
+block digest verify integrity block separately 
+blocks modified unmodified blocks trusted 
+compression filter traces contain repeated information 
+example logged pid uid gid repeated operation performed process 
+meta data traces message identifiers argument identifiers repeated 
+result traces lend compression 
+compression filter compresses trace data thefly 
+compression introduces additional overheads terms cpu usage provides considerable savings terms storage space 
+compression filter size traces needs kept small overheads large example traces recorded network 
+compression filter efficient large blocks data compressed compressing individual messages 
+input buffer collect block data compressing 
+compression filter filter chain input data received blocks additional input buffering unnecessary 
+compression filter determine input filter de intelligently input buffering 
+compression performed streaming mode compression stream flushed tracing finished 
+compression filter uses zlib library compression 
+zlib popular efficient provides tradeoff speed compression ratio multiple compression levels 
+encryption filter encryption filter secures contents generated traces 
+ensures cleartext traces written disk preferable encrypting traces offline 
+linux 
+allows various encryption algorithms key sizes 
+asynchronous filter asynchronous filter buffers raw trace data assembly driver chain returns immediately 
+filter placed output filter 
+separate kernel thread pushes buffered trace data chain output filters encryption compression including final output driver 
+asynchronous filter defers cpu intensive transformations disk network eliminates expensive operations critical path application execution improve performance 
+output drivers output drivers similar output filters operate stream bytes 
+output driver writes trace stream gone series transformations output filters 
+output filters output drivers employ buffering efficiency 
+describe output drivers file driver socket driver 
+file driver file device driver writes output regular file raw device socket 
+writing disk slow operation file driver uses internal buffers collect trace data writing disk 
+driver writes buffer disk buffer full 
+data remaining buffer flushed tracing completed 
+socket mode file driver connects tcp socket remote location sends traces network 
+mode useful local storage limited server large disk storage available 
+useful high security applications trace data written local disk 
+additionally encryption compression filters improve security reduce network traffic 
+tracefs file system debugging trace file kept current possible 
+code development important state system known events leading error 
+cases buffering may appropriate 
+non buffered applicable high security applications 
+hostile environments amount information memory kept minimum 
+file driver provides mode writes data immediately 
+example write trace logs non tapes 
+non buffered tradeoff latency performance 
+socket driver sockets feature linux kernel allows kernel set special communication channel user level process 
+tracefs socket driver connects user level process socket writes trace stream socket 
+process parse trace stream real time 
+example trace stream dynamic monitoring file system operations storing offline post processing 
+trace data intrusion detection system ids detect unusual file system activity 
+trace structure traces generated binary format save space facilitate parsing 
+trace file composed basic building blocks argument message 
+argument represents field data trace example pid uid timestamp argument arg id value arg id length value tuple 
+arg id parameter specifies unique identifier argument 
+length parameter necessary variable length fields file names process names 
+length constant length fields omitted saving space trace 
+highest bit arg id zero constant length fields indicate length field 
+anonymization toggles highest bit arg id constant length arguments length arguments changes encryption due padding 
+message smallest unit data written trace 
+represents data traced file system operation 
+message consists message identifier msg id length field variable number arguments 
+length field length entire message 
+parsing trace file parser quickly skip messages just reading msg id length fields parsing arguments 
+trace file self contained sense meta data information encoded trace 
+trace parser needs aware basic building blocks trace 
+header encodes message identifiers argument identifiers respective string values 
+length constant length arguments encoded header need repeated time argument occurs trace 
+length may vary different platforms determined header trace parsed 
+header encodes information machine trace recorded os version hardware characteristics disk capacity mounted file system amount ram input filter assembly drivers output filters output driver trace system state information 
+msg open length field arg uid value arg name length value high bit high bit field example trace message 
+message contains message identifier length field multiple arguments 
+highest bit argument identifier indicates argument length field 
+shows message 
+message identifier msg open length field indicating entire length message 
+contains multiple arguments 
+shows arguments arg uid name arg uid constant length argument contain length field name variable length field 
+message identifiers defined operations msg read msg write trace meta data messages msg start 
+message identifiers argument identifiers encoded trace file header example arg uid encoded arg uid anonymization distribution traces raises concerns security privacy 
+traces distributed entirety may reveal information traced system especially user personal activity 
+users understandably reluctant reveal information files access patterns 
+traces may anonymized released publicly 
+anonymization methodology encryption 
+argument type trace encrypted different randomly generated key 
+encryption provides reversible mapping anonymized fields 
+different mappings field remove possibility correlation related fields example uid gid usually occur traces easily inferred anonymized traces fields encrypted different keys 
+trace files generated tracefs anonymized offline post processing 
+allows anonymize source trace file multiple ways 
+user level anonymization tool allows selection arguments anonymized 
+example set traces may necessary anonymize file names uids may anonymized 
+anonymized traces distributed publicly encryption keys 
+specific encryption keys privately provided needs extract data 
+encryption anonymization efficient require lookup tables map occurrence data field anonymized value 
+lookup tables grow large trace grows 
+tables need stored separately reversible anonymization required 
+contrast anonymization approach stateless maintain additional information encryption key type data anonymized 
+cipher block chaining cbc cipher feedback cfb mode prone xor attacks electronic code book mode protection byte repetitions 
+usage tracefs provides user level tools setup start traces 
+sample configuration file trace setup stream str post op str pid str uid str timestamp compress filename mnt trace log buf configuration file contains sections tracer input filter assembly drivers output filters driver 
+example input filter contains ed predicates 
+uses stream assembly driver parenthesized parameters specifying verbosity settings 
+output chain consists compression filter file output driver specifies name trace file buffer size 
+configuration file parsed tool calls specify tracer 
+input filter tool constructs dag passed kernel topologically sorted array 
+kernel reconstructs dag array 
+trace parameters correct kernel returns unique identifier tracer 
+identifier start tracing 
+input filter determines operations traced conditions 
+ability limit traces provides flexibility applying tracefs large variety applications 
+discuss applications trace studies idss debugging 
+trace studies configuring tracefs collecting traces studies typically operations traced simple null input filter 
+stream assembly driver trace arguments 
+output driver typically file buffered asynchronous writes maximum performance 
+intrusion detection systems ids configured tracers 
+tracer aggregate counter keeps track operation executed 
+information periodically updated monitoring application raise alarm case abnormal behavior 
+second tracer creates detailed operation log 
+case alarm ids read log get detailed information file system activity 
+ids needs trace operations 
+output filter includes checksumming encryption security 
+trace output sent socket remote destination written non tape 
+additionally compression may limit network traffic 
+defeat denial service attacks qos output filter implemented 
+filter effectively throttle file system operations limiting resource usage 
+debugging debugging file systems tracefs precise input filter defines operations part sequence operations known buggy 
+additionally specific fields file system objects traced inode number link count dentry name 
+output filters need security storage space primary concern trace file easy parse 
+file output driver unbuffered synchronous mode keep trace output date possible 
+implementation developed prototype tracefs kernel module linux stackable file system template 
+tracefs lines code 
+original stacking template lines code 
+socket output driver implemented 
+describe interesting aspects implementation system call filtering file name filtering asynchronous filter 
+system call filtering support system call filtering needed determine system call invoked file system operation 
+system call numbers lost file system level 
+information log available function parameters globally current running task structure contains pid current uid 
+system call filtering requires small patch kernel 
+patch required additional functionality 
+features available modifications linux kernel 
+added extra field sys call struct task struct structure tasks 
+system calls invoked common entry point parameterized system call number 
+added lines assembly code system call invocation path set system call number task structure entry reset exit 
+tracefs filter system call number comparing call field current process task structure bitmap system calls traced 
+record system call number operation file system operations correlated system calls 
+file name filtering implementation file name filtering posed challenge developing tracefs 
+name file available dentry object file inode 
+vfs operations pass object file system 
+cases available comparison file names require expensive string matching 
+implement file name file extension tracing developed file name cache stores inode numbers inodes match specified name extension 
+case hard links inode number name group names file satisfy 
+foo tex name inode table frag replacements inode table inode table input filter file name cache tracing file names extensions 
+level table maps name inode number table stores inode numbers name 
+input filter direct inode number table 
+shows structure name cache 
+shows name cache implemented level hash table 
+level table maps name extension second level table stores inode numbers satisfy rule 
+input filter direct inode table 
+file name predicate evaluated simply looking inode number inode table 
+create new entry table newly created inode name satisfies rules entry removed inode flushed memory 
+multiple input filters share inode table evaluating file name predicate 
+foo tex file names traced 
+trace operations files named foo tex entry level table foo tex points inode table con tains entries inode name foo tex input filter file name predicate tex directly refers inode table predicate evaluation 
+asynchronous filter asynchronous filter allows tracefs move expensive operations critical execution path described section 
+filter maintains list buffers queues empty queue full queue 
+empty queue contains list buffers currently free available 
+full queue contains buffers filled need written 
+buffer size number buffers configuring trace setup 
+main execution thread picks available buffer empty queue current buffer 
+trace stream written current buffer filled point appended full queue empty buffer picked 
+separate kernel thread spawned tracing startup gets buffer full queue writes buffer output filter inserts emptied buffer empty queue 
+queue counting semaphore indicates number buffers available 
+threads wait respective queue semaphores zero 
+evaluation evaluated performance tracefs ghz pentium machine gb ram 
+experiments conducted gb rpm western digital ide disk formatted ext 
+isolate performance characteristics traces written separate gb rpm seagate ide disk 
+reduce effects tests took place separate partition outside disk partition size just large accommodate test data 
+machine ran red hat linux vanilla kernel 
+kernel modified patch tracing system call number include system call numbers trace 
+results obtained optional kernel patch indistinguishable discuss 
+ensure cold cache test file system experiments took place traces written 
+executables libraries compilers located root file system 
+ran tests times computed confidence intervals mean elapsed system user times student distribution 
+case half width interval mean 
+configurations tracefs multiple different configurations 
+benchmarks chose indicative rations evaluate performance entire spectrum available features 
+conducted tests highest verbosity level stream assembly driver evaluate worst case performance 
+selected configurations isolate performance overheads output filter output driver ext vanilla ext serves baseline performance configurations 
+file tracefs configured generate output directly file kb buffer traces 
+chose buffer size kb default kb experiments indicated kb buffer improves performance test setup kb additional gains performance larger buffer 
+unbuffered file tracefs configured generate output file internal buffering 
+file tracing hmac md digest blocks kb followed output file 
+encr file blowfish cipher cbc mode bit keys followed output file 
+blowfish efficient understood designed software encryption 
+file tracing zlib compression default compression mode followed output file 
+encr file tracing checksum calculation followed compression encryption output file 
+represents worst case configuration 
+performed experiments tracing different operations 
+demonstrates performance respect rate trace generation 
+aggregate driver determine distribution file system operations chose combination file system operations produces trace size specific fraction full size trace generated operations traced 
+configurations full tracing file system operations 
+medium tracing operations comprise typical trace 
+tests aggregate driver indicated close read write create unlink form trace messages 
+chose operations usually recorded studies 
+roselli study shows operations form operations 
+light tracing operations comprise approximately typical trace 
+chose open close read configuration results test 
+configuration generates traces order magnitude fewer operations full tracing 
+determine computational overhead evaluating input filters executed cpu intensive benchmark expressions various degrees complexity containing predicates 
+predicate expression simplest configuration demonstrates minimum overhead expression evaluation 
+believe practical applications tracing typically expressions predicates 
+predicates demonstrate worst case performance 
+expressions constructed final value expression determined predicates evaluated 
+workloads tested configurations workloads cpu intensive intensive 
+chose benchmark type evaluate performance different system activity levels 
+tracing typically results large activity 
+time output filters perform cpu intensive computations encryption compression 
+workload build am utils 
+am utils contains files lines code 
+build process begins running small configuration tests detect system features 
+builds shared library binaries scripts documentation 
+am utils build process cpu intensive exercises file system creates large number temporary files object files 
+ran benchmark configurations mentioned section 
+second workload chose postmark 
+configured postmark create files bytes kb perform transactions directories 
+benchmark uses little cpu intensive 
+postmark focuses stressing file system performing series file system operations directory lookups creations deletions 
+large number small files randomly modified multiple users common electronic mail news servers 
+am utils results shows results am utils build 
+depicts system user elapsed times am utils different configurations tracefs 
+bar shows user time stacked system time 
+height bar depicts total elapsed time execution 
+error bars show confidence interval test 
+group bars shows execution times particular configuration output filters output drivers bars group show times light medium full tracing 
+leftmost bar group shows execution time ext 
+time seconds file ext light med full unbuffered file ext light med full file ext light med full output filters encr file ext light med full tracing levels file elapsed time user time system time ext light med full encr file ext light med full execution times am utils build 
+group bars represents output filter configuration light medium full tracing 
+leftmost bar group shows execution time ext 
+tracefs incurs elapsed time overhead full tracing tracing file output filters 
+checksum calculation encryption introduce additional overheads elapsed time 
+compression results elapsed time overhead 
+combining output filters results overhead 
+system time overheads 
+base overhead due stacking handling trace stream 
+cpu intensive stream transformations introduce additional overheads 
+low elapsed time overheads indicate users notice change performance normal working conditions 
+medium workload tracefs incurs overhead elapsed time writing directly trace file 
+checksum calculation encryption additional overhead 
+compression additional overhead 
+system time overheads vary 
+light workload tracefs incurs overhead elapsed time 
+output filters result additional overhead 
+system time overheads vary 
+unbuffered full tracing overhead 
+system time overhead increase buffered shows buffered provides better performance expected 
+results show tracefs little impact elapsed time encryption compression checksumming 
+output filters compression incurs highest performance overhead 
+see trace file shrinks mb mb compression ratio 
+indicates compression useful cases disk space network bandwidth limited 
+input filter performance evaluated performance input filters am utils workload cpu intensive gives indication cpu time spent evaluating expressions workload high cpu usage 
+tested input filters containing predicates 
+considered cases false filter evaluates false records trace data true filter evaluates true constructs trace data writes dev null 
+false predicate input filter system time overhead true filter overhead 
+predicate input filter system time overhead false expression true expression 
+going predicate filter overhead false filter true filter 
+terms elapsed time maximum overhead predicate filter 
+see tracefs scales complex expressions justifies directed acyclic graphs expression evaluation described section 
+postmark results shows execution times postmark 
+structure shows results tracefs configurations postmark 
+time seconds file ext ext light light med med full full unbuffered file ext ext light light med med full full file ext ext light light med med full full output filters encr file ext ext light light med med full full tracing levels file elapsed time user time system time ext light med full encr file ext light med full execution times postmark 
+group bars represents output filter configuration light medium full tracing 
+leftmost bar group shows execution times ext 
+shows tracefs incurs overhead elapsed time full tracing 
+encryption introduces overhead checksum calculation additional overhead 
+compression overhead elapsed time 
+system time overheads higher output filters encryption checksum calculation compression additional overheads respectively 
+shows system time small portion benchmark performance terms elapsed time reasonable considering intensive nature benchmark 
+medium tracing elapsed time overhead 
+encryption checksum calculation compression additional elapsed time overheads respectively 
+system time increases output filters encryption checksum calculation compression additional overheads respectively 
+light tracing overhead ranging elapsed time 
+system time overheads vary 
+shows selective tracing effectively limit computational overheads transformations 
+reducing trace configuration full medium tracing reduces system time overhead factor 
+full light tracing system time overhead reduced factor 
+input filter performance evaluated performance input filters postmark workload worst case configuration predicate input filter evaluates true conjunction encr file configuration output filters full tracing 
+configuration elapsed time increases seconds increase compared predicate input filter 
+overhead am utils postmark intensive 
+trace file sizes creation rates shows size trace files left half file creation rates right half am utils postmark benchmarks 
+bar shows values full medium light tracing particular configuration 
+bar file shows variation file size rate file encr file configurations values configurations similar excluded brevity 
+shows postmark generates traces rate times faster am utils build 
+explains disparity overheads benchmarks 
+encryption increase file size checksumming increases file size marginally checksums added block data 
+trace files achieve compression ratio range 
+file creation rate decreases output filters introduced 
+rate shows increase file encr file file size increases checksum calculation 
+demonstrates trace files effectively reduced size input filters 
+file size mb file file encr file postmark file file encr file am utils file file encr file postmark file full medium light file encr file am utils trace file sizes creation rates postmark am utils benchmarks 
+bar shows values full medium light tracing 
+left half depicts file sizes right half depicts trace file creation rates effect asynchronous writes aspects tracefs performance respect asynchronous writes writing trace file disk asynchronous filter perform output filter transformations asynchronously 
+evaluated tracefs configurations synchronous asynchronous file system filter benchmarks mentioned previously performed mode default configuration tracefs file system traces written ext 
+study effects asynchronous writes performed benchmarks postmark configuration mentioned section micro benchmark file tight loop threads thread performing pairs 
+chose determined general purpose benchmarks postmark perform large underlying file system produce comparatively little tracing 
+microbenchmark designed generate large trace data writing data underlying file system 
+shows system user elapsed times benchmarks configurations 
+elapsed time postmark increases traces written synchronously compared asynchronous writes synchronous mode useful debugging security applications 
+intensive benchmark synchronous disk writes increase elapsed time factor 
+rate kbps time seconds postmark postmark output filters postmark benchmark elapsed time user time system time execution times postmark 
+bars show system user elapsed times combinations asynchronous filter trace file writes 
+asynchronous filter lowers elapsed time execution postmark synchronous trace file writes 
+change asynchronous disk writes negligible 
+elapsed time reduces synchronous disk writes asynchronous disk writes 
+larger improvement result micro benchmark stressing tracing subsystem generating large traces actual asynchronous filter useful cases 
+multi process scalability evaluated scalability tracefs executing multiple postmark processes simultaneously 
+configured postmark create files bytes kb perform transactions directories process workload evenly divided processes dividing number files transactions subdirectories number processes 
+ensures number files directory remains 
+measured elapsed time maximum processes amount time took complete 
+measured user system time total user system process 
+executed benchmark file configuration full tracing processes 
+shows elapsed system times postmark multiple processes 
+single process elapsed time seconds ext seconds tracefs 
+processes elapsed time reduces factor ext factor tracefs 
+shows tracefs scales multiple processes lesser factor compared ext 
+attributed serialization writing traces disk 
+system times remain constant ext tracefs 
+postmark postmark time seconds elapsed time tracefs elapsed time ext system time tracefs system time ext number processes elapsed system times postmark ext tracefs multiple processes anonymization results anonymization tests conducted anonymizing selected fields trace file generated run postmark benchmarks full tracing output filters 
+chose configurations anonymization null anonymization 
+trace parsed rewritten 
+serves baseline comparison 
+process name file name strings anonymized 
+accounts trace 
+uids anonymized 
+accounts trace file 
+process names file names uids strings anonymized 
+accounts trace 
+process names file names uids pids strings anonymized 
+accounts trace 
+process names file names uids pids strings timestamps anonymized 
+accounts trace 
+shows performance user level anonymization tool 
+shows size anonymized traces comparison original trace file bars 
+shows rate anonymization line 
+rate anonymization rate input trace file processed anonymization tool 
+leftmost bar shows base configuration data anonymized 
+bar shows size anonymized file increase size original file 
+line shows rate anonymization kbps 
+base configuration shows rate parsing anonymization 
+see rate anonymization decreases larger percentage data anonymized expected 
+rate anonymization decreases percentage anonymized data increased 
+rate anonymization limited increased required larger trace files 
+file size mb mb mb mb mb percentage data anonymized anonymized file size base file size rate anonymization mb mb trace file anonymization rates increase file sizes different portions traces anonymized 
+axis shows scale file sizes axis shows scale rate anonymization 
+anonymization increases trace file size fields trace need padded encryption block size 
+anonymized constant length fields converted variable length fields anonymization changes length field 
+length variablelength fields needs stored trace 
+summary evaluated tracefs performance cpu intensive intensive benchmarks different configurations show tracefs acceptable overheads normal conditions cpu intensive output filters complex input filters 
+related section discuss past trace studies systems motivated design 
+file system tracing package berkeley unix zhou implemented tracing package unix file system 
+instrumented file operations process control related system calls log call parameters 
+traces collected binary format buffered kernel writing disk 
+package uses ring buffers written asynchronously user level daemon 
+tracing system switches trace files primary storage freed moving traces tape 
+generated binary traces parsed correlated open close sessions study 
+overhead tracing reported 
+package comprehensive allows tracing large number system calls logs detailed information parameters call 
+provides little flexibility choosing calls trace verbosity trace 
+generated traces require laborious post processing 
+tracing system call level rate anonymization mbps sible log memory mapped trace network file systems 
+bsd study ousterhout implemented system analyzing unix bsd file system 
+study traced servers period days 
+system implemented modifying bsd kernel trap file system related system calls 
+chose trace reads writes avoid generating large traces consuming cpu 
+memory mapped estimated logging execve 
+bsd study file system studies results influenced design file systems 
+tracing system study specific applications 
+system traced operations file system activity inferred logged 
+important file system operations read write lookup directory reads accessing file inodes considered 
+sprite study baker conducted study user level file access patterns sprite operating system 
+studied file system activity sprite distributed file system served file servers hour periods 
+study repeated analysis bsd study 
+analyzed file caching sprite system 
+instrumented sprite kernel trace file system calls periodically feed data user level logging process 
+cache performance studied counters kernel periodically retrieved stored userlevel program 
+counters provides lightweight mechanism statistical evaluation similar provisions aggregate counters tracefs design 
+sprite traces limited file system operations 
+bsd study sprite study record read write operations limit cpu storage overheads 
+comparison tracefs provides flexible mechanism selectively trace set file system operations 
+windows nt study vogels conducted usage study windows nt file system 
+purpose study conduct bsd sprite studies context changes computing needs 
+usage components windows nt subsystem studied 
+study conducted set systems distinct usage environments 
+traces collected filter driver intercepts file system requests 
+trace driver records request packet irp events local remote file system activity covering major operations 
+traced 
+due nature windows nt paging separating actual file system operations vm activity difficult done post processing 
+vm activity doubled size traces 
+daily snapshots local file systems taken record file system hierarchy 
+traces logged remote collection server analyzed data warehousing techniques 
+roselli study roselli collected analyzed file system traces separate environments running hp ux windows nt 
+hp ux traces collected auditing subsystem record file system events 
+additional changes kernel required trace changes current working directory resolving relative paths system calls absolute pathnames 
+auditing subsystem provides mechanism selectively tracing file system events minimal changes kernel code 
+system demonstrates processes frequently memory mapped tracing system calls unix impossible determine paging activity results explicit memory mapped loading executables 
+windows nt traces collected interposing file system calls file system filter driver 
+unfortunately collect information memory mapped operations needed interpose file system operations system calls 
+roselli filter driver suffers problems related paging activity similar vogels passive network monitoring passive network monitoring widely trace activity network file systems 
+passive tracing performed placing monitoring system network nfs traffic 
+captured packets converted human readable format written trace file 
+postprocessing tools parse trace file correlate rpc messages 
+blaze implemented tools decode rpc messages analyze nfs operations deriving structure file system nfs commands responses 
+ellard implemented set tools anonymization analysis nfs traces 
+tools capture nfs packets dump output convenient format 
+traces generated table format parsed scripts analyzed spreadsheets database software 
+passive tracing advantage incurring overhead traced system 
+require modifications kernel applied trace system supports nfs protocol 
+enables study nfs system possible system call kernel instrumentation strategies 
+nfs traces fully accurate network packets dropped missed 
+passive tracing provide accurate timing information 
+proto cols open close commands impossible determine file access sessions accurately 
+memory mapped distinguished normal reads writes passive nfs tracing 
+passive tracing provide easy mechanism capturing specific data large amounts traces need captured analyzed post processing extract specific information 
+tracefs monitoring file system server tracing performed file system level system call level 
+tracefs provides fine grained control specific data traced post processing easier 
+contributions 
+created low overhead flexible tracing file system intercepts operations vfs level 
+system call tracing file system tracing records memory mapped operations 
+nfs tracing file system tracing events 
+normal user operations verbose traces overhead 
+system modular components assembly drivers provide different trace formats aggregate statistics output filters perform transformations data compression encryption output drivers write traces various types media 
+low overhead flexibility tracefs useful applications tracing previously unused file system debugging intrusion detection 
+second tracefs supports complex input filters reduce amount trace data generated 
+input filter capture open close read write events intensive workload overhead 
+input filters increase tracefs usefulness security tool 
+tracefs intercept suspicious activity feed ids 
+third trace format self contained 
+additional information aside syntax required parse analyze 
+trace contains information machine traced memory processors disks os information 
+embedded numbers special meaning traces contain mappings numbers plaintext operations ease analysis system call numbers recorded trace 
+main research focus project shifts support replaying traces including selective trace replaying replaying faster slower rates original trace 
+replaying traces useful reasons 
+able repeat sequence file system operations different system conditions evaluating new file system 
+second debugging especially useful validating reproducibility bug file system code changing timing conditions tracking race condition 
+third computer forensics useful able go back forth trace suspicious activity inspecting actions detail 
+support flexible trace replaying investigating initial state information needs recorded traces possible trace format enhancements 
+exploring additional aspects tracefs 
+provide tool convert binary traces xml processed easily xml parsers 
+second investigating support capturing lower level disk block information 
+information useful file system developers determine optimal disk layout 
+information easily available stackable file system 
+acknowledgments fast reviewers valuable feedback provided shepherd zhou 
+partially possible nsf ca award eia nsf award ccr hp intel gifts numbers 
+baker hartman kupfer shirriff ousterhout 
+measurements distributed file system 
+proceedings th acm sosp pages 
+acm sigops 
+blaze 
+nfs tracing passive network monitoring 
+proceedings usenix winter conference january 
+deutsch 
+rfc zlib specification 
+network working group may 
+ellard seltzer 
+passive nfs tracing email research workloads 
+proceedings annual usenix conference file storage technologies march 
+ellard seltzer 
+utility file names 
+technical report tr computer science group harvard university march 
+ellard seltzer 
+new nfs tracing tools techniques system analysis 
+proceedings annual usenix conference large installation systems administration october 
+ellard seltzer 
+nfs tricks benchmarking traps 
+proceedings annual usenix technical conference freenix track pages june 
+lbnl network research group 
+tcp dump libpcap site 
+www tcpdump org february 
+katcher 
+postmark new filesystem benchmark 
+technical report tr network appliance 
+www com tech library html 
+kuenning 
+seer predictive file hoarding disconnected mobile operation 
+phd thesis university california los angeles may 
+mccanne jacobson 
+bsd packet filter new architecture user level packet capture 
+proceedings winter usenix technical conference pages january 
+moore 
+operating system file system monitoring comparison passive network monitoring full kernel instrumentation techniques 
+master thesis department robotics digital technology monash university 
+moore mcgregor breen 
+comparison system monitoring methods passive network monitoring kernel instrumentation 
+acm sigops operating systems review 
+ousterhout costa harrison kunze kupfer thompson 
+trace driven analysis unix bsd file system 
+proceedings th acm sosp pages orcas island wa december 
+acm 
+williams zadok 
+am utils user manual edition july 
+www am utils 
+org 
+riedel 
+gnu linux site 
+www 
+org august 
+rivest 
+rfc md message digest algorithm 
+internet activities board april 
+roselli lorch anderson 
+comparison file system workloads 
+proc 
+annual usenix technical conference pages june 
+schneier 
+applied cryptography 
+john wiley sons second edition october 
+vogels 
+file system usage windows nt 
+proceedings th acm sosp pages december 
+zadok 
+fist language stackable file systems 
+proceedings annual usenix technical conference pages june 
+zhou da costa smith 
+file system tracing package berkeley unix 
+proceedings usenix summer conference pages june 

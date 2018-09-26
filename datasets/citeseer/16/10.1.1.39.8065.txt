@@ -1,0 +1,475 @@
+lock free multiprocessor os kernel henry massalin calton pu department computer science columbia university new york ny technical report 
+cucs calton cs columbia edu revised june typical shared memory multiprocessor os kernels interlocking implemented waiting semaphores 
+implemented complete multiprocessor os kernel including threads virtual memory including window system file system lock free synchronization methods compare swap 
+lock free synchronization avoids serious problems caused locks considerable overhead concurrency bottlenecks deadlocks priority inversion real time scheduling 
+measured numbers show low overhead implementation competitive user level thread management systems 
+contents synchronization os kernels disabling interrupts locking synchronization methods lock free synchronization methods lock free lifo stacks fifo queues general linked lists lock free synchronization overhead threads scheduling dispatching thread operations thread operation overhead virtual memory memory model interface real memory management virtual memory management memory management overhead input output terminal display file system related architectural support definition compare swap hardware measurement tools ii mutual exclusion commonly accepted standard synchronization technique os kernels 
+multiprocessors mutual exclusion may achieve waiting locks spin locks 
+anderson analyzed performance overhead trade offs spin locks multiprocessor systems finding considerable potential system performance degradation due mutual exclusion 
+herlihy shown wait free non blocking synchronization atomic write instructions compare swap powerful test set instruction commonly implementation spin locks 
+empirical evidence os kernels kind lock free synchronization methods achieve better performance state art multiprocessor os kernel implementations lock synchronization spin locks semaphores mach psyche 
+version abbreviated synthesis kernel implemented dual sony news workstation entirely lock free synchronization developed optimistic synchronization methods developed single processor version synthesis :10.1.1.119.4056
+implementation synthesis shows things 
+lock free synchronization sufficient synchronization needs multiprocessor os kernel supporting threads virtual memory usual second lock free multiprocessor os kernel practical 
+third os kernel achieves high performance 
+remaining organized follows 
+section discusses general problem synchronization os kernel 
+section describes lock free objects synthesis kernel uses 
+sections describe lock free synchronization implementation threads virtual memory input output 
+section summarizes related section concludes 
+synchronization os kernels disabling interrupts basic kinds synchronization problems os kernel hardware interrupts software interrupts called signals critical sections 
+inside interrupt handlers temporary disabling hardware interrupts necessary saving hardware event information 
+hardware interrupts remain enabled kinds synchronization 
+single processor kernel including flavors unix kinds problems solved cheaply disabling hardware interrupts 
+interrupts disabled executing procedure guaranteed continue uninterrupted interleaving may occur 
+disabling enabling interrupts cost instructions orders magnitude cheaper synchronization mechanisms semaphores widespread 
+example procedures sony news kernel bsd derivative disable interrupts protect kernel data structures updates 
+processing scheduling dispatching interrupts disabled prevent context switches run queue examined modified example changing priorities 
+despite cost advantage disabling interrupts limitations 
+interrupts remain disabled long period time frequent hardware interrupts clock may lost 
+places limit length execution path critical regions protected disabled interrupts 
+second shared memory multiprocessor data structures may modified different cpus 
+explicit synchronization mechanism needed 
+disabling signals considerably complex disabling interrupts 
+critical section kernel call disables signals 
+signal delivery routine test particular signal currently allowed 
+take appropriate action stack signal processing critical section 
+example procedure chaining synthesis :10.1.1.119.4056
+critical section system test execute pending signals 
+serious kernel overhead disabling signals may cause processes stuck expected events happen 
+example nfs kernel calls sunos interrupted control server crash clients loop server restored 
+disabling signals ideal solution protect critical sections 
+locking synchronization methods mutual exclusion protect critical section allowing process time execute 
+styles algorithms solutions mutual exclusion may divided kinds busy waiting usually implemented spin locks blocking usually implemented semaphores 
+spin locks sit tight loops waiting critical region clear 
+blocking semaphores monitors explicitly send waiting process queue 
+currently executing process exits critical section process dequeued allowed critical section 
+main problem spin locks waste cpu time spinning 
+justification process dedicated processor 
+assumption false multiple threads mapped physical processor 
+main difficulty waiting locks considerable overhead maintain waiting queue set reset semaphore 
+overhead acquiring releasing locks major disadvantage locks potential poor performance due lock contention 
+example mach uses single lock global run queue 
+cause significant contention processors try access queue time occur scheduler clocks synchronized 
+way reduce lock contention mach relies scheduling hints programmer 
+example hand hints may give control directly destination thread bypassing run queue 
+hints may decrease lock contention specific cases difficult benefits uncertain 
+overhead lock contention problems additional problems locks 
+locks may cause deadlocks 
+typically os kernel avoid deadlocks imposing request order resources 
+second real time systems locks may cause priority inversion low priority process critical section preempted reason causes high priority processes waiting critical section 
+sophisticated solutions priority inversion problem contribute locks appealing 
+reasons want build lock free multiprocessor os kernel 
+lock free synchronization methods compare swap foundation lock free synchronization 
+designed atomically update words supported motorola processor machine 
+word compare swap lets efficiently implement basic data structures stacks queues linked lists atomically update pointer location pointed 
+herlihy defines object wait free guarantees process complete operation finite number steps 
+object non blocking guarantees process complete operation finite number steps 
+main difference wait free prevents starvation 
+term lock free synonymous non blocking 
+chosen lock free synchronization wait free cost wait free higher probability starvation os kernel low 
+herlihy introduced general methodology transform sequential implementation data structure wait free concurrent compare swap 
+concurrent data structures carry relatively high cpu memory overhead interference 
+example updating limited depth stack implemented copying entire stack newly allocated block memory making changes new version switching pointer stack compare swap 
+cost high low overhead os kernel synthesis designed special purpose objects synthesis 
+step approach try squeeze shared data words 
+succeeds compare swap words directly 
+shared data larger words try encapsulate lock free objects designed explained section lifo stacks fifo queues general linked lists 
+need maintain consistency data fit lock free objects general optimistic strategy write critical section 
+encode system state local word 
+encoding thread produce different word 
+enter critical section 
+note optimistic synchronization critical section save information retries 
+critical section check system state encoding changed 
+negative thread entered critical section exit safely 
+interference happened retry 
+addition lock free objects optimistic critical sections hard minimize length critical section decrease probability retries 
+divide critical section shorter ones finding consistent state 
+way produce consistent state carefully shift code readers writers 
+way reach consistency encapsulate data temporary lock free object known critical section 
+temporary object free external interference help avoid problems 
+third way minimize critical sections code isolation specialized code handles manipulation data 
+example code isolation 
+typically run queue protected semaphores spin locks unix mach implementations 
+synthesis code residing element change separate run queue traversal done lock free safely concurrently queue element update done locally 
+fails possible create separate thread act server serializes operations 
+lock free queues communicate server assure consistency 
+occasionally escape mechanism implementation able find better solutions instance 
+servers current implementation synthesis 
+lock free kernel composed chunks code data structures 
+instances data types stacks queues linked lists described section 
+represent os abstractions threads memory segments devices described subsequent sections 
+push elem retry sp oldval cas oldval elem sp fail goto retry pop retry sp elem cas sp fail goto retry return elem stack push pop lifo stacks stack pop implemented way counter increment 
+read current value stack pointer private variable de get top item stack increment stack pointer compare swap detect changes 
+stack push complicated sure writing element stack overwrite data pushed concurrent push operation 
+requires word compare swap 
+read current stack pointer private variable decrement placing result private variable test stack pointer hasn changed store new value stack pointer store element top stack 
+perform stores compare swap perform tests read old value top stack third private variable test 
+fifo queues previous described array implementation fifo queues lock free synchronization called optimistic synchronization :10.1.1.119.4056
+summarize properties queues self contained 
+fifo queues support main operations 
+queues synthesized synthesis kernel callback user queue conditions handle reaching boundary conditions plus handle leaving boundary conditions 
+queue elements may types byte time time byte stream 
+support operations fixed size data byte 
+addition byte stream type supports elements arbitrary sized blocks data 
+efficiency programmer choose kinds queues single producer single consumer single producer multiple consumers multiple producers sin insert elem retry elem cas elem fail goto retry delete retry null return null second cas second fail goto retry return linked list insert delete head gle consumer multiple producers multiple consumers 
+implements minimum synchronization necessary intended 
+example blocking queues implemented connecting callbacks corresponding thread suspend resume procedures 
+give idea relative costs current implementation single consumer normal execution path length mc instructions 
+case threads trying write item sufficiently empty queue succeed attempt increment different times succeed fails 
+thread succeeds consumes instructions 
+failing thread goes retry loop total instructions 
+general linked lists shows compare swap perform linked list insert delete head list 
+insert reads address list element private variable copies link field new element inserted uses compare swap atomically update list head pointer changed initial read 
+insert delete list carried similar manner maintaining list tail pointer 
+allowing delete operations interior nodes list harder node may deleted deallocated thread traversing 
+deleted node allocated reused purpose new pointer values may cause invalid memory thread traversing 
+herlihy solution uses counts 
+visiting node uses word compare swap load pointer increment count 
+leaving node similarly decrements count 
+node freed count reaches zero 
+avoid overhead incrementing decrementing counts visit word compare swap operation cas word cas defined appendix section 
+operation sync opt retry opt retry opt sync null procedure call increment counter linked list insert linked list delete circular queue insert circular queue delete stack push stack pop times microseconds cpu mhz wait state main memory cold cache table cost lock free operations restrict delete operation safe situations 
+delete operation safe deleted node link pointers continue valid pointing nodes eventually take back main list compare swap detect change retry operation 
+happens node deleted placed free list 
+herlihy count example 
+insert delete head list word compare swap guarantee safety simultaneously checking previous node pointer valid head 
+middle list achieve effect deleting node permanence previous node guaranteed 
+steps mark nodes deleted leave list previous node marked deletion sit delete original node marked deletion 
+step may require going back list arbitrary number nodes usually step time traverse list avoid overhead traversing list just deletion 
+main difficulty linked list traversal nodes disappear visiting 
+herlihy count general solution 
+synthesis run queues thread visiting tte time 
+simplify implementation binary marker counters 
+set mark time enter node compare swap 
+easier incrementing counter don read mark zero allow entrance 
+non zero means node visited skip repeating test 
+omit traversal code difference unsynchronized access compare swap 
+lock free synchronization overhead table shows overhead measured lock free objects described current current point current node node field retry point node null null point node ref 
+count field get value node ref 
+count 
+increment cas fail goto retry return current current point current node ref 
+count field retry get value current node ref 
+count 
+decrement cas fail goto retry deallocate current return null return current linked list traversal section 
+sync column shows time taken execute implementation operation synchronization 
+opt retry column shows time taken implementation interference 
+opt retry column shows time taken interference causes attempt retry success second attempt 
+numbers shown line assembly code implementation assume pointer relevant data structure machine register 
+lock free code measured produced synthesis kernel code generator 
+threads describe thread operations implemented lock free 
+synthesis general purpose kernel threads system performance order magnitude greater comparable kernel threads systems mach similar performance user level threads university washington 
+scheduling dispatching thread described thread table entry tte 
+single run queue roundrobin scheduling 
+thread dispatcher scheduler synthesized stored tte including thread context save area thread specific data 
+dispatcher divided halves switch routine saves thread context switch routine load thread context installs switch routine current clock interrupt handler 
+cpu quantum expires clock interrupt handler exiting thread switch routine stores thread context branches ready thread switch routine 
+single run queue contained 
+fine grain scheduling mechanism software feedback changes cpu quantum thread need 
+example thread input queue full software feedback increases quantum 
+total run queue length reasonably short traverse run queue short time relatively large cpu quantum simulates higher priority terms useful cpu time accumulation rate 
+queue grows long response system slower 
+organized multiple run queues scheduling dispatching 
+priority explicitly represented queues level separate queue 
+number levels parameter changed system generation time 
+currently levels total cpu time jobs level decreases exponentially 
+level allocates cpu threads level previously described single queue policy 
+highest level level receives half total cpu time half allocated remaining levels 
+general level receives half cpu left level insufficient demand level extra cpu available lower levels 
+multiple run queues uses global counter priority table tells dispatcher level queue 
+priority table contains scheduling policy described entry fourth entry eighth entry delta delta delta 
+counter follow priority table kernel dispatches thread level second context switch level fourth context switch level eighth 
+dispatching illustrated 
+search limited number levels 
+case produced special version pga program described appendix generated interfering memory initial read compare swap 
+interference difficult produce measure 
+table choose queue table level organization run queue currently cpu division levels static table content fixed 
+easy see changing entries priority table change proportion cpu level 
+second order software feedback mechanisms adapt cpu distribution high load situations specified policies 
+topic scope 
+multiple cpus attempt dispatch threads run queues active dispatcher switch routine acquires new tte marking compare swap 
+successful dispatcher branches switch routine marked tte 
+dispatcher just acquired attempted tte dispatcher moves try mark tte 
+mark prevent active dispatchers accessing rest run queues just avoid visiting particular tte 
+virtual memory support introduces extra overhead context switch 
+switching different address spaces need load root new page table flush memory management unit translation lookaside buffer tlb entries 
+table shows cost 
+thread operations overhead create thread operation reduced considerably microseconds microseconds 
+main cost synthesis thread create large amount state information initialized 
+contained pointers routines handled various system calls hardware interrupts 
+included system call trap vectors program exception vectors interrupt vectors depending hardware configuration vectors hardware failure detection 
+speedup create thread obtained copy write optimization 
+newly created point vector table creator defer creation need change vector table 
+currently operations change thread vector table opening closing 
+shared open close test tte shared copy tte modify new copy 
+alternatively threads may share changes common vector table 
+example threads perform system calls open file naturally share resulting file descriptor threads vector table 
+shows thread state transition diagram 
+explain thread running scheduler invoked running ready suspended run queue suspended run queue suspend resume suspend resume resume schedule schedule schedule thread state transition diagram operations lock free 
+general strategy 
+mark intended operation tte 
+second perform operation 
+third check situation changed 
+negative operation done 
+positive retry operation 
+important observation state transitions markings done compare swap avoid race conditions 
+suspend thread suspend procedure sets flag target thread tte indicating stopped 
+target thread currently running hardware interrupt sent cpu forcing context switch 
+optimize case thread suspending directly calling scheduler 
+thread suspend remove thread run queue 
+scheduler encounters thread flag set removes tte run queue sets stopped flag indicate thread stopped 
+done word compare swap instruction synchronize cpu schedulers may operating adjacent queue elements 
+mark tte guarantees cpu visiting tte time 
+delete operation safe 
+resume stopped flags read flag cleared indicate thread ready run 
+previously read stopped flag indicates thread removed run queue done 
+remove tte insert thread directly run queue 
+main problem avoid case neighboring tte deleted due thread killed 
+solve problem thread killed mark tte killed remove run queue immediately 
+dispatcher realizes tte marked killed context switch safely remove 
+signal thread signal synchronized way similar thread resume 
+thread tte stack pending signals contains addresses signal handler procedures 
+thread signal uses word compare swap push new procedure address stack 
+sets signal pending flag scheduler tests 
+scheduler removes procedures pending signal stack time constructs procedure call frames thread runtime stack simulate thread having called procedure 
+step thread step intended instruction time debugging calling concurrently thread defeats purpose 
+give particular meaning concurrent calls function preserve consistency kernel 
+current implementation calls fail 
+implement advisory lock 
+type context switch synthesis synthesis integer registers floating point integer change address space tlb ill floating point change address space tlb ill table overhead scheduling context switch thread operation overhead table shows overhead scheduling dispatching 
+synthesis column shows numbers synthesis sony news machine dual mhz 
+numbers measured see section calculated news 
+comparison list numbers column synthesis :10.1.1.119.4056
+numbers scaled different clock rate machine sun obtained 
+context switch little slower schedule multiple run queues extra synchronization necessary previous version 
+addition floating point number slower sony machine new floating point coprocessor state information save restore 
+version synthesis supports virtual memory 
+numbers table scheduling context switch time including loading memory management unit translation table pointer flushing translation cache 
+extra time fill translation cache 
+tlb ill time 
+depending thread locality low microseconds pages code global data stack high microseconds fill entire tlb cache 
+table shows cost thread operations affected addition multiprocessor support virtual memory 
+thread create significantly faster copy write optimization 
+thread operations somewhat slower multiprocessor 
+thread suspend destroy signal split parts part done requestor part done dispatcher 
+time form xx xx number time taken requestor second number time taken 
+thread resume cases case thread stopped scheduler removed run queue shown number case removed run queue re inserted shown second number 
+virtual memory memory model interface term address space refer total amount memory cpu directly address 
+address space means gbytes bit registers refer 
+page table protection bits page supervisor read 
+thread operation synthesis synthesis create destroy dispatcher suspend dispatcher resume signal dispatcher step fp vm switch table thread operations unit protection synthesis 
+address space may contain wholly contained single address space 
+unit protection mean uniform view address space mapped copy page table 
+resides 
+unit sharing synthesis segment chunk contiguous pages 
+unit sharing mean share memory share entire segments parts segment 
+may contain segments segment part single 
+segment may mapped address spaces protection setting 
+reserve part address space kernel called kernel reasons clear 
+size kernel reconfigurable system generation time 
+current configuration reserve upper half address space gbytes 
+kernel size reduced mbytes negative impact system performance 
+chose kernel address space reasons 
+avoids switching kernel user spaces kernel calls psyche problem 
+
+kernel small mb expected grows slowly function number processors threads need allocate entire address space 
+
+kernel similar user structure implementation 
+kernel supervisor bit turned 
+aspects just 
+new address space created starts empty sharing creator current address space 
+segments may created simply added 
+real memory management real memory management component synthesis kernel keeps track real memory pages 
+allocate deallocate physical page free pages linked freelist 
+page allocated deleting freelist previously mentioned list operations 
+page freed inserting back head freelist linked list insert delete list head lock free 
+allocate deallocate page table entries 
+done way allocate free physical pages page map tables come sizes entries bytes leaf tables entries bytes upper level tables 
+freelist empty additional table space obtained allocating physical page splitting chunks right size inserting appropriate freelist 
+virtual memory management synthesis adopts level tree structured page table bit addresses level bits second level bits third level page size kbytes 
+thread tte contains pointer address space 
+hardware constraint thread access address space time 
+light weight process models threads may share address space 
+address space address space descriptor asd contains things address space page table linked list pointing pager contained address space 
+segment described segment descriptor contains things address range segment pager knows segment active pager buffer 
+pager buffer contains procedures convert page requests kernel pager synchronous read write calls 
+buffers data match system page size pager optimal granularity maintains list real pages allocated pager 
+page table built demand 
+page fault address correspond thread terminated memory access exception 
+address pager expected supply physical content page 
+pager handles cases 
+access address prohibited 
+shown page table entry 
+case send memory access exception signal thread 
+
+page continuing faulted address real memory buffer missing page table 
+case fills page table returns interrupt 
+
+page real memory 
+active buffer allocates new page frame calculates page address disk calls pager read page disk 
+item 
+add mapping address space 
+function installs new virtual physical mappings address space page table 
+begins traversing page tables find leaf table new mapping placed 
+null table pointer point traversal means part mapping tree allocated 
+happens allocate new table mark entries invalid store address previous level table pointer 
+compare swap ensures thread allocated new table entry 
+simply free table 
+leaf table located virtual physical mapping stored compare swap testing null 
+fails means mapping exists test identical re adding 
+different mappings imply programming error logical address map physical address destroy address space terminates threads 
+mark page invalid 
+similar invalid descriptor stored leaf table replacing previous mapping 
+operation time microseconds allocate page pre zeroed allocate page needs zeroing allocate page free replace time replace zero fill page kbytes free page memory access exception table low level memory operation overhead finding custom pager 
+procedure called memory fault handler discover pager supply missing page 
+begins traversing page table obtain page descriptor faulted address 
+page descriptor usually contains hint pointing pager 
+check hint matches done 
+traverse address space directory linked list representing set pager pointers virtual address range map 
+page fault 
+page faults synchronous simplifies synchronization handling thread handles page faults 
+determine fault address type fault invalid translation write read page examining memory management unit status register cpu exception stack frame 
+find corresponds faulted address previous procedure 
+call custom generated vm interface procedure passing memory offset type fault 
+code invokes procedures perform page operations finished calls previously described add mapping function returns causing faulted access retried 
+synchronization necessary thread executes fault handler pager performs paging waits invoke thread suspend usual preventing thread executing page arrives 
+deadlock possible blocked thread page fault 
+memory management overhead table contains numbers basic memory management operations calculated sony machine 
+page zeroing implemented mc multiple register save instruction words time faster bcopy 
+input output describe examples subsystems illustrate lock free synchronization primary reason efficiency processing kernel code synthesis 
+create microseconds write microseconds tty char vt terminal emulator char text window char table selected window system operations terminal display terminal window pipeline composed primarily tty vt terminal emulator text window 
+fixed cost invocation character cost varies function character processed 
+costs summarized table 
+invocation cost occurs time called independent number chars column name 
+character costs average cost summed characters 
+sum total time exceeds wall clock time observed 
+unexpected result happens synthesis kernel optimize data flow resulting fewer calls actual straight concatenation 
+example fast window system synthesis characters may scrolled screen consecutive vertical scans monitor 
+window manager bypasses drawing characters sampling content virtual vt screen times second drawing parts screen changed 
+vt emulator parse character maintain virtual screen 
+faster updating framebuffer store characters ascii codes bitmaps pointers speed scrolling 
+tty finite state machine converts editing commands escape characters newline 
+terminal driver receives interrupts passes characters tty calls vt emulator synchronous routine calls 
+vt emulator maintains internal buffer virtual screen shared text window 
+window system problem text window sharing virtual screen vt emulator ok show partial updates window 
+synthesis guarantees screen update reflected window vertical scans application putchar finished 
+file system file system pipeline 
+bottom disk driver sends data file mapper 
+file mapper translates logical array disk cylinders sectors supply disk driver appropriate hardware commands 
+file mapper stores data file buffer implements unix style file level unix read write seek system calls 
+top file system synthesized actual kernel call code open file 
+synchronous communications driver file mapper routines asynchronous communications file buffer file mapper file system lock free queues 
+hard disk driver finished time writing driver 
+virtual memory management development debugging including measurements done connecting pagers file system driver 
+independent architecture works sony machine fully debugged 
+related synthesis kernel differs production multiprocessor os kernels mach topaz psyche lock free 
+synchronization problems shared memory multiprocessor solved lock free synchronization methods compare swap 
+small number lock free objects packed flags stacks fifo queues linked lists connect synthesis kernel components 
+best knowledge attempted experimental multiprocessor os kernels 
+lock free data structure point view close related nyu hummel ibm rp 
+algorithms exactly particular due double word compare swap objectives applying lock free synchronization increase concurrency decrease overhead 
+described practical useful solutions particular concurrent data structures context scheduling 
+describing concurrent access queues stone compare double swap involving double words 
+contrast synthesis lock free synchronization general applied techniques implement entire os kernel 
+anderson argued kernel implementation threads necessarily expensive user level thread management systems 
+implementation shows kernel code synthesis kernel level threads may efficient user level threads multiprocessor kernel full 
+lock free synchronization techniques implementation synthesis kernel dual sony news workstation 
+contrast implementations multiprocessor kernels interlocking 
+locking synchronization methods disabling interrupts spin locking waiting semaphores problems 
+semaphores carry high management overhead spin locks may waste significant amount cpu 
+typical argument spin locks processor idle 
+may apply synchronization inside kernel 
+completely lock free implementation multiprocessor kernel demonstrate reduce synchronization overhead increase concurrency avoid deadlocks eliminate priority inversion 
+achieved completely lock free implementation careful kernel design 
+reduced kind data structures kernel simple data types lifo stacks fifo queues linked lists 
+restricted uses data types small number safe interactions 
+implemented efficient special purpose instances data types single word double word compare swap 
+kernel fully functional kernel supporting threads virtual memory devices window systems file systems 
+measured numbers show high efficiency implementation competitive user level thread management systems 
+learned lessons experience 
+lock free implementation viable desirable alternative development shared memory multiprocessor kernels 
+usual strategy evolve single processor os kernel multiprocessor kernel surrounding critical sections locks carries performance penalty potentially limits system concurrency 
+way alleviate lock overhead provide hardware lock support alleviate concurrency bottleneck 
+second single double word compare swap important lock free shared memory multiprocessor os kernels 
+risc architectures support instructions force os implementors locks efficient compare swap weaker operations herlihy hierarchy swap sparc open research problem 
+architectural support definition compare swap single word compare swap cas double word compare swap cas defined 
+particular cases read modify write family operations 
+typical hardware implementations operations machine instructions lock memory bus unique hardware resource guarantee memory access atomicity duration instruction 
+cas compare update compare update return succeed return fail cas compare compare update update compare compare update update return succeed return fail hardware measurement tools synthesis implemented debugged sony news workstation measurements described special hardware support 
+numbers reported tables example calculated direct measurement number machine cycles took run respective programs 
+main advantage counting machine cycles directly avoidance spurious code doing measurements software 
+reason relative independence numbers respect architectural differences 
+mc cpu converted sosp mb wait state main memory mb hard disk inch floppy drive :10.1.1.119.4056
+designed instrumented aid systems research 
+basis support programmable sgi reported provide inexpensive hardware support locks 
+gate array pga board 
+pin pga finite state machine functions 
+pga responsible generating interrupts cpu 
+device connects interrupt line pga pin pga translates appropriate interrupt format device 
+substitute interrupt controller chip 
+second pga capable performing dma request devices dma capability 
+third pga memory bus accesses cpu disk controller dma 
+fourth pga monitors memory bus map certain memory locations requests including system clock 
+pga programmable old functions may enhanced new functions may introduced necessary convenient 
+measure number cycles program fragment stopwatch pga 
+pga generates interrupts implements system clock 
+mhz crystal generates pulse nanoseconds fed pga increment bit counter 
+time day clock register holding copy counter 
+time day clock mapped privileged memory location monitored pga 
+clock address referenced time day register updated 
+similarly additional bit memory mapped registers capable storing current time content crystal impulse counter called start time clock time clock convenience 
+start measurement store starting timestamp start time clock store finishing timestamp time clock 
+subtracting interval timer resolution tick corresponding machine cycle 
+measurements taken caches turned 
+turned chip cache kernel calls typically expected remain cache assuming user threads useful 
+lack board cache means considering effect board cache sony machine 
+numbers overestimate overhead safe side 
+case due preference registers memory accesses kernel turning sony board cache improve kernel performance percent 
+main memory cycle runs wait state sony machine 
+measurements done loading kernel code running timestamps find number cycles takes execute 
+executions paths run program number times check variance 
+anderson 
+performance spin lock alternatives shared memory multiprocessors 
+ieee transactions parallel distributed systems january 
+anderson bershad lazowska 
+scheduler activations effective kernel support user level management parallelism 
+technical report department computer science university washington april 
+black 
+scheduling support concurrency parallelism mach operating system 
+ieee computer may 
+herlihy 
+wait free synchronization 
+acm transactions programming languages systems january 
+appear 
+hummel schonberg 
+low overhead scheduling nested parallelism 
+technical report rc watson research center ibm research division 
+susan flynn hummel 
+shared memory multiprocessor ada run time supervisor 
+phd thesis department computer science new york university 
+leblanc mellor crummey 
+multiprocessor operating system 
+software practice experience november 
+massalin pu :10.1.1.119.4056
+threads input output synthesis kernel 
+proceedings twelfth symposium operating systems principles pages arizona december 
+massalin pu 
+fine grain adaptive scheduling feedback 
+computing systems winter 
+special issue selected papers workshop experiences building distributed systems florida october 
+pu massalin ioannidis 
+synthesis kernel 
+computing systems winter 
+scott leblanc marsh becker markatos 
+implementation issues psyche multiprocessor operating system 
+computing systems winter 
+stone 
+managing shared fifo queue compare swap 
+proceedings supercomputing conference 
+acm 
+thacker stewart satterthwaite jr firefly multiprocessor workstation 
+ieee transactions computers august 
+james wilson 
+operating system data structures shared memory mimd machines fetch add 
+phd thesis department computer science new york university 
+

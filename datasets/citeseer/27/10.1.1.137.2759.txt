@@ -1,0 +1,556 @@
+cayuga general purpose event monitoring system alan demers johannes gehrke panda sharma walker white department computer science cornell university computer science engineering indian institute technology delhi describe design implementation cornell cayuga system scalable event processing 
+query language cayuga algebra naturally expressing complex event patterns 
+describe novel system design implementation issues focusing cayuga query processor indexing approach cayuga handles simultaneous events specialized garbage collector 
+
+large class established emerging applications best described event monitoring applications 
+include supply chain management rfid radio frequency identification tagged products real time stock trading monitoring large computing systems detect malfunctioning attacks monitoring sensor networks surveillance 
+great interest applications indicated establishment sites www com bring major industrial players bea ibm oracle tibco 
+event monitoring applications need process massive streams events near real time 
+event processing differs general data stream management major aspects query workload 
+distinct class queries warrants special attention 
+complex event processing users interested finding matches event patterns usually sequences correlated events 
+important class pattern call safety condition want ensure events bad happens 
+example leaving farm start event arriving store event fresh produce spent hour total temperature traditional data stream languages designed event monitoring 
+possible express event patterns cumbersome results queries impossible read optimize 
+second complex event processing usually large done visiting cornell university 
+johannes vs cs cornell edu permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+copyright acm xxxxx xx xx xx 
+number concurrent queries registered event processing system 
+similar workload publish subscribe systems 
+comparison data stream management systems usually scalable number queries capable supporting small number concurrent queries 
+designed built cayuga general purpose system processing complex events large scale 
+cayuga supports line detection large number complex patterns event streams 
+event patterns written query language operators defined formal semantics 
+enables cayuga perform query rewrite optimizations 
+operators composable allowing cayuga build complex patterns simpler sub patterns 
+addition expressive query language cayuga system implements novel techniques query processing indexing garbage collection resulting efficient execution engine process data streams high rates 
+cayuga offers applications unique combination expressiveness speed 
+describe core aspects cayuga 
+query language designed naturally expressing complex event patterns illustrate examples 
+describe architecture cayuga system 
+discuss important design decisions enable cayuga gracefully handle input streams high event stream rates large number continuous queries 
+rest organized follows 
+section cayuga data model query language 
+section describes automaton processing model queries implemented automata 
+section give detailed discussion cayuga system architecture implementation 
+summarize related section 
+section describes ongoing deployments cayuga cornell concludes 
+
+cayuga query model cayuga data model query algebra explained detail demers 
+unique features data model lead important design decisions cayuga system 
+section introduce cayuga event language cel query language cayuga query algebra 
+data model traditional relational database system cayuga treats data relational tuples referred events 
+cayuga designed monitor streams events static tables 
+sets tuples cayuga data model consists temporally ordered sequences tuples referred event streams 
+event stream fixed relational schema 
+event stream timestamps start timestamp denoted timestamp denoted 
+represent duration interval defined 
+events serialized order reason referred detection time event 
+semantic issues discussed white consider events detection time simultaneous guarantee produce result regardless order processing simultaneous events 
+guarantee realized epoch processing cayuga described section 
+query language cayuga event language cayuga algebra designed expressing queries event streams 
+simple mapping algebra operators sql syntax 
+introduce query language examples 
+application domain examples stock monitoring 
+assume stock ticker stream schema stock name price volume 
+cel query simple form select attributes stream expression publish output stream select clause cel similar sql select clause 
+specifies attribute names output stream schema aggregate computation 
+attributes renamed constructs select clause 
+select clause optional omitting equivalent specifying select 
+publish clause names output stream queries may refer input 
+clause omitted output stream unnamed 
+simplest type query just reads events stream forwards shown example 
+example 
+suppose want select input event input stream stock output new stream named 
+formulate query cel follows 
+select stock publish refer expression clause stream expression 
+expression core query 
+stream expression composed unary construct filter binary constructs fold 
+constructs produces output stream input streams 
+introduce examples 
+filter construct selects events input stream satisfy predicate defined shown example 
+example 
+suppose want select ibm stock quotes price 
+formulate query cel follows 
+select price filter name ibm price stock publish query outputs price attribute values events stock name volume 
+furthermore renames price attribute 
+output stream named 
+cayuga algebra special attribute denoted dur predicate associated filter 
+predicate constraint dur referred duration predicate 
+described section attribute dur event takes duration interval value 
+example event satisfies duration predicate dur min duration interval greater minutes 
+cel sql compositional allowing sub queries clause 
+example example gives equivalent formulation example nested queries 
+example 
+suppose want select ibm stock quotes price 
+way formulate query cel follows 
+select price filter name ibm select filter price stock publish sub query clause produces quotes price 
+top level query filters quotes retain quotes ibm 
+illustrated example publish outputs nested sub query separate stream 
+need add additional publish clause parenthesized sub query 
+enables query formulation produce multiple output streams 
+binary constructs stream expression allow correlate events time 
+binary construct 
+applied input streams construct combines event event satisfies predicate defined occurs detection time 
+parameter construct omitted default set true 
+example returns pair consecutive events stream example 
+suppose want match pairs stock quotes ibm quote price second microsoft quote appear stream 
+formulate query cel follows 
+select price name msft stock event output stream query consists pair prices ibm price msft price 
+query construct reads input streams stream produced example schema contains attribute second stream stock 
+alternatively inlined query example 
+powerful construct exploits call parameterization ability refer attributes input streams example 
+example 
+suppose want match pairs stock quotes ibm quote price second quote stock price ibm price quote 
+formulate query cel follows 
+select price name price stock event output stream query consists ibm price name price stock sell higher price 
+examples input streams construct disjoint schemas 
+course typical input streams binary construct frequently contain identically named attributes 
+situation happens binary join operator relational algebra sql example 
+happens binary construct attribute name predicate associated construct ambiguous attribute input streams 
+address ambiguity cel introduce special language constructs referred decorators identify streams attributes taken 
+foo refers attribute foo input stream binary construct single input stream unary construct 
+similarly foo refers attribute foo second input stream binary construct 
+decorator attribute omitted schema input stream 
+simplicity cel decorators allowed predicate expressions select clause 
+helpful view select clause receiving input stream schema produced clause 
+example illustrates simple decorators 
+example 
+suppose want match pairs stock quotes identical prices return stock name second quote pair 
+formulate query cel follows 
+select name select price stock price price stock event output stream query consists name second stock pair quotes identical prices 
+note name parameter occurs schema second input construct unambiguous 
+allows correlate events situations need iterate priori unknown number events stopping condition satisfied 
+capability supplied fold construct 
+fold construct form fold 
+parameters respectively denote condition choosing input events iteration plays role stopping condition iteration aggregate computation iteration steps 
+intuitively fold iterated form looks patterns comprising events 
+decorators respectively refer attributes second input streams fold 
+refer attributes iteration fold second stream decorator 
+example 
+suppose want find monotonically increasing run prices single run lasts stock quotes quote volume greater 
+formulate query cel follows 
+select filter cnt select cnt filter volume stock fold name name price price cnt cnt stock example input stream fold produced filter construct retains quotes volume greater 
+new attribute cnt added stream schema initialized value 
+second input stream fold contains stock quotes 
+parameter fold ensures stock quotes iterated 
+second parameter ensures iteration stopped price current quote greater price iteration 
+third parameter computes count aggregate adding value cnt attribute iteration 
+output event fold construct run filter check duration greater hour 
+ensure valid iterations fold construct maintain schema inclusion invariant schema input stream superset schema second input stream 
+queries violate invariant rejected illegal 
+details formal semantics fold invariant refer readers 
+note input streams binary construct identically named attributes proper renaming output stream binary construct duplicate attribute names making data semantics ambiguous 
+relational algebra sql situation addressed explicitly renaming output attribute names distinct 
+similarly construct renaming avoid name collisions output schema 
+illustrated example renamed attribute price input stream schema 
+fold construct collisions avoided due schema inclusion invariant 
+example attribute renaming output stream schema example contain attributes named price duplicate attributes 
+automatic renaming scheme follows sure attributes output stream schema distinct names 
+applies fold follows 
+sub expression denote input streams binary construct attribute name collision output schema cross product input schemas renaming performed 
+rename attribute 
+uniformity attribute names appear renamed way 
+renaming performed attribute names possible renaming operation duplicate attribute names output schema consider case attribute named 
+case input query rejected illegal 
+sub expression fold attribute occurs value stored attribute output schema sub expression value attribute latest iteration stored attribute output schema 
+attribute named output schema 
+example output schema example name price volume cnt name price volume cnt 
+note attribute renaming avoided hierarchical decorators foo refer attribute foo stream expression hierarchical decorators allowed cel 
+illustrate decorators attribute renaming construct give query formulation 
+example 
+suppose want match pairs ibm stock quotes quote price second ibm quote price higher price cayuga automaton quote 
+formulate query cel follows 
+select price price filter name ibm price stock price price filter name ibm stock note attribute price select clause refers attribute price input stream attribute price comes second input stream 
+believe renaming scheme appropriately easier write queries rendering explicit renaming unnecessary improves user friendliness cel 
+
+processing model demers showed left associated cayuga algebra expression implemented variant nondeterministic finite state automaton referred cayuga automaton 
+non left associated expressions broken set left associated ones implemented set corresponding cayuga automata 
+cel cayuga algebra results applicable cel queries 
+section describe process cel queries cayuga automata 
+cayuga automata generalize traditional nfas ways finite input alphabet read arbitrary relational streams state transitions controlled predicates store data input stream allowing selection predicates compare incoming events previously encountered events 
+automaton state assigned fixed relational schema input stream 
+going edges state read input stream 
+edge say states labeled pair predicate schema schema schema map partial function schema schema schema 
+cayuga automata operate follows 
+suppose automaton instance state stored data note conforms schema 
+event arrive stream satisfied 
+machine nondeterministically transitions state stored data 
+cayuga automata self loop edges derived predicates filter events fold called filter edges call associated predicates filter predicates self loop edges derived predicates rebind fold called rebind edges call associated predicates rebind predicates edges forward edges 
+adopt convention filter edges drawn top states rebind edges states 
+intuitively intermediate state filter edge rebind edge implements construct 
+intermediate state filter rebind edge implements fold construct 
+example automaton implementing select name select name stock name stock shown 
+cel formulation schema state attribute schema attribute name 
+read input stream stock 
+predicates cel formulations translated automaton edge predicates obvious way 
+particular attribute decorators cel translated prefixes automaton edge predicate depending attribute comes schema current event read edge denote schema automaton state denoted edge emanates 
+example predicate forward edge compares value attribute state value attribute input stream stock 
+predicates cayuga automata associated edges 
+filter edge state start states associate predicates filter edges automaton states ambiguity 
+similarly rebind edge state associating rebind edge predicates automaton states ambiguous 
+note predicate filter edge negation corresponding filter predicate cel formulation 
+example predicate filter edge associated state name corresponding filter predicate cel formulation name 
+text avoid ambiguity avoid term filter edge predicate 
+consistent notion filter predicate cel formulations context automaton edge predicates term filter predicate associated state refer negation predicate filter edge associated example filter predicate associated state name 
+recall refer predicate rebind resp 
+forward edge rebind resp 
+forward predicate 
+schema maps cayuga automata constructed cel formulations obvious way 
+note schema map associated filter edge identity function implementation exploits fact 
+cayuga automaton maintains invariants edge predicates 
+automaton instance state current event satisfy predicate forward edge state satisfy filter predicate associated state automaton instance state current event satisfy predicate forward edge state satisfy rebind predicate associated state 
+automaton instance state current event satisfy rebind predicate associated state satisfy filter predicate associated state consequence invariants automaton instance state current event satisfy filter predicate associated state predicates rebind forward edges associated state satisfied 
+instance traverse filter edge unmodified due identity schema map filter edge 
+case say instance affected current event 
+current event satisfies filter predicate say affected current event 
+invariants easily realized implementation predicate conjunctions 
+example invariant realized attaching filter predicate state conjunct predicate forward edge leaving rebind predicate associated 
+understanding invariants simplify presentation automaton figures usually duplicate filter predicates forward rebind predicates 
+example automaton shown predicate forward edge semantics name 
+decide show filter predicate conjunct forward predicate denote forward predicate true 
+complete details nfa construction 
+automaton example illustrate cayuga automata process query extended example 
+example 
+suppose want record quotes stock monotonic decrease price minutes started large trade volume 
+furthermore suppose interested monotonic runs followed stock quote prices previously seen bottom price 
+words stock steadily decreasing shows signs rising 
+formulate query cel follows 
+select name minprice price filter dur min select name price price minprice filter volume stock fold name name price price stock name name price minprice stock formulation fold construct searches monotonically decreasing sequence stock ignoring quotes companies 
+iteration current lowest price compared price incoming event 
+new minimum price concatenation overwrites previously lowest price new monotonic sequence ended 
+duration constraint filter dur min evaluated output fold satisfied complex event output denoting decreasing sequence lasts minutes 
+construct finds quote 
+price quote previous price query produces output event 
+output event retains attributes name minprice 
+corresponding automaton shown 
+associate edge edge predicate attribute mapping fj 
+defined follows 
+name name rice rice name name rice rice id schema schema name name rice rice name name rice rice name name rice maxp rice rice minp rice id schema schema name name maxp rice maxp rice minp rice minp rice rice rice note mappings true functions maps name name name support value duplication necessary initializing iteration loop 
+attribute mappings define edge predicates follows 
+name name rice rice min name name rice minp rice predicates automaton edges predicates cel formulation attribute names decorated sources come 
+mean time event traversing edge predicate start time instance stored state large trade stock automaton begins looking monotonically decreasing sequence sudden price 
+moment time event sequences satisfy prefix subscription pattern 
+example suppose event stream illustrated 
+illustrates automaton processes events 
+incoming event state automaton processing indicated active automaton instances row 
+table headers show data schema instances automaton state 
+readability timestamp attributes shown schema 
+initially active automaton instance start state active default 
+arrives automaton checks satisfies predicate edge emanating start state 
+case applies attribute mapping function attributes creates resulting instance state event satisfy start state create new instance 
+instance state determine traverse outgoing edge predicates outgoing edges evaluated respect 
+event satisfies rebind edge associated state event traverses edge instance updated mapping result shown table 
+event matches new instance created state satisfy filter predicate associated state name attribute technically automaton instance traversing rebind edge creates new instance original instance deleted processing event 
+term update simplify presentation 
+automaton example event name price volume ibm ibm dell ibm msft ibm example event sequence instances state instances state instances state event name price name price name minprice name minprice ibm ibm ibm ibm ibm ibm dell ibm ibm ibm ibm dell ibm ibm ibm ibm dell ibm dell ibm ibm value ibm name attribute value dell 
+affected event 
+arrival illustrates non determinism fold construct implemented state filtered dell pattern 
+satisfied duration condition true 
+non deterministically traverses forward edge rebind edge state example update content content create new instance state applying current event 
+events processed similarly 
+instances traverses corresponding filter edge affected 
+interesting aspect effect instance 
+satisfies filter predicate associated state satisfy forward rebind predicates state instance deleted 
+notice nondeterminism ensures correct discovery ibm pattern instance events match prevents arriving ibm event generating matching pattern starting failed 
+additional subtleties previous example gives high level understanding automata subtleties fails illustrate 
+simultaneous events stream produced external stream source cayuga query 
+simultaneous events pose difficulties ensuring correctness automaton processing 
+consider example event ibm detection time processed automaton 
+event fails satisfy delete immediately cayuga query semantics output event produced affected presence 
+suggests processing current event delete automaton instances traverse associated filter edges example computation immediately events simultaneous automaton instances remain visible processing events 
+handle simultaneous events correctly epoch query processing described section 
+stated earlier cayuga query implemented single automaton 
+order process arbitrary queries cayuga supports 
+similar pipelining output stream query input stream query 
+query output produced real time 
+tuple output query detection time input event contributed processing take place epoch event arrived 
+decision motivates cayuga priority queue described section pending instance lists described section 
+cayuga system section describe cayuga system architecture explain efficiently implement large number automata 
+architecture cayuga system architecture shown 
+describe control data flow cayuga components interact high level 
+focus describing major components system detail 
+external events arriving cayuga system received event receivers ers runs separate thread receiving events particular source 
+er threads responsible arriving events assigning timestamps necessary internalizing cayuga heap inserting input priority queue pq 
+ers pq described section 
+cayuga query engine single thread responsible query processing 
+engine dequeues events pq detection time order 
+performs indi er er pq query engine cn events notifications heap gc cayuga system architecture cn cated automaton state transitions index structures achieve high throughput 
+automaton instance reaching final state enqueues new event pq required passes events appropriate client threads cns 
+engine described section cns described section 
+cayuga uses customized memory manager garbage collector gc facilitate efficient object sharing high performance small memory footprint 
+memory manager described section 
+event receivers priority queue cayuga multiple event receiver threads 
+er thread converts events arriving external data source tcp stream sensor device sequence internalized cayuga events 
+external data sources may encode data different ways multiple er classes methods specific data sources 
+internalized events common format designed allow sharing complex data large string bodies user defined types 
+shared data resides garbage collected cayuga heap discussed section 
+design enables manipulate events automaton instances shallow copy operations exploit efficient block move procedures possible 
+newly internalized events inserted priority queue pq ordered event detection time 
+events dequeued processed query engine described section 
+mentioned cayuga query model requires events processed detection time order 
+system correct clock skew data sources network delay reordering 
+address problem follows 
+priori bound input streams 
+incoming event timestamp arrives cayuga system guaranteed system local clock defined proper ordering achieved buffering events pq appear time units old allowing dequeued 
+specifically dequeue operation block return empty smallest detection time event queue current cayuga system clock value 
+arriving event timestamp smaller timestamp event previously dequeued pq event ignored 
+coping high variance arrival times requires large value note increasing adds latency affect throughput 
+fixed global parameter overly conservative cases 
+sophisticated efficient approach described 
+data sources provide timestamps 
+data sources er assigns arriving event point timestamp length interval detection time equal current cayuga system clock 
+clearly stream locally generated timestamps inter operate streams timestamps provided data sources 
+note streams locally generated timestamps suitable value global parameter 
+case pq behaves fifo queue processing described section 
+cayuga query engine cayuga query engine processes internalized cayuga events drawn priority queue executing state transitions cayuga automata generating output events final states reached 
+output events fed back pq passed cn threads forwarded subscribers described section 
+subsections describe engine detail 
+query representation external representation cayuga query uses xml format call automaton intermediate representation air 
+air encoding automaton states edges basically straightforward features worthy note final states explicitly identified subscribing clients 
+filter edges explicitly identified require different treatment fr edges 
+edge predicates schema maps discussed section encoded programs specialized bytecode interpreter discussed 
+predicate conjuncts indexed flagged appropriately indexing strategy described section 
+air format intentionally low level represent arbitrary collections automaton states 
+design decision enhances modularity query engine deals automaton execution concerned translation algebra expressions automata multi query optimizations involving automaton rewriting sharing sub automata 
+form query optimization performed engine merge manifestly equivalent states air file loading 
+cayuga loads air file resulting internal data structure explicit representation automaton states edges 
+cayuga automaton model nondeterministic 
+query evaluation may active instances query automata different state different stored data 
+internal representation associates list instance objects automaton state depicted 
+instance object associated state represents instance query automaton state stored data automaton instance conforming schema contained instance object 
+edge predicates schema maps represented internally bytecode interpreter programs essentially copied air representation 
+cayuga bytecode interpreter straightforward stack machine specialized efficient short circuit evaluation conjunctions atomic formulas efficient construction copying instance objects 
+interpreter instance lists air format designed extensible easily support new user defined predicates udfs event schemas including new user defined types 
+simultaneity epochs cayuga data model allows events simultaneous detection times 
+handle events correctly epoch processing strategy 
+epoch events detection time processed critical new automaton instance created epoch visible events detected epoch 
+achieve effect put newly created instances state separate pending instance list 
+epoch perform instance installation atomically merging state pending instance list state surviving instances 
+process depicted 
+instance installation deferred epoch boundaries processing new events instances reaching final states deferred 
+client notification insertion new events pq support happen immediately 
+scheme simple efficient way handle simultaneity 
+possible construct powerful recursive queries arguably thing construct automaton loop forever epoch generating unboundedly events detection timestamp bad thing 
+fortunately automata generated cayuga algebra expressions guaranteed exhibit bad behavior 
+evaluation indexing describe flow processing incoming event 
+system components involved shown 
+design specially driven invariants cayuga automata described section 
+event processing done stages 
+stage filter evaluator invoked 
+name suggests filter evaluator evaluates filter edge predicates respect current input event 
+identifies set affected instances states associated 
+recall section instance affected traverse filter edge 
+affected instances marked deletion current epoch 
+second processing stage affected state marked filter evaluator invoke forward rebind evaluator 
+fr evaluator evaluates fr edge predicates state creates new instances destination state edge predicate satisfied 
+instance created final state output event generated inserted pq sent appropriate client 
+implementation convert edge predicates disjunctive normal form treat top level disjuncts separately 
+filter eval fr evals nfa states nfa instances pred index 
+pred index 
+pred index pred index 
+bytecode interpreter pred index 
+pred index query evaluation architecture remainder discussion assume predicate conjunction atomic predicates 
+classify atomic predicates static dynamic 
+static atomic predicate compares event attribute constant 
+atomic predicate considered dynamic 
+straightforward implementation filter evaluator indexing input event need checked static filter atomic predicates states dynamic filter atomic predicates need checked instances nodes static filter components satisfied identifying affected instances nodes 
+predicate evaluations performed bytecode interpreter 
+similarly unindexed implementation fr evaluator input event need checked static atomic predicates fr edge affected state fr edges static components satisfied dynamic atomic predicates need checked affected instances associated node 
+performance greatly improved indexing 
+current indexing structure addresses static dynamic equality atomic predicates 
+conjunctive clause segregated components indexed static unindexed static indexed dynamic unindexed dynamic 
+static predicate indices filter predicates maintained global level efficiently identify superset set affected states 
+static predicate indices fr predicates maintained global level eliminating duplicate evaluation indexed static atomic predicates node basis eliminating unnecessary evaluation unaffected nodes 
+choices viable depending workload decided favor second 
+dynamic predicate indices filter predicates maintained node basis index node instances global constants static filter predicate index associated particular filter predicate clause 
+currently maintain dynamic predicate index node avoid excessive maintenance overhead instances added deleted epoch 
+event arrival process carried filter predicate evaluation 
+filter evaluator probes relevant indices enumerate nodes static indexed component filter predicate clauses satisfied 
+clause number output 
+static unindexed component evaluated clauses satisfied move step 
+node clause numbers identified corresponding dynamic filter predicate index probed get set instances satisfy indexed dynamic component clause 
+
+instance unindexed dynamic component evaluated interpreter output set affected instances node 
+nodes filter predicate indexing enabled index output degenerates sequential list consisting instances node unindexed predicate evaluation proceeds list 
+process ultimately creates list affected nodes containing list affected instances 
+probes fr indices associated affected node output fr edges having static component clauses satisfied clause number output 
+dynamic fr indices currently supported system 
+number affected nodes instances generally small believe performance advantage overcome maintenance overhead 
+unindexed component evaluated node affected instances identify edge instance pairs 
+new instances created added pending instance lists effect state transition 
+client client threads cns roughly analogous ers ers receive events external streams cns send event notifications subscribing clients 
+cn connected cayuga client 
+query engine detects query produced match automaton instance reaches final state qe sends corresponding event cns representing subscribing clients event 
+cn serializes event appropriately delivers client 
+memory management garbage collector cayuga event processing large string bodies objects complex user defined data types created copied destroyed frequently 
+reduce space time overhead objects share objects possible rely custom memory management scheme reclaim 
+section describe memory manager discuss design decisions 
+principle dynamic data structures cayuga associated events automaton instances 
+discuss treatment automaton instances treatment events similar fact code shared 
+top level automaton instances allocated freed manually 
+scalar data resides instance string bodies complex data structures reside garbage collected heap shared instances 
+note implies size instance determined schema corresponding automaton state instances fairly small 
+copying instance done shallow copy fixed length instance object copied increasing degree sharing sub objects 
+manage instance objects simple size segregated collection free pools 
+manage complex shared objects initially considered smart pointer implementation counts 
+apart counting inability deal cyclic structures restriction probably lived application approach considerable elegance 
+cayuga nondeterministic state transitions require frequent copying deletion instances involving count manipulation possibly synchronization overhead 
+implemented garbage collected heap shared objects 
+allows shallow copy instance locking count manipulation simple efficient block move operation safe 
+gc design uses familiar techniques somewhat unusual combination driven needs application 
+discussion techniques 
+absence pathologic query selectivities cayuga object lifetime distribution highly bimodal 
+automaton instances fail filter predicates die early 
+instances associated long running operator live long time 
+hardly instances medium lifetimes 
+observation chose simple generational scheme generations 
+generation uses copying garbage collection objects survive copies promoted second generation uses non copying collection 
+copying collection somewhat controversial cayuga object lifetimes sufficiently short skewed believe copying considerable performance advantage 
+copying gc object allocation essentially free basically just incrementing limit pointer cost collection linear number bytes live data independent number bytes reclaimed 
+vast majority allocated objects survive garbage collection total cost allocation copying collector lower cost manual memory management malloc free 
+avoid need update client variables object copied handle design similar java vms 
+handle space data structure supports unit cost reclamation entire set dead handles reclamation preserving asymptotic cost copying collection algorithm 
+briefly discuss issues root finding concurrency 
+logically step garbage collection find values root variables program variables contain objects heap 
+collector traces heap identifying objects transitively reachable roots 
+multi threaded system cayuga gc threads world collector prepared operate correctly presence concurrent changes heap threads 
+general tasks represent considerable development effort 
+precise root finding requires non portable compiler support error prone application support 
+stopping world non portable undesirable case concurrent collection extremely delicate error prone refs 
+address issues exploiting application design majority done single query engine thread 
+gc systems collect side effect object allocation 
+cayuga gc collects explicitly invoked engine thread 
+happens gc safe points engine code points engine live data guaranteed reachable events waiting processed pq automaton instances contained query automata data structure 
+engine root variables needed enumerating requires lines code 
+course approach guarantees engine thread gc safe point collection occurs 
+er cn threads 
+guarantee points threads gc safe requiring access heap stylized api similar java native methods api 
+api somewhat convenient direct api engine code heap er cn threads simple approach tolerable 
+note allocation request may ask space currently available heap 
+usual response situation invoke garbage collection fail collection produce sufficient free space 
+explicitly ruled invoking garbage collection side effect allocation request 
+fortunately serious issue generation design 
+insufficient memory available generation heap satisfy request immediately promote request second generation uses system allocator fail 
+internal string table internal string table component manages read string objects stored internalized cayuga heap 
+purpose internal string table ensure copy string value heap multiple clients internalize string value system returns identical shared string body heap 
+beneficial effects reduces space consumption 
+string appears multiple input events automaton instances storage shared events instances constructed independently 
+strings enabling equality test performed single pointer comparison byte character comparison 
+certain workloads successful string comparisons occur frequently yield significant speedups 
+obvious implementation internal string table place internalized strings hash table eliminating duplicates 
+unfortunately implementation provision reclaiming internalized string object client holds internal string table holds keeps reclaimed 
+internal string table grow bound cayuga space requirements particular time modest 
+canonical string table new idea solutions unbounded growth problem typically involve form weak gc feature slightly arcane dates back sufficiently mainstream exist java 
+informally weak object enables client object prevent object fact cayuga contains call collector top query engine main loop 
+call collection just returns immediately policy decision internal gc 
+precisely fail recoverably 
+reclaimed 
+cayuga gc provides simple form weak ordinary object disappear object reclaimed remaining weak object atomically cleared null 
+feature easily implement internal string table hash table buckets contain weak canonical string objects code hash table maintenance methods lazily deletes null table 
+
+related lot previous relevant complex event monitoring 
+due space constraints discuss representative subset 
+falls broad classes publish subscribe systems characterized limited query languages allowing simple selection predicates applied individual events data stream 
+systems trade expressiveness performance engineered exhibit high scalability number queries stream rate 
+inability express queries span multiple input events unsuitable complex event processing 
+stream databases lie opposite spectrum trading performance expressiveness 
+systems powerful query languages typically subsuming sql provisions sliding windows stream grouping features 
+powerful query languages awkward expressing kinds sequential patterns occur frequently target applications 
+systems demonstrate scalability approaches 
+complex event systems snoop ode closest spirit 
+systems describe composite events formalism related regular expressions variant nfa model 
+support form parameterized composite events general cayuga 
+addition semantics expressive event systems defined 
+
+outlook believe cayuga incorporates interesting novel design decisions impact community researchers practitioners currently working building complex event systems 
+cornell currently ongoing deployments cayuga 
+collaborating researchers cornell parker center investment research real time analysis correlation external data streams stock data streams 
+working integration corona distributed high performance system web running planetlab www cs cornell edu people egs beehive corona 
+vision devise infrastructure stateful monitoring blogosphere 
+third deployment ongoing collaboration system administrators ctc cornell high performance computing center distributed infrastructure monitoring os event log processing 
+describes working system currently deployment users started demand features 
+currently adding support user defined types functions cayuga allows extend cayuga xml deployment service oriented architectures 
+scalable architecture want distribute event processing task setting hierarchy cayuga servers servers higher levels output servers lower levels 
+
+wish acknowledge contributions colleague hong crucial aspects cayuga 
+cidr conference rule prohibiting multiple submissions prevented included authors 
+supported national science foundation iis iis afosr fa sloan foundation fellowship gift xerox 
+opinions findings recommendations expressed material authors necessarily reflect views sponsors 
+
+chakravarthy 
+interval event specification detection active databases 
+proc 
+adbis pages 
+aguilera strom sturman chandra 
+matching events content subscription system 
+proc 
+podc pages 
+andrew appel 
+garbage collection faster stack allocation 
+information processing letters 
+andrew appel 
+simple generational garbage collection fast allocation 
+software practice experience 
+hans boehm 
+mark sweep vs copying collection asymptotic complexity 
+ftp xerox com pub gc complexity html 
+carney cherniack convey lee stonebraker tatbul zdonik 
+monitoring streams new class data management applications 
+proc 
+vldb 
+chandrasekaran cooper deshpande franklin hellerstein hong krishnamurthy madden raman reiss shah 
+telegraphcq continuous dataflow processing uncertain world 
+proc 
+cidr 
+demers gehrke hong white 
+expressive publish subscribe systems 
+proc 
+edbt 
+fabret 
+jacobsen llirbat pereira ross shasha 
+filtering algorithms implementation fast publish subscribe 
+proc 
+sigmod pages 
+galton 
+approaches event definition 
+proc 
+dexa pages 
+gehani jagadish shmueli 
+composite event specification active databases model implementation 
+proc 
+vldb pages 
+motwani widom arasu babcock babu datar manku olston rosenstein varma 
+query processing approximation resource management data stream management system 
+proc 
+cidr 
+seshadri livny ramakrishnan 
+sequence query processing 
+proc 
+sigmod pages 
+frederick smith greg morrisett 
+comparing copying mark sweep conservative collection 
+ismm proceedings st international symposium memory management pages new york ny usa 
+acm press 
+srivastava widom 
+flexible time management data stream systems 
+proc 
+pods pages 
+white gehrke demers 
+
+technical report tr cornell university 
+paul wilson 
+uniprocessor garbage collection techniques 
+proc 
+int 
+workshop memory management saint malo france 
+springer verlag 
+wu rizvi 
+high performance complex event processing streams 
+proc 
+sigmod 
+zimmer 
+semantics complex events active database management systems 
+proc 
+icde pages 

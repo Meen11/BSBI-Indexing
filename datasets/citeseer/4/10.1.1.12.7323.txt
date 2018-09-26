@@ -1,0 +1,535 @@
+managing update conflicts bayou weakly connected replicated storage system douglas terry marvin theimer karin petersen alan demers bayou replicated weakly storage system designed mobile computing environment includes portable machines ideal network connectivity 
+maximize users read write accessible replica 
+bayou design focused supporting specific mechanisms detect resolve update conflicts naturally arise system ensuring replicas move eventual consistency defining protocol resolution update conflicts stabilizes includes novel methods detection called dependency checks write conflict resolution client provided merge procedures 
+guarantee eventual consistency bayou servers able rollback effects previously executed writes redo global serialization order 
+furthermore bayou clients observe results writes received server tentative writes conflicts ultimately resolved 
+presents motivation design mechanisms describes experiences gained initial implementation system 
+
+bayou storage system collaborative applications manages conflicts introduced concurrent activity relying weak connectivity available mobile computing 
+advent mobile computers form laptops personal digital assistants pdas enables computational facilities away usual setting users 
+mobile computers enjoy connectivity afforded local area networks telephone system 
+wireless media cellular telephony permit continuous connectivity costs decline justify lengthy connections 
+bayou design requires occasional patr wise communication computers 
+model takes consideration characteristics mobile com puting expensive connection time frequent occasional disconnections collaborating computers may connected simultaneously 
+bayou architecture include notion disconnected mode operation fact various degrees mike spreitzer carl hauser computer science laboratory xerox palo alto research center palo alto california permission digital hard copy part personal classroom granted fee provided copies distributed profit commercial advantage copyright notice title publication date appear copying permission acm copy republish post servers lists requires prior specific permission fee 
+sigops usa acm connectedness possible 
+groups computers may away rest system remain connected 
+supporting disconnected workgroups central goal bayou system 
+relying pair wise communication normal mode operation bayou design copes arbitrary network connectivity 
+weak connectivity networking model accommodated weakly consistent replicated data 
+replication single storage site may reachable mobile clients disconnected workgroups 
+weak consistency desired replication scheme providing copy clients access quorum replicas acquire exclusive locks data wish update yields unacceptably low write availability par networks 
+reasons bayou adopts model read write replica need explicit coordination 
+computer eventually receives updates directly indirectly chain pair wise interactions 
+previous systems goal designing bayou system provide transparent data support existing file system database applications :10.1.1.35.6686
+believe applications aware may read weakly consistent data operations may conflict users applications 
+applications detection resolution conflicts naturally depend semantics application 
+bayou provides system support detection resolution 
+previous systems locus coda proven value semantic conflict detection resolution file directories systems exploring conflict resolution file database contents 
+bayou extend letting applications exploit domain specific knowledge achieve automatic conflict resolution granularity individual update operations compromising security eventual consistency 
+automatic conflict resolution highly desirable lt enables bayou replica available 
+replicated system weak model adopted bayou conflicts may detected arbitrarily far users introduced conflicts 
+conflicts may detected user 
+bayou take approach systems mark conflicting data person resolves conflict 
+clients read data times including data conflicts fully resolved human intervention needed conflicting updates may propagating system 
+bayou provides interfaces state replica data apparent application 
+contributions follows introduce update dependency checks merge procedures general application specific conflict detection resolution define states update committed tive relate conflicts potentially introduced update ultimately resolved mechanisms managing states update perspective clients storage management requirements replicas describe replicas move eventual consistency discuss security provided system bayou 
+
+bayou applications tbe bayou replicated storage system designed support variety non real time collaborative applications shared calendars mad bibliographic databases program development document editing disconnected workgroups applications individuals different hosts different times 
+serve backdrop discussion sections section presents quick overview applications implemented far meeting room scheduler bibliographic database 
+meeting room scheduler meeting room scheduling application enables users reserve meeting rooms 
+person group reserve room period time 
+meeting room scheduling program intended group people decided want meet certain room determined set acceptable times meeting 
+help determine mutually agreeable place time meeting allows reserve room 
+simpler application general meeting scheduling 
+users interact graphical interface schedule room indicates times reserved display typical calendar manager 
+meeting room scheduling program periodically re reads room schedule refreshes user display 
+refresh process enables user observe new entries added users 
+user display date respect confirmed reservations room example showing local copy room schedule disconnected laptop 
+users reserve time slot simply selecting free time period filling form describing meeting scheduled 
+user display date chance user try schedule meeting time reserved 
+account possi users select acceptable meeting times just 
+requested times eventually reserved 
+user reservation immediately confirmed rejected may remain tentative 
+tentative meeting may rescheduled interfering reservations known 
+tentative reservations indicated display showing grayed 
+calendar prevent useful simply increases likelihood tentative room reservations rescheduled committed preferred meeting times 
+group users disconnected rest system immediately see tentative room reservations connected copy meeting room schedule 
+users maintaining private copies laptop computers local communication machines eventually synchronize copies group 
+bibliographic database second application allows users cooperatively manage databases bibliographic entries 
+users add entries data base find papers library lists word mouth means 
+user freely read write copy database resides laptop 
+part database append users occasionally update entries fix mistakes add personal annotations 
+common bibliographic databases entry unique human sensible key constructed appending year published author name adding character necessary distinguish multiple papers author year 
+jones identified jones subsequent papers jones jones entry key assigned entry added 
+user aware assigned keys tentative may change entry committed words user aware concurrent trying assign key different entries 
+entry key assigned alternative keys system 
+example user employs tentatively assigned key fashion embedding citation document remember check key assigned entry committed fact expected 
+users access inconsistent database copies entry may concurrently added different users different keys 
+extent possible system detects duplicates merges contents single entry single key 
+interestingly application user may choose operate disconnected mode constant connectivity possible 
+consider case user university library looking papers 
+occasionally types bibliographic laptop pda 
+may spend hours library enter handful 
+want keep cellular phone connection open duration visit 
+want connect university local wireless network subject student hackers 
+content bibliographic entries integrated database stored bayou returning home office 
+
+bayou basic system model bayou system data collection replicated full number servers 
+applications running interact servers bayou application programming interface api implemented client stub bound application 
+api underlying client server rpc protocol supports basic operations read 
+read operations permit queries data collection write operations insert modify delete number data items collection 
+illustrates components bayou architecture 
+note server may resident host typical laptop pda running isolation 
+access server sufficient client perform useful 
+client read data held server submit writes server 
+write accepted server cli ent responsibility write 
+particular client wait write propagate servers words bayou presents weakly replication model read write style access 
+weakly consistent replication previously availability simplicity scalability variety systems :10.1.1.35.6686
+anti entropy individual read write operations performed single server clients need confine interacting single server 
+mobile computing environment switching bet servers desirable bayou provides session guarantees reduce client observed inconsistencies accessing different servers 
+description session guarantees 
+support application specific conflict detection resolution bayou writes contain typical file system write database update 
+desired updates bayou write carries information lets server receiving write decide conflict fix 
+bayou write contains globally unique assigned server accepted write 
+storage system bayou server conceptually consists ordered log writes described plus data resulting execution writes 
+server performs write locally conflicts detected resolved encountered execution 
+server immediately effects known writes available reading 
+keeping goal requiring little network possible bayou servers propagate writes pair wise contacts called anti entropy sessions 
+servers involved session exchange write operations finished agree set bayou writes seen order perform 
+theory epidemic algorithms assures long set servers permanently partitioned write eventually reach servers 
+holds communication patterns pair servers connected 
+absence new writes clients servers eventually hold data 
+rate servers reach convergence depends number factors including network connectivity frequency anti entropy policies servers select anti entropy partners 
+policies may vary characteristics network data servers 
+developing optimal anti entropy policies research topic right discussed 
+
+bayou system model 
+conflict detection resolution accommodating application semantics supporting application specific conflict detection resolution major emphasis bayou design basic tenet storage systems provide means application specify notion conflict policy resolving conflicts 
+return system implements mechanisms reliably detecting conflicts specified application automatically resolving possible 
+design goal follows observation different applications different notions means updates conflict conflicts identified simply observing conventional reads writes submitted applications 
+example application specific conflicts consider meeting room scheduling application discussed section 
+observing updates coarse granularity file level storage system detect users concurrently updated different replicas meeting room calendar conclude updates conflict 
+observing updates fine granularity record level system detect users added independent records conclude updates conflict 
+warranted 
+fact application conflict occurs meetings scheduled room overlap time 
+bibliographic databases provide example application specific conflicts 
+application bibliographic entries conflict describe different publications assigned key submitters describe publication assigned distinct keys 
+definition conflicting updates specific application 
+steps taken resolve conflicting updates detected may vary semantics application 
+case meeting room scheduling application set conflicting meetings may need bayou write update dependency check db eval dependency check 
+query dependency check expected result resolved update interpret resolved update update db apply res ate 
+processing bayou write operation bayou write update insert meetings pm min budget meeting dependency check query select key meetings day start pm pm expected result empty alternates am foreach alternates check conflict empty select key meetings day date start time min time continue conflict schedule meeting time insert meetings date time min budget meeting break alternate acceptable insert pm min budget meeting return bayou moved different room different time 
+bibliographic entry may need assigned different unique key entries publication may need merged 
+bayou system includes mechanisms automatic detection resolution intended support arbitrary applications dependency checks merge procedures 
+mechanisms permit clients indicate individual write operation system detect conflicts involving write steps taken resolve detected conflicts semantics application 
+designed expect differ appreciably procedures handle conflicts generally ability deal conflicts 
+techniques semantic detection resolution previously incorporated systems handle special cases file directory updates 
+example locus ficus coda distributed file systems include mechanisms automatically resolving certain classes conflicting directory operations :10.1.1.35.6686
+systems incorporated support resolver programs reduce need human intervention types file 
+
+symmetric product includes notion application selected resolvers relational databases 
+systems 
+lotus notes 
+operation provide application specific mechanisms handle conflicts create multiple versions document file data object conflicts arise 
+apparent couple sections bayou dependency checks merge procedures general previous techniques 
+dependency checks application specific conflict detection accomplished bayou system dependency checks 
+write operation includes dependency check consisting application supplied query expected result 
+conflict detected query run server current copy data return expected result 
+dependency check precondition performing update write operation 
+check fails requested update performed server revokes procedure resolve detected outlined discussed 
+example conflicts presents sample bayou write submitted meeting room application 
+write reserve hour long time slot 
+includes dependency check single query 
+written sql language return information pre reserved meetings th erl ip ume slot expects 
+return wt bayou dependency checks version vectors timestamps traditionally distributed systems detect write write 
+detect users update data item observing update 
+conflicts detected having dependency check query current values data items updated ensure changed values time write submitted done oracle database 
+bayou dependency checking mechanism powerful traditional version vectors detect read write conflicts 
+specifically write operation explicitly specify expected values data items update depends including data items read updated 
+bayou emulate optimistic style concurrency control employed distributed database systems 
+example write operation installs new program binary file include dependency check sources including version stamps derived 
+binary depend lts previous value need included 
+dependency queries read data server replica dependency checks enforce arbitrary item integrity constraints data 
+example suppose write transfers account account application issuing write reads balance account discovers currently 
+traditional optimistic concurrency control check account performing requested write operation 
+real requirement account easily specified write dependency check 
+concurrent updates cause balance account drop conflict detected 
+merge procedures conflict detected merge procedure run bayou server attempt resolve conflict 
+merge procedures included write operation general programs written high level interpreted language 
+embedded data application specific knowledge related update attempted perform arbitrary reads current state server replica 
+merge procedure associated write responsible resolving conflicts detected dependency check producing update apply 
+complete process detecting conflict merge procedure applying revised update shown performed atomically server part executing write 
+principle imbedded merge procedure special mecha nisms dependency checking 
+approach require servers create new merge procedure interpreter execute overly expensive 
+supporting dependency checks separately allows servers avoid running merge procedure expected case write introduce conflict 
+meeting room scheduling provides examples conflict resolution procedures specific particular application write operation 
+application users aware reservations may invalidated concurrent users specify alternate scheduling choices part original scheduling updates 
+alternates encoded merge procedure attempts reserve alternate meeting times original time previously scheduled meet ing 
+example merge procedure 
+different merge procedure altogether search available time slot schedule meeting option user choose time satisfactory 
+practice bayou merge procedures written application programmers form templates instantiated appropriate details filled write 
+users know merge procedures internal workings applications automatic resolution done 
+case automatic resolution possible merge procedure run completion expected produce revised update logs detected conflict fashion enable person resolve conflict 
+enable manual resolution interactive merge tool conflicting updates user manner allows understand happened 
+convention bayou data collections include error log unresolvable conflicts 
+conventions outside domain bayou storage system may vary application 
+contrast systems coda ficus lock individual files complete file volumes detected resolved bayou allows replicas remain accessible 
+permits continue read previously written data continue issue new 
+meeting room scheduling application example user cares monday meetings need concern scheduling conflicts wednesday 
+course potential drawback approach newly issued writes may depend data conflict may lead cascaded conflict resolution 
+bayou merge procedures resemble previously mentioned resolver programs support added number replicated file systems 
+systems file resolver program run version vector mismatch detected file 
+program current proposed tile contents wishes order resolve detected conflict 
+example resolver program binary file checks see find derive file sources unix makefile program order obtain new resolved value file 
+merge procedures general vary individual write operations associated type updated data illustrated meeting room scheduling application 
+
+replica consistency replicas held servers time may vary contents received processed writes fundamental property bayou design serv ers move eventual consistency bayou system guarantees servers eventually receive writes wa pair wise anti entropy process servers holding set writes data contents enforce strict bounds write propagation delays depend network connectivity factors outside bayou control 
+important features bayou system design allows servers achieve eventual consistency 
+writes performed defined order servers 
+second conflict detection merge procedures deterministic servers resolve conflicts manner 
+theory execution history individual servers vary long execution equivalent global write ordering 
+example writes known commutative performed order 
+practice bayou write opera tions include arbitrary merge procedures effectively ble determine writes commute transform writes reordered sug systems 
+write accepted bayou server client initially deemed tentative 
+tentative writes ordered timestamps assigned accepting servers 
+eventually write committed process described section 
+committed writes ordered times commit tentative writes 
+requirement placed timestamps tentative writes monotonically increasing server pair timestamp id server assigned produce total order write operations 
+requirement servers synchronized clocks crucial trying ensure clock synchronization portable computers problematic 
+keeping servers clocks reasonably close desirable induced write order consistent user perception order writes submitted 
+bayou servers maintain logical clocks timestamp new writes 
+server logical clock generally synchronized lts real time system clock preserve causal ordering write operations server may need advance logical clock writes received anh entropy 
+enforcing global order tentative committed writes ensures isolated cluster servers come agreement tentative resolution conflicts encounter 
+strictly necessary clients prepared deal temporarily inconsistent servers case believe desirable provide internal consistency possible 
+clients expect tentative resolution conflicts cluster correspond eventual permanent resolution provided conflicts introduced outside cluster 
+servers may receive writes clients servers order differs required execution order servers immediately apply known writes replicas servers able undo effects previous tentative execution write operation reapply different order 
+interestingly number times write operation re executed depends order writes arrive anti entropy likelihood conflicts involving write 
+conceptually server maintains log write operations received sorted committed tentative timestamps committed writes head log 
+server current data contents generated executing writes order 
+techniques pruning server write log efficiently maintaining corresponding data contents undoing redoing write operations section 
+bayou guarantees merge procedures execute independently server produce consistent updates restricting depend server current data contents data supplied merge procedure 
+particular merge procedure access time varying server specific environment information current system clock server name 
+merge procedures fail due exceeding limits resource usage fail 
+means servers place uniform bounds cpu memory resources allocated merge procedure consistently enforce bounds execution 
+conditions met servers start identical replicas identical executing write 
+
+write stability commitment write said stable server exe time server 
+recall servers learn new updates performing anti entropy servers effects previously executed write operations may need undone writes re executed 
+write operation may executed times server may produce different results depending execution history server 
+write operation stable set writes precede server write log fixed 
+means server received executed writes possibly ordered write 
+bayou notion stability similar ordered protocols provided toolkit 
+cases application designed notion confirmation commitment corresponds bayou notion stability 
+example bayou meeting room scheduling application users may try schedule separate meetings time room 
+users discovers write stable schedule shows reserved room desired time sure tentative reservation confirmed 
+clients may want know write stabilized bayou api provides means inquiring stability specific write 
+write unique identifier client ask server write stable server 
+answer may vary course depending server contacted 
+bayou provides support clients may choose access stable data 
+server determine write stable 
+approach server include information passed anti entropy writes accepted server current value clock uses timestamp new writes 
+suitable assumptions propagation order writes server determine write stable lower timestamp servers clocks 
+main drawback approach server remains disconnected prevent writes stabilizing cause large number writes rolled back server reconnects 
+speed rate updates environment communication servers may possible extended periods time bayou system uses commit procedure 
+write stable explicitly committed fact generally terms stable committed interchangeably bayou system 
+committed writes commit order placed ahead tentative writes server write log 
+bayou anti entropy protocol ensuring servers learn committed writes order committed provides stability 
+bayou system primary scheme 
+server designated primary takes committing updates 
+knowledge writes committed order committed propagates servers anti entropy 
+respects primary behaves exactly server 
+replicated data collection different server designated primary 
+commit protocol prevents different groups servers committing updates different orders meet bayou needs 
+anticipated weak connectivity environment primary commit data attractive standard twophase commit protocol alleviates need gather majority quorum servers 
+consider case data replicated laptops disconnected 
+requiring majority laptops communication 
+timestamp vectors memory time order commit updates unreasonable 
+primary commit approach enables updates commit disconnected laptop acts primary server 
+example suppose user keeps primary copy calendar laptop allows spouse secretary keep secondary read copies 
+case user updates calendar commit immediately 
+example illustrates choose primary coincide locus update activity maximizing rate writes get committed 
+distributed storage systems ability commit data primary importance bayou design readily accommodates temporary unavailability primary 
+inability client communicate primary server instance primary crashes disconnected prevent performing useful read write operations 
+writes accepted servers simply remain tentative eventually reach primary 
+bayou tries arrange ensure order writes committed consistent tentative order indicated timestamps 
+writes server committed timestamp order 
+writes different servers may commit different order servers perform anti entropy primary 
+writes held disconnected non primary server instance commit server reconnects rest system committed writes timestamps 
+
+storage system implementation issues bayou design places demands underlying storage system server including need write logging efficient write operations separate views committed tentative data support server server anti entropy 
+implemented storage system special needs 
+implementation factored main components shown write log tuple store undo log 
+write log contains writes received bayou server sorted global committed tentative order 
+server tuple store database obtained executing write log 
+stable storage 
+bayou database organization writes order process read requests 
+undo log facilitates rolling back tentative writes applied tuple store re executed different order newly received write gets inserted middle write log existing writes get reordered commit process 
+write log conceptually contains writes received server discussed section 
+practice server discard write log stable definition server need rollback re execute stable write 
+bayou servers fact hold committed writes facilitate incremental anti entropy details scope 
+write log ordered set writes containing tail committed writes tentative writes known server 
+server keep track writes received longer explicitly held write log 
+ensure server re accept writes server anti entropy 
+server maintains timestamp vector called vector indicate compact way omitted prefix committed writes 
+vector records server timestamp latest write server discarded 
+single vector precisely characterize set discarded writes servers discard prefix write log writes originate server propagate get committed timestamp order 
+tuple store implemented memory relational database providing query processing subset sql local transaction support integrity constraints 
+requiring database fit virtual memory admittedly practical limitation current implementation intrinsic bayou design 
+tuple store associated language specifying queries updates principal place bayou architecture issue data model arises 
+chose relational model initial prototype power 
+naturally supports fine gram access specific fields tuples queries updates tuples data base 
+aspect tuple store support distinct views bayou database interest clients committed 
+write tentative effect appears full view committed view 
+write committed effect appears views 
+receive writes received received client received write client insert increment server timestamp max write write wid write 
+state tentative append write bayou write write date write 
+dependency check write 
+set writes received server anti entropy ordered write write wid insert roll forward foreach write deletion may result tuple appears committed view full view 
+servers certainly communicate regularly primary committed full views nearly identical 
+view subset 
+tuple store maintains union views 
+tuple tagged bit characteristic vector identifying set views contain 
+bits tuples affected write get set write applied tuple store 
+write gets committed necessary corresponding committed bits get set appropriately 
+query processor respects propagates bits result query tuple tagged views tuple produced identical query run conventionally 
+propagating bits relational algebra query straightforward 
+assuming tentative committed views nearly identical technique reduces space occupied tuple store compared maintaining separate full committed databases nearly factor substantially increasing query processing cost 
+addition query processor easily guarantee identical tuples occurring views query result merged delivered single tuple bits characteristic vector set 
+convenient clients base decisions dt erence views having merge results independent queries 
+support anti entropy efficiently running state server includes timestamp vectors represent committed full views 
+vector characterizes state tuple store executing committed write write log vector characterizes state executing tentative write write log current tuple store 
+timestamp vectors conflict detection simply enable server pairs identify precisely sets writes need exchanged anti entropy 
+bayou write write 
+update write 
+dependency check write 
+maintain logical clocks servers close write max write 
+wid timestamp 
+applying sets bayou writes database undo log permits server undo effects tuple store writes performed position write log 
+new write received anti entropy server inserts write log 
+newly committed writes inserted immediately current set committed writes known server may turn require writes removed previous tentative positions write log 
+writes received server uses undo log roll back tuple store state corresponding position newly received write inserted 
+enumerates executes writes write log bringing tuple store undo log date 
+procedure illustrated 
+crash recovery purposes full write log checkpoint tuple store maintained stable storage performance write log current tuple store maintained memory shown 
+undo log maintained memory stable checkpoint tuple store reflects prefix committed writes 
+checkpoint contain effects writes write log 
+times valid tuple store recovered reading checkpoint applying suffix write log 
+database recoverable bayou stably records unique identifier write reflected tuple store checkpoint making possible identify correct suffix write log write log recoverable conventional techniques logging high level changes write log 
+
+access control providing access control authentication bayou posed interesting challenges minimal connectivity assumptions 
+particular design rely online trusted authentication server mediate establishment secure channels client server bayou servers 
+example suppose users holding bayou portable computers meeting 
+performing anti entropy mutually suspicious servers verify authorized manage data 
+similarly machine simply wants act client data stored want sure server legitimate prove authorized access data 
+access control model currently implemented bayou system provides authorization granularity data collection unit replication 
+user may granted read write privileges data collection 
+user may granted server privileges maintain replica data workstation portable computer run server data collection 
+enabling servers run mobile platforms radically departs notion physically protected servers 
+mutual authentication access control bayou public key cryptography 
+user possesses key pair set digitally signed access control granting access various data collections 
+client bayou servers operate behalf users obtain key pair access control certificates corresponding user start time 
+currently single trusted signing authority known public key sign access granting cates moving hierarchy web signing authorities difficult 
+bayou uses types certificates delegate revoke access data collection ac pu certificate privilege read write server data collection user public key pu 
+ac certificates signed known signing authority 
+pu py certificate signed user public key py delegate privileges encoded certificate user public key pu 
+py certificate signed user public key py revoke user privileges encoded certificate user public key py originally signed certificate revocation certificates stored writes propagated data collections apply 
+certificates revoke server privileges may kept client users ensure protection servers 
+users maintain purse applications running identity read append 
+server client privilege server data server authenticates identity protocol 
+client hands server certificate asserts privilege question 
+server verify certificate legitimate certificate enclosed delegation revoked server knowledge necessary access rights 
+server client server server authentication access control checking similar fashion 
+establishment mutual trust server client performed secure session covers read write operations performed part session 
+server preempt session notified revocation affects certificate associated session 
+write operations submitter access rights checked accepting server primary write committed 
+servers primary receiving write anti entropy trust accepting server correctly checked user privileges rejected writes unsuitable access rights 
+level trust reasonable server ensures server performs anti entropy authorized hold replica data collection 
+having access controls checked second time primary server ensures revocations write privileges applied primary guarantees bad write attempting commit revocation rejected 
+particular revocation write access malicious user enforced having ensure server user connect notified revocation 
+write merge procedure may perform different read operations data perform different updates executed different times checking access control sufficient data collection access control model 
+fine grained access control require careful design modifications 
+
+status experience implementation bayou system distinguishable components client stub server 
+client stub runtime library linked applications bayou storage management 
+provides mechanisms server location session guarantees secure sessions read write operations miscellaneous utilities 
+server implements bayou storage management including mechanisms conflict detection resolution server server communication persistent database management 
+bayou implementation posix compliant developed ansi sources run intel laptops linux regular development platform sun sunos 
+current implementation ilu language independent rpc package developed xerox parc bayou clients servers servers 
+server location clients servers uses simple decentralized registration lookup service key value pairs network multicast 
+bayou merge procedures tcl programs run tcl interpreter modified enforce limits described section 
+foresee components may change system evolves 
+running demonstrated bayou conflict detection resolution mechanisms effective interestingly lessons learned immediately applications bayou server supply library mechanism tcl code revoked merge procedures 
+writes large amount repeated code merge procedures 
+bo meeting room scheduler shared bibliographic database manager roughly lines tcl original merge procedures changed write 
+performance bayou depends factors schema data stored amount data stored server location clients servers platforms components 
+section shows bayou performs particular instance system server client bibliographic database described section 
+database composed single table tuples obtained bibtex source 
+tuple inserted database single bayou write operation 
+results different configurations database characterized number writes tentative 
+configuration measured storage requirements execution times operations system undoing redoing feet tentative writes executing client read operation database adding new write database 
+table size bayou storage system bibliographic database entries number tentative writes sizes kilobytes write log tuple store ckpt total factor bibtex source table performance bayou storage system operations tentative writes write log times milliseconds standard deviations parentheses tentative writes server running sun sparc sunos undo avg 
+write redo avg 
+write server running gateway liberty laptop linux undo avg 
+write redo avg 
+write table performance bayou client operations times milliseconds standard deviations parentheses server sun sparc gateway liberty sun sparc client server server gateway liberty read tuple tuples write table shows size tentative write database times committed write 
+half tentative write size taken access control certificate required security 
+server storage requirements decrease significantly data gets committed 
+writes database committed size identical bibtex file data obtained 
+table illustrates execution times bayou server undo redo writes tentative configuration bibliographic database 
+result corresponds average executions undo redo operations 
+cost server function number writes undone redone 
+general size tuple store may affect performance executing write cost redoing tentative write database close constant dependency checks selections database primary key index independent tuple store size 
+standard deviations sun tend higher laptop sun workstation running higher workload applications laptop 
+conflict table shows performance interactions bibliographic database 
+measurements taken computing platform combinations bayou server bibliographic database client sun server client running gateway liberty laptop server running sun sparcstation client running gateway liberty 
+numbers reads include costs session guarantee management rpc proper database query writes part dependency check 
+additionally writes require tile system synchronization operations case conflict execution merge procedure runs database query 
+writes involving conflicts bibliographic entry key write unique signed merge procedure discussed section key changed set write operations 
+reads operate memory tuple store running selections primary key writes appended write log execution times different database configurations vary little 
+combined average executions operation configurations 
+
+bayou storage infrastructure mobile applications relies weak connectivity assumptions 
+cope arbitrary network partitions system built pair wise cli ent server server server communications 
+high availability bayou employs weakly consistent replication clients able connect available server perform reads writes 
+support conflict detection resolution enables applications deal concurrent updates effectively 
+tbe system guarantees eventual consistency ensuring updates eventually propagate servers servers perform updates global order update conflicts resolved manner servers 
+bayou management update conflicts differs significantly previous replicated systems including file systems coda ficus oracle commercial database offering tbe main areas non transparency 
+previous systems tried support existing file database applications detecting resolving conflicts applications knowledge 
+contrast bayou adopts tbe philosophy applications aware involved conflict detection resolution 
+bayou applications take advantage semantics data minimize false conflict detections maximize ability resolve detected conflicts automatically 
+application specific detection 
+file systems rely version vectors database systems employ optimistic concurrency control detect update conflicts observing clients reads writes 
+application provided rules detecting conflicts called dependency checks bayou detect wider class conflicts particularly depend application semantics 
+write conflict resolvers 
+coda ficus oracle permit clients write custom procedures resolve conflicts resolvers stored system invoked type tile data conflict 
+bayou write operation includes addition desired update dependency check merge procedure gets executed write determined caused conflict 
+power approach demonstrated applications bayou meeting room scheduler merge procedure varies write 
+partial multi object updates 
+bayou write operations atomically perform insertions partial modifications deletions data objects 
+means systems file update model storing data contents sufficient bayou servers apply write operation 
+techniques devised bayou propagating ordering write operations ensure eventual consistency arbitrary updates conflict resolution procedures 
+techniques needed relational database models current bayou system file systems supporting record level updates multi file atomic transactions 
+tentative stable resolutions 
+bayou system novel maintaining full committed views data permitting clients read 
+clients servers bayou want know revolving write fully resolved 
+write ensures outcome stable resolution conflicts ing write rate probability con goal ot connect requ ou commits es ser 
+er 
+security 
+bayou executes merge procedure secure environment allowable external actions reading writing data access credentials user submitted conflicting write 
+public key digitally signed certificates permit authentication access control outside presence authentication server user 
+applications best utilize bayou replication scheme reading weakly consistent tentative data acceptable chance update conflicts low success automatic resolution high 
+provided penalty conflict excessive humans deal occasional unresolvable incur adverse impact availability inherent systems avoid conflicts altogether pessimistic locking 
+number shared databases phone books bulletin boards meet characteristics asynchronous collaborative applications 
+built initial version bayou system measurements indicate performance overhead acceptable 
+particular running bayou servers applications today laptop computers reasonable 
+measurements confirm extra overhead imposed bayou heavier weight write operations long write operation tentative 
+committed data expensive 
+simpler storage systems 
+building number applications top bayou experimenting gain better insights needs 
+issues planning explore context bayou include partial replication policies choosing servers anti entropy building servers conventional database managers alternate data models finer grain access control 
+current focus supporting partial replicas contain subsets data collection important laptop applications raises number difficult problems ranging characterizing partial replica resolving conflicts consistent manner partial replicas 
+steps implementation include development applications mail reader porting widely shared bibliographic database manager run bayou storage system experimenting wireless connectivity servers clients running laptop 
+
+acknowledgments bayou design benefitted discussions number colleagues including fellow parc researchers tom anderson mary baker brian bershad hector garcia watson 
+especially brent welch technical contributions early stages bayou project 
+atul adya zhou helped implement bayou applications learned tremendous amount 
+chandra contributed significantly making network environment laptops 
+sue owicki helped guide final revisions 
+mark weiser craig mudge managers computer science lab supportive 
+
+alonso korth 
+database system issues nomadic computing proceedings acm sigmod international conference management data washington dc 
+may pages 
+birman schiper stephenson 
+lightweight causal atomic group multi cast 
+acm tr computer systems august 
+birrell levin needham schroeder 
+grapevine exercise distributed computing 
+communications acm april 
+carey livny 
+conflict detection tradeoffs replicated data 
+acm transactions database systems december 
+oki kolodner 
+limitations database availability networks partition 
+proceedings fifth acm symposium principles distributed comput ing calgary alberta canada august pages 
+davidson garcia molina skeen 
+consistency partitioned network survey 
+acm computing surveys september 
+demers greene hauser irish larson shenker sturgis swinehart terry 
+epidemic algorithms replicated database maintenance 
+proceedings sixth symposium principles distributed computing vancouver canada august pages 
+downing 
+conflict resolution symmetric replication 
+proceedings european oracle user group conference florence italy april pages 
+ellis gibbs 
+concurrency control groupware systems 
+proceedings acm sigmod international conference management data portland oregon june pages 
+
+weak consistency architecture distributed information services 
+computing systems fall 
+long 
+distributed bibliographic database system 
+proceedings winter usenix conference san francisco california january pages 
+guy heidemann mak page :10.1.1.35.6686
+jr popek 
+implementation ficus replicated file system 
+proceedings summer usenix conference june pages 
+imielinski badrinath 
+mobile wireless computing challenges data management 
+communications acm october 
+janssen spreitzer 
+inter language unification ilu 
+ftp ftp parc 
+xerox com pub ilu ilu 
+html 
+jr 
+greif 
+replicated document management group communication system 
+groupware software computer supported cooperative edited bock ieee computer society press pages 
+kistler satyanarayanan 
+disconnected operation coda file system 
+acm transactions computer february 
+kumar satyanarayanan 
+log directory lution coda file system 
+proceedings second interna tional conference parallel distributed information systems san diego california january 
+
+kumar 
+flexible safe resolution file conflicts 
+ings usenix technical conference new orleans louisiana january pages 
+ladin liskov shrira ghemawat 
+providing high availability lazy replication 
+acm transactions computer systems november 
+lamport 
+time clocks ordering events dis tributed system 
+communications acm 
+lamport 
+latex document preparation system 
+addison ley publishing 
+munson dewan 
+flexible object merging framework 
+proceedings acm conference computer supported cooperative cscw chapel hill north carolina october pages 
+needham schroeder 
+encryption authentication large networks computers 
+communications acm december 
+ousterhout 
+tcl tk toolkit 
+addison wesley publishing 
+parker popek stoughton walker walton chow edwards kline 
+detection mutual inconsistency distributed systems 
+ieee transactions software engineering se may 
+reiher heidemann ratner skinner popek 
+resolving file conflicts ficus file system 
+proceedings summer usenix conference june pages 
+satyanarayanan kistler kumar okasaki siegel steere 
+coda highly available file system distributed workstation environment 
+ieee transactions computers april 
+
+concurrency control consistency multiple copies data distributed ingres 
+ieee transactions engineering se may 
+terry demers petersen spreitzer theimer welch 
+session guarantees weakly cons stent replicated data 
+proceedings third international conference parallel distributed information systems austin texas september pages 
+walker popek english kline thiel 
+locus distributed operating system 
+proceedings ninth symposium operating systems principles woods new hampshire october pages 

@@ -1,0 +1,411 @@
+new ghc hugs runtime system simon marlow simon peyton jones university glasgow august describes new runtime system developed glasgow haskell compiler 
+goal provide support mixed interpreted compiled execution haskell programs hugs interpreter 
+process taken opportunity fix deficiencies old system garbage collection cafs add new features cost centre stack profiling flexible storage manager improve performance stack better register usage register challenged architectures 
+took opportunity design clean simple api runtime system allow variety applications standalone haskell binaries interactive interpreters encapsulated com corba objects 
+compilers get headlines great compiler lies great runtime system 
+surprising amount goes runtime systems disproportionately papers written 
+describes design runtime system built support mixed compiled interpreted execution haskell 
+runtime systems start simple compiler translates programmer written source executable code 
+initially serious language implementations rapidly grow features require run time support 
+specific runtime system describe supports features mixed compiled interpreted execution prime goal section 
+programmer sees hugs interpreter load modules compiled glasgow haskell compiler ghc 
+execution switches compiled interpreted code fine grain level 
+storage manager includes generational garbage collector section 
+storage manager complicated need support number language extensions ffl mutable variables arrays support state monad lj :10.1.1.30.8705
+ffl weak pointers allow programmer build self cleaning memo tables things 
+ffl stable pointers immutable names heap objects allow pointers haskell objects held outside heap 
+programmer point view big improvement maximum heap size longer specified heap simply grows shrinks required 
+concurrency 
+run time system supports concurrent haskell default manage multiple haskell threads 
+profiling recognised important functional languages imperative ones 
+support space time profiling jarvis cost centre stacks jar development earlier cost centres spj section 
+foreign language interface allows com corba call haskell function called haskell function 
+overview runtime system main components see ffl scheduler manages various threads system 
+scheduler sits centre action thread returns scheduler thread run garbage collector normally called scheduler level 
+scheduler described detail section 
+ffl storage manager consists low level block allocator requests storage demand operating system garbage collector 
+storage manager described section 
+ffl interpreter executes bytecodes 
+may read file dumped directly heap external bytecode compiler 
+entire runtime system library embedded larger program client application 
+ones mind ffl hugs interpreter ffl standalone ghc compiled binary ffl library callable enclosing java program ffl com corba object 
+code client block allocator manager storage scheduler interpreter runtime system compiled haskell runtime system overview heap objects central aspect design shape heap allocated objects 
+particular object allocated hugs ghc compiled code vice versa hugs ghc agree precisely layout heap objects 
+heap object looks 
+word object called info pointer points static entry code object 
+entry code code evaluates object weak head normal form field execution opposed garbage collection 
+immediately entry code object info table 
+info table fields say kind object layout information required garbage collector 
+specifically fields info table follows code closure payload pointer info info table closure ffl closure type constant indicating kind closure 
+function thunk constructor ffl layout information garbage collector pair pointers non pointers bitmap 
+ffl pointer srt object see section ffl closure flags flags quick access certain properties closure 
+
+static pointed ffl various optional profiling parallel debugging fields 
+simpler alternative info pointer point info table point entry code entry info table 
+having info pointer point directly entry code looks attractive requires fewer indirections 
+instruction cache executed info tables may win modern architectures 
+intend experiment conventional layout 
+runtime system supports quite wide variety heap objects 
+fall main groups simpler conventional generate layout generates assembly code directly 
+goes post process output code achieve effect 
+pointed objects represent values pointed type type includes bottom 
+pointed objects may evaluated entered 
+done putting address object register jumping object entry code 
+pointed objects include ffl thunks unevaluated closures 
+ffl data constructors 
+ffl functions 
+ffl partial applications arise update function valued thunk 
+ffl indirections overwrite thunk value 
+ffl black holes overwrite thunk evaluation begun value computed section 
+objects represent values type type include bottom 
+pointer heap object points thunk indirection points object 
+examples include ffl immutable arrays 
+ffl mutable arrays variables 
+ffl mvars required concurrent haskell 
+ffl weak pairs supporting memo tables 
+administrative objects allocated runtime system seen programmer 
+include ffl thread state objects 
+contain state haskell thread including thread stack 
+ffl byte code objects 
+contain byte codes interpreter 
+ffl stable pointer table maps stable name object heap address 
+storage manager runtime system includes completely rewritten storage manager providing enhancements compiled interpreted execution 
+hugs particular benefit industrial strength garbage collector 
+summarise main improvements provided new storage manager garbage collector ffl dynamic resizing heap thread stacks better performance programs low memory requirements heap size settings 
+storage manager able adjust memory requirements optimise trade time space 
+example reduce size heap system paging excessively 
+ffl garbage collector support multiple generations able adjust number generations execution depending storage requirements program 
+allow objects aged generation dividing generation steps prevents objects promoted generation young 
+ffl top level expressions cafs garbage collected 
+previously storage allocated caf retained lifetime program 
+new storage manager able traverse code tree discover cafs accessible allowing garbage cafs collected 
+section 
+ffl large objects arrays thread stacks treated independently storage manager allowing remain static locations memory 
+ffl weak pointers 
+weak pointers weak pairs provide support hashed memo tables space leaks 
+driving technical decision allow heap consist dis contiguous areas single large address space 
+fact go dividing heap blocks uniform size bytes 
+heap partitioned generations age steps generation flexible dynamic way 
+blocks making partition need contiguous easy free block purpose 
+sophisticated storage managers adopted similar design deb rep 
+storage manager complicated little efficient flexible robust discuss 
+structure storage manager divided layers ffl block allocator 
+low level machine dependent layer storage manager 
+provides memory units blocks upper levels 
+ffl rest storage manager 
+consists garbage collector memory allocation interfaces compiled code provides collection blocks fast sequential allocation separate interface interpreter external 
+block power sized chunk memory 
+blocks may lumped form larger contiguous chunks memory called groups 
+block associated block descriptor stores information block ffl address block ffl byte free memory block ffl block group number blocks group ffl generation step block belongs ffl link block descriptor 
+blocks groups linked link field form chains 
+chains example link blocks single generation maintain list free blocks block allocator 
+flexibility block structured storage manager provides advantages ffl memory runs short runtime system request operating system requiring contiguous existing area 
+requirement programmer specify maximum heap size major annoyance current ghc implementation 
+ffl individual generations allocation areas resized memory requirements program chaining blocks 
+need memory generation contiguous 
+ffl large objects allocated managed independently allowing garbage collector simply chain objects new lists copying data garbage collection 
+ffl memory recycled quickly block free immediately linked new list reused 
+consider space collector running residency amount live data bytes total memory 
+garbage collector bytes allocation area re gc 
+block allocator provides interface blocks groups may allocated upper levels freed 
+block allocator maintains pool free blocks requests memory operating system necessary 
+memory requested operating system units multiple block size 
+divided blocks small amount space reserved block descriptors start 
+block descriptor block containing address simple function address 
+storage manager largely independent actual size blocks chosen requirements powers size multiple block size 
+currently blocks 
+storage manager self contained simple api consisting just functions 
+sections describe functions 
+fast sequential allocation functions provide access contiguous chunks memory compiled code fill objects sequentially 
+storage manager provides number blocks collectively known nursery objects born 
+nursery block filled turn nursery full garbage collection needed 
+garbage collector provide new set nursery blocks 
+size new nursery adjusted maximise performance reduce memory 
+hp hp hp compiled code uses registers allocation purposes heap pointer hp heap limit 
+entering compiled code scheduler call performed 
+call initialises hp registers usually hp pointing start free nursery block pointing 
+basic block performs heap check simultaneously increases hp checking exceeded value 
+code heap check fills memory new objects 
+check fails called 
+function initialises hp free nursery block fails indicating nursery block pool exhausted garbage collection required 
+exiting compiled code called saves away free location current nursery block block descriptor ready 
+upshot code allocate away happily incrementing hp reached new block chained code return scheduler garbage collection 
+calls performed line compiled code jumps common heap check failure code cheap 
+nursery functions implemented short macros 
+advantage allocation scheme opportunity perform extra checks line minor heap check failure code wouldn want heap check 
+example checking rescheduling timer allow timer interrupt thread mid execution leave tidy state garbage collection performed 
+heap check failure thread prepared possible garbage collection easily yield rescheduling timer expired 
+band allocation interface sequential allocation scheme isn appropriate ll give examples allocate int words bool void allocate function provides chunk memory size words 
+succeeds 
+fooling pretending got infinite supply memory idea allocate short bounded sections haskell code garbage collection isn convenient 
+appropriate point application call ask storage manager thinks garbage collection called application save away live pointers thread stack call garbage collector 
+prime example gnu multi precision integer library implement integer type haskell 
+library allows application provide allocation interface garbage collect allocator don know live pointers library function hold time 
+possible guess memory needed risky business requires knowledge internals library 
+solution allocate interface call returning library call 
+allocate interface allocate objects larger block size impossible sequential allocation scheme difference hp larger block 
+functions need large chunks memory array thread stack allocate get memory 
+large allocations fulfilled asking block allocator block group contiguous sequence blocks correct size keeping track group list separate nursery 
+large objects moved memory block groups simply chained new list garbage collection 
+garbage collection garbage collector normally called scheduler may called external code provided calling thread saved away state thread stack 
+void void void garbage collector invoked calling passing pointer function called back find possible live roots 
+reason callback application storage manager knows possible roots 
+called scheduler example roots normally consist various thread queues plus things stable pointer table 
+application specific function calls possible root returns new location object 
+garbage collector traverse reachable graph root find closure live data 
+support generational gc support generational garbage collection storage manager needs know location objects refer objects newer generations 
+happen ways ffl update overwrites thunk older generation indirection new object ffl destructive write performed mutable object older generation 
+provide functions indicate storage manager situations occurred void void object updated actual update performed checks object updated old generation marked traversal garbage collection 
+implemented macro speed 
+ways cope destructive writes generational garbage collector trap write mark target object traversal keep track mutable objects older generations traverse gc 
+opt approach number mutable objects usually low keep write operations fast inline 
+certain objects explicitly mutable indicated object types 
+garbage collector easily keep record live mutable objects heap object changed immutable mutable 
+operation provided eventuality occurs place ghc function opposite mutable array immutable 
+garbage collecting cafs caf constant applicative form top level expression arguments 
+expression may need large unbounded amount storage fully evaluated 
+cafs represented closures static memory updated indirections objects heap expression evaluated 
+previous versions ghc maintained list evaluated cafs traversed gc result storage allocated caf reside heap program ended 
+problem garbage collecting cafs reached live roots running program don store pointers static objects dynamic memory know compile time object lives need store pointers heap 
+problem approach know caf expression referenced just looking contents heap stack look code 
+solution adopted generate static table srt code segment program containing pointers top level functions cafs directly 
+garbage collection traverse objects referred reachable recursively identify reachable cafs 
+example thunk heap associated code evaluates thunk 
+code srt records top level functions cafs referenced code thunk non top level objects pointed thunk heap 
+recursively pointers srt identify cafs possibly reached directly indirectly thunk 
+similarly stack frames constructors fully evaluated 
+static object spare field link reachable static objects traversal looping 
+scheme optimised noting code sequences don static objects empty srt 
+top level function empty srt need referenced possibly resulting empty 
+optimisation functions get away empty srt non empty generally entries especially information passed module boundaries 
+increase code size far minimal 
+penalty garbage collection time offset saving heap residency cafs garbage collected 
+execution model changes basic execution model runtime system supports stg machine jon :10.1.1.53.3729
+need support mixed compiled interpreted execution led number changes original stg execution model 
+specifically stack 
+original stg machine stacks pointers 
+segregating pointers garbage collection easier complicated 
+compiler model stacks registers consumed stack pointers copying chunks stack separate heap objects complex happens updating function valued thunk 
+new model single stack containing pointers non pointers 
+stack grows downwards decreasing addresses 
+easy think activation record kind stack allocated heap object return address lowest address activation record info pointer furnished info table describes layout activation record 
+garbage collector uses information identify pointers non pointers activation record 
+idea attaching layout information return addresses new thinking activation record stack allocated normal heap object quite helpful 
+calling unknown function turns necessary tag non pointer explicitly jon gives example shows problem :10.1.1.53.3729
+allocating extra tag word stack non pointer 
+fortunately calls unknown functions unboxed arguments pretty rare 
+single stack model bit efficient stack model need stub dead pointers overwrite null pointer pointer stack 
+previously necessary avoid space leaks descriptor info table simply describe dead stack slot non pointer treated root garbage collector 
+uniform return heap convention boxed values 
+original stg machine feature function returning say pair return components registers 
+caller function case expression took pair apart returned pair allocated 
+return registers convention contrasts simpler return heap approach allocating pair returning pointer 
+reverted simpler approach 
+return registers scheme looks superficially attractive number undesirable consequences ffl garbage collection may strike update may need performed info pointer returned components pair 
+uses instruction register needed time 
+ffl case expression components returned value selectors property 
+matters existing value returned components loaded registers discarded 
+ffl matters get complicated switching back interpreted execution certainly uses simple return heap convention impedance matching complicated 
+return registers looks particularly poor choice register impoverished architectures architecture particularly performance 
+return heap convention means longer update thunks place copying value clearly bad idea returned value allocated 
+necessity mother invention designed implemented scheme recovers update place returning unboxed tuples registers 
+better register usage 
+stg register calling convention calling known function right number arguments done loading arguments registers jumping function entry point 
+registers previously arguments real machine registers available pseudo registers mapped memory locations 
+new system adjust calling convention number machine registers available instance argument function passed register rest passed stack 
+polymorphic case 
+haskell allows value data value function value evaluated weak head normal form seq operator 
+execution model supports special sort update frame 
+space leaks black holes program exhibits space leak retains storage sure 
+space leaks increasingly common imperative programs malloc storage fail subsequently free 
+common garbage collected systems especially lazy evaluation 
+wad rw quite bit experience accumulated suggesting implementors avoiding gratuitous space leaks ones accidental artefact implementation technique appel book 
+update mechanism case point jon points 
+consider thunk expression xs xs function returns element argument list 
+thunk entered call consume xs finds element 
+list produced lazily reasonably expect expression evaluate constant space 
+moment update thunk retains pointer list xs 
+update takes place list retained 
+course completely gratuitous 
+pointer xs thunk 
+jon solution problem advocated overwrite thunk info fixed black hole info pointer moment entry :10.1.1.53.3729
+storage management information attached black hole info pointer tells garbage collector closure contains pointers plugging space leak 
+lazy black holing black holing known idea 
+trouble expensive 
+avoid occasional space leak single thunk entry load full word literal constant register instructions store register memory location 
+fortunately cost easily avoided 
+idea simple black holing thunk entry wait garbage collector called black hole thunks evaluation progress moment 
+benefit black holing thunk updated garbage collection strikes 
+effect idea perform black holing operation lazily needed 
+dramatically cuts number black holing operations 
+find thunks evaluation progress 
+precisely ones update frames stack 
+need find update frames su chain black hole thunks right start garbage collection 
+notice refrain treating update frames roots firstly thunks point may need moved copying collector importantly thunk accessible route 
+detecting loops black holing second minor advantage evaluation thunk value depends cause black hole closure entered cause suitable error message displayed 
+example consider definition code evaluate right hand side evaluate absence black holing result stack overflow evaluator repeatedly pushes return address enters thunks black entry infinite loop caught instantly 
+new method lazy black holing self referential program cause stack overflow black hole error message depending exactly garbage collection strikes 
+quite easy conceal differences 
+stack overflow occurs need examine update frames stack see refers thunk 
+loop detected eager black holing 
+lazy locking parallel implementation necessary lock thunk evaluation parallel evaluators simultaneously evaluate duplicate 
+evaluator enters locked thunk blocked runnable thunk updated 
+locking readily arranged way black holing overwriting thunk info pointer special locked info pointer moment entry 
+evaluator enters thunk updated land entry code locked info pointer blocks evaluator queues locked thunk 
+details thm 
+close similarity locking black holing suggests question locking done lazily 
+answer locking postponed context switch garbage collection 
+assuming parallel implementation shared memory allow processors access closure 
+access permitted thunk entry requires hardware lock expensive 
+lazy locking worth requires extra context switch 
+believe contexts switches relatively infrequent thousands typically take place 
+scheme optimised locking thunk traversing thread stack locking thunks referred update frame encounter thunk locked safely assume thunks stack locked 
+reduces cost lazy locking context switches occur frequently 
+scheduler scheduler manages concurrent execution multiple haskell threads heart runtime system 
+concurrency model haskell thread meant extremely lightweight execution engine may hundreds thousands concurrent haskell program 
+furthermore share mutate common heap 
+haskell thread operating system thread access heap object synchronised relatively expensive os support 
+accordingly scheduler runs single os thread multiplexes single execution thread runnable haskell threads 
+started haskell thread preempted arbitrary instructions 
+pre empted call procedure inspects global pre emption flag 
+may delay thread switching simple doesn increase code size call line generic heap check failure fragment 
+instruction sequences atomic default special support required mutating mvars 
+requesting pre emption just matter setting global variable 
+threads suspended moment activation record left suitable info pointer describe activation record stack 
+haskell thread represented heap allocated thread state object tso 
+tso room save register state thread suspension contains thread stack 
+stack overflows simply allocate new tso double size copy old tso new 
+scheduler state scheduler state gives entire state haskell program 
+particular state gives garbage collection roots 
+consists ffl queue runnable threads 
+ffl queue threads waiting timeout blocked operations 
+ffl queue threads currently engaged external calls called back haskell see section 
+ffl pointer stable pointer table 
+scheduler api facilitate calling haskell functions variety clients scheduler provides api lets client create execute haskell threads 
+void int argc char argv void void closure void schedule haskell system started invoking optional style arguments 
+function initialises scheduler storage manager prepares execution 
+threads may created interface takes closure argument indicating closure evaluate thread run 
+example create thread run computation compiled module foo say thread start running haskell threads application invokes schedule passing address main thread scheduler run existing runnable threads main thread finishes killed special main thread 
+scheduler return threads blocked waiting non resources deadlock 
+scheduler provides interface passing arguments newly created threads 
+useful calling haskell functions outside running haskell io computations see 
+void thread void thread void thread void thread void thread void thread arguments pushed stack reverse order normal 
+certain types values may pushed include addr generic address value haskell thread may unpack kind structured data type 
+ghc value type io type may necessary extend interface return value haskell thread 
+haskell thread may type io modify global variables order return values 
+state 
+state state state world syntax indicates unboxed tuple 
+evaluate io computation passed state token state token pushed 
+example create thread running main main main main fact guts default main function provided runtime system standalone compiled haskell programs int main int argc char argv main argc argv main main schedule main switching compiled interpreted execution interpreter executes byte codes stored byte code objects heap 
+stored garbage collected rest heap example module re loaded interpreter storage code old copy collected gc 
+thread switch compiled interpreted execution 
+suppose executing interpreted code evaluate value thunk function 
+interpreter looks heap object byte code object interpreter moves byte code program counter start object continues execution 
+returns scheduler requesting compiled execution 
+scheduler fires compiled execution loading machine registers heap pointer stack pointer branching code thunk function 
+suppose compiled code enters code function thunk 
+compiled function thunk execution proceeds normally 
+entry code manipulations state token optimised away compiler back assumes state token takes space heap registers 
+take stack slot argument counted purposes finding function partially applied 
+simply returns scheduler requesting interpreted execution 
+return saves machine registers thread tso course 
+practice optimise returns scheduler logically happens 
+similar things happen returning return address top stack thinks return address info pointer stack allocated heap object discussed section 
+dynamic loading compiled code hugs need dynamically load unload compiled modules session 
+module loaded external need updated point compiled modules interpreter module currently interpreted 
+requires special support compiler runtime system 
+inevitable compile modules special dynamically linkable objects impose overhead jumps go jump table 
+dynamic linking schemes specific particular architecture operating system binary format 
+avoid portability problems intend implement dynamic linking scheme 
+callbacks integration existing languages tools utmost importance ghc real world 
+provide methods haskell programs call foreign language routines callout external systems invoke haskell functions 
+scheduler api described caters requirement allow arbitrary foreign calls haskell 
+guess just perform call inline haskell function 
+applications works fine entire haskell system temporarily suspended foreign call returns 
+approach get trouble foreign callee decided parts ghc rts request garbage collection worse call scheduler callback 
+callee wanted perform garbage collection caller haskell thread sure left world sane state saving away registers stack making sure garbage collector access live roots 
+means extra bookkeeping kind external call provide special construct currently indicate callee may call garbage collector 
+callee wants call scheduler creating new threads problem scheduler running options ffl haskell thread return scheduler requesting foreign call performed 
+means implementing interpretive foreign calling code scheduler extremely hairy architecture language dependent 
+ffl scheduler re entrant 
+problematic sounds involve careful considerations calling thread prepared possible gc 
+require foreign call may call back done 
+scheduler detect re entered save current thread queue 
+calling thread blocked new scheduler instance returns threads may continue run 
+scheduler careful assume local variables containing pointers constant call haskell land haskell code may call garbage collector reschedule feet 
+second option easier implement little experience may turn poor choice 
+profiling regard profiler extremely important aspect runtime system 
+properly implemented plan fully support jarvis cost centre stack profiling jar earlier cost centres spj space time 
+idea briefly follows ffl costs attributed stack cost centres 
+stack corresponds closely dynamic chain call value language 
+example scc scc scc costs evaluating attributed stack evaluating attributed 
+excluding costs evaluating course 
+ffl execution model quite simple 
+machine register identifies current cost centre stack attributed costs 
+particular timer interrupts increment statistics counter stack 
+thunk built current cost centre stack stored thunk thunk entered stored cost centre stack current 
+ffl keep number distinct cost centre stacks tractable jarvis ingenious idea invariant cost centre stack includes cost centre 
+pushing new cost centre top stack delete existing occurrence cost centre existing stack 
+sounds expensive operation turns quite simple attach memo table stack maps cost centre new stack obtained pushing cost centre stack 
+ffl statistics dumped log file execution 
+execution log file examined browsers 
+browsers mind jarvis callgraph browser space profile browser 
+cases browser allows views different levels detail re running program 
+course relies storing lot information log file experimenting flexible compact log file formats onerous 
+size log files worry 
+plan general framework support parallel profiling 
+ffl cost centre stack scheme useful consequences debugging 
+program encounters fatal error pattern matching failure infinite loop detected black hole entry information provided programmer normally consists function contained error 
+stack trace useless lazy evaluation order confuses issue 
+current cost centre stack time error useful represents programmer normally think call stack 
+equally accessible haskell program interpreted hugs compiled ghc mixture 
+support elaborate space profilers lag drag void rr rr require compiler runtime system support studied carefully 
+kent dybvig carl bruggeman david 
+guardians garbage collector 
+proceedings acm sigplan conference programming language design implementation pages albuquerque new mexico june 
+sigplan notices june 
+deb kent dybvig david carl bruggeman 
+don flexible efficient storage management dynamically types languages 
+technical report indiana university computing science dept march 
+jar jarvis 
+profiling large scale lazy functional programs 
+phd thesis department computer science university durham 
+steven jarvis simon marlow simon peyton jones eric wilcox 
+grammar self describing documents 
+technical report prg tr oxford university july 
+jon richard jones 
+tail recursion space leaks 
+journal functional programming january 
+jon simon peyton jones :10.1.1.53.3729
+implementing lazy functional languages stock hardware spineless tagless machine 
+journal functional programming april 
+lj launchbury peyton jones :10.1.1.30.8705
+state haskell 
+lisp symbolic computation volume pages dec 
+simon peyton jones andrew gordon finne 
+concurrent haskell 
+conference record rd acm sigplan sigact symposium principles programming languages popl pages st petersburg florida january 
+acm press 
+rep reppy 
+high performance garbage collector standard ml 
+technical report bell labs 
+rr niklas colin runciman 
+lag drag void heap profiling space efficient compilation revisited 
+proceedings acm sigplan international conference functional programming pages philadelphia pa may 
+acm press 
+rr niklas colin runciman 
+new dimensions heap profiling 
+journal functional programming september 
+rw colin runciman david wakeling 
+heap profiling lazy functional programs 
+journal functional programming april 
+spj patrick sansom simon peyton jones 
+time space profiling non strict higher order functional languages 
+conference record nd acm sigplan sigact symposium principles programming languages popl pages san francisco california january 
+acm press 
+thm trinder hammond mattson jr partridge peyton jones 
+gum portable parallel implementation haskell 
+proceedings acm sigplan conference programming language design implementation pages philadelphia pennsylvania may 
+wad philip wadler 
+fixing space leak garbage collector 
+software practice experience 

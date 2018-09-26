@@ -1,0 +1,736 @@
+implementation postgres michael stonebraker lawrence rowe michael eecs department university california berkeley currently postgres lines code assorted bold brave early users 
+system constructed team part time students led full time chief programmer years 
+period large number design implementation choices 
+areas things quite differently start scratch 
+purpose reflect design implementation decisions offer advice implementors follow paths 
+restrict attention dbms backend functions 
+treat picasso application development environment built top postgres 
+
+current relational dbmss oriented efficient support business data processing applications large numbers instances fixed format records stored accessed 
+traditional transaction management query facilities application area termed data management 
+satisfy broader application community outside business applications dbmss expand offer services dimensions object management knowledge management 
+object management entails efficiently storing manipulating non traditional data types bitmaps icons text polygons 
+object management problems abound cad engineering applications 
+object oriented programming languages data bases provide services area 
+research sponsored defense advanced research projects agency nasa nag army research office 
+knowledge management entails ability store enforce collection rules part semantics application 
+rules describe integrity constraints application allowing derivation data directly stored data base 
+indicate simple example requires services dimensions 
+consider application stores manipulates text graphics facilitate layout newspaper copy 
+system naturally integrated subscription classified advertisement data 
+billing customers services require traditional data management services 
+addition application store non traditional objects including text bitmaps pictures icons banner top 
+object management services required 
+lastly rules control newspaper layout 
+example ad copy major department stores facing pages 
+support rules desirable application 
+believe real world data management problems dimensional 
+newspaper application require dimensional solution 
+fundamental goal postgres ston provide support dimensional applications 
+best knowledge dimensional data manager 
+expect dbmss follow lead postgres new dimensions 
+accomplish objective object rule management capabilities added services traditional data manager 
+sections describe capabilities provided comment implementation decisions 
+section discuss novel overwrite storage manager implemented postgres 
+papers explained major postgres design decisions areas assume reader familiar rowe data model ston rule management ston storage management 
+sections stress considerations led design liked design mistakes felt 
+appropriate suggestions implementors experience 
+section comments specific issues implementation postgres critiques choices 
+section discuss interfaced operating system choice programming languages implementation philosophy 
+final section concludes performance measurements postgres 
+specifically report results queries wisconsin benchmark 
+
+postgres data model query language 
+traditional relational dbmss support data model consisting collection named relations attribute specific type 
+current commercial systems possible types floating point numbers integers character strings dates 
+commonly recognized data model insufficient non business data processing applications 
+designing new data model query language guided design criteria 
+orientation data base access query language expect postgres users interact data bases primarily set oriented query language postquel 
+inclusion query language optimizer corresponding run time system primary design goal 
+possible interact postgres data base utilizing navigational interface 
+interfaces popularized proposals enjoying renaissance object oriented proposals orion bane 
+postgres gives record unique identifier oid possible identifier record data item second record 
+optionally definable indexes oids possible navigate record running query navigation step 
+addition postgres allows user define functions methods dbms 
+functions statements programming language query language commands direct calls internal postgres interfaces 
+ability directly execute functions call fast path provided postgres allows user navigate data base executing sequence functions 
+expect sort mechanism popular 
+navigational interfaces disadvantages systems application programmer construct query plan task wants accomplish substantial application maintenance required schema changes 
+orientation multi lingual access picked favorite programming language tightly coupled postgres compiler run time environment language 
+approach offer persistence variables programming language query language integrated control statements language 
+approach followed ode commercial start ups doing object oriented data bases 
+point view data bases accessed programs written different languages see programming language horizon 
+application development organizations multi lingual require access data base different languages 
+addition data base application packages user acquire example perform statistical spreadsheet services coded language developing applications 
+results multi lingual environment 
+postgres programming language neutral called different languages 
+tight integration postgres particular language requires compiler extensions run time system specific programming language 
+built implementation persistent clos common lisp object system top postgres 
+persistent clos persistent programming language inevitably language specific 
+run time system map disk representation language objects including pointers main memory representation expected language 
+object cache maintained program address space performance suffer badly 
+tasks inherently language specific 
+expect language specific interfaces built postgres believe query language plus fast path interface available postgres offers powerful convenient abstraction build programming language interfaces 
+small number concepts tried build data model concepts possible 
+relational model succeeded replacing previous data models part simplicity 
+wanted concepts possible users minimum complexity contend 
+postgres leverages constructs types functions inheritance subsection briefly review postgres data model 
+turn short description postquel fast path 
+conclude section discussion postgres object oriented followed critique data model query language 
+
+postgres data model mentioned previous section postgres leverages types functions fundamental constructs 
+kinds types postgres kinds functions discuss possibilities section 
+researchers ston argued able construct new base types bits bitstrings encoded character strings bitmaps compressed integers packed decimal numbers radix decimal numbers money generation dbmss hard wired collection base types typically integers floats character strings postgres contains data type facility user construct arbitrary number new base types 
+types added system executing require defining user specify functions convert instances type character string data type 
+details syntax appear 
+second kind type available postgres constructed type user create new type constructing record base types instances constructed types 
+example create dept dname floor integer polygon create emp name dept dept salary float dept type constructed instance base types character string integer polygon 
+emp hand fabricated base types constructed types 
+constructed type optionally inherit data elements constructed types 
+example salesman type created follows create salesman quota float inherits emp case instance salesman quota inherits data elements emp name dept salary 
+standard discussion include single multiple inheritance concluded single inheritance scheme simply restrictive 
+result postgres allows constructed type inherit arbitrary collection constructed types 
+ambiguities arise object multiple parents field name elected refuse create new type 
+isolated resolution semantics single routine easily changed track multiple inheritance semantics unfold time programming languages 
+turn postgres notion functions 
+different classes postgres functions normal functions operators postquel functions discuss turn 
+user define arbitrary collection normal functions operands base types constructed types 
+example define function area maps instance polygon instance floating point number 
+functions automatically available query language illustrated example retrieve dept dname area dept section reader words constructed type relation class interchangeably 
+words record instance tuple similarly interchangeable 
+section purposely written chosen notation illustrate point object oriented data bases discussed section 
+normal functions defined postgres system running dynamically loaded required query execution 
+functions allowed constructed types retrieve emp name emp case operand type emp returns boolean 
+functions operands constructed types inherited type hierarchy standard way 
+normal functions arbitrary procedures written general purpose programming language case lisp 
+arbitrary semantics run postquel commands execution 
+queries normal functions qualification optimized postgres query optimizer 
+example query employees result sequential scan employees 
+utilize indexes processing queries postgres supports second class functions called operators 
+operators functions operands standard operator notation query language 
+example query looks departments floor space greater area specific polygon retrieve dept dname dept agt polygon area greater operator agt defined indicating token query language function call evaluate operator 
+hints included definition assist query optimizer 
+hints ale operator 
+query optimizer transform query retrieve dept dname dept ale polygon optimized 
+addition design postgres access methods allows tree index constructed instances appearing dept records 
+index support efficient access class operators alt ale ae agt age 
+information access paths available various operators recorded postgres system catalogs 
+pointed ston imperative user able construct new access methods provide efficient access instances non traditional base types 
+example suppose user introduces new operator defined polygons returns true polygons overlap 
+ask query retrieve dept dname dept 
+polygon tree hash access method allow query rapidly executed 
+query supported multidimensional access method trees grid files trees postgres designed allow new access methods written postgres users dynamically added system 
+basically access method postgres collection normal functions perform record level operations fetching record scan inserting new record deleting specific record user need define implementations functions collection entries system catalogs 
+operators available operands base types access methods traditionally support fast access specific fields records 
+unclear access method constructed type postgres include capability 
+third kind function available postgres postquel functions 
+collection commands postquel query language packaged defined function 
+example function defines employees define function high pay retrieve emp emp salary postquel functions parameters example define function ret sal retrieve emp salary emp name notice ret sal parameter body function name person involved 
+parameters provided time function called 
+third example postquel function define function set dept retrieve dept dept floor floor function single parameter floor 
+expected appear record receives value parameter floor field defined record 
+postquel function automatically constructed type 
+example define floors type follows create floors floor depts set dept constructed type uses set dept function constructed type 
+case instance floors value depts value function set dept record 
+addition postgres allows user form constructed type fields special type postquel 
+example user construct type create person name hobbies postquel case instance hobbies contains different postquel function person name postquel function defines particular hobbies 
+support postquel type allows system simulate non normalized relations nf 
+postquel functions appear query language manner normal functions 
+example ensures joe salary sam replace emp salary ret sal joe emp name sam addition postquel functions constructed type queries executed postquel functions just constructed types 
+example query run constructed type high pay retrieve high pay salary high pay name george postquel function contains single retrieve command similar relational view definition capability allows retrieval operations performed objects essentially relational views 
+lastly time user defines constructed type postquel function automatically defined name 
+example dept constructed function automatically defined define function dept retrieve dept dept oid emp defined earlier section contained field dept type dept fact dept automatically defined postquel function 
+result instance constructed type available type postgres automatically defines postquel function type 
+postquel functions powerful notion allow arbitrary collections instances types returned value function 
+postquel functions postquel functions arbitrary structures complex objects assembled 
+lastly postquel functions allow collections commands sql commands tp anon assembled single function stored inside dbms 
+execute tp executing single function 
+approach preferred having submit sql commands tp application program 
+postquel function replaces round trips application dbms results performance improvement typical oltp application 
+
+postgres query language previous section examples postquel language 
+set oriented query language resembles superset relational query language 
+user defined functions operators illustrated earlier features added traditional relational language include path expressions support nested queries transitive closure support inheritance support time travel path expressions included postquel allows constructed types contain constructed types hierarchically referenced 
+example emp type defined contains field instance constructed type dept ask names employees floor follows retrieve emp name emp dept floor forced join retrieve emp name emp dept dept oid dept floor postquel allows queries nested operators sets instances operands 
+example find departments occupy entire floor query retrieve dept dname dept floor notin floor dept dname dept dname case expression inside curly braces represents set instances notin operator takes set instances right operand 
+transitive closure operation allows explode parts ancestor hierarchy 
+consider example constructed type parent older younger ask ancestors john follows retrieve answer parent older answer parent younger john parent younger older case retrieve indicates associated query run answer fails grow 
+wishes find names employees write retrieve name emp age hand wanted names salesmen employees notation retrieve name emp age constructed type emp indicates query run emp constructed types emp inheritance hierarchy 
+allows user easily run queries constructed type descendents 
+lastly postgres supports notion time travel 
+feature allows user run historical queries 
+example find salary sam time query retrieve emp salary emp emp name sam postgres automatically find version sam record valid correct time get appropriate salary 
+relational systems result postquel command added data base new constructed type 
+case postquel follows lead relational systems removing duplicate records result 
+user interested retaining duplicates ensuring oid field instance included target list selected 
+full description postquel interested reader consult 
+
+fast path reasons chose implement fast path feature 
+user wishes interact data base executing sequence functions navigate desired data fast path accomplish objective 
+second variety decision support applications user specialized query language 
+environments easier application developer construct parse tree representation query ascii 
+desirable application designer able directly call postgres optimizer executor 
+dbmss allow direct access internal system modules 
+third reason bit complex 
+persistent clos layer picasso necessary run time system assign unique identifier oid constructed object persistent 
+undesirable system synchronously insert object directly postgres data base assign postgres identifier object 
+result poor performance executing persistent clos program 
+persistent clos maintains cache objects address space program inserts persistent object cache synchronously 
+options control cache written data base time 
+unfortunately essential persistent object assigned unique identifier time enters cache objects may point newly created object oid 
+persistent clos assigns unique identifiers complex mapping performed objects written data base real postgres unique identifiers assigned 
+alternately persistent clos maintain system unique identifiers independent postgres obvious duplication effort 
+solution chosen allow persistent clos access postgres routine assigns unique identifiers allow postgres object identifiers subsequently assign cached objects 
+time objects written postgres data base preassigned unique identifiers 
+supply identifiers exhausted persistent clos request collection 
+examples application program requires direct access user defined internal postgres function postgres query language extended function name param list case running queries postquel user ask function known postgres executed 
+function user previously defined normal operator postquel function included postgres implementation 
+user directly call parser optimizer executor access methods buffer manager utility routines 
+addition define functions turn calls postgres internals 
+way considerable control low level flow control available dbms toolkit exodus rich effort involved configuring tailored dbms toolkit 
+user wish interact data base making collection function calls method invocations facility allows possibility 
+noted expect interface especially popular 
+capability called fast path provided direct access specific functions checking validity parameters 
+effectively remote procedure call facility allows user program call function address space address space 
+
+postgres object oriented 
+generation data models proposed years 
+characterized term extended relational considered object oriented termed nested relational 
+postgres accurately described object oriented system includes unique identity objects data types classes constructed types methods functions inheritance data functions 
+suggesting definitions word object oriented postgres satisfies virtually proposed litmus tests 
+hand postgres considered extended relational system 
+noted previous footnote section equally written word constructed type instance replaced words relation tuple 
+fact previous descriptions postgres ston notation employed 
+characterized postgres extended relational system 
+lastly postgres supports postquel type exactly nested relational structure 
+consequently postgres classified nested relational system 
+result postgres described adjectives 
+opinion interchangeably words relations classes constructed types describing postgres 
+interchangeably words function method 
+lastly interchangeably words instance record tuple 
+postgres object oriented object oriented depending choice tokens parser 
+result feel efforts classify extended data models generation data base systems silly exercises surface syntax 
+remainder section comment briefly postgres implementation oids inheritance 
+postgres gives record unique identifier oid allows application designer decide constructed type wishes index oid field 
+decision contrasted object oriented systems construct oid index constructed types system automatically 
+postgres scheme allows cost index paid types objects profitable 
+opinion flexibility excellent decision 
+second possible ways implement inheritance hierarchy 
+considering salesmen emp example noted earlier store instances storing emp records storing extra quota information separate salesman record 
+alternately store information salesman emp store complete salesman records 
+clearly variety additional schemes 
+postgres chose implementation storing salesman fields single record 
+applications designers demand representations give flexibility optimize particular data 
+implementations inheritance require storage options 
+
+critique postgres data model areas feel mistakes postgres data model union types access method interface functions big objects arrays discuss turn 
+desirable feature generation dbms support union types instance type instance types 
+persuasive example similar cope employees loan plant loan customer 
+base types customer plant exist change emp type create emp name dept dept salary float loan plant customer unfortunately including union types query optimizer complex 
+example find employees loan organization state query retrieve emp name name emp emp loan loan optimizer construct different plans employees loan customer employees loan different plant 
+reason plans equality operator may different types 
+addition construct indexes union fields entails substantial complexity access methods 
+union types highly desirable certain applications considered possible stances respect union types support data types support postquel functions full support union types easily constructed postgres data type facility 
+user wants specific union type construct write appropriate operators functions type 
+implementation complexity union types forced routines operators functions implementor type 
+clear vast number union types extensive type library constructed application designer 
+picasso team stated approach placed unacceptably difficult burden position rejected 
+position offers support union types problems 
+consider example employees hobbies ston create emp name hobbies postquel hobbies field postquel function employee retrieves hobby information particular employee 
+consider postquel query retrieve emp hobbies average emp name fred case field average hobby record returned defined 
+suppose average float hobby integer cricket hobby 
+case application program prepared accept values different types 
+difficult problem legal postquel query retrieve temp result emp hobbies average emp name fred case problem arises concerning type result field union type 
+adopting position leaves awkward position having reasonable type result query 
+course position requires extending indexing query optimization routines deal union types 
+solution adopt position add data type hold instance type 
+solution turns type result query integer float satisfying 
+information lost forced include postgres universal type 
+opinion realistic alternative adopt position swallow complexity increase system 
+failure concerned access method design decision support indexing value field function value 
+utility indexes functions values discussed capability retrofitted version postgres aoki 
+comment access method design concerns extendibility 
+user add new base types dynamically essential able add new access methods postgres system come access method supports efficient access types 
+standard example capability trees speed access geometric objects 
+designed coded access methods postgres addition trees 
+experience consistently adding access method hard 
+problems complicate situation 
+access method include explicit calls postgres locking subsystem set release locks access method objects 
+designer new access method understand locking particular postgres facilities 
+second designer understand interface buffer manager able get put pin pages 
+postgres execution engine contains state execution query access methods understand portions state data structures involved 
+designer write non trivial routines 
+experience far novice programmers add new types postgres requires highly skilled programmer add new access method 
+put differently manual add new data types postgres pages long access methods pages 
+failed realize difficulty access method construction 
+designed system allows users add access methods dynamically running system 
+access methods built sophisticated system programmers simpler build interface 
+third area design flawed concerns postgres support postquel functions 
+currently functions postgres collections commands query language postquel 
+defined budget dept postquel function value shoe department budget command retrieve dept budget dept dname candy case shoe department automatically assigned budget candy department 
+impossible budget shoe department specified floor retrieve dept budget dept dname candy retrieve dept budget dept dname toy specification defines budget shoe department candy department budget floor 
+toy department 
+query possible postquel conditional expressions 
+extensive discussions extensions postquel 
+extension rejected turn postquel programming language query language 
+better solution allow postquel function expressible general purpose programming language enhanced postquel queries 
+distinction normal functions postquel functions 
+put differently normal functions able constructed types support path expressions 
+problems approach 
+path expressions normal functions optimized postgres query optimizer arbitrary semantics 
+optimizations planned postquel functions discarded 
+second postquel functions easier define normal functions user need know general purpose programming language 
+need specify types function arguments return type postgres query specification 
+give ease definition moving postquel functions normal functions 
+lastly normal functions protection problem arbitrary things zeroing data base 
+postgres deals problem calling normal functions ways trusted loaded postgres address space untrusted loaded separate address space normal functions called quickly security slowly protected fashion 
+security problem arises postquel functions 
+better approach support postquel functions written th generation language gl designed picasso rowe 
+programming system leaves type information system catalogs 
+consequently need separate registrations step indicate type information postgres 
+processor language available integration postgres 
+easy gl safe unable perform wild branches malicious actions security problem 
+possible path expressions optimized gl functions 
+current commercial relational products moving direction allowing data base procedures coded proprietary th generation languages gls 
+retrospect probably looked seriously designing postgres support functions written gl 
+postgres allows types constructed arbitrary size 
+large bitmaps perfectly acceptable postgres data type 
+current postgres user interface portals allows user fetch instances constructed type 
+currently impossible fetch portion instance 
+presents application program severe buffering problem capable accepting entire instance matter large extend portal syntax straightforward way allow application position portal specific field instance constructed type specify byte count retrieve 
+changes easier insert retrieve big fields 
+lastly included arrays postgres data model 
+specified salesman type create salesman name dept dept salary float quota float salesman fields emp plus quota array floats month year 
+fact character strings really array characters correct notation type create salesman name dept dept salary float quota float postgres support fixed variable length arrays base types array notation postquel 
+example request salesmen april quota write retrieve salesman name salesman quota support arrays constructed types possible array instances constructed type 
+omitted capability query optimizer executor somewhat harder 
+addition built search mechanism elements array 
+example possible find names salesmen quota month year 
+retrospect included general support arrays support 
+
+rules system 
+clear dbmss need rules system 
+current commercial systems required support referential integrity date merely simple minded collection rules 
+addition current systems special purpose rules systems support relational views protection integrity constraints 
+lastly rules system allows users event driven programming enforce integrity constraints performed ways 
+high level decisions postgres team concerning philosophy rule systems 
+decision required concerning rule syntaxes 
+approaches propose rule systems oriented application designers augment rule systems dbms internal purposes 
+systems contain independently functioning rules systems 
+hand ston proposed rule system tried support user functionality needed dbms internal functions single syntax 
+goal postgres rules system syntax 
+felt simplify user interface application designers need learn construct 
+deal deciding system cases function performed rules system 
+felt single rules system ease implementation difficulties faced 
+second implementation philosophies support rule system 
+query rewrite implementation 
+rule applied converting user query alternate form prior execution 
+transformation performed query language parser optimizer 
+support views ston done way proposals recursive query support 
+implementation efficient small number rules constructed type rules cover constructed type 
+example rule emp dept contained dept dname expresses referential integrity condition employees non existent department applies emp instances 
+query rewrite implementation large number rules constructed type covering instances 
+consider example rules employees shoe department steel desk employees wood desk employees candy department desk retrieve kind desk sam run queries retrieve desk steel emp name sam emp dept shoe retrieve desk wood emp name sam emp age retrieve desk null emp name sam emp dept candy user query rewritten rule resulting serious degradation performance queries processed group multiple query optimization techniques sell 
+query rewrite system great difficulty exceptions borg 
+example consider rule employees steel desk exception jones employee wood desk 
+ask kind desk age employees query rewritten queries retrieve desk steel emp age emp age emp name jones retrieve desk wood emp age emp age emp name jones general number queries complexity qualifications increases linearly number rules 
+result bad performance multiple query optimization techniques applied 
+lastly query rewrite system offer help resolving situations rules violated 
+example referential integrity rule silent user tries insert employee non existent department 
+hand adopt trigger implementation individual record accesses updates data base 
+record accessed inserted deleted modified low level execution code old record new record readily available 
+assorted actions easily taken low level code 
+implementation requires rule firing code placed deep query execution routines 
+rules affecting instances easy deal successfully conflict resolution level 
+rule firing deep executor impossible query optimizer construct efficient execution plan chain rules awakened 
+implementation complements query rewrite scheme excels rewrite scheme weak versa 
+wanted single rule system clear needed provide styles implementation 
+third issue faced paradigm rules system 
+conventional production system consisting collections rules explored past ston readily available alternative 
+scheme lacks expressive power 
+example suppose wants enforce rule joe salary fred 
+case specify different rules 
+indicates action take fred receives raise propagate change joe 
+second rule specifies update joe salary refused 
+user rules require specifications achieve desired effect 
+intent postgres explore powerful paradigm 
+basically postgres command turned rule changing semantics command logically running running 
+example joe may specified salary fred rule replace emp salary salary emp emp name fred name joe single specification propagate joe salary fred refuse direct updates fred salary 
+way single rule replaces statements needed production rule syntax 
+efficiently support triggering implementation large number rules single constructed type applies instances postgres team designed sophisticated marking scheme rule wake information placed individual instances 
+consequently regardless number rules single constructed type fire awakened 
+contrasted proposals data structures hopelessly inefficient large number rules single constructed type 
+lastly decision support query rewrite scheme markers constructed type level 
+example consider rule replace emp age name bill rule applies employees bill waste space mark individual employee 
+prefer set single marker system catalogs cover constructed type implicitly 
+case query retrieve emp age emp name sam altered prior execution query rewrite implementation retrieve age emp name sam emp name bill current time postgres rules system prs described ston operational aspects design wish discuss subsections complexity absence needed function efficiency close second version postgres rules system prs ii currently designing 
+rules system described detail ston ston 
+
+complexity problem prs implementation exceedingly complex 
+difficult explain marking mechanisms cause rule wake sophisticated person 
+uneasy feeling implementation may quite correct 
+fundamental problem illustrated joe fred example 
+rule awakened run fred salary changes 
+requires kind marker placed salary fred 
+fred new name say bill rule deleted 
+requires second kind marker name fred 
+additionally inappropriate allow update joe salary third kind marker required field 
+furthermore fred hired rule take effect insertion record 
+requires marker placed index employee names 
+support rules deal ranges values example replace emp age emp salary emp salary require stub markers placed index denote ends scan 
+addition intervening index record marked 
+ensuring markers correctly installed appropriate actions taken record accesses updates occur challenge 
+source substantial complexity necessity deal priorities 
+example consider second rule replace emp age emp dept shoe case highly paid shoe department employee different ages 
+alleviate situation second rule higher priority replace emp age emp dept shoe priority default priority rules rule set age highly paid employees shoe department case age set second rule 
+priorities course add complications rules system 
+example second rule deleted rule awakened correct ages employees shoe department 
+aspect complexity decision support early late evaluation rules 
+consider example rule joe salary fred 
+rule awakened fred gets salary adjustment activation delayed user requests salary joe 
+activation delayed long possible second case term late evaluation case termed early evaluation 
+flexibility results substantial extra complexity 
+example certain rules activated late 
+salaries employees indexed rule sets joe salary fred activated early index kept correct 
+impossible early rule read data written late rule 
+additional restrictions imposed 
+getting prs correct entailed hours discussion considerable implementation complexity 
+bottom line implementation rule system clean simple user fact extremely complex tricky 
+personal feeling embarked modest rules system 
+
+absence needed function definition useful rules system handle problems integrated system support views protection referential integrity integrity constraints focus section support views 
+query rewrite implementation rules system able translate queries views queries real objects 
+addition updates views similarly mapped updates real objects 
+various special cases view support performed prs example materialized views 
+consider view definition define view shoe emp name emp name age emp age salary emp salary emp dept shoe prs rules specify materialization view append shoe emp name emp name salary emp salary emp dept shoe delete shoe emp shoe emp name emp name emp dept shoe case shoe emp contain correct materialization shoe department employees queries directed materialization 
+way support updates views materialized 
+spent countless hours attempting support function prs failed 
+inability support operations conventional views major weakness prs 
+
+implementation efficiency current postgres implementation uses markers individual fields support rule activation 
+escalation supported convert collection field level markers single marker entire constructed type 
+consequently rule covers single instance replace emp salary emp name sam total markers set index salary field name field 
+marker composed rule id bytes priority byte marker type byte consequently marker overhead rule bytes consider complex rule replace emp salary emp dept shoe employees shoe department bytes overhead consumed markers 
+option marker entire constructed type case rule activated salary read written just employees shoe department 
+overhead intensive option 
+rules cover instances significant fraction instances postgres implementation space efficient 
+considering solutions problem 
+generalized trees efficiently store interval data point data 
+segmented trees subject separate 
+remove space overhead index dominant form access method 
+second lower overhead data records probably implement markers physical block level instance constructed type levels 
+appropriate extra granularities currently investigation 
+
+second postgres rules system inability current rules paradigm support views lesser extent fundamental complexity implementation converting second postgres rules system prs ii 
+rules system common implementation returns traditional production rule paradigm obtain sufficient control perform view updates correctly 
+section outlines thinking complete proposal appears ston 
+production rule syntax prs ii form event object postquel qualification postquel command event retrieve replace delete append new replace append old delete replace 
+object name constructed type constructed type column 
+normal qualification additions changes 
+lastly postquel commands set postquel commands changes new old current appear name constructed type front attribute 
+refuse target list added new postquel command notation specify fred joe rule new emp salary emp name fred replace salary current salary emp name joe new emp salary emp name joe refuse notice prs ii powerful system fred joe rule require specifications 
+prs ii query rewrite implementation trigger implementation optimization decision noted ston 
+example consider rule retrieve shoe emp retrieve emp name emp age emp salary emp dept shoe query utilizing rule retrieve shoe emp name shoe emp age processed rewrite implementation retrieve emp name emp age seen identical query modification performed relational view processing techniques ston 
+rule processed triggering system case rule materialize records shoe emp iteratively 
+straightforward support additional functionality allowing multiple queries definition view 
+supporting materialized views efficiently done caching action part rule executing command user requests evaluation 
+corresponds moving rule early evaluation 
+lastly supporting views partly materialized partly specified procedures views involve recursion appears fairly simple 
+ston details extensions 
+consider collection rules support updates shoe emp new shoe emp append emp name new name salary new salary old shoe emp delete emp emp name old name emp salary old salary update shoe emp replace emp name new name salary new salary emp name new name rules processed trigger implementation update shoe emp replace shoe emp salary shoe emp name mike processed normally generates collection new record old record pairs 
+point triggering system activated appropriate updates underlying constructed types 
+user wishes non standard view update semantics perform particular actions desires changing action part rules 
+prs ii allows user rules system define semantics retrievals updates views 
+fact expect build compiler convert higher level view needed collection prs ii rules 
+addition prs ii retains functionality rules system protection integrity constraints arbitrary triggers readily expressed 
+disadvantage prs ii requires rules perform tasks expressible single prs rule 
+overcome disadvantage continue support prs syntax addition prs ii syntax compile prs prs ii 
+support prs ii supported implementation proposed query rewrite implementation prs marking instances system catalogs 
+query rewrite algorithm nearly implementation 
+triggering system supported instance markers prs 
+fact implementation bit simpler couple types markers required 
+implementation prs ii similar initial rules system expect conversion completed near 
+
+storage system 
+considering postgres storage system guided different 
+current commercial systems storage manager write ahead log wal felt technology understood 
+original ingres prototype similar storage manager desire implementation 
+idea implementing overwrite storage manager 
+technique old record remains data base update occurs serves purpose normally performed write ahead log 
+consequently postgres log conventional sense term 
+postgres log simply bits transaction indicating transaction committed aborted progress 
+nice features exploited overwrite system 
+aborting transaction instantaneous need process log undoing effects updates previous records readily available data base 
+generally recover crash abort transactions progress time crash 
+process effectively instantaneous postgres 
+second benefit overwrite storage manager possibility time travel 
+noted earlier user ask historical query postgres automatically return information record valid correct time 
+storage manager contrasted conventional previous record overwritten new 
+case write ahead log required maintain previous version record 
+possibility time travel log queried different format 
+data base restored consistent state crash occurs processing log undo partially completed transactions 
+possibility instantaneous crash recovery 
+clearly overwrite storage manager superior conventional implemented comparable performance 
+brief hand wave argument ston case 
+opinion argument hinges existence stable main memory 
+absence stable memory overwrite storage manager force disk commit time pages written transaction 
+required effects committed transaction durable case crash occurs main memory lost 
+conventional data manager hand need force disk commit time log pages transaction updates 
+log pages data pages highly occurence conventional storage manager doing sequential log overwrite storage manager doing random sequential substantially faster random overwrite solution guaranteed offer worse performance 
+stable main memory solution force pages disk 
+environment performance comparable 
+stable main memory appears solution competitive 
+computer manufacturers offer form stable main memory overwrite solution may viable storage option 
+designing postgres storage system guided philosophical premises 
+decided clear distinction current data historical data 
+expected access patterns highly skewed current records 
+addition queries archive look different accessing current data 
+reasons postgres maintains different physical collections records current data historical data indexes 
+second design assumes existence randomly addressable archive device historical records placed 
+intuitive model archive optical disk 
+design purposely consistent archive write read worm orientation 
+characterizes optical disks market today 
+subsection indicate problems postgres design 
+section additional comments storage manager 
+
+problems postgres design problems design 
+unstable heavy load 
+asynchronous demon known vacuum cleaner responsible moving historical records magnetic disk structure holding current records archive historical records remain 
+normal circumstances magnetic disk portion constructed type say times minimum possible size constructed type 
+course vacuum cleaner consumes cpu resources running background achieving goal 
+load postgres data base increases vacuum cleaner may get run 
+case magnetic disk portion constructed type increase performance suffer execution engine read historical records magnetic disk presumably frequent processing queries current data base 
+result performance degrade proportionally excess size magnetic disk portion data base 
+load increases vacuum cleaner gets resources performance degrades size magnetic disk data base increases 
+ultimately result postgres data base going 
+obviously vacuum cleaner run background possible consume resources little activity 
+consistent heavy load system vacuum cleaner scheduled priority tasks instability occur 
+bottom line scheduling vacuum cleaner tricky optimization problem 
+second comment wish archive systems read write optical disks appeared market 
+consequently reason restricted worm technology 
+certain postgres assumptions unnecessary requiring current portion constructed type magnetic disk 
+
+comments historical indexes usually combined key consisting time range keys record 
+dimensional indexes stored technology trees new way 
+particularly comfortable ways index time ranges encourage additional area 
+possible approach segmented trees studying 
+comment concerns postgres support time travel 
+tasks difficult express mechanisms 
+example query find time sam salary increased tricky postquel 
+comment time travel implemented conventional transaction system write ahead log 
+example need archive constructed type physical constructed type time travel desired 
+record updated previous value written archive appropriate timestamps 
+transaction fails commit archive insert corresponding record update unwound conventional log 
+implementation may substantial benefits probably considered possibility 
+making storage system decisions guided different conventional write ahead log scheme 
+may overlooked intriguing options 
+
+postgres implementation 
+postgres contains fairly conventional parser query optimizer execution engine 
+aspects implementation deserve special mention dynamic loading process structure choice implementation language discuss turn 
+
+dynamic loading process structure postgres assumes data types operators functions added subtracted dynamically system executing 
+designed system accommodate potentially large number types operators 
+consequently user functions support implementation type dynamically loaded unloaded 
+postgres maintains cache currently loaded functions dynamically moves functions cache ages cache 
+parser optimizer run main memory cache information types operators 
+cache maintained postgres software 
+easier assume types operators linked system postgres initialization time required user postgres wished add drop types 
+users prototype software running systems go rebooting 
+function essential 
+second rules system forces significant complexity design 
+user add rule retrieve emp salary emp name joe case application process wishes notified salary adjustment joe 
+consider second user gives joe raise 
+postgres process adjustment notice marker placed salary field 
+order alert user things happen postgres designed single server process 
+case current process user query simply activated 
+design incompatible running shared memory multiprocessor called multi server required 
+design discarded 
+postgres process second user run user query connect application process deliver results 
+requires application process coded expect communication random processes 
+felt difficult reasonable solution 
+postgres process second user connect input socket user postgres deliver query run 
+postgres run query send results user 
+require careful synchronization input socket multiple independent command streams 
+require second postgres know portal name user rule running 
+postgres process second user alert special process called 
+process turn alert process user query run results delivered application process 
+adopted fourth design thought practical 
+constructed process everybody channel communications 
+crashes postgres environment restarted 
+handicap think better solution 
+collection system demons including vacuum cleaner mentioned need place run 
+postgres run subprocesses managed 
+aspect design concerns operating system process structure 
+currently postgres runs process active user 
+done expedient get system operational quickly possible 
+plan converting postgres lightweight processes available operating systems 
+include presto sequent symmetry threads version sun os 
+
+programming language project forced commitment programming language machine environment 
+machine easy sun workstations nearly omnipresent berkeley choice non standard 
+free choose language program 
+considered modula lisp ada smalltalk dismissed smalltalk quickly felt slow compilers readily available wide variety platforms 
+felt desirable keep open option distributing software widely 
+felt ada modula offered limited advantages widely berkeley environment 
+obtaining programmers problem 
+lastly ingres coded anxious choose different language sake doing different 
+time started stable compiler seriously consider option 
+process elimination decided try writing postgres lisp 
+expected especially easy write optimizer inference engine lisp tree processing modules 
+ai claims high programmer productivity applications written lisp 
+soon realized parts system easily coded example buffer manager moves pages back forth disk uses modified lru algorithm control pages resident 
+adopted policy lisp code modules postgres whichever language appropriate 
+time version operational contained lines lisp lines feeling lisp terrible mistake reasons 
+current lisp environments large 
+run program lisp requires mbytes address space 
+postgres exceeds mbytes size mbyte lisp compiler editor assorted non required desired functions 
+suffer gigantic footprint 
+second dbms wants garbage collection happens 
+response time sensitive program allocate deallocate space manually garbage collection happens normal processing 
+consequently spent extra effort ensuring lisp garbage collection postgres 
+aspect lisp improves programmer productivity available 
+third lisp execution slow 
+noted performance figures section lisp code twice slow comparable code 
+course possible skilled lisp programmers know optimize language experience suitably discounted 
+real disaster 
+debugging language system extremely difficult 
+debugger course knows lisp lisp debugger knows result debugging postgres painful frustrating task 
+memory allocation bugs painful lisp different models dynamic memory 
+course true optimizer inference engine easier code lisp 
+saved time 
+compensated requirement writing lot utility code convert lisp data structures versa 
+fact assessment primary productivity increases lisp come nice programming environment interactive debugger nice workstation tools language 
+encourage implementors programming languages study lisp environment carefully implement better ideas 
+result just finished moving lines lisp avoid debugging secondarily avoid performance footprint problems lisp 
+experience lisp language systems positive caution follow footsteps 
+
+status performance current time october lisp version postgres hands users short time shaking bugs port 
+addition designed additional functionality appear version 
+characteristics version query language postquel runs aggregates functions set operators 
+object management capabilities operational postquel types 
+support rules exists 
+specifically replace commands operational implementation currently supports early evaluation markers columns 
+storage system complete 
+delivery shortly optical disk jukebox archive currently implemented real optical disk 
+trees support time travel implemented 
+transaction management runs 
+focus getting function postgres run 
+far minimal attention paid performance 
+shows assorted queries wisconsin benchmark gives results systems running sun 
+numbers run non quiescent system may significant fluctuations 
+lisp versions postgres 
+functionally identical systems algorithms embodied code 
+footprint lisp system mbytes system mbyte 
+comparison purposes include performance numbers commercial version ingres third column 
+seen lisp system times slower system 
+various benchmarks seen postgres postgres ingres lisp rti scan 
+
+retrieve query selectivity 
+append 
+delete 
+replace 
+
+comparison ingres postgres times listed seconds query 
+system twice fast lisp system 
+system times slower commercial system 
+public domain version ingres worked mid factor slower commercial ingres 
+appears postgres half speed original ingres 
+substantial inefficiencies postgres especially code checks retrieved record valid 
+expect subsequent tuning get performance public domain ingres rti ingres 
+
+section summarize opinions certain aspects design postgres 
+uneasy complexity postgres data model 
+comments section contain suggestions complex 
+research teams tended construct complex data models extra care 
+consequently simple concept referential integrity done way existing commercial systems done different ways postgres 
+example user implement data type required checking input conversion routine 
+alternately rule postgres rules system 
+lastly postquel function field corresponds foreign key current relational system 
+complex performance tradeoffs solutions decision sophisticated application designer 
+fear real users hard time data base design existing relational systems find generation data models postgres complex 
+problem applications exist representation acceptable 
+demand wider application data base technology ensures vendors produce systems complex data models 
+source fact rules postquel functions substantial overlap function 
+example postquel function simulated rule record albeit performance penalty 
+hand rules retrieve commands alternately implemented postquel functions 
+expect merge concepts version proposal appears ston 
+areas rules storage management basically satisfied postgres capabilities 
+syntax rule system changed noted section significant issue available easily version 
+storage manager quite simple implement 
+crash recovery code easy write routine carefully written vacuum cleaner 
+access past history highly desirable capability 
+furthermore postgres implementation certainly direction excessive sophistication 
+example new types functions added fly recompiling postgres 
+simpler construct system required recompilation add new type 
+second implemented complete transaction system version 
+prototypes tend assume single user environment 
+ways substantial generality net effect slow implementation effort postgres internals complex 
+result postgres taken considerably longer build original version ingres 
+call second system effect 
+essential postgres usable original ingres prototype order feel making contribution 
+comment concerns technology transfer commercial systems 
+appears process substantially accelerating 
+example relational model constructed prototypes implementations appeared commercial versions surfaced popularity relational systems marketplace occurred 
+year period ideas transferred commercial systems 
+ideas postgres generation systems date 
+commercial systems embodying ideas appeared major vendors expected advanced systems year 
+year period appears shrunk half amount 
+acceleration impressive lead short lifetimes current collection prototypes 
+agrawal gehani ode language data model proc 
+acm sigmod conference management data portland may 
+atkinson object oriented database system manifesto technical report rocquencourt france august 
+anon anon measure transaction processing power tandem computers cupertino ca technical report 
+aoki aoki implementation extended indexes postgres electronics research laboratory university california technical report july 
+bancilhon ramakrishnan amateur recursive query processing proc 
+acm sigmod conference management data washington may 
+bane banerjee semantics implementation schema evolution object oriented databases proc 
+acm sigmod conference management data san francisco ca may 
+bitton benchmarking database systems systematic approach proc 
+vldb conference cannes france sept 
+borg borgida language features flexible handling exceptions information systems acm tods dec 
+care carey data model query language exodus proc 
+acm sigmod conference management data chicago ill june 
+cope copeland maier making smalltalk database system proc 
+acm sigmod conference management data boston mass june 
+dadam dbms prototype support nf relations proc 
+acm sigmod conference management data washington may 
+date date referential integrity proc 
+seventh international vldb conference cannes france sept 
+specification implementation interactions rule subsystem integrated database system ibm research san jose ca research report rj august 
+faloutsos analysis object oriented spatial access methods proc 
+acm sigmod conference management data san francisco ca may 
+gutman trees dynamic index structure spatial searching proc 
+acm sigmod conference management data boston mass june 
+stonebraker segmented search trees application data bases preparation 
+lynch stonebraker extended user defined indexing application textual databases proc 
+vldb conference los angeles ca sept 
+maier isn object oriented data model 
+proc 
+th ifip world congress san francisco ca august 
+osborne heaven design relational system data types domains acm tods sept 
+rich richardson carey programming constructs database system implementation exodus proc 
+acm sigmod conference management data san francisco ca may 
+rowe rowe stonebraker postgres data model proc 
+vldb conference brighton england sept 
+rowe rowe design implementation picasso preparation 
+sell sellis global query optimization proc acm sigmod conference management data washington june 
+ston stonebraker implementation integrity constraints views query modification proc 
+acm sigmod conference san jose ca may 
+ston stonebraker rules system relational data base management system proc 
+nd international conference databases jerusalem israel june available academic press 
+ston stonebraker rowe design postgres proc 
+conference washington june 
+ston stonebraker inclusion new types relational data base systems proc 
+second international conference data engineering los angeles ca feb 
+ston stonebraker postgres storage system proc 
+vldb conference brighton england sept 
+ston stonebraker extensibility postgres ieee database engineering sept 
+ston stonebraker postgres rules system ieee transactions software engineering july 
+ston stonebraker commentary postgres rules system sigmod record sept 
+ston stonebraker rules procedures views preparation 
+ullman implementation logical query languages databases acm tods sept 
+velez object manager overview gip le chesnay france technical report february 
+
+ed postgres manual electronics research laboratory university california berkeley ca report march 
+widom finkelstein syntax semantics set oriented production rules relational data bases ibm research san jose ca june 

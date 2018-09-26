@@ -1,0 +1,387 @@
+lfs storage manager mendel rosenblum john ousterhout computer science division electrical engineering computer sciences university california berkeley ca mendel sprite berkeley edu sprite berkeley edu advances computer system technology areas cpus disk subsystems volatile ram memory combining create performance problems existing file systems ill equipped solve 
+identifies problems existing unix file systems technology presents alternative file system design disks order magnitude efficiently typical unix workloads 
+design named lfs log structured file system treats disk segmented append log 
+allows lfs write small changes disk single large maintaining fast file reads existing file systems 
+addition logstructured approach allows near instantaneous file system crash recovery coupling cpu disk performance synchronous disk writes 
+describes justifies major data structures algorithms lfs design 
+compare implementation lfs sprite distributed operating system sunos file system running hardware 
+tests create destroy modify files high rate lfs achieve order magnitude speedup sunos 
+spite obvious write optimization lfs read performance matches exceeds sunos file system common unix workloads 
+summer usenix technical conference anaheim california june 
+lfs storage manager may 
+current unix file systems designed fast computer cpu megabytes memory 
+machines hundreds mips cpu hundreds megabytes memory 
+unfortunately disks attached machines access times factor disks 
+current file systems modified match change balance technologies machines operate bound mode order magnitude increases cpu speed may produce visible speed applications 
+faster cpus shrink cpu time programs execution time dominated time perform disk accesses 
+large volatile main memories permit large file caches 
+disk delays due file reads alleviated caches file writes pushed disk reliability 
+disk traffic dominated writes 
+challenge computer systems support workloads requiring redesign programs order change file access patterns 
+unix environment means efficiently supporting changes small files large files 
+existing unix file system creation deletion small files cause disk accesses small non sequential synchronous application continue disk completes 
+synchronous accesses limit application performance disk performance 
+small non sequential accesses limit disk bandwidth utilization fraction disk maximum bandwidth 
+file systems decouple application disk performance disks efficiently reduce bottleneck 
+describes disk storage manager designed disks efficiently possible support write dominated workloads 
+storage manager called lfs uses concepts log structured file systems increase performance unix file system 
+log structured file system modifications file system including data directories metadata blocks written disk large sequential transfers proceed maximum disk bandwidth 
+small file creation deletion lfs cause disk accesses large sequential asynchronous 
+lfs large sequential writes cause disk layout different existing unix file systems 
+layout differs lfs maintains metadata structures inodes indirect blocks 
+allows lfs efficiently support full unix file system semantics including fast random sequential read access files 
+major difference lfs unix disk layout inodes disk resident data structure containing file attributes fixed locations disk lfs 
+lfs maintain data structure tracks current location inode file 
+lfs indexed data structure file reads identical unix 
+log structure lfs requires large disk regions available writing 
+lfs manages regions partitioning disk large sequential pieces called unix trademark lfs storage manager may segments 
+blocks added file system segment time disjoint segments linked form logically consecutive segmented log 
+order keep segments available writing lfs performs operation called segment cleaning 
+operation reads fragmented segments memory compacts live data writes back segments disk 
+log structure lfs provides benefits addition high performance 
+log allows lfs recover system crashes faster existing unix file systems 
+lfs needs scan entire file system recover crash 
+append nature lfs means files directories updated place 
+allows lfs provide better crash guarantees higher performance 
+rest organized sections 
+begins examination current technology trends effects storage manager design 
+section section describes failures existing file systems 
+section describes lfs design section presents performance numbers taken implementation sprite distributed operating system 
+concludes status report discussion directions lfs 
+
+technology storage managers section examines effect current technology trends cpu speeds disk performance main memory sizes having storage managers 
+design decisions lfs attributed desire allow graceful scaling systems face unbalanced technology changes 
+
+disks cpus speed obvious technology mismatch affecting disk storage managers exponential increase cpu speeds compared small increase disk access speeds 
+part seen cpus speeds doubling year 
+disk access times constrained mechanics improved factor decade 
+bandwidth throughput disk subsystems substantially increased arrays disks raids access time small disk accesses substantially improved hurt technique 
+widening gap cpu disk access time suggests performance systems may limited disk subsystem 
+
+memory sizes disk read write ratios disk cpu speeds technology affects storage manager design 
+main memory sizes machines increasing cpu speeds 
+fast cpus multi billions bytes memory effective file caches built 
+large file caches alter read write ratio disk subsystems 
+reads satisfied cache writes written disk reliability 
+contrast file systems disk traffic dominated reads file systems see disk traffic dominated writes 
+lfs storage manager may 
+storage manager design radical difference cpu disk speeds imperative storage managers decouple application performance disk access speed 
+section describes disk access modes storage managers exploit order disks efficiently 
+asynchronous storage managers lessen effect disk cpu speed avoiding operations cpu forced wait disk operations complete 
+blocking operations called synchronous disk operations couple cpu disk requiring requesting processes wait disk accessed 
+sequential disk access efficiency depends disk accessed 
+disk subsystems accessed sequential mode order magnitude efficiently accessed randomly 
+storage managers exploit property performing large sequential accesses 
+disk head motion seeks avoided possible 
+
+problems existing unix file systems presenting design lfs useful outline failures existing file systems 
+section uses bsd file system example problems commercial file systems today 
+major reason existing file systems scale technology perform random synchronous disk operations 
+disk storage manager design strongly influenced expected workload support 
+lfs designed support workload office engineering environment 
+environment characterized see large number relatively small files kilobytes contents accessed sequentially entirety 
+average file life time short day overwritten deleted 
+efficient handling file systems containing small rapidly changing files large files needed unix environments 
+
+file creation example performance problems bsd file system office engineering environment seen examining disk access patterns caused small file creation 
+shows disk accesses required create single block files different directories 
+unix system calls create files fd creat dir file write fd buffer blocksize close fd fd creat dir file write fd buffer blocksize close fd illustrates disturbing access patterns small random synchronous writes 
+creat system call causes random synchronous write allocated inode block directory block 
+synchronous writes directory inode lfs storage manager may block key allocated data directory inode delayed write back creat dir file creat dir file file dir dir file file dir dir dir disk disk disk bsd file system file creation 
+disk image bsd file system different points creation files 
+state shown creat system call delayed write back occurred 
+creat call forces modified directory block newly allocated inode disk 
+example creat file inode dir inode directory data block written disk 
+write system calls allocate blocks disk blocks written disk delayed write back occurs 
+second creat data block file allocated written disk delayed write back 
+modifications intended limit damage caused system crashes 
+file data blocks inode blocks directories allocated manner allows fast reads 
+unfortunately files small allocations cause small random writes 
+file data blocks inode blocks directories written asynchronously randomly 
+total disk example includes random writes half synchronous 
+random accesses small fraction maximum disk write bandwidth file system 
+synchronous updates effectively limit speed file creation deletion disk speeds 
+example mips dec bsd file system create delete empty file milliseconds 
+mips dec decstation file system create delete empty file milliseconds 
+synchronous disk order magnitude increase cpu speeds causes percent increase program speed 
+
+lfs storage manager design efficiently supporting office engineering workloads means eliminating small synchronous writes 
+section presents major data structures algorithms lfs storage manager accomplish goal 
+algorithms include file writing file reading disk free space management 
+lfs storage manager may 
+file writing key idea lfs writes fast accessing disk sequentially asynchronously 
+lfs collects changes file system file cache packs writes disk large sequential disk transfers 
+modified file data blocks directory blocks file system metadata inode blocks packed written sequentially disk 
+lfs provides abstraction data added file system append log format 
+log format implies lfs updates disk blocks place 
+feature key lfs fast recovery ability eliminate synchronous writes 
+writes asynchronous lfs uses file cache write buffer accumulates changes file system performs speed matching cpu disk subsystem 
+bursts small writes file system combined file cache converted large transfers 
+conversion means unix file system file creation deletion speeds lfs tied disk maximum bandwidth latency 
+shows single disk access generated lfs storage manager executing file creation example section 
+lfs creat system call simply allocates file number modifies directory inode memory 
+synchronous disk writes performed 
+modified file directory blocks packed written single transfer 
+form order magnitude faster random write transfers done unix file system 
+workloads limited disk write performance lfs permits files size written disk near maximum bandwidth 
+elimination synchronous writes allows lfs scale cpu speeds 
+file file dir dir block key data directory inode delayed write back disk lfs file system file creation 
+disk image lfs file system files created 
+disk write started modified file system blocks packed written disk single transfer 
+note formats directories inodes bsd example 
+placing blocks optimize reading lfs writes changes sequentially disk 
+lfs performs writes large transfer 
+bsd example writes sequential synchronous 
+lfs storage manager may 
+file reading section describes data structures algorithms read files lfs file system 
+large file caches systems read performance small impact system performance 
+lfs read performance match exceed performance current read optimized file systems cases 
+lfs writes blocks sequentially maintains data structures permit fast read access unix file system 
+
+inode map major difference file location lfs unix lfs inodes longer fixed locations disks 
+append log abstraction provided lfs requires inodes written new location disk time modified 
+lfs quickly locates inodes data structure called inode map 
+data structure maintains mapping inode number current disk address inode 
+inode map keeps inode status allocated free file access time version number updated time file truncated length zero 
+version number usage discussed section 
+file systems having large numbers files inode map get large 
+reduce memory usage lfs partitions map blocks cached regular files 
+expected blocks mapping active files stay memory resident impose little overhead file inode fetch 
+modified inode map blocks written log file block 
+timing inode map block writes recovery inode map crashes discussed section 
+address lookup inode map file reading algorithm lfs identical existing unix file systems 
+format inodes indirect blocks unchanged 
+files written entirety log layout algorithm places data blocks sequentially disk 
+read performance file excellent inode file data blocks located close disk 
+
+free space management lfs file system manage disk free space keep open large regions consecutive disk sectors 
+lfs simplifies task dividing disk storage large fixed size pieces called segments 
+idea sequential log abstraction lfs need totally sequential disk 
+really matters log written large pieces support near maximum disk bandwidth 
+achieved sizing segments disk seek start segment write amortized long data transfer time 
+test section segment size megabyte 
+file access time kept inode map file attribute updated file read 
+keeping access time inode map inode allows faithful implementation unix file access time semantics inodes constantly moving time file read 
+lfs storage manager may 
+segment summary blocks lfs segment contains sectors summary information identify contents segment allow segments formed linked list 
+information kept region segment called summary block 
+append log abstraction visualized links segments 
+block segment summary blocks indicates file number block file position block file 
+information needed summary blocks segment available segment formed memory 
+cost summary blocks small terms cpu disk space transfer time overheads 
+
+segment cleaning segmented log structure lfs reduces free space management problem finding free segment write 
+normal operations segments fragmented blocks segment overwritten deleted leaving segment partially utilized 
+lfs generates free segments called clean segments fragmented segments operation called segment cleaning 
+segment cleaning fragmented segments read memory combined appended log disk 
+segment cleaning lfs simply form incremental garbage collection fragmented segments compressed create space write new segments 
+lfs implements cleaning reading live blocks segment file cache cache write back code combine copy blocks new segment 
+cleaning algorithm proceeds phases 
+phase live blocks fragmented segments identified read cache 
+second phase combines blocks new segment writes disk 
+segment cleaning lfs overlapped normal file system operations 
+files read written segments cleaned 
+
+block allocation determination order perform segment cleaning efficiently lfs storage manager able identify owner file number block offset block segment 
+needs determine block live belonging active file block dead having overwritten truncated 
+lfs identifies blocks segment summary blocks inode map inodes 
+block identification algorithm works files directories follows segment summary block determine file number block offset block cleaned 
+included summary entry file version number inode map block written 
+version number match current version number file block known deleted overwritten 
+previous step fails determine allocation status block inode indirect blocks map block file examined see block part file 
+block classified live member file 
+lfs storage manager may steps cleaning algorithm tell blocks need copied new segment 
+total overwrite deletion common write access modes files workstation environment step able determine live blocks quickly 
+step fetch inode indirect blocks check block status blocks exactly blocks fetched modified anyway block interest copied new segment 
+
+choosing segments clean cleaning full segments harm system desirable choose segments free space 
+keep information available lfs keeps data structure called segment usage array keeps estimate number live blocks segment system 
+array updated files truncated overwritten segments written cleaned 
+segments large usage array takes bytes segment array small stay memory resident 
+usage level segments hint cleaning costly exact crash recovery data structure needed 
+cleaning activated number clean segments drops threshold value user level process initiates 
+user level process interface allows cleaning initialized night times slack usage 
+segments cleaned segments clean contain file system settable fraction live blocks 
+
+segment write timing lfs perform synchronous writes algorithms needed decide segments written disk 
+segment writes lfs initiated conditions similar cause unix file data blocks written 
+segment write generated triggered conditions cache full file cache may request segment write detects shortage clean blocks cache 
+condition triggered changes file system file cache filled dirty blocks 
+cache write back file cache may request segment write start detects modified blocks older certain age threshold 
+age threshold delayed write back policy unix 
+current lfs implementation uses threshold seconds 
+sync request program executing sync fsync system call cause data pushed disk 
+system call block dirty blocks written disk 
+note conditions cause partial segment written file cache may contain data fill entire segment 
+may appear wasteful dirty blocks entire segment situation system running capacity 
+partially written segments handled segment cleaning algorithm fragmented segment 
+lfs storage manager may 
+crash recovery part lfs design fast crash recovery system 
+system crashes cause file systems inconsistent disk operations terminated crash delayed writes completed 
+log structure lfs allows techniques commonly data base systems lfs fast recovery system crashes 
+unix file system scan entire disk crash repair damage lfs need examine tail log find crash damage 
+lfs speeds recovery periodically marking places log file system known consistent 
+consistent points called checkpoints lfs attach file system fear inconsistent metadata 
+current implementation lfs fully implement high performance reliable crash recovery mechanism designed lfs 
+simpler algorithm zero recovery time current implementation described section 
+current implementation overhead normal operations vulnerable data loss crashes recovery system lfs ultimately 
+
+checkpoints lfs provides saving dynamic file system state operation called checkpoint 
+checkpoint memory resident data structures describe current state file system written known disk location called checkpoint region 
+checkpoint marks consistent state file system 
+allow recovery crashes checkpoints checkpoint regions checkpoint writes alternate 
+checkpoint includes timestamp determine region checkpoint 
+checkpoint modified blocks cache including file system metadata blocks inode map segment usage array packed written segments 
+modifications safely disk checkpoint region written contains pointer segment written locations inode map segment usage map 
+crash recovery consists normal file system mount code uses checkpoint area recover file system state 
+unfortunately system crashes writing cache disk changes file system checkpoint lost 
+window vulnerability controlled setting checkpointing interval 
+example current checkpointing interval seconds means worst case changes seconds crash may lost 
+ultimately lfs able recover information written checkpoint crash 
+information segment summary blocks lfs roll forward checkpoint updating metadata structures inode map indirect blocks 
+system require entire file cache written checkpoint 
+recovery slightly slower portion log checkpoint crash processed 
+
+related lfs borrows ideas systems 
+section lists systems 
+organizing file system append log new idea 
+file lfs storage manager may systems motivated advent write media optical disks similar mechanisms 
+write storage managers random access files include swallow optical file cabinet 
+file systems intended principally archival storage high performance file servers 
+way viewing lfs design see roots file systems cedar logging improve write performance recovery time 
+difference lfs logging systems read optimized copy data kept copy need updated 
+read optimized format needed reads infrequent log format optimized file reads 
+writing files disk operation concept group commit database literature 
+group commit database systems ibm delay writing transactions committed single interesting related area research main memory database systems 
+metrics evaluate systems checkpoint overhead flushing dirty blocks disk crash recovery speed 
+metrics similar design goals write optimized file systems 
+main memory database designs logging large asynchronous writes 
+
+performance lfs section presents performance lfs implementation running sprite operating system 
+comparison purposes tests run sunos sun version bsd fast file system 
+benchmarks designed demonstrate important features lfs meant provide thorough comparison lfs sunos file system 
+machine test sun mhz sparc cpu equipped megabytes memory sun scsi wren iv disk mbytes sec maximum transfer bandwidth milliseconds average seek time 
+lfs sunos disk formatted file system having megabytes usable storage 
+kilobyte block size sunos lfs kilobyte block size megabyte segment size 
+system running multiuser quiescent test 
+
+small file test measures creation reading deletion speeds small files 
+test consisted creating megabytes small files followed flushing file cache reading files disk 
+reading files deleted 
+presents results test runs files size kilobyte kilobytes 
+results normalized files second created read deleted 
+asynchronous file creation deletion lfs permits substantial gains performance synchronous sunos file system 
+sunos performs small synchronous disk os creation deletion lfs packs changes segments disk megabyte transfers 
+accounts lfs magnitude faster small file creation deletion 
+sunos performance related disk access time lfs cpu bound tests 
+lfs performance scale cpu speeds ultimately limited disk sequential write lfs storage manager may lfs delete read create delete read create small file test 
+measurements creating reading deleting files lfs sunos file system 
+creation phase test measured speed kilobyte kilobyte files created 
+creation file cache flushed files read order created 
+measured speed files deleted 
+performance measurements number files created read deleted second 
+bandwidth 
+files packed tightly segments read performance lfs excellent 
+update place file systems sunos spread files support file growth hurting read performance tests 
+
+large file second test measures performance writing reading megabyte file newly created file system 
+test consisted stages writing megabyte file sequentially reading file sequentially writing megabytes randomly file reading megabytes randomly file file sequentially 
+test program kilobyte request size 
+presents transfer rates kilobytes second test 
+expected lfs write performance comes close maximum write bandwidth disk 
+sunos file system lfs write bandwidth independent file written 
+lfs especially excels random write test random file writes sequential writes packed segments 
+sunos file system random update file place 
+random write rate lfs greater sequential write rate random os unique allowing data overwritten file cache 
+sunos sprite contain sophisticated file cache implementations grow memory programs 
+tests megabytes memory file cache 
+lfs storage manager may lfs seq reread rand read rand write seq read seq write large file test 
+transfer rates reading writing megabytes file 
+shows rate kilobytes second create write megabytes sequentially read megabytes sequentially write megabytes randomly file read megabytes randomly file 
+final test read megabytes sequentially randomly writing file 
+sequential write test file systems allocated files sequentially disk similar read rates 
+file layout differed file systems random writes performed 
+sunos updates file place lfs writes file disk order blocks written 
+file randomly read file systems random disk process requests equivalent read performance 
+read performance file systems differed file read sequentially random updates 
+sunos blocks sequential disk lfs random disk reads fetch blocks 
+example demonstrates file access patterns conventional update place file systems better disk read performance lfs 
+lfs sequential read performance reduced read access pattern different write access pattern 
+example sequentially reading randomly written file 
+note performance reduction occurs reads file cache satisfied sequentially conventional file system lfs 
+randomly reading large sequentially written file cause random file systems 
+
+cleaning cost tests described segment cleaning done lfs 
+file traditionally bursty hope cleaning done idle cycles disk subsystem 
+section examines cost segment cleaning effect sustained performance 
+lfs storage manager may cost segment cleaning directly related utilization number live blocks segments cleaned 
+segments live blocks cost full segments expensive clean yield free space 
+evaluate impact cleaning lfs performance rate bytes cleaned measured segments varying utilization 
+results tests displayed 
+varying utilization generated creating kilobyte files deleting fixed percentage measuring rate lfs clean fragmented segments 
+expected utilized segment longer took clean lower rate clean segments generated 
+clear cleaning highly utilized segments significantly reduce write throughput lfs 
+note axis average utilization segments cleaning time disk space utilization 
+example disk imply system clean segments utilization 
+workloads segment utilization form distribution having mean equal disk utilization 
+shape variance distribution controlled factors including file system access patterns amount locality file updates lfs segment layout algorithms segment cleaning algorithms 
+currently known segment distribution looks workloads 
+test section measured worst case scenario lfs 
+workloads highly segments fragmentation 
+write performance lfs controlled lfs hide cleaning cost idle cycles 
+cleaning hidden question full lfs allow disk keep cleaning cost 
+
+file system attacks bottleneck problem accessing disk asynchronously sequentially 
+file system structured append fraction segment alive kilobytes second cleaning rate function segment usage fraction 
+cleaning rate lfs segment cleaning rate 
+measured rate segment cleaning function segment utilization 
+rate kilobytes second clean segments generated 
+lfs storage manager may segmented log high write performance fast crash recovery 
+file system metadata structures maintained allow high read performance 
+segment cleaning operation supported keep segments available writing support high average disk space utilization 
+lfs implemented doing micro benchmarks real test file system performance months years 
+writing lfs subjected real workload extended periods time 
+workloads overheads due cleaning evaluated 
+immediate plans lfs include placing continuous sprite user community examining performance 
+
+acknowledgments described supported part national science foundation ccr part national aeronautics space administration defense advanced research projects agency contract nag 
+diane greene mary baker john hartman provided helpful comments drafts 
+
+john ousterhout fred douglis beating bottleneck case log structured file systems ucb csd computer science division eecs university california berkeley berkeley ca october 
+
+john ousterhout andrew frederick douglis michael nelson brent welch sprite network operating system ieee computer pp 
+
+
+david patterson garth gibson randy katz case redundant arrays inexpensive disks raid acm sigmod pp 
+jun 
+
+marshall mckusick fast file system unix transactions computer systems pp 
+
+
+john ousterhout da costa david harrison john kunze mike kupfer james thompson trace driven analysis unix bsd file system proceedings th symposium operating system principles pp 
+acm 
+
+ungar generation scavenging non disruptive high performance storage reclamation algorithm proceedings software engineering symposium practical software development environments pp 
+apr 
+
+jim gray notes data base operating systems pp 
+springer verlag operating systems advanced course 
+
+reed swallow distributed data storage system local network local networks computer communications pp 
+north holland 
+
+jason gait optical file cabinet random access file system optical disks ieee computer pp 
+
+lfs storage manager may 
+ross finlayson david cheriton log files extended file service exploiting write storage proceedings eleventh symposium operating system principles pp 
+november 
+
+robert hagmann reimplementing cedar file system logging group commit proceedings th symposium operating systems principles pp 
+november 
+
+david dewitt randy katz frank olken shapiro mike stonebraker david wood implementation techniques main memory database systems proceedings sigmod pp 
+june 
+
+ibm ibm ims version release fast path feature description design guide ibm world trade systems centers 
+
+robert hagmann crash recovery scheme memory resident database system ieee transaction computers september 

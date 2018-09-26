@@ -1,0 +1,472 @@
+multiprocessor support event driven programs alexander yip frank dabek robert morris david mazi res frans kaashoek cs stanford edu rtm kaashoek lcs mit edu dm cs nyu edu mit laboratory computer science technology square cambridge ma presents new asynchronous programming library libasync smp allows event driven applications take advantage multiprocessors running code event handlers parallel 
+control concurrency events programmer specify color event events color default case handled serially events different colors handled parallel 
+programmer incrementally expose parallelism existing event driven applications assigning different colors computationally intensive events share mutable state 
+evaluation libasync smp demonstrates applications achieve multiprocessor speedup little programming effort 
+example parallelizing cryptography sfs file server required lines changed code modules total lines 
+multiple clients able read large cached files libasync smp sfs server running cpu machine times fast unmodified uniprocessor sfs server cpu 
+applications computationally intensive tasks benefit event driven web server achieves speedup cpus multiple clients reading small cached files 
+obtain high performance servers overlap computation programs typically achieve overlap threads events 
+threaded programs typically process request separate thread thread blocks waiting threads run 
+threads provide intuitive programming model take advantage multiprocessors stanford university new york university require coordination accesses different threads shared state uniprocessor 
+contrast eventbased programs structured collection callback functions main loop calls events occur 
+event programs execute callbacks serially programmer need worry concurrency control event programs unable take full advantage multiprocessors running multiple copies application introducing fine grained synchronization 
+contribution libasync smp library supports event driven programs multiprocessors 
+libasync smp intended support construction user level systems programs particularly network servers clients show applications achieve performance gains multiprocessors exploiting coarse grained parallelism 
+libasync smp intended programs natural opportunities parallel speedup support expressing fine grained parallelism 
+goal libasync smp concurrency control mechanisms provide concurrency extract parallel speedup requiring programmer reason correctness finegrained parallel program 
+effort required existing eventdriven programs take advantage multiprocessors specifying events may handled parallel 
+libasync smp provides simple mechanism allow programmer incrementally add parallelism uniprocessor applications optimization 
+mechanism allows programmer assign color callback 
+callbacks different colors execute parallel 
+callbacks color execute serially 
+default libasync smp assigns callbacks color existing programs continue correctly modification 
+programmers discover opportunities safely execute callbacks parallel assign different colors callbacks 
+libasync smp libasync library :10.1.1.23.8213
+libasync uses operating system asynchronous facilities support event programs uniprocessors 
+modifications libasync smp include coordinating access shared internal state libasync modules adding support colors scheduling callbacks multiple cpus 
+evaluation libasync smp demonstrates applications achieve multiprocessor speedup little programming effort 
+example modified sfs file server libasync smp 
+server uses distinct callbacks 
+cpu time spent just callbacks responsible encrypting decrypting client traffic meant coloring just callbacks sufficient gain substantial parallel speedup 
+changes affected lines modules total lines 
+run machine intel xeon cpus modified sfs server able serve large cached files multiple clients times fast unmodified uniprocessor sfs server cpu 
+servers cpu intensive operations cryptography achieve speedup approaching offered operating system especially kernel take advantage multiprocessor 
+example workload multiple clients reading small cached files event driven web server achieves speedup cpus 
+section section introduces libasync libasync smp describes support uniprocessor event driven programs 
+section describe design implementation libasync smp show examples applications 
+section uses examples show libasync smp requires little effort achieve parallel speedup 
+section discusses related section concludes 
+uniprocessor event driven design applications event driven architecture overlap slow operations computation 
+input outside program arrives form events events indicate example arrival network data new client connection completion disk mouse click 
+programmer structures program set callback functions registers interest type event associating callback event type 
+case complex event driven servers named complete processing client request may involve sequence callbacks consumes event initiates sending request packet registers callback handle completion particular operation arrival specific response packet 
+event driven architecture allows server keep state concurrent activities 
+event driven programs typically library support management events 
+library maintains table associating incoming events callbacks 
+library typically contains main control loop program alternates waiting events calling relevant callbacks 
+common library allows callbacks mutually ignorant modules exist single program 
+event driven library control loop typically calls ready callbacks time 
+fact callbacks execute concurrently simplifies design 
+means event driven program typically take advantage multiprocessor 
+multiprocessor event driven library described libasync uniprocessor library originally developed part sfs 
+section describes uniprocessor libasync programming style involved 
+existing systems named flash event dispatch mechanisms similar described 
+purpose section lay foundations section description extensions multiprocessors 
+libasync libasync unix library provides event dispatch mechanism collection eventbased utility modules functions dns host name lookup sun rpc request reply dispatch :10.1.1.23.8213
+applications utility modules register callbacks libasync dispatcher 
+libasync provides single main loop waits new events unix select system call 
+event occurs main loop calls corresponding registered callback 
+multiple modules libasync knowing encourages modular design reusable code 
+libasync handles core set events set events implemented utility modules 
+core events include new connection requests arrival data file descriptors timer expiration unix signals 
+rpc utility module allows automatic parsing incoming sun rpc calls callbacks registered program procedure pair invoked rpc arrives 
+rpc module allows callback registered handle arrival reply particular rpc call 
+dns module supports non blocking concurrent host name lookups 
+file module allows applica tions perform non blocking file system operations sending rpcs nfs server local kernel allows non blocking access file system operations including example file name lookup 
+typical programs libasync register callback point equivalent single threaded sequential program block waiting input 
+result programs create callbacks points code 
+example sfs server creates callbacks points 
+order callback creation easy libasync provides type checked facility similar form wrap macro :10.1.1.23.8213
+wrap takes function values arguments returns anonymous function called wrap 
+wrap fn example subsequent result call 
+wrap called libasync counts wraps automatically frees order save applications tedious book keeping 
+similarly library provides support programmers pass arguments wrap 
+benefit wrap simplifies creation callback structures carry state 
+event driven programming shows abbreviated fragment program written libasync 
+purpose application act web proxy 
+example code accepts tcp connections reads request new connection extracts server name request connects indicated server way view example code result writing single sequential function steps splitting callbacks point function block input 
+main calls create socket listens new connections tcp port 
+unix socket appear readable new connections arrive main calls libasync function register read callback 
+main enter libasync main loop 
+libasync main loop call callback wrap arguments new connection arrives afd 
+wrap calls accept cb arguments passed case file descriptor afd 
+allocating buffer accumulate client input accept cb registers callback req cb read input new connection 
+server keeps track state connection consists file descriptor buffer including call passing main listen tcp port int afd sock stream register callback new connections afd read wrap accept cb afd start main loop called new connection arrives accept cb int afd int fd accept afd str inbuf new ref counted buffer register callback incoming data fd read wrap req cb fd inbuf called data arrives req cb int fd str inbuf read fd buf append input inbuf complete request inbuf un register callback fd read null parse request parse request inbuf file resolve connect asynchronous wrap connect cb fd file wait calls req cb called connected server connect cb int client fd str file int server fd write request socket ready server fd write wrap write cb file server fd outline web proxy uses libasync 
+callback 
+multiple clients connect proxy result multiple callbacks waiting input client connections 
+complete request arrived proxy server needs look target web server dns host name connect 
+function performs tasks 
+dns lookup involves waiting response dns server case timeouts libasync dns resolver internally structured set callbacks 
+waiting tcp connection establishment complete involves callbacks 
+reasons takes wrap argument carries wrap callbacks calls wrap connection process completes fails 
+style programming reminiscent continuation passing style easy programmers compose modules 
+number applications libasync lists number distinct calls wrap program 
+numbers give feel level complexity programs callbacks 
+name wraps lines code sfs chord cfs applications libasync approximate number distinct calls application 
+numbers exclusive wraps created libasync number 
+interaction multiprocessors single event driven process derives direct benefit multi processor 
+may indirect speedup operating system helper processes multiprocessor cpus 
+common practice run multiple independent copies event driven program multiprocessor 
+copy approach case web server processing different client requests independent 
+copy approach program maintains mutable state shared multiple clients requests 
+example user level file server maintain table leases client cache consistency 
+cases running multiple independent copies server may lead decrease efficiency 
+web proxy maintain cache accessed pages multiple copies proxy maintain independent caches content duplicated caches waste memory 
+multiprocessor design focus libasync smp multiprocessor extension libasync 
+goal libasync smp execute event driven programs faster running callbacks multiple cpus 
+design motivated desire easy adapt existing libasync servers multiprocessors 
+goal libasync smp design allow parallelism copy arrangement advantages shared data structures 
+server libasync smp consists single process containing worker thread available cpu 
+thread repeatedly chooses callback set runnable callbacks runs 
+threads share address space file descriptors signals 
+library assumes number cpus available process static running time 
+mechanism sched activations dynamically determine number available cpus 
+number design challenges making single address space approach interesting coordination access application data shared multiple callbacks 
+effective concurrency control mechanism allow programmer easily incrementally identify parts server safely run parallel 
+coordinating callbacks design concurrency control mechanisms libasync smp motivated observations 
+system software natural coarse grained parallelism different requests don interact request passes sequence independent processing stages 
+second existing event driven programs structured non blocking units execution callbacks associated stage processing particular client 
+observations suggest individual callbacks appropriate unit coordination execution 
+libasync smp associates color registered callback ensures callbacks color execute parallel 
+colors arbitrary bit values 
+application code optionally specify color callback creates specifies color callback color zero 
+default callbacks execute sequentially single cpu 
+means unmodified event driven applications written libasync execute correctly libasync smp 
+orthogonality color callback code eases adaptation existing libasync servers 
+typical arrangement run code accepts new client connections default color 
+processing different connections largely independent programmer assigns new connection new unique color applies callbacks involved processing connection 
+particular stage request processing shares mutable data requests cache web pages programmer chooses color stage applies callbacks shared data regardless connection callback associated 
+cases application code may need restructured permit callbacks parallelized 
+example single callback shared data significant computation shared data 
+may help split callback half special libasync smp call cpucb schedule second half different color 
+pid cpu head head select pid color fed color fed color color xab color xab color color xb color xb head head head head head head 
+color color xab color head head cpu cpu cpu cpu single process event driven architecture left libasync smp architecture right 
+note libasync smp architecture callbacks color appear queue 
+guarantees callbacks color run parallel run order scheduled 
+color mechanism expressive locking example callback color equivalent holding single lock complete duration callback 
+experience suggests fine grained sophisticated locking may necessary correctness concurrent threads rarely necessary achieve reasonable speedup multiple cpus server applications 
+parallel speedup usually comes parts code don need locking coloring allows speedup easily captured easy port existing eventdriven code multiprocessors 
+libasync smp api api libasync smp presents differs slightly exposed libasync 
+function analogous wrap function described section takes optional color argument table shows interface 
+color specified callback creation called dictates color executed 
+embedding color information callback object argument calls register callbacks allows programmer write modular functions accept callbacks remain agnostic color callbacks executed 
+note colors inherited new callbacks created inside callback running non zero color 
+color inheritance convenient difficult write modular code colors leak modules assume callbacks create carry color zero 
+colors arbitrary bit values programmers considerable latitude assign colors 
+reasonable convention request file descriptor number color parallelizable callbacks 
+possibility address data structure access serialized example client request state structure 
+depending convention case unrelated modules accidentally choose color 
+reduce performance correctness 
+libasync smp provides cpucb function schedules callback execution soon cpu idle 
+cpucb function register callback color different currently executing callback 
+common cpucb split cpu intensive callback callbacks different colors perform computation synchronize shared state 
+minimize programming errors associated splitting existing callback chain callbacks libasync smp guarantees cpu callbacks color executed order scheduled 
+maintains assumptions sequential execution original single callback may relying 
+execution order isn defined callbacks different colors 
+example consider web proxy example section 
+illustrative purposes assume parse request routine uses large amount cpu time depend shared data 
+re write req cb parse different requests parallel different cpus calling cpucb assigning callback unique color 
+shows change req cb 
+example parse request workload distributed cpus 
+optimization reading requests parallelized creating read request callback specifying request file descriptor callback color 
+scheduling callbacks scheduling callbacks involves operations placing callbacks worker thread queue thread deciding callback run 
+callback func arg arg argn color create callback object color void cpucb callback cb add cb runnable callback queue immediately 
+queue head cpucb cpucb table sample calls libasync smp api 
+cpucb tail select queue tail callback queue structure libasync smp cpucb adds new callbacks left dummy element marked cpucb tail new callbacks added queue tail scheduler looks starting queue head called data arrives req cb int fd str inbuf read fd buf append input inbuf complete request inbuf un register callback fd read null parse request color fd cpucb parse request cb fd inbuf color fd wait calls req cb parsing done color fd parse req cb int fd str inbuf parse request inbuf file start connection server wrap connect cb fd file changes asynchronous web proxy take advantage multiple cpus callback placed thread queue ways due call cpucb libasync smp main loop detected arrival timer signal event callback registered 
+callbacks color placed queue worker thread mod number worker threads 
+simple rule distributes callbacks approximately evenly worker threads 
+preserves order activation callbacks color may improve cache locality 
+worker thread task queue empty attempts steal thread queue 
+stolen granularity callbacks color color stolen executing currently preserve guarantees ordering callbacks color 
+libasync smp consults thread field containing currently running color guarantee requirement 
+color moved thread callbacks color assigned new queue callbacks color execute parallel 
+ensure callbacks color appear queue library maintains mapping colors threads nth element element array indicates thread execute colors congruent mod 
+array initialized way give initial distribution described 
+libasync smp worker thread uses simple scheduler choose callback execute queue 
+scheduler considers priority callback thread affinity choosing colors design loosely linux smp kernel 
+scheduler favors callbacks color callback executed worker order increase performance 
+callback colors correspond particular requests libasync smp tends run callbacks request cpu 
+affinity leads greater cache hit rates improved performance 
+libasync smp starts adds select callback run queue worker thread responsible color zero 
+callback detect events 
+select callback enqueues callbacks appropriate queue file descriptors select indicates ready 
+select callback block worker thread calls file descriptors ready prevent cpu executing tasks queue 
+avoid select callback poll blocking 
+returns file descriptors select callback adds callbacks descriptors queue puts back queue 
+file descriptors returned blocking select callback placed back queue 
+blocking select callback run callback queue nonzero timeout 
+aspects behaves just non blocking select callback 
+select callbacks stealing guarantees worker thread blocks select callbacks eligible exe system 
+shows structure queue runnable callbacks 
+general new runnable callbacks added right cpucb callbacks appear left event callbacks 
+worker thread scheduler considers callbacks starting left 
+scheduler examines callbacks queue 
+callbacks scheduler finds callback color callback executed worker thread scheduler runs callback 
+scheduler runs left eligible callback 
+scheduler callbacks order increase performance chains cpucb callbacks client request 
+state cpucb callback cache creator callback executed 
+early execution cpucb callbacks increases cache locality 
+implementation libasync smp extension libasync asynchronous library distributed part sfs file system :10.1.1.23.8213
+library runs linux freebsd solaris 
+applications written libasync modification libasync smp 
+worker threads libasync smp execute callbacks kernel threads created call clone system call linux freebsd create solaris 
+programs libasync smp need perform fine grained locking implementation uses spin locks internally protect data structures 
+important locks protect callback run queues callback registration tables retransmit timers rpc machinery memory allocator 
+source code libasync smp available part sfs distribution www fs net cvs branch mp async 
+evaluation evaluating libasync smp interested performance usability 
+section evaluates parallel speedup achieved sample applications libasync smp compares speedup achieved existing similar applications 
+evaluate usability terms amount programmer effort required modify existing event driven programs get parallel speedup 
+sample applications sfs file server caching web server 
+sfs ideal candidate achieving parallel speedup libasync smp written libasync performs compute intensive cryptographic tasks 
+additionally sfs server maintains state replicated independent copies server 
+web server promising candidate web servers little computation state maintained server safely shared 
+accordingly expect smp speedup sfs server modest improvement performance web server 
+tests performed smp server equipped mhz pentium iii xeon processors 
+processor kb cache system mb main memory 
+disk subsystem consists single ultra wide rpm scsi disk 
+load generated fast pcs running linux connected server dedicated full duplex gigabit ethernet link 
+processor scaling results obtained completely disabling certain number processors server 
+server runs slightly modified version linux kernel 
+modification removes limit number new tcp connections kernel queue awaiting application call 
+limit prevented server performance large numbers concurrent tcp clients 
+server explore libasync smp achieve multiprocessor speedup applications majority computation concentrated small portion code measured performance event driven web server 
+web server uses nfs loop back server perform non blocking disk server process maintains caches memory web page cache file handle cache 
+holds contents served web pages caches nfs file handles accessed files 
+page cache split small number independent caches allow simultaneous access 
+file handle cache individual page caches protected simultaneous access 
+parallelizing server illustrates concurrency web server serving concurrent requests pages cache 
+vertical set circles represents single callback arrows connect successive callbacks involved processing request 
+callbacks execute parallel different requests indicated multiple circles 
+instance callback reads request client execute parallel callback 
+steps involve access shared mutable data page cache callbacks execute serially steps 
+server accepts new connection colors callback reads connection request file descriptor number 
+callback writes response back client similarly colored 
+shared caches protected coloring operations access cache color 
+callback may access cache simultaneously callbacks may access distinct caches simultaneously request read page cache reads file handle cache 
+code sends rpcs loop back nfs server read files serialized single color 
+necessary underlying rpc machinery maintains state pending rpcs safely shared 
+state maintained rpc layer candidate protection internal mutexes state protected library read file step parallelized web server 
+coloring allows caches rpc layer operate safely reveals limitation coloring concurrency control mechanism 
+ideally allow number callbacks read cache limit number callbacks accessing cache cache written 
+read write notion expressible current locking primitives offered libasync smp extended include 
+implement read write colors dividing page cache smaller independent caches provided benefit read write locks requiring modifications library 
+server delegates computation additional cpus calls 
+parsing request server looks longest match pathname file handle cache implemented hash table 
+move computation hash function cache color cpucb callback hash prefix path name callback running cache color search hash value file handle cache 
+callbacks modified include color argument invoked 
+web server lines code total calls wrap 
+accept conn 
+read request 
+parse request check page cache check fh cache read file cache insert 
+write resp 
+sequence callbacks executed libasync smp web server handles request page cache 
+nodes represent callbacks arrows indicate node source scheduled callback represented node tip 
+nodes vertical line run distinct colors potentially parallel 
+stacked circles check page cache stage indicate small number threads number concurrent requests access cache simultaneously 
+labels top describe step processing 
+server performance demonstrate web server take advantage multiprocessor hardware tested performance parallelized web server cache workload varying number cpus available server 
+workload consisted files sizes distributed specweb benchmark total size data set mb fits completely server memory page cache 
+machines simulated total concurrent clients 
+single instance load generation client capable reading mb web server 
+client requests persistent connection closing connection opening new 
+servers started cold caches run minutes load 
+server throughput measured seconds capture behavior steady state 
+shows performance terms total throughput different numbers cpus libasync smp web server 
+server particularly processor intensive operations observe noticeable speedup multiprocessor system server throughput times greater cpus times greater cpus 
+provide upper bound multiprocessor speedup expect libasync smp web server contrast performance inde throughput mbytes number cpus libasync smp copy performance libasync smp web server serving cached workload running different number cpus relative performance cpu light bars 
+performance copies libasync web server shown relative performance libasync server performance cpu dark bars pendent copies single process version web server number cpus provided libasync smp server 
+single process version unmodified version libasync suffer overhead associated library callback queue locking 
+copy copy server listens client connections different tcp port number 
+speedup obtained libasync smp server speedup obtained copies libasync server 
+single cpu libasync server achieved higher throughput libasync smp server 
+throughput libasync server mb libasync smp server throughput mb profiling single cpu case explains base penalty libasync smp incurs 
+running web server load roughly cpu time spent user level including libasync smp web server 
+time spent performing tasks needed libasync smp 
+atomic counting uses user level cpu time task accounting enqueuing dequeuing tasks takes 
+cpu time atomic counting task management explains libasync smp web server decreased single cpu performance 
+reduced performance libasync smp server partly due fact libasync smp server operations serialized accepting throughput mbytes number cpus apache mt apache mp libasync smp flash amped copy performance web servers multiprocessor hardware 
+shown throughput libasync smp server light bars apache dark bars flash black bars processors 
+connections checking caches 
+copy case operations run parallel 
+addition locking overhead penalizes libasync smp server data necessarily shared threads protected expensive atomic operations server written way minimize sharing 
+copy server perform operations parallel addition extract additional parallelism operating system locks structures process basis performance copy server represents true upper bound architecture operates single address space 
+provide realistic performance goal copy server compared libasync smp server commonly servers 
+shows performance apache multithreaded multiprocess mode flash different numbers processors 
+apache multiprocess mode configured run servers 
+apache mt multithreaded version apache server 
+creates single heavyweight process kernel threads process calling clone 
+number processes threads apache servers chosen maximize throughput benchmarks 
+flash event driven server run multiprocessors forks create independent copies number available cpus performance libasync smp server comparable performance servers libasync smp server shows better absolute performance versions apache server slightly lower performance copies flash server 
+throughput mbytes number concurrent clients performance web server cached workload number concurrent clients varied 
+servers show better speedup server flash achieves speedup cpus libasync smp server times faster cpus 
+flash runs heavyweight processes able take advantage benefits approach result speedup absolute performance greater libasync smp server 
+approach workable web server applications coordinate shared state replication impossible 
+libasync smp server flash multiprocess apache show performance achieved copy server 
+servers fully parallelize access caches perform locking internally exhibit shared state 
+instance servers serialize access accept system call requests arrive single tcp port 
+main reason parallelize web server increase performance heavy load 
+key part ability handle heavy load stability nondecreasing performance load increases past server point peak performance 
+explore servers libasync smp provide stable performance measured web server throughput varying numbers simultaneous clients 
+client selects file specweb distribution files fit server cache 
+server uses cpus 
+shows results 
+event driven server offers consistent performance wide variety loads 
+sfs server evaluate performance libasync smp existing libasync programs modified sfs file server take advantage multiprocessor system 
+sfs server single user level process 
+clients communicate persistent tcp connections 
+communication encrypted symmetric stream cipher authenticated keyed cryptographic hash 
+clients send requests nfs protocol 
+server process maintains significant mutable file system state lease records client cache consistency 
+server performs non blocking disk sending nfs requests local kernel nfs server 
+encryption sfs server compute bound heavy workloads expect libasync smp extract significant multiprocessor speedup 
+parallelizing sfs server pct statistical profiler locate performance bottlenecks original sfs file server code 
+encryption appeared obvious target cpu time 
+modified server encryption operations different clients executed parallel independently rest code 
+resulting parallel sfs server spent time encryption 
+reduction due time spent coordinating access shared mutable data structures inside libasync smp additional memory copy operations allow parallel execution encryption 
+modifications sfs server concentrated code encrypts decrypts authenticates data sent received clients 
+split main send callback function smaller callbacks 
+remain synchronized rest server code default color copy data transmitted client buffer 
+second callback encrypts data client buffer runs parallel callbacks different color client 
+involved modifying lines code single callback largely having variable name changes data copying 
+parallelization sfs server receive code slightly complex code interacts 
+lines code different callbacks modified splitting callback 
+callbacks received decrypted data parallel callbacks different color client execute second callback 
+second callback remained synchronized rest server code de throughput mbytes number cpus libasync smp copy performance sfs file server different numbers cpus relative performance cpu 
+light bars indicate performance server libasync smp dark bars indicate performance separate copies original server 
+bar represents average runs variation run run significant 
+fault color performed actual processing decrypted data 
+performance improvements measured total throughput file server clients bits second multiple clients read mbyte file contents remained server disk buffer cache 
+repeated experiment different numbers processors 
+test reflects sfs practice sfs client machine sends requests single tcp connection server 
+bars labeled libasync smp show performance parallelized sfs server throughput test 
+single cpu parallelized server achieves percent throughput original uniprocessor server 
+parallelized server times fast original uniprocessor server cpus respectively 
+cycles just encryption parallelized remaining creates bottleneck 
+particular remaining code runs continuously processor achieve maximum utilization processors 
+number close maximum speedup parallelized server 
+parallelization sfs server code allow incrementally take advantage processors 
+explore performance limits imposed hardware operating system measured total performance multiple independent copies original libasync sfs server code separate processes cpus 
+practice configuration server serving distinct file system 
+sfs server maintains mutable filesystem state attribute leases require shared memory synchronization server processes 
+test gives upper bound performance sfs libasync smp achieve 
+results test labeled copy 
+sfs server libasync smp roughly follows aggregate performance multiple independent server copies 
+performance difference libasync smp sfs server copy server due penalty incurred due shared state maintained server file lease data user id mapping tables 
+despite comparatively modest changes sfs server expose parallelism server parallel performance close maximum speedup offered underlying operating system measured speedup obtained multiple copies server 
+library optimizations table shows thread queues improves performance 
+numbers table indicate fast synthetic benchmark executes tasks 
+benchmark program creates callbacks unique colors 
+callback performs small amount computation registers child callback color 
+benchmark intentionally assigns colors task queues populated order explore effects stealing 
+benchmark run cpus 
+line shows task rate single task queue shared worker threads 
+entry shows task completion rate thread task queues 
+increase task completion rate dramatically higher due better cache locality contention task queue locks 
+third line shows task completion rate thread task free lists addition thread queues 
+fourth configuration adds stealing worker threads 
+stealing tasks run cpus 
+stealing allows worker thread cpu find expense increased contention threads task queues 
+library configuration tasks sec base thread queues thread task object stealing table synthetic benchmark shows improved task processing rates thread affinity optimizations added 
+related large body exploring relative merits thread concurrency eventdriven architecture :10.1.1.20.464
+attempt argue superior 
+technique improves performance event driven model multiprocessors 
+described considers performance eventdriven software 
+pai characterized approaches achieving concurrency network servers 
+evaluate number architectures multi process multithreaded single process event driven asymmetric multi process event driven amped 
+taxonomy libasync smp characterized symmetric multithreaded event driven main difference amped goal increase cpu concurrency concurrency 
+libasync smp amped architecture introduces limited concurrency event driven system 
+amped architecture small number helper processes handle file overcome lack non blocking support file operating systems 
+contrast libasync smp uses additional execution contexts execute callbacks parallel 
+libasync smp achieves greater cpu concurrency multiprocessors compared amped architecture places greater demands programmer control concurrency 
+amped flash web server libasync smp cope issue non blocking file libasync smp uses server access files asynchronously 
+allows libasync smp non blocking local rpc requests blocking system calls 
+apache web server serves concurrent requests pool independent processes active request 
+approach provides cpu concurrency 
+apache processes easily share mutable state page cache 
+staged event driven architecture seda structuring technique high performance servers 
+divides request processing series defined stages connected queues requests 
+stage threads dequeue requests input queue perform stage processing enqueue requests subsequent stages 
+thread block wait disk example stage contains multiple threads order achieve concurrency 
+seda take advantage multiprocessors seda server may contain concurrent threads 
+seda primary goals dynamically manage number threads stage order achieve cpu concurrency avoid unstable behavior overload 
+libasync smp seda mixture events concurrent threads programmer perspective seda exposes concurrency programmer may need synchronize libasync smp tries preserve serial callback execution model 
+cohort scheduling organizes threaded computation stages order increase performance increasing cache locality reducing tlb pressure reducing branch 
+staged computation model cohort scheduling general colored callback model 
+partitioned stage scheduling policy somewhat analagous coloring callbacks parallel execution key corresponds callback color 
+seda cohort scheduling exposes thread concurrency programmer 
+cohort scheduling take advantage multiprocessor hardware 
+describes library allows event driven programs take advantage multiprocessors minimum programming effort 
+high loads multiple events available processing library execute event handler callbacks multiple cpus 
+control concurrency events programmer specify color event events color default case handled serially events different colors handled parallel 
+programmer incrementally expose parallelism existing event driven applications assigning different colors computationally intensive events don share mutable state 
+experience libasync smp demonstrates applications achieve multi processor speedup little programming effort 
+parallelizing cryptography sfs file server required lines changed code modules total lines 
+multiple clients able read large cached files libasync smp sfs server running cpu machine times fast unmodified uniprocessor sfs server cpu 
+applications computationally intensive tasks benefit event driven web server achieves speedup cpus multiple clients reading small cached files relative performance cpu 
+acknowledgments grateful people aided 
+nms group lcs provided short notice smp server test early version software 
+anonymous reviewers shepherd edouard bugnion provided helpful feedback 
+research sponsored defense advanced research projects agency darpa space naval warfare systems center san diego contract 
+adya howell theimer bolosky douceur cooperative task management manual stack management event driven programming opposite threaded programming 
+proc 
+usenix technical conference june 
+anderson bershad levy scheduler activations effective kernel support user level management threads 
+acm transactions computer systems feb 
+apache web server 
+www apache org 
+birrell programming threads 
+tech 
+rep digital systems research center jan 
+blake bauer simple general statistical profiling pct 
+proc 
+usenix technical conference june 
+gray price convoy phenomenon 
+operating systems review apr 
+bloom dunlap experiences implementing bind distributed name server darpa internet 
+proc 
+summer usenix conference pp 
+
+understanding linux kernel 
+reilly 
+burton sleep executing functional programs virtual tree 
+proceedings conference functional programming languages computer architecture new hampshire oct 
+dabek kaashoek karger morris stoica wide area cooperative storage cfs 
+proc 
+acm symposium operating systems principles sosp banff canada oct pp 
+
+draves bershad rashid dean continuations implement thread management communication operating systems 
+proc 
+acm symposium operating systems principles sosp oct pp 
+
+ford hibler lepreau mcgrath interface execution models fluke kernel 
+proc 
+usenix symposium operating systems design implementation osdi feb pp 
+
+fu kaashoek mazi res fast secure distributed read file system 
+proc 
+usenix symposium operating systems design implementation osdi oct pp 
+
+larus parkes cohort scheduling enhance server performance 
+proc 
+usenix technical conference june 
+lauer needham duality operating system structures 
+proc 
+second international symposium operating systems oct 
+reprinted operating systems review vol 
+number april 
+mazi res toolkit user level file systems :10.1.1.23.8213
+proc 
+usenix technical conference june pp 
+
+mazi res kaminsky kaashoek witchel separating key management file system security 
+proc 
+acm symposium operating systems principles sosp kiawah island south carolina dec 
+ousterhout threads bad idea purposes 
+invited talk usenix technical conference 
+pai druschel zwaenepoel flash efficient portable web server 
+proc 
+usenix technical conference june 
+specweb design white 
+www org osg web docs whitepaper html 
+steele sussman lambda ultimate imperative 
+tech 
+rep ai lab memo aim mit ai lab mar 
+stoica morris karger kaashoek balakrishnan chord scalable peer peer lookup service internet applications 
+proceedings acm sigcomm conference san diego aug 
+thompson haskell craft functional programming 
+addison wesley 
+welsh culler brewer seda architecture conditioned scalable internet services 
+proc 
+acm symposium operating systems principles sosp oct pp 
+

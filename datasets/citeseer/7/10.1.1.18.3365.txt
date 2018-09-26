@@ -1,0 +1,855 @@
+active replication multithreaded applications claudio keith ravi iyer center reliable high performance computing university illinois urbana champaign main street urbana il crhc uiuc edu technical report crhc software active replication known technique providing fault tolerance space redundancy 
+research software replication demonstrated large real world applications particular multithreaded applications 
+multithreading improve performance thread scheduling source nondeterminism application behavior 
+existing approaches replicating multithreaded applications employ synchronization interrupt level expense performance nonpreemptive deterministic scheduler expense concurrency 
+presents loose synchronization algorithm ensuring deterministic behavior replicas preserving concurrency 
+algorithm synchronizes replica threads state updates intercepting mutex requests 
+algorithm formally specified proposed formalism prove correctness algorithm failure free behavior presence errors 
+evaluate proposed algorithm transparent active replication framework developed replicate multithreaded version apache web server substantial real world application 
+performance triplicated multithreaded apache tcp version multithreaded apache server 
+keywords active replication multithreading nondeterminism voting software implemented fault tolerance 
+fault tolerant replicated system multiple instances application execute independent hardware system continue provide correct service case replica failure 
+earlier approaches dedicated proprietary hardware achieve efficiency performance 
+replication software aims flexible costly making commercial shelf cots hardware applicability real world systems somewhat limited 
+particular extension replication multithreaded applications requires investigation 
+proposes loose synchronization algorithm lsa ensuring deterministic behavior replicas preserving concurrency 
+contrast current techniques synchronize replicas interrupt level algorithm synchronizes replica threads state updates enforcing equivalent order intercepting mutex requests invoked threads accessing shared data 
+performance overhead minimized preserving concurrency execution application threads algorithm interfere operating system scheduler granting mutexes 
+contrast approaches employing nonpreemptive deterministic schedulers limit concurrency allowing physical thread execute time 
+intercepting mutex requests record order state updates proposed context rollback recovery applied active replication demonstrated substantial application 
+evaluate proposed algorithm transparent active replication framework developed 
+framework consists implementation loose synchronization algorithm virtual socket layer provides transparent replication adaptive follower process mutex table 
+execution follower threads 
+voter fanout component detects errors crash hangs value errors excludes faulty replicas reliably broadcasts client requests replicas 
+framework replicate multithreaded version apache web server substantial real world application 
+results show performance degradation triplicated web server compared tcp version server 
+
+loose synchronization algorithm proposed loose synchronization algorithm lsa exploits fact nondeterminism replica behavior acceptable long impact output produced replicas voted voter 
+replica output typically function replica state inputs sequence inputs enforcing sequence state updates replica guarantees replicas produce sequence outputs 
+multithreaded application updates shared state serialized mutex variables mutual exclusion 
+manner threads granted mutexes usually nondeterministic depends scheduling algorithm operating system 
+result programmer usually assumptions order mutexes acquired 
+assuming priori knowledge way mutexes requested replica threads determinism replica state updates achieved designating selected replica leader decisions order mutex variables granted enforce equivalent order follower replicas 
+replicas executing leader threads freely execute order mutex acquisitions collected 
+leader order continuously sent followers enforce order threads 
+mechanism follower thread blocked acquiring mutex order established leader acquisition mutex received mutex needs acquired thread order established leader 
+follower replicas need enforce threads order dictated leader respect mutex 
+permits concurrency preserved execution follower threads simultaneously acquire mutex 
+shows example order mutex acquisitions sent leader followers mutex table 
+follower threads executed concurrently acquire different mutexes serialized 
+
+system model definitions assumptions system consists set identical multithreaded processes replicas running different nodes interconnected means network 
+process designated leader replica follower replicas 
+process consists set threads set mutexes protect partitions shared data infinite 
+application threads function lsa lock replacing system call lock acquire mutex 
+threads release mutex system call unlock 
+additional functions create new thread create new mutex provided replace respectively system calls thread create mutex create see 
+lsa algorithm requires leader assumed different mutexes protect overlapping coincident shared memory regions programming practice 
+followers exchange information mutex acquisition order 
+fifo order reliable multicast reliable group membership service available 
+assumed network partition 
+definition mutex acquisition triple denotes mutex acquisition thread mutex function lsa lock th mutex acquisition performed expressing mutex acquisitions triples emphasizes fact mutex acquisitions unique replica 
+simplify notation mutex acquisition referred pair 
+term retrieved applying function index pair index 
+mutex acquisitions called conflicting different threads mutex 
+general order conflicting mutex acquisitions occur affect result computation 
+definition history history replica sequence mutex acquisitions threads 
+notation depicts temporally precedes threads replica execute node order mutex acquisition determined local clock node time threads return lsa lock 
+enforcing leader history followers assumption determinism defined followers behave leader 
+stronger requirement necessary causal dependencies mutex acquisitions need preserved 
+definition causal precedence history mutex acquisitions causally precedes conditions holds 
+mutexes acquired thread 
+conflicting mutex acquisitions 
+transitivity causal dependency 
+note causal precedence implies temporal precedence opposite necessarily true 
+notion causal precedence mutex acquisitions multithreaded process analogous notion causal precedence events distributed system 
+concurrent events distributed systems events causally related concurrent mutex acquisitions multithreaded process acquisitions actual order execution affect result computation 
+lsa algorithm allows replicas schedule concurrent mutex acquisitions independently order preserve concurrency 
+notion causal dependency definition introduces causal history mutex acquisition 
+definition causal history history mutex acquisition causal history set causal history mutex acquisition represents mutex acquisitions causally dependent 
+note replica history contains replica mutex acquisitions unique causal history associated mutex acquisition 
+lsa algorithm assumes threads behave deterministically consecutive mutex acquisitions 
+somewhat similar piecewise deterministic assumption proponents message logging checkpointing 
+determinism traditionally expressed terms state causal history abstraction represent thread view replica state 
+definition piecewise thread determinism thread replica piecewise deterministic mutex acquisition behavior uniquely determined replica initial state initial state mutex acquisition behavior uniquely determined definition follows behavior outputs emitted thread replica mutex acquisition mutex acquisition function note definition precludes race conditions replica code 
+replicated applications threads piecewise deterministic share initial state considered 
+context system correctness lsa algorithm defined follows property correctness replicas conditions hold 
+safety causal histories replicas 
+
+liveness mutex acquisition replica eventually performed replica 
+failure free behavior discussion assume replicas reliable multicast layer reliable membership service reliable multicast protocol fail 
+pseudocode lsa algorithm shown 
+functions variables definitions pseudocode table 
+leader history recorded leader appending mutex acquisitions fixed size buffer mutex table 
+leader mutex table full leader multicasts table followers fifo order reliable multicast flushes new mutex acquisitions recorded 
+leader mutex table multicast periodically leader periodic tx order guarantee transmission mutex acquisitions fill table 
+conceptually followers reconstruct leader history concatenating mutex table updates received leader 
+leader history reconstructed follower receiving mutex table updates fmt leader mt mt concatenation operator 
+absence failures prefix follower maintains projection queue mutex proj queue stores subsequence corresponding mutex acquisitions mutex enforced 
+follower invokes function mt update receiving mutex table update leader append new updates appropriate projection queue 
+mutex set current replica mutexes mutexes new projection queue created inserted mutexes 
+follower thread requests mutex invoking lsa lock request served top entry proj queue 
+suspended proj queue empty top entry indicates different thread 
+thread resumed reaches top proj queue proj queue empty new mutex table update arrives leader unpacked proj queue top entry perform update lines proj queue contains entry index immediately preceeding thread acquires th mutex acquisition lsa lock lsa lock lines 
+proofs leader follower correctness follower follower correctness appendix 
+linear temporal logic symbol denote eventually 
+absence failures lsa lock lines executed condition line true 
+mt update condition line false leader failed reconfigure invoked 
+formally projection history mutex subsequence mutex acquisitions conflicting mutex iff function create new thread lock lsa mutex thread create threads insert unlock lsa mutex lsa lock mc unlock mc return function create new mutex lock lsa mutex mutex create mutexes insert proj queue create unlock lsa mutex return procedure suspend thread suspended threads insert unlock lsa mutex suspend lock lsa mutex procedure resume thread suspended threads delete resume procedure leader periodic tx true sleep leader tx period lock lsa mutex mutex table cast mutex table mutex table unlock lsa mutex procedure lsa lock lock lock lsa mutex get curr thread repeat mutex table append mutex table cast mutex table mutex table exit true acquire mutex proj queue pop schedule thread resume thread thread exit true recovering deadlock recovery suspend thread exit false exit unlock lsa mutex procedure mt update update lock lsa mutex pending updates append update perform update update unlock lsa mutex procedure perform update update update mutexes proj queue create mutexes insert proj queue append mutexes schedule thread resume thread procedure leader failed lock lsa mutex true fif deadlock initiate reconfiguration deadlock reconfigure unlock lsa mutex procedure reconfigure mutexes proj queue choose new leader suspended threads resume thread pending updates mt update pending updates false 
+pseudocode loose synchronization algorithm 
+table 
+functions variables definitions lsa pseudocode 
+lock system call lock mutex unlock system call unlock mutex suspend system call release mutex suspend current thread 
+thread holds resumed 
+resume system call resume thread sleep ts system call suspend current thread ts seconds 
+thread create system call create new thread execute function get curr thread returns descriptor current thread 
+cast msg reliable multicast msg followers 
+create new thread invoked replica code create new thread execute function create new mutex invoked replica code create new mutex 
+mt update invoked follower receiving message leader 
+leader periodic tx periodic transmission leader mutex table followers 
+lsa lock invoked replica code lock mutex choose new leader deterministic rule choose new leader members current view 
+leader failed invoked follower leader leaves multicast group 
+threads set current replica threads initially containing replica main thread 
+mutexes set current replica mutexes initially containing mc 
+boolean variable 
+lsa mutex global mutex serialize accesses lsa code 
+mc mutex serialize accesses create new thread 
+mutex table queue length mutex acquisitions initially empty 
+proj queue array queues mutex acquisitions initially empty 
+suspended threads list suspended threads initially empty 
+boolean variable 
+pending updates queue mutex table updates initially empty 
+thread proj queue head acquire mutex proj queue thread schedule thread proj queue thread suspended threads deadlock mutexes proj queue proj queue head suspended threads proj queue head threads 
+failure behavior error free leader followers communication lsa algorithm introduces asymmetry replicas leader followers requires direct communication leader followers 
+brings failure modes traditional replication schemes :10.1.1.20.4762
+section analyze behavior lsa algorithm presence single potentially malicious failure 
+group membership service fifo order reliable multicast employed leader followers communication assumed fail 
+way nonfaulty followers consistent view replicas system receive sequence messages leader 
+equivalent assumption protocols mask byzantine failures 
+architectural setup discussion contains single independent voter system 
+voter charge detecting replica failures crashes hangs value errors originate application lsa code 
+voter excludes faulty replicas system general responsibilities placed processes outside voter 
+proceeding define conditions deadlock hang 
+deadlock detected followers condition mutexes acquired thread return lsa lock 
+deadlock happens reconstructed leader sequence mutex acquisitions compatible replicated application algorithm 
+hang detected voter condition output received replica timer expires voter 
+assume mutexes requested replica code infinitely replica deadlock eventually manifests hang voter 
+
+failure modes failure modes induced lsa algorithm discussed summarized table 
+leader failures 
+errors leader propagate followers transmission mutex table updates communication leader followers 
+assuming properties reliable multicast service preserved nonfaulty followers receive sequence messages leader leader sends corrupted messages 
+guarantees pair nonfaulty followers satisfies correctness property shown theorem appendix 
+nonfaulty followers consequently causally ordered set mutexes nonfaulty follower execution diverges leader nonfaulty followers diverge way 
+divergent behavior lead value errors detected voter outputs differ despite divergent behavior error consequence system 
+addition diverging nonfaulty followers deadlock 
+corollary appendix guarantees nonfaulty follower deadlocks nonfaulty followers deadlock 
+note cases leader sending different mutex table updates different followers constitute failures reliable multicast layer leader considered separately section 
+leader crashes hangs may sent corrupted mutex table updates followers failing lead followers diverge deadlock described 
+malicious leader impersonate follower effectively stopping transmission mutex table updates 
+nonfaulty followers require messages progress eventually deadlock condition voter detects hang 
+
+follower failures 
+corrupted mutex table updates faulty leader cause follower crash result divergent behavior deadlock follower 
+follower crashing result faulty data leader treated double failure scenario failure leader failure follower caused poor implementation conform pseudocode 
+assumed crash detected follower isolated failed follower 
+long computation periods instrumented calls lsa lock unlock artificial mutex limit hang manifestation latency 
+table 
+failure modes lsa algorithm 
+failure inferred follower failure leader failure crash 
+follower faulty 
+leader contaminated system 
+hang 
+leader cause 
+leader contaminated system 
+follower diverges leader 
+leader cause 
+leader sends corrupted omits sending mutex table updates 
+leader contaminate system 
+impersonation 
+follower contaminate system 
+leader causes replicas hang 
+correct follower interact replicas malicious follower impersonate leader sending mutex table updates replicas 
+leader signs messages recipients discard messages unexpected sources 
+deadlock defines situation lsa algorithm follower ceases progress 
+happens conditions hold projection queue shown theorem appendix projection queue continue empty thread top entry projection queue suspended thread top entry projection queue exist created 
+lsa algorithm checks deadlock reconfiguration known new mutex table updates received 
+conditions easy check clause third condition 
+check second clause third condition requires knowledge thread question thread created 
+ideally drop part condition 
+parent thread executing simply reached point creates deadlock incorrectly detected 
+overcome problem lsa algorithm introduces artificial mutex mc acquired lsa lock time new thread created see function create new thread 
+followers contain projection queue mc implicitly identifies threads create child threads 
+mc place third condition needs check existence thread 
+intuition projection queues blocked projection queue corresponding mc blocked thread created 
+formally shown appendix 
+
+failure detection 
+detect failures voter takes majority vote output values produced replicas majority vote replica hang conditions 
+information voter decides output delivered client identifies faulty replica excludes system 
+leader excluded system reconfigured exclusion follower require system reconfiguration 
+categories replica behavior observed voter distinguished output replica delivers output voter output replica produce output crash detected multicast layer excludes offending replica system multicast group notifies remaining replicas voter view change event 
+voting algorithm initiated time voter receives output generated replica response client request 
+time timer started detect replica hangs 
+voting occurs reception output replica timer expiration 
+possible combinations leader follower failure behavior corresponding voter decisions table faulty leader case table faulty follower case 
+cases nonfaulty replicas behave manner 
+rules employed voter detecting faulty replicas summarized follows replicas sent output faulty replica output differs majority output cases replica sending spurious output faulty cases single hung replica replica faulty cases majority reliable multicast protocol guarantees message delivered view sent mutex table updates received reconfiguration 
+group communication systems guarantee message delivered view process delivers 
+case leader messages received leader leaves multicast group safely discarded 
+table 
+replica behavior faulty leader 
+case expected behavior faulty leader behavior followers behavior diagnosis output output output compute majority value 
+leader minority leader faulty 
+output output output followers deadlock 
+majority hung leader faulty 
+output output output leader hung replica leader faulty 
+output output output followers deadlock 
+replicas hung leader faulty 
+output output output leader sent spurious output leader faulty 
+output output output output possible 
+application assume particular mutex acquisition order 
+nonfaulty replicas contaminated mutex acquisition order results correct behavior 
+output output output fault manifested 
+table 
+replica behavior faulty follower 
+case expected behavior faulty follower behavior correct replicas behavior diagnosis output output output compute majority value 
+follower minority faulty 
+output output output follower hung replica follower faulty 
+output output output output possible violates single failure assumption 
+output output output follower sent spurious output follower faulty 
+output output output output possible violates single failure assumption 
+output output output fault manifested 
+replicas hung leader faulty cases 
+case replicas hanging indistinguishable case output expected replica sends output 
+solutions proposed cope case 
+application specific information embedded voter 
+voter obtains knowledge output supposed arrive replicas client request 
+knowledge derived client message contents 
+example replicated apache server voter inspect header client message determine get request response follow post request response follow 
+replicated corba object giop header request message contains field response expected true reply message follow 
+general necessary client instrumented extend message format indicate response going follow request 
+follower supported deadlock detection 
+solution lsa algorithm supports local deadlock detection 
+periods responses generated clients despite open client connections voter periodically multicasts message followers forcing initiate self check deadlock condition 
+followers communicate outcome check voter determines leader faulty followers indicate deadlock condition 
+mechanism followers detect deadlock response voter message described section appendix 
+
+reconfiguration 
+section consider reconfiguration system leader failure 
+procedure require creation new replicas system reconfigured replicas excluded system 
+reconfiguration procedure initiated follower receiving view change event reliable multicast layer corresponding leader leaving multicast group function leader failed leader crashed terminated voter detected faulty 
+new leader selected surviving replicas reach deadlock condition defined previous section 
+reconfiguration procedure consists steps 
+follower continues execute enters deadlock condition 
+
+projection queues cleared prepare replica resuming execution 
+reaching deadlock remaining entries projection queues indicate sequence mutex acquisitions incompatible replicated application algorithm note mutexes acquired followers valid removed 
+case output delivered client reconfiguration surviving replicas restart execution exiting deadlock generate expected output 
+
+follower chooses new leader group membership list 
+assumed replicas contain identical lists deterministic rule applied selection pick replica list 
+follower chosen new leader waits deadlock new leader starts sending mutex table updates 
+new leader awakens threads allowing execute lsa lock leader replica 
+note leader elect replica executes reconfiguration procedure faster replicas replicas may receive mutex table updates new leader reached deadlock 
+necessary buffer mutex table updates followers receiving view change notification entering reconfiguration mode 
+buffered mutex table entries transferred projection queues step 
+reconfiguration algorithm preserves correctness respect new leader followers 
+safety shown proof sketch similar theorem appendix 
+liveness guaranteed clearing projection queues reaching deadlock allowing followers execute mutex table updates received new leader 
+
+failure behavior byzantine errors leader followers communication section analyze impact failures leader followers multicast communication single failure scenario 
+continue assume group membership protocol fail 
+violating properties fifo order reliable multicast malicious leader result sending mutex table update sending mutex table update followers sending mutex table update different contents different orders different followers 
+cases result followers inconsistent 
+sketch solution problem require cost multicast protocol tolerating byzantine failures 
+approach pursue takes action inconsistencies detected voter incurring extra overhead normal operation 
+failure detection 
+voter detects replica failures depending failure decides system reconfiguration actions described 
+
+detecting follower crash spurious output follower indicates follower single faulty replica system 
+system continue reconfiguration faulty follower excluded 
+
+detecting follower hang value error follower output indicates failure follower leader contaminated follower 
+follower leader excluded system cases indistinguishable 
+
+detecting leader failure indicates leader faulty excluded system 
+
+detecting misbehavior multiple replicas crash hang value error indicates error leader contaminated followers 
+consequently leader single faulty replica excluded system 
+note case single failure assumption leader crash 
+apart case reconfiguration needed necessary reconfigure system select new leader nonfaulty followers excluded system 
+reconfiguration 
+reconfigure system select subset remaining followers system restart procedure followers send state voter determine largest group followers states agree largest group survive failure followers excluded system 
+state comparison meaningful followers need capture state corresponding threads point 
+done lsa algorithm assumption threads acquire mutexes infinitely candidate moment replica threads suspended eventually happens deadlock reached 
+note system initially replicas failure degrade system single running replica 
+
+performance improvement lsa algorithm transmission mutex table update leader followers happen cases table gets full periodically leader periodic tx table empty 
+mechanism guarantees liveness may sufficient performance perspective followers spend lot time waiting mutex table updates received doing useful computation 
+overcome problem possible introduce follower leader reliable unicast communication signal leader follower willing accept new mutex table update follower projection queue gets empty 
+response message follower leader may decide multicast new mutex table update followers 
+avoid new communication follower leader introduce additional failure mode flow control mechanism follower slow possibly sending rate mutex table updates 
+example leader keeps follower predicate true follower lacking mutex table updates leader multicast mutex table update addition periodic table full mechanism predicates true 
+assuring follower slow sending rate mutex table updates potentially allow faulty follower increase sending rate control creating excessive traffic network interfering correct replicas 
+mutex table updates sent leader empty faulty follower requesting mutex table updates generated leader message sent leader 
+note mechanism considered limit lag leader followers 
+done intentionally avoid failure mode due possibility follower faulty follower slow leader 
+lsa framework constitute problem replicas synchronized voter blocking socket operations closing client connection guarantees correct followers lag leader limit 
+
+implementation issues uniform naming convention 
+mutex table updates sent leader followers contain information threads mutexes necessary defined replica independent naming convention 
+defining logical ids threads mutexes assume replicas corresponding threads mutexes created initialized logical thread order context thread 
+example thread replica creates child threads order replica thread corresponding creates child threads order 
+threads need perform computation corresponding 
+hierarchical naming scheme employed logical id thread recursively defined logical thread id parent logical thread id thread creation counter thread creation counter counter owned thread incremented time thread spawns new child thread 
+example thread created thread kn th child logical thread id 
+logical name mutex logical mutex id logical thread id mutex creation counter mutex creation counter private counter owned replica thread 
+counter incremented time mutex initialization 
+example logical id th mutex created thread logical thread id 
+note condition threads suspended checked thread going suspended thread terminate 
+tcp ip client tcp ip client ensemble lsa replica replica replica ensemble ensemble ensemble tcp ip lsa vsl lsa vsl vsl adaptive voter fanout replication framework algorithm lsa loose synchronization vsl virtual socket layer 
+replication framework 
+voter support 
+lsa algorithm enforces determinism update replica state 
+thread outputs different replicas produced different orders different thread scheduling 
+voting voter group replicas outputs logical thread id threads generated 
+
+application transparent replication framework section introduces software framework consisting implementation loose synchronization algorithm virtual socket layer voter fanout process supporting loose synchronization algorithm replicating multithreaded applications 
+illustrates configuration triplicated application employing framework ensemble communication layer reliable multicast protocol 
+multiple instances application execute different nodes clients illusion service implemented single nonfaulty server 
+multiple clients interact voter real server 
+voter forwards data coming clients replicas fifo order reliable multicast protocol 
+socket operations invoked replica code send response back client converted requests sent voter fanout process 
+voter collects requests socket operations replicas voting performs actual operation physical socket associated specific client 
+single threaded application voting requires replica output consistency correct replicas send output messages voter order 
+guarantee replica output consistency conditions met input consistency input requests identical delivered correct replicas total order replica determinism absence faults execution replica starting initial state processing ordered set input requests leads ordered set output messages :10.1.1.20.4762
+multithreaded application voter groups replica outputs thread basis 
+output consistency input consistency need hold respect corresponding threads replicas 
+condition replica determinism replaced condition replica threads piecewise deterministic 
+
+loose synchronization algorithm prototype loose synchronization algorithm implemented library lsa 
+interception lock operations mutexes performed transparently application intercepting application calls posix thread pthread library 
+set macros employed override pthread functions compile time 
+inclusion lsa header file change required application source code 
+consequently application needs recompiled 
+
+virtual socket layer virtual socket layer compatible bsd socket interface designed hide replication infrastructure replicated application logical sockets physical sockets 
+instance calling function socket create new socket replica calls vsl socket 
+function signature input arguments interception done requiring application recompilation overriding pthread dynamic library 
+return type corresponding bsd returns logical socket descriptor physical socket descriptor 
+substitution easily automated help preprocessor macros 
+example instrument apache web server insert lines vsl alias files insert initialization line file server main small effort code base source lines 
+virtual socket layer responsible receiving sending messages voter fanout process interacting replicated application 
+dedicated network thread replica accepts messages voter fanout process 
+messages correspond new data new connection requests arriving clients buffered data queue connection queue logical socket 
+concept virtual socket similar idea proposed eternal system 
+orb invocations standard library performing intercepted eternal redirected replication manager process conveys data replicas underlying reliable broadcast protocol 
+involving replication manager requires additional communication named pipes context switch replication manager separate process replica process 
+framework virtual socket layer embeds equivalent functionality replication manager replica process eliminating need separate process redirect library invocations 
+
+voter fanout process virtual socket layer separates replicated application voter voter separates replication infrastructure client 
+voting mechanism specific replicated application 
+bit wise comparison simple popular voting mechanism 
+alternatives check sum verification voting chunks data incorporated voter implementation 
+replicas logical socket descriptors interact virtual socket layer voter fanout process uses real bsd sockets physical sockets maps logical socket descriptors physical socket descriptors 
+socket operations divided groups 
+operations modify physical socket state socket bind listen close connect shutdown send write voted voter 
+operations correspond socket operation requests sent replicas voter 
+replicas continue immediately calling nonblocking functions send write 
+blocking functions return voter performs function physical socket socket 
+
+operations modify physical socket state accept select poll recv read emulated virtual socket layer 
+voter forwards data client connection requests replicas buffering 
+virtual socket layer utilizes buffered information replica invokes emulated socket functions 
+note functions frequently executed nonblocking locally emulated virtual socket layer 
+addition voting outgoing messages voter fanout process forwards client messages replicas fifo order reliable multicast protocol 
+voter provides adaptive timeout estimation minimize probability false alarm detecting hang errors timing error detection specifics replicated application embedded voter override adaptive timeout values calculated statistically maximum execution time allowed particular service request fast voting voter vote send response client soon majority replicas provide corresponding outputs agree 
+principle efficiency possible eternal 
+example architecture supporting voting middleware proposed 
+
+adaptive voter timeout minimize probability false alarms reduce latency detecting crash hung replicas mechanism adapting voter timeout provided 
+timeout value reflects computation time required server produce response client communication time 
+timeout detection 
+voter enforces timeout outstanding socket operation request replica 
+outstanding request voter maintains separate timeout timer replica 
+timers follows enforce timeout request 
+initial value timer set estimated mean time see service time plus cushion factor standard deviation estimated mean time 
+
+start timer receiving new socket operation request replicas 
+replica issues request called initiator 
+
+declare initiator failed replicas sent request timer expired 
+request reasonable conclude initiator behaved incorrectly making request 
+
+declare replica failed generate request initiator timer expires non initiator replicas request 
+fact majority replicas request indicates silent replica error 
+exponential back mechanism adjust timeout value 
+replica fails respond timeout period timeout value associated replica doubled threshold counter incremented 
+replica declared failed counter reaches predefined value 
+timeout estimation 
+timestamp added messages sent voter replica 
+outgoing messages replicas include timestamp corresponding input message 
+voter computes instantaneous service time messages received replicas subtracting message timestamp current real time 
+instantaneous values service time estimate mean deviation service time 
+smooth estimates mean standard deviation ensured employing low pass filter attenuate noise irrelevant fluctuations proposed jacobson 
+objective estimate service time necessary replica processing client request generating corresponding response 
+timestamp added messages sent voter replica 
+replicas extract timestamp received message store variable timestamp corresponding logical socket connection message arrived 
+messages sent replicas voter include value timestamp associated logical socket connections messages destined 
+receiving message replica voter computes instantaneous service time subtracting timestamp extracted replica messages current real time 
+instantaneous values service time estimate mean deviation service time 
+smooth estimates mean standard deviation ensured employing low pass filter attenuate noise irrelevant fluctuations proposed jacobson 
+evaluation adaptive timeout algorithm 
+evaluate efficiency adaptive timeout estimation algorithm trace round trip time timeout estimates calculated voter triplicated multithreaded apache web server 
+experimental setup consists ethernet mbps lans connecting client voter connecting voter replicas 
+stress algorithm create unbalanced workload replica nodes local network voter replicas replicas replica executed pentium iii computed timeout closely follows rtt see interval long rtt varies smoothly 
+abrupt changes rtt see intervals correspond larger variance timeout increases 
+time rtt timeout timing warning 
+timeout adaption triplicated apache replica 
+time replica rtt replica rtt replica rtt 
+timeout adaption triplicated apache replicas 
+mhz machine replicas replica replica voter executed pentium iii mhz 
+machines run linux ensemble networking layer providing reliable broadcast protocol 
+shows instantaneous value round trip time rtt timeout value calculated timeout adaptive timeout algorithm replica see computed timeout closely follows variations rtt shows cases timeout warning generated voter indicate replica send message voter timeout associated replica expired 
+timeout warning causes timeout value doubled 
+second attempt message replica successfully delivered timer expires timeout recalculated adapted replica rtt see arrows fig 
+observe instantaneous values rtt replica range ms ms factor algorithm able closely follow variability 
+illustrates efficiency adaptive timeout estimation 
+fixed value timeout small large 
+fig 
+reports instantaneous values round trip time replicas 
+replica replica similar rtt replica substantially smaller rtt times 
+recall replica executes faster machine 
+
+real world application apache web server apache web server tested experimental setup consisting ethernet mbps lans connecting client voter connecting voter replicas see 
+replicas voter execute pentium mean standard deviation estimates shown keep fig readable 
+table 
+triplicated single threaded apache web server 
+experiment baseline tmr tmr throughput throughput throughput reduction test cgi kbps kbps test cgi kbps kbps iii mhz machines 
+client executes pentium iii mhz machine 
+machines run linux ensemble networking layer providing reliable broadcast protocol 
+apache compiled multi processing module threading pthread threaded enabled 
+module implements hybrid multiprocess multithreaded server handle client connections concurrently 
+process fixed number threads 
+broad sense client utilize apache web server ways retrieve static html pages files general execute common gateway interface cgi programs perform computation return dynamic html page client 
+case interesting active replication point view page file static precalculated checksum added page file errors retrieved data checked client side 
+second case interesting checksum protect computation produces dynamic html page computation critical user 
+multithreaded apache cgi system replicated lsa framework employed manner apache mutex variable serialize invocations accept threads 
+accept returns available client connection thread calling accept services new connection 
+instrumenting accept mutex lsa algorithm guarantees logical threads serve client connections replicas 
+lsa algorithm transparently ensure corresponding cgi processes processes created logical thread apache replica access shared values order 
+experimental setup 
+test apache web benchmarking tool client application 
+client requests sent groups simultaneous requests retrieving dynamically generated html page 
+cgi programs create variable load server network test cgi generating byte html page test cgi representing larger server load generating byte html page 
+mechanism embedded voter comparing outputs replicas adapted skip replica node dependent fields messages generated apache server voter raise false alarms 
+single threaded apache 
+apache server initially instrumented virtual socket layer vsl run single threaded configuration lsa algorithm 
+allowed measure overhead due virtual socket layer plus voter 
+table reports throughput throughput reduction apache baseline triplicated apache showing throughput drops apache triplicated 
+multithreaded apache 
+set measurements performed apache instrumented loose synchronization algorithm varying number server threads 
+client request caused server acquire mutex variables times 
+mutex access apache serialize calls accept function 
+acquisitions memory allocation routines apr pools 
+routines effect output seen voter html pages generated apache contain local memory addresses 
+accept mutex needs instrumented ensure output consistency 
+optimization performance improved 
+experiment repeated client requesting static html page 
+case original apache acquired mutex variables times client request access accept mutex critical output consistency 
+instrumenting accept mutex instance fields date modified contained ok message precedes html response client request 
+number threads kbps kbps baseline triplicated apache lsa majority voting 
+triplicated multithreaded apache workload test cgi 
+number threads kbps kbps baseline triplicated apache lsa majority voting triplicated apache lsa pass voting 
+triplicated multithreaded apache workload test cgi 
+resulted performance improvement 
+indicates lsa algorithm support high mutex acquisition rate client connection incurring significant performance degradation 
+compares throughput function number apache threads light workload generated test cgi 
+drawn 
+lsa algorithm triplicated apache single thread causes throughput drop kbps single threaded triplicated apache lsa algorithm kbps lsa 
+due overhead lsa algorithm masked exploiting concurrency 
+number threads increases additional concurrency exploited improve throughput 
+example threads throughput reaches kbps throughput reduction compared kbps baseline configuration 
+throughput increase threads client requests sent groups simultaneous requests 
+presents throughput function number threads apache server larger workload test cgi 
+study impact voter implemented pass scheme voter message suppression employed lower overhead majority voting scheme experiments 
+pass voting scheme causes throughput threads increase kbps throughput reduction compared kbps baseline kbps throughput reduction 
+note experiments test cgi show higher throughput baseline instrumented multithreaded apache compared experiments test cgi 
+triplicated apache threads throughput improvement respect single threaded triplicated apache test cgi test cgi 
+experiments conducted single processor machines multithreading allows increase throughput computation time overlapped 
+discussion proposed replication framework consists software components including virtual socket layer voter fanout process loose synchronization algorithm ensemble network communication layer 
+components contribute performance overhead 
+set measurements conducted quantify analyze performance impact entities constituting replication framework compare proposed framework existing solutions 
+change throughput calculated 
+message size bytes bl tmr ens vsl 
+execution time triplicated echo server broken components 
+message size bytes tmr bl ens bl vsl bl 
+ratio execution times tbl triplicated echo server 
+comparing framework replication system frameworks table provides performance overhead reported existing approaches replication 
+table clearly indicates replication strategies impose significant performance overhead 
+exception eternal reported overhead 
+overhead measurements echo server effectively functionality 
+echo server accepts messages incoming clients echoes back clients 
+computation performed server moving data received client internal buffer sending data stored buffer back clients 
+echo server barely resembles kind services real world application offer facilitate comparison existing studies eternal aqua simple application employed assessing performance 
+data exchanged server clients immaterial correct functioning system 
+communication dominant characteristic workload 
+issues value voting maintaining significant application state virtually irrelevant 
+performance measurements echo server replicated lsa framework 
+characterize overhead introduced replication framework performance triplicated echo server compared simplex implementation tcp echo server lsa code 
+provides execution time perceived client baseline bl triplicated echo server tmr function message size 
+message sizes measured overhead respect execution time tcp implementation echo server ranges see 
+quantify contribution overhead different components replication framework additional measurements conducted 
+results show ensemble communication layer major source observed overhead average tens overhead message sizes 
+overhead introduced solely replication software virtual socket layer voter fanout decreases respect tbl message size grows kb kb see sl tbl 
+lsa implemented top tcp eternal corba uses tcp nontrivial accurate performance comparison 
+ideally measure execution times throughput application frameworks identical conditions 
+eternal available viable approach 
+architectural differences comparison difficult 
+attempt compare normalizing performance measurements respect tcp 
+comparison rough estimates envelope calculations serves provide order assessment 
+technologies implementation measurements conducted testbed configuration experiments apache web server 
+table 
+overhead replication frameworks 
+replication framework application employed measure performance overhead comments aqua corba echo server visibroker 
+active replication scheme 
+ensemble communication layer 
+linux intel pentium 
+transparent replication corba applications 
+eternal corba echo server visibroker 
+active replication scheme 
+totem communication layer 
+linux intel pentium 
+transparent replication corba applications orb 
+overhead solaris 
+lsa framework active replicated echo server majority voting 
+ensemble communication layer 
+overhead multithreaded apache server cgi program creating kb html page 
+bast smalltalk method invocation 
+replicas immediately send reply client 
+corba method invocation 
+solaris sparc 
+system call invocation 
+solaris sparc 
+write system call object oriented framework fault tolerant distributed applications om transactional systems 
+agents increment value counter stage execution 
+aix powerpc 
+java fault tolerant mobile agent system 
+overhead calculated respect triplicated agent single agent 
+table 
+tcp corba simplex echo server 
+message tcp corba corba size bytes time ms time ms overhead measurement performance overheads vary significantly difficult direct comparison measurements 
+eternal reported overhead small investigated potential reasons differences overhead measured observed eternal keeping mind caveat 
+overhead corba respect plain tcp echo server 
+analysis shows overhead due corba masks overhead eternal infrastructure 
+recall tcp version echo server baseline comparison measurements 
+table reports measurements overhead corba simplex echo server visibroker eternal respect tcp simplex echo server 
+see overhead varies message sizes byte bytes respectively 
+consequently estimate overhead incurred eternal echo sever vary depending message size compared plain tcp echo server 
+overhead estimated relationship eternal ttcp eternal corba corba ttcp ratio eternal corba overhead 
+ratio corba ttcp calculated data table 
+differences replication scheme 
+overhead eternal measured respect replicated echo server pass scheme majority voting duplicated requests responses suppressed sender receiver 
+consequence messages sent request response 
+framework employs majority voting involves exchanging messages sent voter replicas remaining come replicas sending outputs voter 
+addition pass scheme previous eternal experiment eternal supports majority voting scheme voting occurs client process 
+reported overhead scheme triplicated client triplicated server running packet driver solaris 
+framework voting occurs outside client separate voter fanout process 
+result additional network communication adds overhead compared unreplicated echo server communication plain tcp 
+emphasized embedding voter client body done eternal system configuration may sufficient case group replicated clients needs produce single output external world 
+scenario system provide additional voter final decision output table 
+error models injection experiments 
+error model description failure definition os delivers signal target replica 
+target replica terminates simulating clean crash failure 
+os delivers signal target replica 
+target replica threads suspended simulating clean replica hang 
+text segment single bit text segment target replica flipped target process fail crashing hanging producing incorrect state output 
+heap memory bits allocated regions heap memory target replica periodically flipped failure induced 
+target process fail crashing hanging producing incorrect state output 
+table 
+text segment heap injection results 
+error total activated manifested errors model injected errors crash hang assertion errors seg 
+fault ill instr 
+killed detection text segment heap memory delivered outside add extra overhead similar measured 
+alternative replace replicated client single client embedded voter 
+creates risk simultaneous failure client voter 
+separation voter client hand allows recovering voter failures independent possibly transparent client server 
+
+fault injection evaluation series fault injection experiments conducted assess impact application behavior faults replicated application replication framework ensemble underlying reliable broadcast layer 
+triplicated multithreaded apache server target application 
+table summarizes error models failure definition model 
+software framework conducting automated error injection experiments conduct experimental evaluation lsa algorithm 
+table reports results injections error models listed table 
+cases system able recover failure generated injection 
+note failed replica leader followers successfully elected new leader failed leader excluded system 
+approximately runs heap injections detected assertions incorporated lsa code 
+errors detected assertions caused corrupted entry mutex table cases corrupted entry table mapping physical mutexes logical mutex ids cases corrupted ensemble data structure case invalid header synchronization messages case 
+
+related software replication reliable message delivery consistency information constitute major difficulties overcome implementation replicated systems 
+issues extensively investigated resulted group communication protocols 
+fundamental issue replicated systems potential nondeterminism execution different instances replicated component application 
+tandem integrity system guarantees processors execute instruction streams synchronizing global memory accesses hardware interrupts periodically run cycles 
+early software replication essentially emulated hardware solutions 
+example number systems replicas synchronized interrupt level 
+system uses process pair scheme lan processor machines connected dedicated bus efficient reliable communication 
+asynchronous events unix faults injected voter 
+activated text segment errors errors manifest corrupted instruction executed having visible impact behavior replica 
+signals transformed synchronous messages delivered destination process backup 
+hypervisor system provides primary backup replication transparently operating system user applications 
+virtual machine layer inserted beneath operating system uses hardware instruction counter count instructions executed hardware interrupts 
+information collected primary machine periodically sent network backup machine reproduces effects primary hardware interrupts 
+transparent fault tolerance tft similar hypervisor solution done operating system call interface 
+delta provides user applications passive replication replication active replication 
+active replication handle nondeterminism replicas 
+replication leader follower model plus preemption synchronization mechanism employed 
+replicas preempted predefined set preemption points 
+time input message requires preemption arrives leader leader determines preemption point message served 
+information sent followers serve message point leader 
+synchronizing interrupt level software causes large performance overhead synchronization information transferred network 
+software approaches replication attempt take advantage object oriented paradigm advocate object replication process replication discussed 
+common trend object replication integrate fault tolerance replication corba applications 
+years brought studies replicating multithreaded applications 
+issues related handling nondeterminism due multithreading studied context log rollback recovery 
+suggests adding support mach operating system track log order threads access locks semaphores 
+data preserved log support rollback recovery failed processes thread execution replayed order dictated log 
+presents technique software counter track number instructions nondeterministic events normal operation 
+case failure instruction counts force replay events execution points 
+existing solutions replicate multithreaded applications employing nonpreemptive deterministic scheduler guarantees scheduling replicas 
+eternal addresses replication multithreaded corba objects employing nonpreemptive deterministic scheduler allows execution logical thread time 
+result concurrency significantly limited 
+running thread executes remote method invocation example thread scheduled method returns running thread terminates processing 
+transactional employs deterministic nonpreemptive scheduler enforce deterministic behavior multithreaded replicas 
+algorithm targets transactional applications allows transactions execute concurrently 
+scheduling thread done running thread reaches scheduling point service request selective reception lock request server call execution 
+eternal transactional allows execution logical thread time schedule physical thread time multiple cpus available 
+result transactional suffers limitations similar eternal 
+
+proposed loose synchronization algorithm software active replication multithreaded processes 
+algorithm enforces equivalent ordering state changes replicas guarantees replica consistency low overhead 
+leader replica establishes order mutex acquisitions sends order follower replicas network 
+algorithm formally specified proposed formalism prove correctness algorithm failure free behavior presence errors 
+evaluate proposed algorithm transparent active replication framework developed replicate multithreaded version apache web server 
+
+appendix 
+leader follower correctness section outlines proofs lemmas theorems main part 
+definitions lsa specifications see pseudocode prove correctness lsa safety liveness properties 
+start proving lemmas showing order conflicting mutex acquisitions performed followers agrees leader history 
+lemma nonfaulty follower conflicting mutex acquisitions ordered way 
+proof 
+note pseudocode thread requesting mutex returns lsa lock means extracting proj queue 
+entries extracted projection queues mutex locked 
+extraction lsa lock unlocks extraction exiting lsa lock acquiring mutex atomic 
+extracted proj queue 
+conflicting operations mutex appended bottom proj queue mt update order appear extracted proj queue 
+absence failures leader history reconstructed follower prefix actual leader history previous lemma strengthen follows 
+lemma leader follower absence failures conflicting mutex acquisitions ordered way 
+lemma notion causal dependency show leader follower satisfy safety property 
+theorem leader follower safety leader history follower history 
+absence failures satisfy safety property 
+proof 
+contradiction suppose entry 
+exists earlier mutex acquisition 
+definition causal precedence cases consider 
+case condition corresponds 
+means behavior leader thread follower thread diverged 
+mutex acquisition common threads behaviors diverged required mutex 
+contradicts piecewise thread determinism assumption leader follower replica start initial state 
+contrary mutex acquisition common leader follower thread acquisition threads acquire different mutexes 
+note construction definition piecewise thread determinism assumption contradicts fact leader follower thread behaviors diverged 
+case condition corresponds 
+contradicts lemma 
+case chain causal dependencies 
+note going element chain element possible thread mutex change see definition causal dependency 
+element chain immediately precedes 
+
+exist existence leads chain exist 
+lemma prove liveness leader follower 
+lemma absence failures exists leader history eventually appended proj queue follower 
+proof 
+absence failures stored leader mutex table eventually transmitted followers gets full leader periodic tx 
+eventually appended proj queue mt update 
+theorem leader follower liveness absence failures conditions hold 
+
+mutex acquisition performed leader eventually performed follower 
+mutex acquisition performed follower eventually performed leader proof 
+consider condition 
+note extracted proj queue returns lsa lock equivalent proof induction position sequence base case 
+assume element 
+show thread leader eventually follower 
+replica main thread leader follower 
+main thread created leader thread thread determinism initial state assumptions created follower eventually created follower 
+replica main thread argument iterated show fact eventually created follower 
+note index mutex acquired leader mutex acquired leader thread mutex follower thread request piecewise determinism initial state assumptions 
+follower thread tries acquire invokes lsa lock appended proj queue condition acquire mutex line false proj queue initially empty 
+suspended line 
+lemma eventually mt update append proj queue top entry 
+mt update resume condition schedule thread true 
+resumed find condition acquire mutex true remove line 
+tries acquire appended proj queue find condition acquire mutex true remove line 
+inductive step 
+assume theorem true th element show thread leader eventually follower 
+mutex acquisition thread follower need show eventually created follower 
+replica main thread leader follower 
+main thread created leader thread acquire mutex creating thread determinism initial state assumptions created follower eventually created follower 
+acquires mutex creating consider mutex acquisition preceding creation acquisition precedes hypothesis eventually 
+safety property thread determinism initial state assumptions created follower eventually created follower 
+replica main thread leader follower argument iterated show fact eventually created follower 
+assume index 
+hypothesis mutex acquisitions contained positions eventually eventually acquires mutexes lsa lock 
+number acquisitions index 
+follower thread remove entries form proj queue acquisitions done acquisitions 
+safety property piecewise thread determinism initial state assumptions th mutex follower thread request leader thread 
+consider cases 
+assume conflicting acquisition preceding projection elements requests appended proj queue suspended 
+resumed mt update find condition acquire mutex true remove line 
+requests appended proj queue find condition acquire mutex true remove line 
+assume conflicting acquisition preceding projection elements immediately preceding 
+thread tries lock extracted appended proj queue suspended find line condition acquire mutex false 
+resumed top entry proj queue 
+happens line eventually removed proj queue empty appended mt update 
+resumed find condition acquire mutex true remove line 
+tries lock extracted appended proj queue find condition acquire mutex true remove line 
+consider condition 
+follows fact mutex acquisitions granted fact prefix theorem leader follower correctness absence failures leader follower satisfy correctness property 
+
+follower follower correctness safety liveness correctness nonfaulty followers shown assumption receive sequence leader messages implies leader histories reconstructed prefix 
+condition holds failure free scenario 
+importantly condition holds corrupted mutex table sent followers long followers receive mutex table 
+lemma nonfaulty followers prefix conflicting mutex acquisitions ordered way 
+proof 
+lemma fact prefix straightforward show theorem follower follower safety nonfaulty followers prefix satisfies safety property 
+proof sketch 
+proof follows steps theorem lemma necessary lemma 
+note eventually removed hypothesis 
+lemma nonfaulty followers receive sequence leader messages exists eventually appended proj queue proof 
+eventually receive leader messages 
+appended proj queue mt update 
+theorem follower follower liveness nonfaulty followers receive sequence leader messages satisfies liveness property proof sketch 
+proof follows steps theorem lemma necessary lemma 
+note liveness leader follower guarantees continuous operation liveness follower follower guarantees followers eventually mutex acquisitions 
+theorem follower follower correctness nonfaulty followers receive sequence leader messages satisfies correctness property 
+
+deadlock theorem nonfaulty follower deadlock condition holds mutexes proj queue proj queue head suspended threads proj queue head threads 
+proof sketch 
+suppose exists mutex violates condition 
+thread proj queue head valid thread suspended requests mutex request served contradicting assumption deadlock 
+hypothesis projection queues partitioned classes empty thread top entry suspended thread top entry exist 
+mutexes corresponding class acquired top entry removed 
+threads top entries class form cyclic dependencies depend mutex corresponding class mutex acquired 
+theorem exploits presence artificial mutex mc express deadlock simpler condition theorem 
+new condition lsa pseudocode predicate deadlock detecting deadlock reconfiguration 
+theorem nonfaulty follower deadlock condition holds mutexes proj queue proj queue head suspended threads proj queue head threads 
+proof 
+show replica deadlock mutexes proj queue proj queue head suspended threads proj queue head threads 
+supposing contradiction condition hold mutexes proj queue proj queue head suspended threads proj queue head threads eventually thread proj queue head exist suspended top entry proj queue 
+thread requests request eventually served contradicting hypothesis deadlock 
+proj queue proj queue head suspended threads proj queue head threads equivalent proj queue proj queue head suspended threads proj queue head threads predicate true true follows mutexes proj queue proj queue head suspended threads proj queue head threads 
+linear temporal logic symbol denote 
+hypothesis projection queues partitioned classes empty thread top entry suspended thread top entry set current threads 
+clearly mutexes corresponding class acquired entries stored projection queue 
+mutexes corresponding class acquired thread top entry created 
+mutex mc serialize accesses function create new thread acquired parent 
+mc corresponds class evident thread created mutexes corresponding class acquired 
+assume mc corresponds class 
+mutexes corresponding class acquired thread top entry projection queue resumed 
+threads suspended waiting top entry projection queue removed projection queue class hypothesis 
+dependencies imply thread awaken mutex acquired particular mc 
+corollary consequence follower follower correctness theorem 
+corollary nonfaulty followers deadlocks eventually deadlocks deadlocks 
+proof 
+contradiction suppose exists acquired acquired deadlock 
+satisfy liveness property directions direction eventually acquired contradicts hypothesis 
+deadlock detection normal operation 
+absence output observed voter replica hang may caused replica thread suspended deadlock condition subset replica mutexes 
+generalization theorem subset mutexes proj queue proj queue head suspended threads proj queue head waits proj queue head threads predicate waits true thread suspended requesting mutex difference theorem extra predicate second condition accounts possibly containing replica mutexes requiring dependencies remain deadlock condition subset mutexes corresponds existence subset holds 
+practice operator preceding predicate evaluated observing held sufficient amount time maximum waiting time projection queue includes maximum time reception subsequent mutex table updates 
+existence subset holds evaluated linear complexity forming dependency graph 
+nodes threads top entries suspended part second condition mutexes projection queue empty thread top entry valid third conditions 
+edge connects thread thread suspended requesting mutex top entry edge connects thread mutex suspended requesting second part second condition 
+subset holds exists cycle graph path terminating mutex status changed time units time thread suspended requesting mutex 
+borg fault tolerance unix 
+acm transactions computer systems 
+goldberg transparent recovery mach applications 
+usenix mach workshop pages 
+amir dolev kramer malki 
+transis communication subsystem high availability 
+proceedings nd international symposium fault tolerant computing pages 
+babaoglu marzullo 
+distributed systems chapter consistent global states distributed systems fundamental concepts mechanisms pages 
+addison wesley 
+bakken zhan jones karr 
+middleware support voting data fusion 
+proceedings international conference dependable systems networks pages 
+birman renesse 
+reliable distributed computing isis toolkit 
+ieee computer society press los alamitos ca 
+bressoud 
+tft software system application transparent fault tolerance 
+proceedings th international symposium fault tolerant computing pages 
+bressoud schneider 
+hypervisor fault tolerance 
+acm transactions computer systems 
+
+cheap hardware support software debugging profiling 
+proceedings nd symposium architectural support programming languages operating systems pages 
+cristian strong dolev 
+atomic broadcast simple message diffusion byzantine agreement 
+information computation 
+elnozahy johnson wang 
+survey rollback recovery protocols message passing systems 
+technical report carnegie mellon university 
+macedo shrivastava 
+newtop fault tolerant group communication protocol 
+proceedings th international conference distributed computing systems pages 
+guerraoui felber 
+system support object groups 
+acm conference object oriented programming systems languages applications 
+hayden 
+ensemble system 
+phd thesis dept computer science cornell university usa 
+jacobson 
+congestion avoidance control 
+proceedings acm sigcomm conference pages 
+
+integrity fault tolerant unix platform 
+proceedings st international symposium fault tolerant computing pages 
+moser melliar smith 
+securering protocols securing group communication 
+proceedings st annual hawaii international conference system sciences volume pages 
+moser totem fault tolerant multicast group communication system 
+communications acm 
+active replication delta 
+proceedings nd international symposium fault tolerant computing pages 
+aqua adaptive architecture provides dependable distributed objects 
+proceedings th symposium reliable distributed systems pages 
+moser melliar smith narasimhan 
+consistent object replication eternal system 
+theory practice object systems 
+narasimhan 
+transparent fault tolerance corba 
+phd thesis dept electrical computer engineering university california santa barbara usa 
+barrett delta extra performance architecture 
+proceedings th international symposium faulttolerant computing systems pages 
+shrivastava little 
+design implementation 
+computing systems 
+schiper 
+fault tolerant mobile agent system agent dependent approach 
+proceedings international conference dependable systems networks pages 
+jimenez peris martinez 
+deterministic scheduling transactional multithreaded replicas 
+proceedings th symposium reliable distributed systems 
+reiter 
+secure agreement protocols reliable atomic group multicast rampart 
+proceedings second acm conference computer communication security pages 
+schneider :10.1.1.20.4762
+implementing fault tolerant services state machine approach tutorial 
+acm computing surveys 
+elnozahy 
+supporting nondeterministic execution fault tolerant systems 
+proceeding th international symposium fault tolerant computing pages 
+iyer 
+dependability assessment distributed systems lightweight fault 
+proceedings international computer performance dependability symposium 
+

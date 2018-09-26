@@ -1,0 +1,690 @@
+mondrian memory protection witchel josh cates mit laboratory computer science cambridge ma witchel cates lcs mit edu mondrian memory protection mmp fine grained protection scheme allows multiple protection domains flexibly share memory export protected services 
+contrast earlier systems mmp allows arbitrary permissions control granularity individual words 
+compressed permissions table reduce space overheads employ levels permissions caching reduce run time overheads 
+protection tables implementation add overhead memory space application 
+accessing protection tables adds additional memory accesses application 
+layered top virtual memory mmp suited embedded systems single physical address space 
+extend mmp support segment translation allows memory segment appear location address space 
+translation implement zero copy networking underneath standard read system call interface packet payload fragments connected translation system avoid data copying 
+saves memory traditional copying network stack 
+
+operating systems provide protection different user processes user processes trusted supervisor code 
+addition operating systems support flexible sharing data allow applications operate efficiently 
+implementors early architectures operating systems believed natural solution protected sharing problem place allocated region segment protection information 
+provides fine grain permission control flexible memory sharing difficult implement efficiently cumbersome address components segment pointer offset segment 
+modern architectures operating systems moved linear addressing scheme user process separate linear demand paged virtual address space 
+address space single protection domain shared threads run permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+asplos san jose ca copyright acm 
+process 
+thread different protection domain runs different address space 
+sharing possibly page granularity single physical memory page mapped virtual address spaces 
+addressing scheme ubiquitous modern os designs hardware implementations significant disadvantages protected sharing 
+pointer data structures shared shared memory region resides virtual address participating processes words page permissions 
+interpretation pointer depends addressing context transfer control protected modules requires expensive context switch 
+coarse granularity protection regions overhead inter process communication limit ways protected sharing application developers 
+designers creative working limitations implement protected sharing applications application requires considerable custom engineering effort attain high performance 
+believe need flexible efficient fine grained memory protection sharing neglected modern computing systems 
+need fine grained protection server desktop domains clear examples web server web client 
+systems want provide new code modules linked provide new functionality 
+architects systems rejected designs native os support separate address space module complexity run time overhead managing multiple address contexts 
+modern web servers clients solved problem plugin architecture 
+plugins allow user link new module original program provide new service 
+instance apache web server plugin interpretation perl code web pages browsers support plugins interpret pdf documents 
+linking code modules communication server plugin fast flexible protection modules address space unsafe 
+plugins crash entire browser open security hole server buffer overrun 
+embedded systems problem organized set tasks including operating system share physically addressed memory see section 
+inter task protection error part system entire system unreliable 
+similarly loadable os kernel modules linux run kernel unprotected address space leading potential reliability security problems 
+illustrates general protection system diagrams 
+column represents protection domain row represents range memory ad 
+memory addresses protection domains permissions key read read write execute read visual depiction multiple memory protection domains single shared address space 
+dresses 
+address space virtual physical protection domains independent virtual memory translation done done 
+protection domain contain threads thread associated exactly protection domain point execution 
+protection domains want share data share portion address space 
+color box represents permissions protection domain access region memory 
+ideal protection system allow protection domain unique view memory permissions set arbitrary sized memory regions 
+system implements ideal protection system 
+call mondrian memory protection mmp allows grid painted pattern access permissions occasionally resembling works early twentieth century artist 
+design includes flexibility high performance protected memory sharing segmented architecture simplicity efficiency linear addressing 
+design completely compatible existing isas easily support conventional operating system protection semantics 
+reduce space run time overheads providing finegrained protection mmp uses highly compressed permissions table structure levels hardware permissions caching 
+mmp overheads system aggressively provide separate protection object program 
+believe increase design robustness reduction application design complexity justify small run time overheads 
+cases new application structure enabled fine grained protection improve performance eliminating cross context function calls data copying 
+demonstrate saving memory traffic networking implementation see section 
+networking example illustrates fine grain segment translation scheme builds base mmp data structures provide facility data different addresses different protection domains 
+mmp design desirable property overhead incurred fine grain protection overhead emulating conventional coarsegrained protection 
+rest structured follows 
+section give motivating example discuss requirement memory system protection 
+hardware software components mmp design section 
+quantitatively measure overheads design implementation model section 
+discuss translation section describe zero copy networking 
+include discussion uses fine grained protection sharing section discussion related section 
+conclude section 
+example requirements provide brief example motivate need mmp system 
+examples discussed section 
+consider network stack packet arrives network card uses dma place packet buffer provided kernel driver 
+kernel copying network payload data user supplied buffer normally done kernel packet headers inaccessible packet data read passes pointer user saving cost copy 
+implementing example requires memory system support requirements different different protection domains different permissions memory region 
+small sharing granularity smaller page 
+putting network packet page wasteful memory packets small 
+worse give header separate permissions payload require copying separate pages page system payload starts page boundary 
+revoke protection domain owns regions memory allowed specify permissions domains see memory 
+includes ability revoke permissions 
+previous memory sharing models fail requirements 
+conventional linear demand paged virtual memory systems meet requirement placing thread separate address space mapping physical memory pages virtual address address context 
+systems fail small requirement permissions granularity level pages 
+page group systems hp pa risc powerpc define protection domains page groups collections memory pages accessible 
+domain access page group sees permissions pages group violating different requirement 
+violate small requirement coarse granularity page multiple pages 
+domain page systems similar design explicit domain identifier domain specify permissions value page 
+fail meet requirement permissions managed page granularity 
+capability systems extension segmented architectures capability special pointer contains location protection information segment 
+designed protected sharing fail different requirement common case shared data structures contain pointers 
+threads sharing data structure pointers capabilities see permissions objects accessed shared structure 
+capability systems fail meet revoke requirement revocation require exhaustive sweep memory protection domain 
+capability systems meet requirements performing indirect lookup capability adds considerable run time overhead 
+large sparse address spaces provide opportunity probabilistic protection strategy violates revoke different requirement 
+cpu domain id perm table base memory address regs lookup plb refill permissions table refill major components mondrian memory protection system 
+memory processor checks permissions address register sidecar 
+range sidecar information sidecar valid attempts reload sidecar plb 
+plb permissions information hardware software walks permissions table resides memory 
+matching entry permissions table cached plb reload address register sidecar new segment descriptor 
+mmp design major challenge mmp system reducing space run time overheads 
+describe initial exploration design space trial implementation 
+implementation results bit address space mmp readily extended bit addresses discussed section 
+mmp features mmp provides multiple protection domains single address space physical virtual 
+addressing linear compatible existing binaries current isas 
+privileged supervisor protection domain available provides api modify protection information 
+user thread change permissions range addresses user segment specifying base word address length words desired permission value 
+changing memory protections incurs cost inter protection domain call section full system call 
+designs discussed section provide bits protection information word shown table 
+mmp easily modified support permission bits different permission types 
+perm value meaning perm read read write execute read table example permission values meaning 
+allocated region memory owned protection domain association maintained supervisor 
+support construction protected subsystems allow owner region export protected views region protection domains 
+mmp system structure shows structure mmp system 
+address binary search address 
+perm translation sorted segment table sst 
+entries kept sorted order binary searched lookup 
+shaded part contains optional translation information 
+cpu contains hardware control register holds protection domain id pd id currently running thread 
+domain permissions table stored privileged memory specifies permission domain address address space 
+table similar permissions part page table permissions kept individual words mmp system 
+cpu control register holds base address active domain permissions table 
+mmp protection table represents user segment table segments table segment convenient unit table representation 
+term block mean address range naturally aligned size power 
+mmp variants table segments blocks 
+memory access checked see domain appropriate access permissions 
+permissions lookaside buffer plb caches entries permissions table avoid long walks memory resident table 
+conventional tlb plb hardware software search permission tables 
+improve performance add sidecar register architectural address register machine machines unified address data registers sidecar needed integer register 
+sidecar caches table segment accessed address register 
+discussed information stored sidecar map wider address range index address range plb entry fetched avoiding plb lookups plb misses pointer moves table segment 
+information retrieved tables plb written register sidecar plb 
+subsections discuss alternative layouts entries permissions tables 
+choosing format permissions table balance space overhead access time overhead plb utilization time modify tables permissions change 
+sorted segment table simple design permissions table just linear array segments ordered segment start address 
+segments number words length start word boundary overlap 
+shows layout sorted segment table sst 
+entry bytes wide includes bit start address word aligned bits needed bit permissions field shaded part optional discussed section 
+start address segment implicitly encodes current segment segments permissions encode gaps terminate list 
+plb binary search locate segment containing demand address 
+sst compact way describing segment structure especially number segments small take steps locate segment number segments large 
+entries contiguous copied new entry inserted 
+furthermore sst table shared domains entirety domains identical permissions maps 
+multi level permissions table address program bits root index bits mid index leaf index leaf offset bits bits bits address indexes multi level permissions table mlpt 
+alternative design multi level permissions table mlpt 
+mlpt organized conventional forward mapped page table additional level 
+shows bits address index table shows mlpt lookup algorithm 
+entries bits wide 
+root table entries maps mb block 
+entries mid level table map kb blocks 
+leaf level tables entries provide individual permissions byte words 
+supervisor reduce mlpt space usage sharing lower level tables different protection domains share permissions map 
+examine different formats entries mlpt 
+permission vector entries simple format mlpt entry vector permission values leaf entry bit values indicating permissions words shown 
+user segments represented tuple base addr length permissions 
+addresses lengths bytes noted 
+user segment rw broken permission vectors shown 
+say address range owns permissions table entry looking address range finds entry 
+example owns permission vector entry shown 
+upper level mlpt entries simply pointers lower level tables reduce space run time overhead large user segments allow upper level entry hold pointer level table permissions vector sub blocks fig perm entry mlpt lookup addr addr perm entry root addr tbl ptr perm table mid mid addr ff tbl ptr perm table leaf leaf addr return pseudo code mlpt lookup algorithm 
+table indexed address returns permissions table entry cached plb 
+base root table held dedicated cpu register 
+implementation tbl ptr depends encoding permission entries 
+address space bytes user segments leaf table entries permission vector owned rw permission vector owned ro rw mlpt entry consisting permissions vector 
+user segments broken individual word permissions 
+type unused ptr lower level table unused perm sub blocks bool tbl ptr perm entry return bit allocation upper level entries permissions vector mlpt implementation function mlpt lookup 
+ure 
+permission vector entries upper levels contain sub blocks upper bit indicate entry pointer permissions vector 
+example mid level permissions vector entry represent individual permissions blocks kb block mapped entry 
+mini sst entries permission vectors simple format mlpt entries take advantage fact user segments longer single word 
+upper level entries inefficient representing common case non aligned sized user segments 
+sorted segment table demonstrated compact encoding abutting segments base permissions needed length segment implicit base 
+mini sst entry uses technique increase encoding density individual mlpt entry 
+type offset perm offset perm offset perm offset perm mid mid bit allocation mini sst permission table entry 
+len shows bit encoding mini sst entry represent table segments crossing address range entry 
+sst start offsets permissions segment allowing length entries implicit starting offset segment 
+mini sst broken segments experiments showed size heap allocated objects usually greater bytes 
+mini sst entries encode permissions larger region memory just words sub blocks upper table levels 
+segment offset represent start point number sub blocks base address entry owning range 
+segments mid mid entry sub blocks 
+segment start sub block entry address space bytes user segments rw mini sst segment owned rw mini sst segment owned rw rw mid mid ro ro rw rw example segment representation mini sst entries 
+zero offset means segment starts address entry explicit length extends sub blocks entry owning range 
+largest span entry sub blocks 
+example illustrates potential benefit storing information words owning address range 
+entry owned provide permissions information memory load entry owned 
+shows small example mini sst entry 
+segments sst entry labelled base length permission tuple 
+lengths shown parentheses represented implicitly difference base offsets neighboring table segments 
+entry owned segment information going back going forward 
+internal representation limits mini sst format user segment mapped entry address range split mini sst table segments 
+mini sst entries contain overlapping address ranges complicates table updates 
+entry owned range changed entries overlap range need updating 
+example free part user segment starting protecting segment xc need read write entries segment written overlap address range 
+entries overlapping modified user segment flushed plb preserve consistency 
+design efficient mlpt mini sst entries primary entry type 
+mini sst format reserves top bits entry type tag table shows possible types entry 
+upper tables contain pointers lower level tables 
+level mini sst entry 
+level contain pointer vector permissions 
+necessary mini sst entries represent abutting segments 
+region contains abutting segments represent permissions permission vector held separate word storage pointed entry 
+pointer record mini sst entry additional information 
+extended record implement translation discussed section 
+protection lookaside buffer protection lookaside buffer plb caches protection table entries way tlb caches page table entries 
+plb hardware uses conventional ternary content addressable memory cam structure hold address tags vary type description pointer level table 
+mini sst entry segments spanning sub blocks 
+pointer permission vector 
+pointer mini sst translation 
+bool tbl ptr perm entry return table different types mlpt entries implementation function mlpt lookup 
+type type code 
+leaf tables type pointers 
+ing number significant bits variable page size tlbs 
+plb tags somewhat wider tlb support finer grain addressing tag bits example design 
+entries tagged protection domain identifiers pd ids 
+ternary tags stored plb entry contain additional low order don care address bits allow tag match addresses owning address range 
+example tag xx xx don care bits match address ff 
+plb refill tag set match addresses largest naturally aligned power sized block entry complete permissions information 
+referring example pull entry block plb tag match address range 
+bring entry block entry stored tag matches range complete information naturally aligned power sized block 
+technique increases effective plb capacity allowing single plb entry cache permissions larger range addresses 
+permissions changed region permissions tables need flush date plb entries 
+permissions modification occurs frequently page table modifications virtual memory system 
+avoid excessive plb flushing ternary search key cam tags invalidate potentially stale entries cycle 
+ternary search key number low order don care bits match plb entries smallest naturally aligned power sized block completely encloses region modifying conservative scheme may invalidate unmodified entries happen lie range 
+similar scheme avoid having tags hit simultaneously plb cam structure 
+plb refill entries inside range new tag searched invalidated single search cycle low order don care bits 
+sidecar registers address register sidecar addr valid base bound perm trans 
+offset layout address register sidecar 
+shaded portion optional translation information 
+address register machine associated sidecar register holds information table segment depicted 
+program counter sidecar instruction fetches 
+sidecar registers optional component design help reduce traffic fully associative plb 
+plb demand address processor looked permissions table permissions table entry returned entered plb 
+table segment contains demand address loaded sidecar address register calculate effective address memory load store 
+fields table segment descriptor blown maximum length address sidecar facilitate fast checking base bounds 
+subsequent load store effective address compared base bounds 
+address lies range sidecar permissions value check access 
+range check fails sidecar invalid plb searched correct permissions information 
+plb turn causing fill permissions table memory 
+increase permissions hit rate caching entire table segment 
+plb index part permission table entry index range naturally aligned power sized block 
+example load segment rw register sidecar 
+register access location permissions check hit sidecar 
+sending plb result permissions check indexes range 
+guarantee consistency invalidated protections changed 
+invalidated protection domain switches 
+rapidly plb 
+permissions tables coherence issues page tables multi processor system 
+modified processor caching data notified invalidate sidecar registers invalidate necessary section plb 
+register sidecar information capability protection range information managed capability ephemeral user visible 
+similar resolved address registers ibm system address base array translated cached reused access successive array elements 
+processor pipeline implementation mmp requires modifications processor pipeline permissions check needs occur commit point pipeline impact processor cycle time 
+permissions fault treated way address fault 
+order processor check performed write back order processor check performed instruction retirement 
+processor speculatively load data permission granted 
+similarly store data lives speculative store buffer permission granted commit store 
+sidecar registers physically located load store unit need read ports number simultaneous load store instructions supported 
+order order processors architectural register number index sidecar register file 
+sidecar registers pipeline may speculatively wrong data segment descriptor valid table segment 
+incorrect speculation bring wrong table segment cause sidecar plb protection breach 
+main performance impact permissions checking additional additional memory traffic caused table lookups 
+quantified section 
+protected calls memory protection structures permissions table plb sufficient implement call gates 
+call gates generalizations system calls provide efficient mechanism mutually protection domains safely call services 
+subsystem exports limited number code entry points client domains 
+calls entry points cause switch protection domain subsystem 
+number ways implement protected entry points 
+simplest remove permissions entry points call trap supervisor 
+subsystems register entry points supervisor execution restarted exporting domain requested entry point 
+alternatively hardware accelerate domain switch encoding protection domain code entry point permissions table entry 
+call gate minimum semantics 
+instance exporting domain needs establish stack needs 
+parameters passed registers 
+elaborate data structures passed simplified form marshalling consists caller traversing data structure granting appropriate permission provider domain 
+data copying needed permissions structures affected 
+domains call frequently copy arguments buffers properly exported 
+hardware supported call gates cross domain calls efficient removing demultiplexing overhead system calls 
+allows supervisor services implemented minimum checking 
+malloc implemented efficiently supervisor need check length malloc need verify pointer 
+transfer data 
+speed execution supervisor domain assume small number wired entries reserved exclusively supervisor implementation 
+supervisor keep protection information text stack data entries need faulted supervisor call 
+extension bits describes mmp design bit address space believe design extended bits straightforward way techniques extend page tables wider address space 
+forward mapped scheme levels table lookup top level tables entries levels entries 
+lookups faster hash top bits address index address hash table permission entries pointers lowest level tables table lookup path 
+hash table updated lookup fails updated entry retrieved searching level tables root 
+space consumption strategy larger bit case believe time consumption tuned close bit case 
+
+evaluation fine grain memory protection useful comes cost space time 
+permission tables occupy additional memory accessing generates additional memory traffic 
+time space overheads depend things data placed memory programmer protects data program accesses data 
+data placement governed executable program layout operation heap allocator 
+evaluated benchmark refs segments refs update cs crafty test gcc tr twolf train vpr test vortex tr compress db jack jess raytrace jpeg dec mpeg dec em health table behavior benchmarks 
+refs column total number loads stores millions 
+segments column number segments written table twice number calls malloc call effectively creates segments 
+column average number memory updates permissions table 
+cs number segments running coarse grained protection 
+come initial program segments calls brk extending heap extending stack 
+java programs 
+programs compiled version bit mips target optimization static linking generate elf binary 
+malloc library 
+linker malloc libraries unmodified 
+results significantly better linker modified align pad program sections malloc modified try align addresses place internal management state away returned memory 
+java programs compiled mips target mit flex native compiler 
+flex output linked malloc library 
+garbage collector flex disabled runs put heavier load memory system 
+biggest challenge evaluating mmp trying predict programmers take advantage word granularity protection 
+evaluation considered extreme cases 
+case assumed light protection facilities 
+programs run standard protection regions unix processes read program text read data read write data stack 
+level protection provided current virtual memory operating systems 
+second case assume object allocated malloc separate user segment surrounding words inaccessible hold malloc internal state 
+gather data programs access data chose mix benchmarks memory memory allocation intensive 
+table lists benchmarks properties 
+benchmark names prefixed java programs 
+gcc twolf spec vortex spec 
+tr suffix indicates training input test suffix indicates test input 
+names prefixed olden benchmark suite 
+names prefixed mediabench benchmark suite 
+table includes number memory table update 
+permissions table updated malloc free calls results show wide variation frequently objects created deleted 
+programs run mips simulator modified trace data memory calls malloc free 
+considered data instruction stream remains inside single text segment codes put protection information text segment permissions table 
+traces fed model implementations sst mlpt keep track size tables memory accesses needed search update tables 
+implementation models invalidates plb required consistency table updates prevent multiple hits plb 
+measure space overhead measuring space occupied protection tables dividing space application program text data program run 
+determine space application querying word memory see valid permissions 
+result space regions counted active memory contributes address range consumed malloc protection table overhead 
+stack starts kb grown kb increments 
+call brk returns mb 
+approximate effect runtime measuring number additional memory required read write permission tables 
+report overhead number additional divided number memory application program 
+performance impact additional memory varies greatly processor implementation 
+implementation hardware plb refill speculative execution model experience lower performance overheads additional accesses latency critical 
+system software plb refill simple pipeline higher relative time overhead 
+addition counting additional memory fed address traces containing table accesses cache simulator measure increase rate caused table lookups 
+permissions caching hierarchy placed register integer registers 
+results entry entry plb entries reserved supervisor random replacement policy 
+model supervisor code experiments report just number plb entries available application 
+coarse grained protection results table shows space time overhead results coarsegrained protection model 
+results mlpt mini sst entries entry plb 
+contrast overheads permissions table model page table tlb provide kind protection modern computer system 
+overheads small space time systems 
+mlpt space overhead bigger page table overhead benchmarks 
+mlpt uses additional space create leaf level tables accomodate segments start addresses divisible program segments aligned grew aligned quantities mlpt page table consume space 
+mlpt adds fewer extra memory requires fewer table accesses page table benchmark mediabench mpeg 
+mpeg run short writes permission table large part table accesses 
+advantage mlpt reach mini sst entries 
+entries owned kb address space contain information kb region 
+conventional page table entry information kb range benchmark mlpt msst plb page tlb ref space ref space crafty test gcc tr twolf train vpr test vortex tr compress db jack jess raytrace jpeg dec mpeg dec em health table extra memory ref extra storage space space required mini sst permissions table entry plb protect coarse grain program regions 
+compare traditional page table entry tlb 
+column gives average number loads required table lookup measure mid level entries permission information 
+owns 
+instance compress benchmark known poor tlb performance kb hash table accessed uniformly 
+table requires tlb entries map require entries worst case plb 
+number loads lookup close indicating mid level entries heavily 
+simulated sst entry plb 
+performs better previous schemes time space overheads benchmarks 
+ability sst table segments represent large regions results extremely low plb rates 
+coarse grain segments lookup table update overhead small 
+results show overhead mmp word level protection low 
+fine grained protection results model fine grain protection standard implementation malloc puts bytes header allocated block 
+remove permissions malloc headers enable program access allocated block 
+view extreme case protected subsystem typically export subset data entire address space 
+table shows results fine grain protection workloads 
+sst organization performs programs time space overhead balloons programs 
+health space overhead reaches 
+binary search lookup heavy variable time cost double number memory 
+forj jack averages loads table lookup 
+sst copy half table update average updates cause significant additional memory traffic 
+sst significantly lower space time overheads mlpt applications 
+code moderate number byte regions internal memory manager 
+odd size means mlpt leaf tables limited reach plb sst represents segments entirety 
+investigating adaptive policies switch sst mlpt number segments increase 
+coarse fine benchmark plb elim crafty test gcc tr twolf train vpr test vortex tr compress db jack jess raytrace jpeg dec mpeg dec em health table measurements rates mlpt mini sst entries entry plb 
+sidecar rate 
+plb global plb rate plb misses total 
+elim number permissions table eliminated sidecar registers finegrained protection workload 
+coarse grained protection plb rates close zero benchmarks shown 
+mlpt organizations take exactly space space overhead reported column 
+space overhead mlpt permission entry types 
+mini sst format require little space permission vector format programs small segments represented mini sst format 
+benchmarks required permission vector escapes required escapes 
+health benchmark required pointers permissions vectors leaf entries jess 
+represent real program behavior health provides stress test system allocates small segments 
+garbage collect mlpt permission tables unused 
+keeps memory usage close overhead leaf tables information words held single word entry 
+overheads higher non leaf tables 
+table counter number active entries 
+counter reaches zero table garbage collected 
+reads writes update counter included memory overhead 
+mini sst organization clearly superior permission vector format compare columns vec plb msst plb 
+benchmark performs better highest overhead vpr halved dropping 
+lookups dominate additional memory accesses expected 
+jpeg mediabench small programs don run long updating tables noticable fraction table memory benchmarks 
+jack high update overhead performs small allocations little activity table memory table updates 
+increase number available plb entries column msst plb worst case memory overhead drops benchmarks benefiting greatly increased reach plb 
+memory hierarchy performance table shows performance permissions caching hi benchmark sst plb space vec plb msst plb msst plb space ref upd ld lk ref upd ld lk ref upd ld lk ref upd ld lk crafty test gcc tr twolf tr vpr test vortex tr compress db jack jess raytrace jpeg dec mpeg dec em health table comparison time space overheads inaccessible words region 
+space column size permissions table percentage application active memory 
+organizations mlpt occupy space 
+ref column number permissions table memory accesses percentage application memory 
+upd indicates percentage table memory accesses performed table update 
+remainder table lookup 
+ld lk column gives average number loads required table lookup 
+including sidecar rate plb global rate fine grained protection workload 
+sidecar registers normally capture address accesses plb captures cases 
+show percentage reduction permissions tables result sidecar registers 
+principal motivation reduce traffic plb significant performance gain benchmarks sidecar hits plb misses explained section 
+indirect measure performance impact measured increase rate caused additional permissions table accesses 
+results typical cache kb typical cache mb shown 
+caches way set associative 
+cache additional added rate cache added global rate apps experienced difference rates 
+
+segment translation mmp table structures effective associating permissions memory addresses 
+information associated addresses held table segment descriptors 
+segment memory appear reside different address range storing translation offset table segment descriptor 
+translation offset added address calculation table segment range 
+shows example facility 
+addresses range ff refer memory stored different address regions ff ff 
+implemented creation segments translation information ro ro 
+final segment field holds translation offset 
+mmp system dictate policy reasonable choice protection domain owns segment install translation translation point segment owned protection domain 
+property checked supervisor called establish map benchmark kb way mb way app mmp app mmp crafty test gcc tr twolf train vpr test vortex tr compress db jack jess raytrace jpeg dec mpeg dec em health table app cache rate application benchmark mmp combined cache rate benchmark mmp protection structures 
+difference 
+mlpt mini sst entries entry plb 
+table holds results experiments differing cache size kb mb 
+cache way set associative byte lines 
+means rate decreased slightly 
+streams simulated maximum 
+pings 
+shows translation implement networking system call interface 
+client domain passes buffer kernel read 
+kernel owner buffer packet payloads buffer copying 
+user buffer reading data packet payload resides 
+segment translation preclude levels memory translation 
+embedded system uses physical address space segment translation level memory translation system 
+system uses virtual addresses result segment translation virtual address translated physical address mechanism 
+translations client segments kernel packets header header ro ro memory protection segment translation implement zero copy networking 
+network interface card dmas packets kernel 
+kernel exports packets untrusted client creating segments payload packets 
+segment translation illusion client packet payloads contiguous memory ff 
+recursive translated segment target translations 
+byte granularity translation allow packet payloads consist number bytes segment translation done byte level 
+byte level translation creates issues 
+addresses appear aligned create unaligned 
+address issued processor user address plus translation offset 
+segment translated odd byte boundary user address unaligned 
+modern processors handle unaligned loads cache line single cycle require cycles unaligned loads cross cache line boundaries 
+second issue little complex 
+returning example consider case packet fewer byte data payload ff bytes 
+represent situation segments ff ro ff ro length segments base address word aligned byte aligned 
+problem word address fc 
+bytes need come segment byte needs come second segment 
+call word spans segment translation boundaries word 
+words represented permissions table 
+simplify representation defined single word segments occur word adjacent segments word address fc example 
+need represent adjacent segments seam bytes segment 
+remaining bytes taken second segment 
+shows record represent words translation information mini sst format 
+record words long pointed table entry type pointer see table 
+bits translation segment 
+upper bits type information mini sst format table entries reallocated record indicate location words 
+bits seam seam seam mid mid translation translation mid translation mid translation seam cross seam cross format record mini sst entry translation information 
+know type entry reach 
+arrow heads indicate words allowed occur 
+bits independent bit seam set seam table segments mid 
+second bit set seam seam 
+divide word record bit fields represent byte cross point corresponding entry 
+example cross point bytes fc fe come segment ff comes second segment 
+record format restricts system entries words requires translated segments representable mini sst entry 
+small regions small network packets better copy contents construct translated regions 
+translation hardware implementation translation offset sits address sidecar register added memory address calculation 
+increase typical operand add address arithmetic operand add 
+additional carry save adder add gate delays memory access latency 
+load requires processor support collect bytes single word load different addresses 
+fortunately pipeline mechanism identical needed unaligned loads cross cache line boundaries bytes different locations shifted 
+difference loads locations read bytes 
+segment translation cause cache hardware aliasing problems translation occurs access sent cache memory system 
+software pointer aliasing problem software assumes numerically equal pointers point data 
+memory meta data changed supervisor calls supervisor enforce policies mitigate negative effects software pointer aliasing 
+policy domain translated segment image domain export segment image 
+prevents domains seeing translation confused support applications zero copy networking 
+zero copy networking proposals literature zero copy networking :10.1.1.29.4224
+successful eliminating extra copies kernel 
+hardest implementation issue eliminating copy kernel user 
+systems change user kernel interface programming model pass collections pointers 
+user aware data split various memory regions complicates program ming 
+approach user handlers manage copy network interface directly 
+direct access network interface requires special hardware interact multiprogramming demand paging results entire packet just payload transfered user space 
+final approach uses page remapping implemented standard read system call 
+implementation limited hardware page granularity applicable large packets largest standard ethernet packet bytes 
+believe page remapping approach best networking 
+mmp eliminates page size restriction extends approach data split multiple packets 
+offers programming ease linear buffers performance zero copy networking stacks 
+kernel buffers packets arrive tcp connection 
+maps payload packets contiguous segments provided user access see 
+permissions access data payload network stack isolated malicious buggy user 
+evaluation recorded web client receiving kb packets simulated action kernel driver accepts packets kernel memory translates packet payload segments contiguous segment exported client 
+client streams entire payload 
+scenario kernel reads packet headers writes permissions tables establish translation information 
+client reads data causing system read translation permissions data protection table 
+compare number memory required segment translation solution number memory required standard copying implementation 
+copying implementation kernel reads headers reads packet payloads writes new buffer 
+client streams new buffer 
+zero copy networking saves memory traditional copying implementation 
+size overhead permission tables 
+overhead permissions tables remaining translation records 
+unaligned cross cache line boundaries 
+
+charge cycles unaligned loads cross cache line boundaries cycles loads discount instructions translation implementation saves time copying implementation 
+
+uses fine grained protection translation believe fine grained protection offers exciting opportunities application developers 
+appel surveys applications page virtual memory :10.1.1.12.2903
+ideas perform better finer grain protection cheap inter protection domain calls 
+fine grained protection provide support fast memory bounds checking 
+buffer overruns unsafe languages common source security holes 
+mmp catch program attempt jump writable data 
+catch program trying write piece memory 
+bounds checking useful program debugging implemented mmp available kernel 
+related functionality data easily implemented fine grained protection 
+data generates trap word memory modified 
+processors support handful watched memory locations fine grained protection scales thousands individually protected words 
+generational garbage collectors need notified older objects updated point younger ones 
+checking software time consuming 
+mmp write protect older objects signal update causes young object referenced old object 
+compilers unsafe languages unable apply compelling optimizations inability prove memory behavior program 
+loop illustrates point 
+void foo int int int compiler register allocate prove aliases 
+fine grained protection compiler write protect outside loop accumulate register 
+fix code needed written 
+flexible sub page protection enables distributed shared memory systems predecessor 
+significant benefit configurable line sizes line sizes map virtual address pages performed access checks software 
+authors impressive compiler techniques reduce cost software access checks fine grained protection reduce cost 
+addition fine grained protection perform objectlevel distributed caching standard block caching susceptible false sharing 
+combining fine grained protection translation fine grained protection combined byte level translation discover additional opportunities implementing system services 
+explored application detail zero copy networking section 
+persistent problem supporting large numbers user threads space occupied thread stack 
+thread needs stack operate reserving stack space wastes memory 
+paged virtual memory stack allocated page sized chunks 
+strategy requires lot physical memory support threads threads don need page worth stack space 
+mmp segment translation kernel start thread translate small part stack bytes 
+thread uses stack kernel translate region stack segment non contiguous stack occupies physical memory memory physically contiguous 
+common data structure mmp protection translation optimize read data structure 
+example comes widely ns network simulator 
+packet read data 
+simulating wireless network packets broadcast nodes read read data write small node specific scratch area packet fill receive power node specific 
+current ns simulator supports data structure copying packet node 
+copying reduces size simulations possible amount physical memory takes cycles computation 
+splitting packet read read write sections managing separately possible complicates core data structure 
+finegrain mmp translation single read payload visible different addresses multiple protection domains 
+domain private read write region allocated run contiguous read view 
+
+related section discussed problems page virtual memory segment architectures capabilities probabilistic protection address spaces 
+single address space operating systems place processes single large address space process attempt access address space 
+protection provided process protection domains specify access rights regions memory 
+management protection information separated paging information combined 
+granularity protection single address space systems usually page match capabilities underlying paging hardware 
+advantage protection domain approach conventional pointers permissions easily revoked modifying process permissions tables 
+domain page systems set permissions granularity memory page 
+page group systems hp pa risc powerpc require collection pages mapped permissions domains domain independently access fixed permission 
+mmp builds protection domain approach extends word granularity 
+mmp considered domain segment system 
+apple newton form page group system active process access set regions called domains access permissions processes 
+arm embedded processor allows active process access overlapping segments global physical address space segments power size alignment minimum size kb 
+research concentrated large virtual address spaces pointers immutable names 
+important application area embedded systems single small physical address space 
+capabilities popular solution permissions control ill suited embedded systems need reuse physical addresses requires efficient rights revocation 
+contrast mpp suited single small physical address space embedded system revocation straightforward 
+range software techniques memory protection 
+software fault isolation general technique restricts address range loads stores modifying program binary :10.1.1.142.4909
+purify software solution memory bounds checking executable rewriting 
+gained wide acceptance os kernel embedded development environments required system services available environments allocators systems tend individual non standard semantics 
+executable rewriting systems degrade performance considerably 
+safe langauge techniques degrade performance applicable target language 
+proof carrying code system software carries proof safety just needs checked run time works small pieces code :10.1.1.40.2507
+mmp system run arbitrary code existing isas high speed 
+
+evaluated proposal fine grained memory protection translation 
+mmp compatible current architectures isas 
+supports flexible sharing data applications simplifies construction protected subsystems 
+compared previous protection domain approaches remove restriction permissions managed page granularity 
+compared capabilities provide flexible permissions model fast rights revocation compatibility current linearly addressed isas 
+feasibility study indicates space run time overhead providing fine grain protection small scales degree fine grain protection 
+zero copy networking example shows new facilities implement efficient applications 
+
+frans kaashoek preferred dutch spelling ronny chris john jannotti doug anonymous reviewers comments chen ns example 
+supported darpa pac award nsf career award ccr donation technologies 
+
+adobe systems incorporated 
+adobe pdf plugin 
+www adobe com 
+apache software foundation 
+mod perl 
+perl apache org 
+appel li :10.1.1.12.2903
+virtual memory primitives user programs 
+proceedings asplos iv april 
+arm arm technical manual rev arm 
+burroughs 
+descriptor definition information processing system www cs virginia edu brochure images manuals descrip descrip html 
+carlisle 
+olden parallelizing programs dynamic data structures distributed memory machines 
+phd thesis princeton university 
+carter dally 
+hardware support fast capability addressing 
+proceedings asplos vi pages san jose california 
+chase 
+operating system structure wide address architectures 
+phd thesis university washington 
+chu 
+zero copy tcp solaris 
+usenix annual technical conference pages 
+dennis horn 
+programming semantics multiprogrammed computations 
+cacm march 
+grunwald 
+program optimization time space efficient threads 
+proceedings asplos vii oct 
+heiser russell liedtke 
+single address space operating system 
+software practice experience 
+hoffman 
+ibm system support capability addressing 
+isca pages 
+intel 
+volume basic architecture 
+intel architecture software developer manual volume basic architecture 
+kane heinrich 
+mips risc architecture 
+prentice hall 
+chase eggers 
+architectural support single address space operating systems 
+asplos pages 
+lampson 
+protection 
+proc 
+th princeton conf 
+information sciences systems 
+levy 
+capability computer systems 
+digital press bedford massachusetts 
+lieberman hewitt 
+real time garbage collector lifetimes objects 
+communications acm 
+mackenzie kubiatowicz frank lee lee agarwal kaashoek 
+exploiting case delivery fast protected messaging 
+hpca pages 
+necula :10.1.1.40.2507
+proof carrying code 
+popl pages paris jan 
+ns notes documentation 
+www isi edu vint nsnam 
+pai druschel zwaenepoel 
+io lite unified buffering caching system 
+acm transactions computer systems 
+rational software 
+purify 
+www rational com media products unix pdf 
+rinard flex compiler infrastructure 
+
+www flex compiler lcs mit edu 
+saltzer 
+protection control information sharing multics 
+comm 
+acm july 
+scales gharachorloo thekkath 
+low overhead software approach supporting finegrain shared memory 
+proceedings asplos vii oct 
+lebeck reinhardt larus wood 
+fine grain access control distributed shared memory 
+asplos vi 
+shapiro smith farber 
+eros fast capability system 
+sosp pages 
+von eicken basu vogels 
+net user level network interface parallel distributed computing 
+symposium operating systems principles pages 
+von eicken 
+chang czajkowski hawblitzel hu 
+kernel capability operating system java 
+secure internet programming pages 
+wagner foster brewer aiken 
+step automated detection buffer overrun vulnerabilities 
+network distributed system security symposium pages san diego ca february 
+wahbe 
+efficient data breakpoints 
+proceedings asplos oct 
+wahbe lucco anderson graham :10.1.1.142.4909
+efficient software fault isolation 
+acm sigops operating systems review december 
+anderson 
+anonymous rpc low latency protection bit address space 
+usenix summer pages 
+zilles 
+benchmark health considered harmful 
+computer architecture news 

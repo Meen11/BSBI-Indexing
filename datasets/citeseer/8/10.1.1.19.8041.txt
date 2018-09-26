@@ -1,0 +1,506 @@
+ensuring code safety runtime checks real time control systems vikram adve university illinois urbana champaign cs uiuc edu 
+considers problem providing safe programming support enabling secure online software upgrades control software real time control systems 
+systems offline techniques ensuring code safety greatly preferable online techniques 
+propose language called control essentially subset key restrictions designed ensure memory safety code verified entirely static checking certain system assumptions 
+language permits pointer data structures restricted dynamic memory allocation restricted array operations requiring runtime checks memory operations garbage collection 
+language restrictions chosen understanding compiler technology needs real time control systems 
+describes language design compiler implementation control 
+control codes different experimental control systems evaluate suitability language codes effort required port control effectiveness compiler detecting wide range potential security violations systems 
+categories subject descriptors computer systems organization special purpose application systems software programming languages software operating systems security protection general terms security languages keywords real time control compiler programming language static analysis security supported part nsf career award number eia university illinois part office naval research part darpa nest program 
+
+considers problem providing safe programming support enabling secure online software upgrades control software real time control systems 
+main goal design language key restrictions ensure safety code written language verified entirely static compile time checking requiring checks program execution garbage collection 
+goal static checking distinguishes wide range existing safe languages general purpose real time systems 
+language restrictions carefully chosen understanding compiler technology needs real time control systems order achieve language design restrictive class target applications powerful allow static checking memory safety 
+motivate need program safety real time control systems discuss existing approaches insufficient summarize results 
+physical systems manufacturing automotive transport air transport increasingly put control sophisticated computerized control systems 
+increasingly important need embedded control systems ability perform online upgrades embedded systems long life cycles downtime large distributed control system expensive impractical 
+requires ability replace components control software large real time control system shutting system 
+furthermore critical nature systems complexity control software important systems remain stable operational software upgrades contain inadvertent bugs deliberate attacks 
+words new software components introduced online treated untrusted 
+research projects working control theoretic real time scheduling challenges dynamically upgrading control system field 
+simplex architecture real time fault tolerant system designed support dependable system upgrade 
+allows online replacement control software shutting system operations tolerates arbitrary errors application level timing control logic 
+architecture vulnerable software bugs attacks due address space violations illegal system calls hidden code 
+refer collectively memory errors 
+explained detail section order ensure system safety major performance loss system protect errors individual control threads potentially compromise operation modules address space 
+ensuring memory errors real time control sys tems offline techniques greatly preferable online techniques important reasons 
+important introduce significant unpredictable runtime overhead control codes sophisticated control systems operate extremely tight real time scheduling constraints 
+second important usually far cost effective essential detect software errors development actual operation 
+extensive research language compiler operating system techniques ensuring program safety different types constraints 
+unfortunately appears current language system designs require significant overheads terms runtime checks garbage collection ensuring code safety 
+safe languages java modula ml safe ccured :10.1.1.152.1345
+various runtime checks array bounds checking null pointer type coercions rely runtime garbage collection help ensure safety pointer dereferences 
+rt java provides safe real time language incremental garbage collection algorithms real time schedulers reduce runtime overheads garbage collection 
+fact rt java includes additional flavors dynamic memory garbage collected require extensive runtime checks object different memory flavors 
+discussed section research languages proposed new annotation mechanisms language restrictions reduce need runtime checking appear come near goal entirely eliminating runtime checks memory operations :10.1.1.127.7825:10.1.1.40.2507
+important note overheads runtime safety checking significant languages ccured cyclone vault reported slowdowns ranging different applications 
+aim design programming language restrictive allow complete static checking memory safety program flexible support sophisticated real time control applications potentially similar embedded software 
+rely system support trap accesses range reserved addresses order eliminate runtime checks null pointer runtime checks required runtime 
+addition basic restrictions type safety introduce novel restrictions ensure safety properties difficult verify statically dynamic memory allocation array accesses 
+restrict dynamic memory allocation region allocation method restrict single dynamic region time order allow static checking requiring significant new annotation mechanisms language systems :10.1.1.23.5498
+restrict array usage program array index expressions loop bounds relevant enclosing loops corresponding array extents restricted functions 
+restrictions compromise expressiveness capabilities current integer programming techniques static analysis 
+key feature chose omit annotations pointers function interfaces function calls annotations 
+motivation minimize need new language mechanisms require significant changes existing application level code 
+fact new intrinsics region memory allocation replacing malloc free control strict subset annotations language design relies aggressive compiler technology perform necessary static safety checks 
+gives brief overview compiler techniques implement language discusses tradeoffs language design motivated techniques 
+compiler includes new interprocedural algorithms checking safety array accesses pointer including accesses dynamically allocated region memory 
+details evaluation algorithms scope 
+language restrictions described enable complete static safety checking programs requiring new annotation mechanisms runtime checks garbage collection assuming system support noted 
+language proposed compiler implementation operates low level typed virtual instruction set llvm enforce restrictions 
+means type safe code languages fortran meeting restrictions described type safety pointers arrays dynamic allocation directly 
+section provides background simplex real time system architecture llvm compilation framework 
+sections describe language design section compiler implementation section 
+section evaluates expressiveness language supporting legal control codes effectiveness language compiler detecting variety different safety violations 
+section compares previous approaches section concludes summary directions 
+
+background simplex real time system architecture described collaboration compiler group real time systems group developed simplex architecture 
+simplex architecture dynamic real time fault tolerant middleware system 
+supports online replacement control software shutting system operations tolerates arbitrary timing errors applicationlevel logical errors upgraded control software 
+limited address protection tolerates run time software faults trapped operating system segmentation faults divide zero errors 
+testbed known demonstrates simplex architecture seehttp www cs uiuc edu 
+uses computer controlled inverted pendulum ip model control system allows users internet experiment dynamic upgrades control code 
+embedded simplex environment safely run untrusted new control software sent system irrespective comes algorithm uses 
+readers may download interface www cs uiuc edu download 
+language compiler described incorporated online testbed available public experimentation 
+simplex tolerates memory errors recovering error timing logical memory incurs severe performance penalty 
+furthermore process level protection limited simplex vulnerable memory errors attacks illegal writes address space backup controller system call brings user level processes 
+embedded platforms offer address space protection 
+goal dynamically real time platform simplex light weight thread run time architecture separate threads control module thread level component replacement 
+compiler enforce thread level fault isolation particular ensure illegal memory operations system calls thread compromise correct functioning threads system 
+llvm virtual instruction set compilation framework implemented llvm compilation system 
+llvm low level virtual machine typed instruction set compilation framework designed enable high level optimizations link time runtime offline 
+key idea llvm rich virtual instruction set raw machine code object code representation manipulated post link optimizers code generators 
+instruction set uses low level risc operations provides rich type dataflow information operands 
+enable high level language independent program analyses transformations object code arbitrary high level languages 
+llvm instruction set uses infinite set typed virtual registers static single assignment ssa form 
+load operations typed pointers transfer values memory locations registers 
+types llvm include primitive integer floating point types basic derived types pointers arrays user defined structures 
+register memory operations strictly typed mechanism violate type constraints order add integer floating point value instruction 
+llvm compiler infrastructure includes gcc frontend compiles programs llvm object code supported near interprocedural link time optimizer back ends sparc architecture generates portable code 
+control compiler described implemented llvm link time compilation system 
+
+control language design choices control language essentially trade offs different concerns ability guarantee memory safety static analysis maximizing expressiveness language real time control applications particular ease porting existing applications 
+choices motivated general code structure embedded real time especially control applications 
+codes generally consist tasks execute time bound prescribed real time scheduler continuing ad infinitum 
+tasks typically computationally intensive 
+data structures task usually dense arrays may allocated statically dynamically 
+dynamically allocated data usually allocated timed loop entered allocate memory loop iteration free iteration 
+tasks may pointer data structures usually relatively simple 
+existing embedded codes written observations designed control essentially subset language new intrinsic functions replacing malloc free 
+control imposes language restrictions order ensure static checking program safety possible 
+particular static safety checking compile time accomplish goals terms program application refer collection source code provided compiler 
+typically represent source code single controller single control module hybrid controller ensuring memory locations explicitly allocated statically dynamically program 
+ensuring control flow code legal safe attempts branch addresses data areas 
+disallowing program invoking untrusted functions included target source code 
+violation principles allow malicious code compromise system gain illegitimate access 
+illustrations malicious code section 
+designing language key assumptions underlying embedded system certain errors listed acceptable runtime 
+runtime error control application correctly detected underlying system ability recover error restore control backup controller 
+refer safe runtime error 
+stack overflow due infinite recursion heap overflow due dynamic allocation generate safe runtime errors 
+system reserves range addresses access causes safe runtime error 
+available null pointer checks inserted code described section 
+set trusted functions known compiler assumed safe invoke 
+require source code provided untrusted function invoked target code 
+checking safe runtime errors typically require negligible overhead 
+simplex designed tolerate detected errors runtime error kind detected runtime system simplex kills offending controller restores control trusted backup controller 
+assumptions able focus static checking memory accesses usually expensive check runtime 
+restrictions control fall categories basic restrictions type safety array operations dynamic memory allocation 
+described subsections 
+basic issues set restrictions control relative focus type safety accesses uninitialized pointers basic issues 
+control language requires strong typing functions variables assignments expressions types 
+language disallows casts pointer type 
+casts types integers floating point numbers characters allowed 
+union contain types cast consequently union contain pointer type 
+language requires uses uninitialized local pointer variables procedure 
+particular pointer variable assigned value address taken 
+application chooses exploit assumption avoid runtime null pointer checks individual data object scalar structure array allocated statically dynamically larger size reserved address range 
+pointer arithmetic disallowed control 
+explicit array declarations just need specify size dimension dimension array formal parameter 
+motivate consider code snippet disallowed language int pp pp print pp address uninitialized pointer assigned pp 
+pp potentially unsafe violation difficult detect 
+language disallows address uninitialized pointer 
+rule needed avoid need checking uninitialized pointer values global dynamically allocated aggregate objects explained section 
+programmer want restrict size objects program restriction ignored 
+mean runtime checks null pointers avoided 
+choice offered programmer specified compiler option discussed section 
+language rule disallows pointer arithmetic 
+language allows pointer arithmetic array traversal form pointer arithmetic undefined 
+array traversals done explicit array indexing control 
+choice interprocedural analysis array bounds checks may significantly difficult explicit pointer arithmetic allowed 
+note traversing string requires strlen followed explicit array index operations 
+currently permit string library operations aim provide safe string library 
+restrictions array operations general array operations expensive check memory safety runtime 
+approach impose restrictions language possible state art static program analysis allow verify statically safety array accesses program 
+viewpoint language design static safety checking fundamental limits static program analysis lies analysis constraints symbolic integer expressions 
+ensuring safety compiler prove symbolically index expressions array lie corresponding array bounds possible execution paths 
+index expression formulated integer constraint system equalities inequalities logical operators represent computation control flow statements program 
+unfortunately integer constraints multiplication symbolic variables undecidable 
+broad decidable class symbolic integer constraints presburger arithmetic allows addition subtraction multiplication constants logical connectives 
+example omega library provides ef ficient implementation widely solving integer programming problems compiler research 
+exploiting static analysis presburger arithmetic requires language allows linear expressions constant known coefficients computations determine set values accessed array index expression 
+intuition derive set language rules array usage 
+recall definition affine transformation 
+transformation said affine con linear transformation tains constants known symbolic variables independent assume affine transformations known constant integer coefficients 
+array operations control obey rules 
+control flow paths index expression array access evaluate value bounds array 
+dynamically allocated arrays size array positive expression 
+array accessed inside loop bounds loop provably affine transformations size outer loop index variables vice versa index expression array provably affine transformation vector loop index variables affine transformation size ofa index expression array depends symbolic variable independent loop index variable appears constant term affine representation memory locations accessed provably independent value ofs 
+array accessed outside loop index expression array provably affine expression length array 
+guarantees safe array accesses compiler check program satisfies additional language rules obeyed 
+note length array non negative expression arrays passed formal parameters returned return values pointers just relying interprocedural analyses compilation propagate array sizes 
+rule requires explanation 
+simpler alternative restrict affine expressions known con second term unnecessarily tive 
+example loop run index expression loop form unknown loop invariant value 
+array access easy prove safe disallowed simpler rule 
+allows variable appear long specific value affect array locations accessed 
+example array locations accessed loop regardless value illustrate rules consider piece code shown fig 
+code fragment valid control code 
+proven affine function size ofb 
+clearly affine function ofm 
+caller function int initialize int initialize int int int int return return null array usage example 
+bounds loop proven affine functions size ofa 
+conditions satisfied compiler proves code safe array accesses 
+note proving safety compiler correctly include constraint verify size regions dynamic memory allocation control supports region memory allocation single region may active program time 
+arbitrary amount memory may allocated region system dependent limit malloc interface 
+free operation individual memory objects entire region freed 
+language provides intrinsic functions free region memory management 
+region active calling freed inactive 
+signature malloc allocates memory active region 
+constraints imposed control allow safe dynamic memory allocation summarized 
+region active point program 
+calls alternate potential path program starting 
+region active call 
+region memory accessed region freed pointer value contains region address provably dead unused unreachable call 
+verify statically constraints local global scalar pointer variable explicitly reinitialized call potential uses variable 
+note particular includes variables point heap see discussion 
+structures arrays containing pointers allocated dynamically heap alloca stack 
+particular aggregate objects containing pointers live global local variables exception initialized constants 
+rule ensures compiler statically prove scalar pointer variables dead call 
+rule necessary tracking contents aggregate objects array structures containing pointer fields generally difficult 
+note dynamically allocated memory accessed pointer variables accesses originate scalar pointer variable 
+ensures pointer values aggregate objects unusable 
+language guarantees programs rules considered safe conforming control compiler 
+practice rules introduce significant overhead program 
+instance global pointers normally initialized program need reinitialized occurred control loop pointers point heap region 
+practice reasonably powerful compiler prove pointer values point region objects store region pointers pointer locations 
+control compiler may allow values remain live call reinitialization 
+programs completely portable may rejected different control compiler weaker analysis capabilities performance benefits may justify potential extra porting cost 
+define weaker versions rules local global scalar pointer variable may hold address heap region explicitly reinitialized call potential uses variable 
+pointer fields permissible global local aggregate objects provably hold address heap region address taken 
+aggregate objects containing pointer fields allocated dynamically 
+program observing rules may considered safe compilers avoid additional runtime overheads pointer values 
+approach eliminates need explicit region annotations pointers programmer 
+approaches cyclone vault need functional annotations describe areas memory pointer may point regions commonly live procedures dynamically allocated data structures passed functions 
+compiler analysis annotations enabled single active region time 
+advantage relatively simpler port control application code control 
+illustrate language features examples cond cond 
+cond 
+example example example int int int sizeof int 
+example shown valid point program single region active 
+second example invalid language restrictions exists potential path calls 
+third code snippet call pointer variables necessarily re initialized program guaranteed safe 
+compiler prove necessarily point heap language needing re initialization 
+
+compiler analysis section discuss implementation control compiler brief overviews new algorithms involved 
+discussed section implemented compiler llvm compiler infrastructure 
+type system llvm ssa representation fact link time compiler help simplify compiler analyses 
+llvm independent analyses broader applicability programs control language restrictions relative subsections describe algorithms implement language checks 
+uninitialized variables type safety llvm operations strictly typed cast instruction way violating type constraints checking basic type safety rules control straightforward 
+compiler simply checks explicit cast instructions ensure illegal casts particular casts involving pointer type 
+check arithmetic operations ensure arithmetic performed pointer types 
+uninitialized pointer analysis relatively simple intraprocedural dataflow problem considers local scalar pointer variables procedure 
+note interprocedural analysis required identifying uninitialized variables 
+analysis checks variable stored path instruction dereferences pointer takes address 
+language requires stores explicit alias 
+non scalar pointers pointer fields aggregate objects difficult analyze need alternative approach 
+memory locations initialized specially follows 
+sume range addresses reserved assumption section user level code address range trapped operating system 
+example high user address space reserved kernel standard linux implementations typically gb gb xc rule global dynamic memory locations initialized individual data object restricted bytes size 
+assumption reasonable embedded codes large 
+ensures typed uninitialized pointer fld orp illegal trapped operating system 
+current embedded systems address protection may small bit address spaces strategy 
+programmer choose ignore size restriction language rule 
+case global dynamic memory locations initialized null runtime null pointer checks required pointer accesses 
+expect dynamic upgrading code occur high embedded platforms capable processors operating environments previous assumptions apply runtime checks needed 
+checking safe array usage compiler checking safe array usage requires steps generating constraints procedure interprocedural propagation constraints verifying array access safe 
+discuss turn 
+generating constraints generate set constraints array access program including constraints affect array access 
+flow insensitive algorithm exploits ssa representation llvm 
+array access traverse def chains backwards get constraints definitions respectively 
+constraints simply inequalities inferred program statements 
+program statements generating constraints straightforward 
+simple statement generate affine constraint constraints generated non affine expression 
+note generating constraint ssa variable variable unconstrained safety checker treat array access unsafe variable irrelevant 
+recursively traverse def chains stopping encounter non affine expression formal argument return value call statement constraints computed cached 
+cache final constraints statement reused 
+control flow statements pose problem 
+consider ssa code snippet left clearly array access ssa ssa int int ssa ssa safe second access unsafe 
+facts result branch size 
+need encode control dependence information branch branch flow insensitive constraint system 
+union constraints system inconsistent 
+technique developed abcd algorithm encode control dependence inserting new nodes denoted nodes 
+shown right nodes essentially provide different names branch variable appearing conditional expression 
+representation called extended ssa ssa form abcd allows generate simultaneous constraints 
+code snippet array generates constraints length second generates length node ssa form check induction variable standard induction variable analysis 
+node induction variable simply add constraint 
+induction variable loop simply adding constraint result inconsistent system merges values back edge forward edge 
+check step function induction variable 
+step function positive add constraint comes forward edge comes backward edge 
+step function negative add constraint 
+note induction variable loop unknown step function represent affine constraint simply ignored 
+interprocedural propagation arrays declared procedure passed parameters procedures essential propagate constraints arrays call sites callees 
+constraints array access depend return values procedures invoked earlier execution path 
+constraints return values terms incoming arguments propagated callee call statement 
+developed efficient algorithm interprocedural propagation describe briefly 
+brute force propagation constraints path call graph produce exponential algorithm exponential number paths call graph 
+merging constraints incoming arguments call sites procedure able achieve algorithm worst case complexity number variables program 
+worst case appears occur realistic codes 
+practice simple heuristic collecting constraints possible different arrays passed procedure merging simplifying removes redundant constraints greatly increases efficiency 
+interprocedural algorithm consists passes callgraph 
+bottom pass gets constraints return values terms procedure arguments 
+top pass merges constraints arguments coming procedure different call sites tries prove safety array accesses procedure 
+checking array bound violations generate constraints array accesses omega integer set library test array index expres sion safety 
+just translates checking satisfiability constraint system added con straint length system unsatisfiable length array access safe 
+region checks compiler checking region dynamic memory allocation requires checking 
+region active time region active call 
+region active call 
+pointers directly indirectly point region dead call region corresponds relaxed rule 
+problems fundamentally interprocedural 
+test ensures call preceded path 
+point program define depending region inactive active respectively 
+language rules imply statically determinable point program 
+functions calls directly series function calls exceptions rule regarded neutral 
+trusted functions neutral 
+goal compute non neutral function entry exit function 
+topmost function call graph set 
+function implement intraprocedural algorithm essentially data flow problem establishes equivalence relationships values functions 
+instance presence call calls non neutral functions path program fixes values 
+similarly call function function fixed 
+consecutive calls non neutral path equivalent 
+equivalences generated find values 
+contradiction signaled error compiler 
+practice union find algorithm path compression efficient way represent equivalences 
+algorithm ensures single region active time 
+second test simply requires checking call sites 
+ensures region active call site 
+remainder analysis ensures local global pointer variables potentially point heap contain pointers point heap need re initialized call site changes 
+checking pointer re initialization essentially interprocedural live variable analysis llvm ssa form 
+check global local variables aggregate types contain pointers statically proved pointers point heap data structure graph 
+llvm link time compiler provides alias information representation called data structure graph provides pointsto information connecting disjoint memory objects including heap stack globals functions ssa pointer variables 
+computed fast flow insensitive context sensitive analysis 
+representation directly helps identify pointer variables point heap contain pointers heap 
+
+results section evaluate expressiveness control language porting different classes experimental controllers originally written language 
+believe example codes classes representative typical constructs control codes 
+demonstrate language compiler effective detecting number different bugs attacks capture comprehensive range potential safety threats simplex environment 
+evaluating language expressiveness ported different classes control applications control 
+details applications summarized table 
+applications include 
+pid proportional integral derivative controllers inverted pendulum experiment running simplex 
+
+lqr state space controllers experiment controls laboratory illinois 
+
+real time sensor applications sensor networks running tinyos operating system 
+controllers inverted pendulum ip experiment single loop real time control applications control mechanical devices different control algorithms 
+ip controller single task consisting infinite loop application platform size lines dynamic memory array accesses pointers lines changed inverted pendulum linux windows tinyos apps linux reads status device computation sends control output iteration 
+task uses simple data structures primarily arrays computationally intensive 
+controllers logic switching controllers special case hierarchical hybrid controllers 
+essentially different controllers supervisor switches depending state device 
+controllers single task similar ip controller task control structure different data structures 
+controllers dynamic memory allocation allocate arrays control loop freed program 
+tinyos component operating system networked sensors 
+applications simple code structure allocate memory statically prior running application dynamic memory 
+code tinyos applications tends simpler general typical control code applications allowing compiler easily check safety 
+applications described needed zero minimal changes code order ported control shown column table 
+changes controller pointer arithmetic traverse array replaced array index variables 
+dynamic memory allocation needs region 
+required addition boundaries region converting malloc calls 
+occasionally pointers need reinitialized region free instruction subsequently 
+unions contain pointers disallowed need split different variables order pass safety checks 
+note lack annotations enhanced types language greatly decreases required changes source code 
+discover potential security holes tested codes 
+unexpected codes malicious simple data structures complicated arrays pointers 
+demonstrate simplicity embedded control applications respect data structures enables guarantee safety statically 
+results indicate control program wide range control embedded applications 
+detecting potential errors attacks order evaluate effectiveness language compiler preventing attacks control codes tested compiler wide range potential attacks hidden control code inverted pendulum simplex 
+control compiler attacks brings pendulum 
+evaluate attacks mechanisms illegal casts uninitialized pointers array overflow pointer arithmetic pointer access freed heap memory 
+attacks described constructed time identify range security threats simplex environment table control applications tested previous demonstrations 
+experiments show kinds attacks rendered infeasible normal safety mechanisms control requiring special language features compiler analysis 
+furthermore fairly comprehensive set examples terms fundamental coding mechanisms subvert safety executing program 
+experiments serve useful evaluation safety mechanisms designed language 
+code snippets shown illustrate mechanisms attacks 
+code snippets applications run embedded platform linux control inverted pendulum 
+attacks array shown fig 
+represents binary code strongarm executes system call code hidden data area 
+attack uses different mechanism jump array address order execute code 
+simplex environment limited process protection invoking system call kills running control tasks brings pendulum 
+char xe xe xb xff xff xff xff xb xd xc source array void float float void func func void func jump 
+illegal cast void float float int ret ret int ret ret force return 
+illegal pointer arithmetic fig cast character string function pointer jump code array 
+cast illegal control compiler rejected type checking phase 
+fig 
+pointer arithmetic overwrite return address stack replacing address executed return function 
+arithmetic pointers illegal control rejected type checking phase 
+fig 
+demonstrates uninitialized pointers compromise system 
+invocation function init initializes stack values invoked local pointer variable func contains address return address func stack 
+dereferencing modifies return address 
+turn results skipping instruction decrementing return leading overflow 
+void func int contains address return address stack slot modifies return address void init long store address return address stack slot void float float int init stack initialized func returns lines int executed force return illegal return uninitialized variable turn overwrites return address address 
+uninitialized pointer detected rejected compiler 
+function init rejected compiler illegal cast pointer long integer 
+uninitialized pointer acquire convenient values malicious code ways need detected 
+pointer points region freed exploited similar manner 
+dynamically allocated memory initialized convenient values gotten dereferencing pointer region region freed 
+overflow arrays cause execution jump data areas 
+array overflow attack illustrated fig uses similar technique 
+function func allocates array size overwrites locations declared size return address 
+causes return address overwritten address 
+compiler detects bounds array rejects code 
+void func int int void float float int func returns lines int executed force return array overflow attack 
+related languages example ada embedded machine specifically support real time programming language mechanisms control timing scheduling real time tasks 
+languages provide specific features memory safety features bounded array indexing ada 
+noted safe languages java modula ml safe ccured extensive runtime checks provide memory safety :10.1.1.152.1345
+checks needed different properties array bounds checking null pointer type coercions 
+rely runtime garbage collection ensuring safety pointer dereferences 
+languages provide safety directly suitable real time systems 
+rt java aims provide language real time applications retaining safety guarantees java 
+rt java incorporates incremental garbage collection algorithms realtime schedulers order avoid timing challenges standard garbage collection reduce runtime overhead garbage collection 
+fact rt java additional flavors dynamic memory garbage collected require extensive runtime checks ensuring safety different flavors 
+rt java inherits runtime checking needs standard java arrays type coercions 
+rt java important technology real time domains multimedia processing runtime overheads remain significant drawback embedded control systems 
+fundamentally starting safe language java making suitable real time programming presents major technical difficulties 
+contrast approach take low level language widely real time systems add restrictions provide static safety guarantees 
+number systems provide static safety guarantees languages compare 
+cyclone uses novel powerful type mechanism perform static safety checking dynamically allocated memory 
+powerful region mechanism allowing arbitrary nested regions heap separate regions global variables local variables function 
+function body restrict pointer point locations different regions 
+require number new region annotations expose region accessed pointer permit fixed number regions ensure memory safety checked interprocedural analysis 
+contrast restrict application single dynamic region restrict usage pointers statically allocated aggregate structures rely link time interprocedural analysis avoid annotations 
+cyclone fall back runtime checks array bounds checks report negligible runtime overheads networking applications overheads ranging compute intensive applications 
+vault language uses type annotations check safety memory allocation memory accesses memory regions statically 
+fact powerful type system allow correctness requirements dynamic resources encoded static type system checked compiletime memory regions just application 
+cyclone check array accesses statically language mechanisms capture properties arithmetic computations 
+mechanisms valuable guaranteeing safety properties system calls manipulate different kinds runtime resources 
+aim extend control language vault mechanisms ensure safety system calls networks embedded devices 
+valuable strategy compiler secure reliable systems proof carrying code pcc 
+benefit pcc safety checking compiler usually complex unreliable system untrusted simple proof checker reliable required trusted code base 
+fundamentally pcc change aspects program require static analysis require runtime checking depends language design compiler analysis capabilities 
+pcc orthogonal valuable addition simplex environment 
+envisage pcc simplex allowing llvm compiler untrusted previous array bounds checking optimizing runtime bound checks completely eliminating 
+focus moving runtime checks computation intensive loops 
+static elimination bound checks 
+builds abcd constraint generation techniques procedure 
+go abcd developing efficient interprocedural constraint propagation algorithm 
+wagner developed tool detection buffer overrun vulnerabilities similar techniques generating solving constraints 
+deal general codes particularly including pointer arithmetic decided forego precision scalability 
+analysis imprecise terms generating constraints solving potentially resulting 
+contrast precise context sensitive analysis rigorous constraint solver 
+precursor project simplex group lim described static compiler analysis symbolic execution perform static safety checking simplex environment 
+analysis primarily focused array operations consider pointer accesses pointer usage dynamic memory allocation rejected compiler 
+research aims provide welldefined safe language simplex including support wider range control codes 
+
+described control programming language secure programming real time control systems embedded systems 
+language imposes key restrictions usage pointers arrays dynamic memory management order ensure memory safety application code checked compile time runtime checks memory operations garbage collection 
+language restrictions chosen balance needs realtime control applications capabilities static analysis 
+implemented compiler control languageindependent link time system llvm permits high level inter procedural analyses transformations link time 
+tested compiler control code embedded applications different experimental systems demonstrated language expressive write applications time capable detecting fairly comprehensive set attacks 
+step building comprehensive secure environment dynamic upgrade control systems embedded systems 
+currently language detect attacks due illegal uses system calls particularly important networks embedded devices 
+believe errors detected combination static techniques plus minimal run time support 
+direction relax current restrictions order support broader classes embedded systems 
+runtime checks inevitable try minimize sophisticated potentially expensive compiler techniques compilation time typically important issue embedded code 
+
+tinyos component os networked sensor regime 
+see web site webs cs berkeley edu tos 
+austin breach sohi 
+efficient detection pointer array access errors 
+proc 
+conf 
+prog 
+lang 
+design implementation orlando fl june 
+bodik gupta sarkar 
+abcd eliminating array bounds checks demand 
+sigplan conference programming language design implementation pages 
+gosling 
+real time specification java 
+computer 
+cytron ferrante rosen wegman zadeck 
+efficiently computing static single assignment form control dependence graph 
+acm transactions programming languages systems pages october 
+deline fahndrich 
+enforcing high level protocols low level software 
+proc 
+sigplan conf 
+programming language design implementation snowbird ut june 
+gay aiken 
+memory management explicit regions 
+sigplan conference programming language design implementation pages montreal canada june 
+gosling joy steele bracha 
+java language specification 
+sun microsystems nd edition 
+grossman morrisett jim hicks wang cheney 
+region memory management cyclone 
+proc 
+sigplan conf 
+programming language design implementation berlin germany june 
+henzinger kirsch 
+embedded machine predictable portable real time code 
+proc 
+conf 
+prog 
+lang 
+design implementation berlin germany june 
+international organisation standardisation 
+ada manual 
+international standard iso iec 
+jim morrisett grossman hicks cheney wang 
+cyclone safe dialect proc 
+usenix annual technical conference monterey ca june 
+kelly maslov pugh rosser wonnacott 
+omega library interface guide 
+technical report computer science dept maryland college park apr 
+lattner adve 
+automatic pool allocation disjoint data structures 
+proc 
+acm sigplan workshop memory system performance berlin germany jun 
+lattner adve 
+llvm instruction set compilation strategy 
+tech 
+report uiucdcs computer science dept univ illinois urbana champaign aug 
+lim lee sha 
+ensuring integrity availability web control laboratory 
+appear journal parallel distributed computing practices 
+necula 
+proof carrying code 
+proceedings th acm sigplan sigact symposium principles programming popl pages paris jan 
+necula lee 
+design implementation certifying compiler 
+proceedings acm sigplan conference language design implementation pldi pages 
+necula weimer :10.1.1.152.1345
+ccured type safe retrofitting legacy code 
+proc 
+th acm symp 
+principles programming languages popl london jan 
+pugh 
+practical algorithm exact array dependence analysis 
+commun 
+acm aug 
+sha 
+dependable system upgrades 
+proceedings ieee real time system symposium 
+sha 
+simplicity control complexity 
+ieee software july august 
+tofte 
+talpin 
+region memory management 
+information computation pages feb 
+wagner foster brewer aiken 
+step automated detection buffer overrun vulnerabilities 
+network distributed system security symposium pages san diego ca february 

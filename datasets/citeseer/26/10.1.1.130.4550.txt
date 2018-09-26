@@ -1,0 +1,728 @@
+zebra striped network file system john hartman john ousterhout zebra network file system increases throughput striping file data multiple servers 
+striping file separately zebra forms new data client single stream stripes approach similar log structured file system 
+provides high performance writes small files reads writes large files 
+zebra writes parity information stripe style raid disk arrays increases storage costs slightly allows system continue operation single storage server unavailable 
+prototype implementation zebra built sprite operating system provides times throughput standard sprite file system nfs large files improvement writing small files 
+zebra network file system uses multiple file servers provide greater throughput availability achieved single server 
+clients stripe file data servers different pieces data stored different servers 
+striping possible single client keep servers busy distributes load servers reduce likelihood hot spots 
+zebra stores parity information stripe allows continue operation server unavailable 
+current network file systems read write bandwidth single file limited performance single server including memory bandwidth speed processor network interface busses disks 
+possible split file system multiple servers file reside single server difficult balance loads different servers 
+example system directories lie single server making server hot spot 
+new styles computing multi media parallel computation demand greater throughput today applications making limitations single server severe 
+example single video playback consume substantial fraction file server bandwidth video compressed 
+cluster workstations easily exceed bandwidth file server run video applications simultaneously problems worse video resolution increases arrival hdtv 
+example parallel applications 
+research groups exploring possibility collections workstations connected high speed low latency networks run massively parallel applications anderson 
+distributed supercomputers loads equivalent traditional supercomputers handled today network file servers 
+striping file system offers potential achieve high performance collections inexpensive computers disks 
+striping file systems built swift cabrera bridge :10.1.1.49.2577
+systems similar stripe data individual files large files benefit striping 
+zebra uses different approach borrowed log structured file systems lfs rosenblum 
+client forms new data files sequential log stripes storage servers 
+improves large file performance striping improves small file writes batching writing servers large efficient transfers 
+reduces network overhead simplifies storage servers spreads write traffic uniformly servers 
+zebra style striping easy redundancy techniques raid disk arrays improve availability data integrity patterson 
+fragments stripe stores parity rest stripe allowing stripe data reconstructed event disk server failure 
+zebra continue operation server unavailable 
+server totally destroyed zebra reconstruct lost data 
+constructed prototype implementation zebra part sprite operating system ousterhout 
+incorporate reliability recovery aspects zebra architecture demonstrate performance benefits 
+reads writes large files prototype achieves mbytes second single client servers times throughput nfs standard sprite file system hardware 
+small files zebra prototype improves performance factor nfs 
+improvement sprite 
+zebra sprite require client notify file server file opens closes writing small files notifications dominate running time 
+addition file name caching systems expect zebra advantage sprite 
+rest organized follows 
+section describes computing environment zebra intended types failures designed withstand 
+section describes raid log structured filesystem technologies zebra introduces zebra logging approach 
+section describes structure zebra consists clients storage servers file manager stripe cleaner 
+section shows components system normal operation communication components deltas describe file block creations updates deletions 
+section describes zebra restores consistency data structures crashes section shows system provides service components 
+section gives status zebra prototype presents performance measurements 
+section discusses related section concludes 
+zebra applicability zebra assumptions concerning computing environment types failures withstand 
+zebra designed support unix workloads office engineering environments 
+workloads characterized short file lifetimes sequential file accesses infrequent write sharing files different clients small files baker 
+environment notable behavior exhibit random accesses files 
+zebra designed handle sequential file accesses expense random file accesses 
+particular means zebra may suitable running database applications tend randomly update read large files 
+say zebra design precludes performance workload current design tuned improve random access performance 
+zebra targeted high speed local area networks assumes data transfer client server point point bandwidth network bottleneck 
+zebra designed handle network partitions 
+new point point network architectures atm typically include redundant links reduce probability network partition partitions concern design network file system local area network 
+zebra assumes clients servers large main memory caches store file data 
+caches serve purposes allow frequently data buffered accessed memory requiring access server disk buffer newly written file data prior writing server disk 
+filters accesses data frequently read filters short lived data allows zebra batch small writes application programs large writes servers 
+zebra designed provide file service despite loss single machine system 
+multiple server failures handled loss second server causes system cease functioning data may lost disks fail servers time 
+number clients may fail affecting availability file data 
+client crash may lose newly written data cached client lose data older time limit lose data written client 
+analogous losing data stored unix file system cache machine crashes 
+striping zebra zebra distributes file data file servers ensuring loss single server affect availability data 
+zebra borrows innovations management disk storage systems raid technology redundant arrays inexpensive disks patterson log structured file systems lfs rosenblum 
+raid technology allows zebra provide scalable file access performance parity redundant copies guard server failures 
+log structured approach simplifies parity implementation reduces impact managing storing parity allows clients batch small writes improve efficiency writing servers 
+raid raid storage system architecture small disks provide increased performance data availability 
+raid appears higher level software single large fast disk 
+transfers disk array divided blocks called striping units 
+consecutive striping units assigned different disks array shown transferred parallel 
+group consecutive striping units spans array called stripe 
+large transfers proceed aggregate bandwidth disks array multiple small transfers serviced concurrently different disks 
+raid disks traditional disk storage system disk failures occur 
+furthermore disk failure raid potentially entire disk array unusable 
+improve data integrity raid reserves striping units stripe parity data see bit parity striping unit contains exclusive corresponding bits striping units stripe 
+disk fails striping units recovered data parity striping units stripe 
+file system continue operation recovery reconstructing data fly 
+raid offers large improvements throughput data integrity availability presents potential problems 
+parity mechanism small writes expensive 
+write operations units stripes easy compute new parity stripe write data 
+increases cost writes relative system parity number disks array 
+overhead small writes higher 
+order keep stripe parity consistent data necessary read current value data block updated read current value corresponding parity block information compute new parity block rewrite parity data 
+small writes raid times expensive disk array parity require reads writes complete 
+unfortunately best size striping unit appears tens kilobytes chen larger average file size environments baker hartman writes smaller full stripe 
+second problem disk array disks attached single machine memory system performance bottleneck 
+example possible attach multiple disks bandwidth mbytes second single scsi bus scsi bus total bandwidth mbytes second 
+additional scsi busses added data copied scsi channel memory network interface 
+decstation machines zebra prototype copies scsi network controllers proceed mbytes second 
+berkeley raid project built special purpose memory system dedicated high bandwidth path network disks system support dozen disks full speed 
+fundamental problem disk array improve server bandwidth server performance bottleneck 
+order eliminate bottlenecks centralized resources multiple paths exist source sink data disks different paths reach different disks 
+example done spreading disks different machines single high speed network different networks reach different disks 
+unfortunately turns disk array distributed system introduces issues allocate disk space compute parity 
+distribution data parity stripe 
+striping parity 
+storage space raid disk array divided stripes stripe contains striping unit disk array 
+striping units hold data striping unit holds parity information recover disk failure 
+necessary avoid bottleneck having multiple data paths share resource 
+goals zebra solve distributed system problems simple efficient way 
+file striping network file system file file servers 
+file striping large file 
+file divided stripe fragments distributed servers 
+fragment stripe contains parity stripe contents 
+striped network file system distributes file data multiple file servers way raid distributes data multiple disks 
+allows servers participate transfer single file 
+terminology describe striped network file system similar raid collection file data spans servers called stripe portion stripe stored single server called stripe fragment 
+obvious way organize striped network file system stripe file separately shown 
+refer method file striping 
+file stored set stripes 
+result parity computed file stripe contains data file 
+conceptually simple file striping drawbacks 
+small files difficult handle efficiently 
+small file striped servers server store small piece file 
+provides little performance benefit access cost due network disk latency incurs overhead server file access 
+better handle small files differently large files store small file single server 
+leads problems parity management 
+small file stored single server parity consume space file resulting high storage overhead 
+addition approach result unbalanced disk utilization server loading 
+second problem file striping requires parity fragment updated time existing file block modified 
+raids small updates require reads old data old parity followed writes new data new parity 
+furthermore writes carried atomically 
+write complete client server crashed parity inconsistent data parity reconstructing lost data incorrect results produced 
+file file servers parity 
+file striping small file 
+file striped evenly servers resulting small fragments server 
+entire file placed server parity requires space file data 
+file file servers parity exist protocols ensuring writes different file servers carried atomically bernstein complex expensive 
+log structured file systems log striping zebra uses techniques log structured file systems lfs rosenblum avoid problems file striping 
+lfs disk management technique treats disk append log 
+new file blocks created existing file blocks modified new data batched written log large sequential transfers 
+metadata affected files updated reflect new locations file blocks 
+lfs particularly effective writing small files write files single transfer contrast traditional file systems require independent disk transfers file 
+rosenblum reported tenfold speedup traditional file systems writing small files 
+lfs suited raids batches small writes large sequential transfers avoids expensive parity updates associated small random writes 
+zebra thought log structured network file system lfs uses logging approach interface file server disks zebra uses logging approach interface client servers 
+illustrates approach call log striping 
+zebra client organizes new file file file file servers data append log stripes servers 
+client computes parity log individual files 
+client creates log stripe file system contains data written single client 
+log striping number advantages file striping 
+servers efficiently regardless file sizes large writes striped allowing completed parallel small writes batched written servers large transfers special handling needed case 
+second parity mechanism simplified 
+client computes parity log fear interactions clients 
+small files excessive parity overhead parity computed logs individual files 
+furthermore stripe complete parity updated file data overwritten place 
+description log striping leaves questions unanswered 
+example files shared client workstations client writing log 
+zebra solves problem introducing central file manager separate storage servers manages metadata directories file attributes supervises interactions clients 
+free space reclaimed logs 
+zebra solves problem stripe cleaner analogous cleaner log structured file system 
+section provides detailed discussion issues 
+file file client log 
+log striping zebra 
+client forms new file data single append log stripes log servers 
+example file spans servers file stored entirely single server 
+parity computed log individual files 
+zebra components zebra file system contains main components shown clients machines run application programs storage servers store file data file manager manages file directory structure file system stripe cleaner reclaims unused space storage servers 
+may number clients storage servers single file manager stripe cleaner 
+components may share single physical machine example possible machine storage server client 
+care taken single file manager stripe cleaner may potential single points failure performance bottlenecks section describes system able continue operation file manager stripe cleaner crashes bottleneck issue addressed section provides performance measurements prototype 
+remainder section describes components isolation section shows components implement operations reading writing files sections describe zebra deals crashes 
+describe zebra assumption storage servers single disk 
+need case 
+example storage servers contain disks managed raid giving appearance clients single disk higher capacity throughput 
+doing provide additional redundancy parity maintained raid protect disk failures parity maintained zebra protect server failures 
+possible put disks single server clients treat logical servers implemented physical machine 
+approach provide zebra benefits clients batch small files transfer network possible reconstruct data disk failure 
+single server zebra system limit system throughput server system able operate server unavailable 
+clients clients machines application programs execute 
+application reads file client determine stripe fragments store desired data retrieve data storage servers return application 
+seen file manager keeps track file data stored provides information clients needed 
+application writes file client appends new data log creating new stripes hold data computing parity stripes writing stripes storage servers 
+clients logs contain file attributes directories metadata 
+information managed separately file manager described section 
+storage servers clients network storage servers zebra schematic 
+clients run applications storage servers store data 
+file manager stripe cleaner run machine system machine run 
+storage servers simplest part zebra 
+just repositories stripe fragments 
+far storage server concerned stripe fragment large block bytes unique identifier 
+identifier file manager stripe cleaner fragment consists identifier client wrote fragment sequence number identifies stripe uniquely written client offset fragment stripe 
+fragments zebra size chosen large minimize network disk overheads transferring data clients storage servers 
+zebra prototype uses kbyte fragments 
+storage servers provide operations store fragment 
+operation allocates space fragment writes fragment disk records disk fragment identifier disk location subsequent accesses 
+operation synchronous complete fragment safely stored 
+fragment exist parity fragment case new copy fragment replaces old 
+done non overwrite manner avoid corruption parity fragment event crash 
+append existing fragment 
+operation similar storing fragment allows client write fragment pieces doesn data fill entire fragment happen example application invokes fsync system call force data disk 
+appends implemented atomically crash append cause previous contents fragment lost 
+retrieve fragment 
+operation returns part data fragment 
+necessary read entire fragment fragment identifier offset length specify desired range bytes 
+delete fragment 
+operation invoked stripe cleaner fragment longer contains useful data 
+fragment disk space available new fragments 
+identify fragments 
+operation provides information fragments stored server fragment written client 
+find ends clients logs crash 
+stripes immutable complete 
+stripe may created sequence append operations non parity fragments overwritten stripe complete modified delete entire stripe 
+parity fragment overwritten data appended partial stripe see section 
+file manager file manager responsible information file system file data 
+refer information metadata includes file attributes protection information block pointers tell file data stored directories symbolic links special files devices 
+file manager performs usual functions file server network file system name lookup maintaining consistency client file caches 
+zebra file manager doesn store file data traditional file server manipulate data zebra file manager manipulates block pointers 
+example consider read operation 
+traditional file system client requests data file server zebra client requests block pointers file manager reads data storage servers 
+zebra prototype implemented file manager sprite file server log structured file system 
+zebra file file file manager file system data file array block pointers indicate blocks data zebra file stored 
+allows zebra existing sprite network file protocols modification 
+clients open read cache zebra metadata manner cache regular sprite files 
+zebra architecture requires sprite network file system existing network file server way storing block pointers files data 
+performance file manager concern centralized resource 
+implementation clients contact file manager open close communication file manager performance bottleneck clients accessing small files 
+believe problem solved caching naming information clients file manager need contacted opens closes 
+name caching successfully network file systems including afs howard locus walker echo hisgen 
+published studies effectiveness name caching indicate relatively small directory cache absorb large fraction directory accesses 
+study directory patterns time shared unix system floyd cache directories occupying kbytes space hit ratio 
+hit ratio attainable cache directories requiring kbytes memory 
+locus network file system directory cache produced hit ratio 
+study directory patterns network file system shirriff shirriff directory cache hit ratio directory cache hit ratio 
+despite evidence benefits name caching decided implement name caching zebra prototype required major modifications sprite file system 
+expect production version zebra incorporate name caching due large benefits attained relatively small caches 
+centralized nature file manager reliability concern issue addressed section 
+stripe cleaner client writes new stripe initially full live data 
+time blocks stripe free files deleted file blocks overwritten 
+application overwrites existing block file zebra doesn modify stripe containing block writes new copy block new stripe 
+way reuse free space stripe clean stripe contains live data whatsoever delete entire stripe 
+storage servers reuse stripe disk space new stripes 
+zebra stripe cleaner runs user level process similar segment cleaner log structured file system 
+identifies stripes large amounts free space reads remaining live blocks stripes appends log client cleaner running copying blocks new stripe 
+done stripe cleaner deletes stripe fragments storage servers 
+section describes cleaning algorithm detail 
+system operation section describes key algorithms zebra show pieces system operation 
+algorithms similar approaches log structured file systems raids network file systems 
+communication deltas client log contains kinds information blocks deltas 
+block simply collection data file information read written applications 
+deltas identify changes blocks file communicate changes clients file manager stripe cleaner 
+example client puts delta log writes file block file manager subsequently reads delta update metadata block 
+deltas contain information file identifier unique identifier file analogous number unix file system 
+file version identifies time change described delta occurred 
+file version number increments block file written deleted 
+version numbers allow deltas different logs ordered crash recovery 
+block number identifies block delta applies 
+old block pointer gives fragment identifier offset block old storage location 
+delta new block old block pointer special null value 
+old block pointer stripe cleaner keep track live data stripes file manager detect races caused simultaneous cleaning modification file described section 
+new block pointer gives fragment identifier offset block new storage location 
+delta block deletion new block pointer special null value 
+deltas created blocks added file deleted file overwritten 
+deltas events called update deltas 
+deltas created stripe cleaner copies live blocks stripes type delta called cleaner delta 
+lastly reject deltas created file manager resolve races stripe cleaning file updates 
+deltas provide simple reliable way various system components communicate changes files 
+deltas stored client logs logs reliable component ensured delta writes lost 
+client modifies block file needs write block update delta log ensure file manager stripe cleaner learn modification 
+crashes file manager stripe cleaner replay deltas client logs recover state 
+writing files zebra run efficiently clients collect large amounts new file data write storage servers large batches ideally stripes 
+existing structure sprite file caches batching relatively easy 
+application writes new data placed client file cache 
+dirty data aren written server reach threshold age seconds sprite cache fills dirty data application issues system call request data written disk file manager requests data written order maintain consistency client caches 
+cases files created deleted threshold age reached data need written baker hartman 
+information need written disk client forms new data stripe fragments writes storage servers 
+file block written client puts update delta log increments file version number 
+benefit multiple storage servers important client transfer fragments storage servers concurrently 
+added support asynchronous remote procedure calls sprite allow clients 
+client transfer stripe fragment storage server server writing current stripe fragment disk network disk kept busy 
+client computes parity writes fragments stripe client writes parity complete stripe 
+zebra prototype client sends stripe deltas file manager stripe cleaner 
+improves performance avoiding disk accesses occur file manager stripe cleaner read deltas log 
+optimization reduce reliability system client crashes sending deltas file manager stripe cleaner read deltas log 
+client forced write data small pieces application frequently fills stripe piece time appending stripe fragment full filling second fragment entire stripe full 
+writing partial stripes client choices dealing parity 
+delay writing parity stripe complete 
+efficient alternative relatively safe client copy unwritten parity information lost disk destroyed client crashes 
+greater protection client update stripe parity fragment time appends stripe 
+parity fragments written way include count number bytes data stripe time fragment written determine relationship parity data crashes 
+parity updates implemented storage servers non overwrite fashion old parity new parity available crash 
+done writing new parity fragment unused location disk updating storage server disk data structures record new location fragment 
+rate applications large effect zebra performance file system fsync require synchronous disk operations 
+baker baker transaction processing workload segments written lfs file system partial segments caused :10.1.1.124.4563
+workload poor performance zebra 
+fortunately non transaction processing accounted segments written 
+ability zebra clients write directly storage servers opens potential security hole 
+storage servers implement file abstraction impossible servers prevent client modifying file permission filling storage servers garbage 
+zebra able prevent occurrences file manager modify file system metadata 
+client modifies file block writing new copy block log update delta describes change 
+file manager uses information delta update file metadata easily ignore delta client permission modify file 
+similarly client tries fill storage servers garbage file manager update file system metadata 
+cases file manager issues reject delta indicate update delta ignored allowing stripe cleaner reclaim new block written client 
+mechanism rejecting update deltas described greater detail section 
+net result malicious client jeopardize integrity file system worst forces stripe cleaner run 
+reading files file reads zebra carried fashion non striped network file system 
+client opens closes file way non zebra file sprite means remote procedure call file manager open close 
+reading data step operation zebra prototype 
+client fetch file block pointers file manager read file blocks storage servers 
+results extra rpc relative non striped file system 
+effect extra rpcs negligible large files block pointers returned rpc allowing block pointers mbytes data returned single rpc 
+small files effect pronounced rpc fetch block pointers takes ms file manager blocks pointers cached 
+better solution reduces additional latency return block pointers small files reply rpc open file 
+current prototype implement optimization allow clients cache block pointers avoiding need fetch file manager time file read 
+large files accessed sequentially zebra prefetches data far ahead keep storage servers busy 
+writing asynchronous rpcs transfer data storage servers concurrently read stripe fragment server disk transferring previous network client 
+zebra prototype attempt optimize reads small files file read storage server separate operation just non striped file system 
+possible prefetch small files reading entire stripes time cross file boundaries 
+locality file access groups files written read approach improve read performance 
+speculate locality exists attempted verify existence capitalize zebra 
+separation metadata management data storage zebra introduces potential security problem storage servers offer protection data store 
+client read block data servers simply constructing proper block pointer 
+current zebra design assumes clients trusted assumption probably valid production version system 
+possible solution extend storage server interface functionality allow clients associate security identifier file block write 
+storage servers maintain access control list identifier specifying clients allowed read blocks identifier 
+allow zebra ensure clients read blocks authorized requiring minimal modifications storage servers 
+client cache consistency network file system allows clients cache file data allows files shared clients cache consistency potential problem 
+example client write file cached client second client subsequently reads file discard stale cached data fetch new data 
+chose sprite approach consistency involves flushing disabling caches files opened nelson readily available approach 
+changes zebra occur client flushes file cache 
+just returning dirty data file server zebra client write dirty blocks storage server file manager process deltas blocks provide date block pointers clients 
+stripe cleaning step cleaning select stripes clean 
+intelligently stripe cleaner needs know live data left stripe 
+deltas compute information 
+stripe cleaner processes deltas client logs uses keep running count space utilization existing stripe 
+delta cleaner increments utilization stripe containing new block decrements utilization stripe contained old block 
+addition cleaner appends deltas refer stripe special file stripe called stripe status file described 
+stripe status files stored ordinary zebra files 
+note single delta affect different stripes copy delta appended status files stripes 
+cleaning stripe cleaner looks stripes live data 
+cleaner deletes stripes fragments storage servers deletes corresponding stripe status files 
+empty stripes free space needed cleaner chooses stripes clean 
+policy uses identical described rosenblum rosenblum cost benefit analysis done stripe considers amount live data stripe age data 
+issues cleaning stripe identifying live blocks copying new stripe 
+stripe status files step easy cleaner reads deltas stripe status file finds blocks haven deleted 
+stripe status files step difficult deltas cause blocks free spread stripes file system 
+live blocks identified stripe cleaner executes user level process copies new stripe special kernel call 
+kernel call reads blocks storage servers appends client log corresponding cleaner deltas writes new log contents storage servers 
+kernel call cleaning blocks effect reading rewriting blocks doesn open file invoke cache consistency actions needn copy data user level stripe cleaner process back kernel doesn update modified times version numbers files generates cleaner deltas update deltas 
+concern stripe cleaner system resources consume copying blocks 
+measurements zebra real workloads expect fraction system resources consumed stripe cleaner comparable log structured file systems running workloads zebra file layout cleaning algorithm similar 
+transaction processing benchmark nearly full disk seltzer cleaning accounted write traffic significantly affected system throughput seltzer 
+unfortunately study unable fully account surprisingly poor lfs performance ousterhout leading publication extensive study seltzer 
+new study lfs performance transaction processing benchmark worse ffs 
+reasons lfs performance degradation fully indicating study warranted 
+despite controversy surrounding lfs performance transaction processing workloads studies shown cleaning cost minimal typical workstation workloads 
+seltzer lfs cleaning costs negligible software development benchmark seltzer 
+rosenblum measured production usage lfs sprite months data stripes cleaned live needed copied rosenblum 
+measurements believe cleaning overhead low typical workstation workloads may needed reduce overheads transaction processing workloads 
+conflicts cleaning file access possible application modify delete file block time stripe cleaner copying 
+synchronization client modify block cleaner reads old copy cleaner rewrites block case new data lost favor rewritten copy old data 
+original lfs race condition avoided having cleaner lock files prevent modified cleaning finished 
+unfortunately produced lock effectively halted normal file accesses cleaning resulted significant pauses 
+zebra stripe cleaner uses optimistic approach similar seltzer seltzer 
+doesn lock files cleaning invoke cache consistency actions 
+stripe cleaner just copies block issues cleaner delta assuming optimistically information block correct block hasn updated 
+fact block updated cleaner cleaning update delta generated client change 
+regardless order deltas arrive file manager file manager sure final pointer block reflects update delta cleaner delta 
+approach results wasted cleaner unusual case conflict occurs avoids synchronization common case conflict 
+file manager detects conflicts comparing old block pointer incoming delta block pointer stored file manager metadata different means block simultaneously cleaned updated 
+table shows scenarios occur 
+scenarios represent cases conflict delta old block pointer matches file manager current block pointer file manager updates block pointer new block pointer delta 
+update delta arrives old block pointer doesn match mean block cleaned update block prevented cache consistency protocol file manager updates block pointer new block pointer delta 
+cleaner delta arrives old block pointer doesn match means block updated cleaned copy irrelevant cleaner delta ignored 
+cases file manager detects conflict generates reject delta placed client log machine file manager running 
+old block pointer reject delta refers type delta table file manager delta processing 
+delta arrives file manager old block pointer delta compared current block pointer 
+match bottom scenarios conflict occurred 
+cleaned copy block new pointer null indicate block free 
+reject delta stripe cleaner keep track stripe usage stripe cleaner way knowing file manager ignored block generated cleaner leaving space occupies unused 
+possible application read block time cleaned 
+example suppose client retrieved block pointer file manager block moved cleaner client retrieves 
+client tries date block pointer things happen 
+block stripe exists client safely cleaner didn modify old copy block 
+stripe deleted client get error storage server tries read old copy 
+error indicates block pointer date client simply discards pointer fetches todate version file manager 
+adding storage server zebra architecture easy add new storage server existing system 
+needs done initialize new server disk empty state notify clients file manager stripe cleaner stripe fragment 
+point clients stripe logs new server 
+existing stripes don cover servers places system needs know fragments stripe reconstruction server failure detect absence fragment stripe new server adjust accordingly 
+time old stripes gradually cleaned point disk space longer stripes span servers 
+old stripes cleaned new ones contain live data 
+desirable particular file reallocated immediately additional bandwidth new server done copying file replacing original copy 
+removing storage server block pointer matches 
+removing storage server step process 
+system administrator verify free space system accommodate loss server 
+files deleted total amount free space exceeds storage capacity server 
+second clients file manager stripe cleaner notified stripes fragment 
+done new stripes created server 
+third stripe cleaner instructed clean old stripes 
+effect moving live data unwanted server remaining servers 
+stripe cleaner finished unwanted server contain live data safely removed system 
+restoring consistency crashes update pointer 
+general issues zebra address client server machine crashes consistency availability 
+crash occurs middle operation data structures may left partially modified state crash 
+example file manager crash processing deltas written clients reboots metadata date respect information clients logs 
+section describes zebra restores internal consistency data structures crashes 
+second issue availability issue reject delta 
+update cleaner update cleaner refers system ability continue operation component 
+zebra approach availability described section 
+respects consistency issues zebra network file systems 
+example file manager restore consistency disk data structures 
+file manager uses disk structures non striped file system recovery mechanism 
+zebra prototype metadata stored log structured file system lfs recovery mechanism described rosenblum rosenblum 
+file manager recover information uses ensure client cache consistency zebra uses approach sprite clients reopen files rebuild client cache consistency state nelson 
+client crashes file manager cleans data structures closing client open files manner sprite 
+zebra introduces consistency problems file systems 
+problems arise distribution system state storage servers file manager stripe manager problems potential inconsistency system components 
+problem stripes may internally inconsistent data parity may written second problem information written stripes may inconsistent metadata stored file manager third problem stripe cleaner state may inconsistent stripes storage servers 
+problems discussed separately subsections follow 
+solutions consistency issues logging checkpoints 
+logging means operations ordered possible tell happened particular time revisit operations order 
+logging implies information modified place new copy information incompletely written old copy available 
+checkpoint defines system state internally consistent 
+recover crash system initializes state checkpoint portion log newer checkpoint 
+combination techniques allows zebra recover quickly crashes 
+need consider information disk older checkpoint 
+zebra similar logging file systems lfs episode cedar file system hagmann respect 
+contrast file systems logs bsd fast file system mckusick tell portions disk modified time crash re scan metadata entire file system recovery 
+internal stripe consistency client crashes possible fragments missing stripes process written 
+file manager detects client crashes recovers behalf client queries storage servers identify client log verifies stripes affected crash complete 
+stripe missing single fragment missing data reconstructed stripes fragment 
+stripe missing fragment discarded subsequent stripes client log 
+means data written time crash lost partially written just file systems maintain unix semantics 
+storage server crashes recovers forms stripe inconsistency possible 
+stripe fragment written time crash completely written 
+detect incomplete stripe fragments zebra stores simple checksum fragment 
+storage server reboots verifies checksums fragments written time crash discards incomplete 
+second inconsistency storage server crash won contain fragments new stripes written 
+storage server reboots queries storage servers find new stripes written 
+reconstructs missing fragments described section writes disk 
+storage servers prototype perform reconstruction crash 
+stripes vs metadata file manager maintain consistency client logs metadata 
+ensure processed deltas written clients updated metadata accordingly 
+normal operation file manager keeps track current position client log periodic intervals forces metadata disk writes checkpoint file contains current log positions 
+client crashes file manager checks storage servers find client log sure processed deltas log 
+file manager crashes reboots processes deltas appear client logs positions stored checkpoint bringing metadata date 
+checkpoint relatively small bytes contains current log positions client performance impact metadata flushed checkpoint written 
+decreasing checkpoint interval improves file manager recovery time expense normal operation anticipate checkpoint interval order minutes provide acceptable recovery time significantly affecting system performance 
+complications replaying deltas solved version numbers 
+deltas may processed applied metadata 
+happen file manager crashes interval writing metadata disk writing checkpoint 
+update delta encountered applied version number file ignored 
+normal operation cleaner delta applied old block pointer matches file manager current block pointer 
+second complication file modified different clients resulting deltas file client logs 
+file manager replay deltas file order originally generated 
+file manager encounters delta replay version number greater file version number means deltas client log replayed 
+case file manager delay processing delta unprocessed deltas client log intervening deltas processed client logs 
+stripes vs cleaner state order stripe cleaner recover crash completely reprocessing stripes file system checkpoints state disk regular intervals 
+state includes current utilizations stripes plus position client log identifies delta processed stripe cleaner 
+buffered data stripe files flushed writing checkpoint 
+stripe cleaner restarts crash reads utilizations log positions starts processing deltas saved log positions 
+crash occurs appending deltas stripe status file writing checkpoint status file duplicate copies deltas stripe cleaner process deltas crash 
+duplicates easily cleaner processes status files 
+availability goal zebra system continue provide service machines crashed 
+single failure storage server file manager stripe cleaner prevent clients accessing files number client failures affect remaining clients 
+system components discussed separately sections 
+prototype implement features noted 
+client crashes way client prevent clients accessing files cache consistency protocol client file open cached clients access file restricted prevent inconsistencies 
+client crash file manager closes open files client allowing files cached clients 
+storage server crashes zebra parity mechanism allows tolerate failure single storage server algorithms similar described raids patterson 
+read file storage server client reconstruct stripe fragment stored server 
+done computing parity fragments stripe result missing fragment 
+writes intended server simply discarded storage server reconstruct reboots described section 
+prototype clients capable reconstruction manual control 
+clients automatically reconstruct fragments server crashes 
+reconstruction relatively inexpensive large sequential reads fragments stripe needed anyway additional cost parity calculation 
+small reads reconstruction expensive requires reading fragments stripe 
+small reads distributed uniformly storage servers reconstruction doubles average cost read 
+file manager crashes file manager critical resource entire system manages file system metadata 
+metadata stored non redundantly file manager file system unusable file manager loss file manager disk destroy file system 
+problems avoided zebra storage servers store file manager metadata 
+local disk file manager writes metadata virtual disk implemented zebra file 
+metadata stored virtual disk file turn stored file manager client log striped storage servers parity just zebra file 
+provides higher performance metadata storing local disk improves availability integrity 
+approach allows file manager run machine network doesn depend having local access disk 
+file manager machine break file manager restarted machine 
+course file manager crashes zebra unavailable file manager restarts possible restart file manager quickly baker 
+similar approach proposed cabrera long swift file system cabrera making storage mediator highly available 
+stripe cleaner crashes technique stripe cleaner highly available similar file manager 
+key access stripe cleaner state confined machine stripe cleaner runs 
+case stripe cleaner stored state local disk stripe cleaner vulnerable failure machine running 
+reason stripe cleaner stores state collection zebra files files stored stripe cleaner client log striped servers 
+machine stripe cleaner running fails stripe cleaner simply restarted different machine 
+prototype status performance implementation zebra prototype began april 
+march zebra supports usual unix file operations cleaner functional clients write parity reconstruct fragments 
+file manager cleaner checkpoint states able recover failure 
+prototype implement crash recovery availability features zebra clients automatically reconstruct stripe fragments storage server crashes storage servers reconstruct missing fragments crash file manager stripe cleaner automatically restarted 
+simplified prototype choosing implement name caching support concurrent write sharing 
+rest section contains preliminary performance measurements prototype 
+measurements show zebra provides factor improvement throughput large reads writes relative nfs sprite file system lack name caching prevents providing performance advantage small files 
+estimate zebra system name caching provide substantial performance improvements small writes 
+experimental setup measurements cluster decstation model workstations connected fddi ring maximum bandwidth mbits second 
+workstations rated integer contains mbytes memory 
+benchmarks memory bandwidth important cpu speed workstations copy large blocks data memory memory mbytes second copies disk controllers fddi interfaces run mbytes second 
+limits bandwidth sprite rpcs fddi mbytes second despite capacity network support higher bandwidths 
+storage server equipped single rz disk capacity gbyte average seek time ms data read disk host mbytes second written mbytes second 
+total workstations available running experiments 
+minimum configuration tested consisted client storage server file manager 
+maximum configuration clients storage servers file manager 
+relatively small number storage servers available eliminates possibility fddi ring performance bottleneck servers capable transferring data maximum rate mbytes second fddi maximum bandwidth 
+measurements file manager generate checkpoints stripe cleaner running 
+data point collected running benchmark times averaging results 
+standard deviations reported shown graphs small discernible 
+comparison measured standard sprite configuration ultrix nfs configuration 
+sprite system collection workstations zebra experiments standard sprite network file system zebra sprite log structured file system disk storage manager file server 
+nfs configuration client configuration zebra file server slightly faster cpu slightly faster disks 
+nfs server included mbyte non volatile ram card buffering disk writes 
+performance vs file size experiments varied file size measured file system throughput resource utilizations reading writing files 
+experiment client file manager data servers servers store data fragments opposed parity fragments parity server 
+application wrote read files ran client elapsed time resource utilizations measured 
+order measure steady state performance system start effects files smaller kbytes size avoided having application read write files test 
+files size kbytes greater test read wrote files transfer mbytes data 
+shows results 
+standard deviations read writes measurements kbytes second kbytes second respectively 
+seen throughput increases dramatically file size increases 
+large files reading faster writing client cpu saturated accessing large files writing additional overhead computing parity 
+small files writing faster reading zebra log striping writes small files servers time 
+throughput mbytes second read write file size bytes 
+throughput vs file size 
+single client reads writes files varying size storage servers 
+writing small files faster reading due zebra ability batch small writes writing large files slower reading due parity computation 
+zebra batches small file writes shows write performance decreases file size decreases indicating significant file overheads associated writing files batching eliminate 
+write bandwidth mbyte files times bandwidth kbyte files 
+evidence file overheads resource utilizations write tests shown 
+utilizations show bottleneck writing large files client cpu utilized file manager cpu utilized 
+client spending time copying data application program kernel kernel network interface performing parity computation 
+favorable result indicates zebra write performance large files track client performance improvements file manager able support clients running workload 
+utilization 
+write resource utilizations 
+small files time required open close files causes low client utilization high file manager utilization effect described detail section large files client cpu saturates 
+storage server utilizations measured servers system 
+maximum standard deviation measurements 
+file size bytes small file writes bottleneck longer client cpu 
+seen writing kbyte files client cpu utilized file manager cpu utilized 
+source high overhead file manager processing file open close requests client described detail section 
+short open close file client results request response message exchange file manager 
+increases overhead file manager reduces performance benchmark client idle file manager processes open close requests 
+similar situation occurs reading files shown 
+bottleneck reading large files client cpu cost opening closing files reading small files decreases client cpu utilization increases file manager cpu utilization 
+basic shapes curves knees curves occur larger file sizes 
+zebra batch small writes reads 
+larger files required servers efficiently 
+performance vs number servers set experiments file size fixed mbytes number servers clients varied 
+benchmark consists application writes single large file mbytes invokes fsync force file disk 
+ran instances application different clients writing different file varying numbers servers computed total throughput system total number bytes written clients divided elapsed time 
+graphs results 
+single client server zebra runs twice speed nfs sprite 
+zebra uses large blocks asynchronous rpc allows overlap disk operations network transfers 
+client cpu fm cpu ss cpu ss disk utilization client cpu fm cpu ss cpu ss disk 
+read resource utilizations 
+curves similar shape writing knees occur larger file sizes 
+storage server utilizations measured servers system 
+small files loads equal servers causing fluctuations curves 
+standard deviations measurements 
+file size bytes total throughput mbytes sec clients clients client parity client sprite nfs presto data servers 
+total system throughput large file writes 
+client ran single application wrote mbyte file flushed file disk 
+multi server configurations data striped servers fragment size kbytes 
+zebra configuration included parity server addition data servers 
+maximum standard deviations mbytes second zebra mbytes second sprite mbytes second nfs 
+limiting factor case server disk system write data mbyte second 
+servers added single client case zebra performance increases factor mbytes second servers 
+non linear speedup occurs start effects caused sprite write back cache 
+client write cache servers full causing benchmark run phases 
+phase application fills kernel file cache writing file second phase client kernel flushes cache transferring stripes servers 
+phases overlapped second phase benefits additional storage servers 
+performance clients limited entirely servers scales linearly number servers 
+shows throughput single client generate parity 
+zebra incurs overhead parity aside obvious overhead writing data servers 
+data server system server bottleneck client plenty time compute write parity 
+data servers system client bottleneck cost writing parity begins effect 
+shows zebra throughput reading large files 
+zebra performance reading better writing servers read data disks full scsi bandwidth mbytes second 
+single client read file mbytes second single server clients achieve total bandwidth mbytes second data servers 
+servers saturate single client causing single client curve level mbytes second 
+speed client spending time copying data network buffer file cache file cache application 
+overhead reduced significantly modifying sprite kernel fddi interface dma capability transfer incoming network packets directly file cache eliminating data copies 
+total throughput mbytes sec performance reads require reconstruction shown line labeled client recon 
+test storage servers unavailable client reconstruct stripe fragments stored server reading fragments stripe computing parity 
+data server throughput reconstruction slightly normal operation parity block system data server mirror image data block reconstruction doesn require additional computation client 
+throughput doesn increase additional servers client cpu saturated due additional copying exclusive operations reconstruct missing data 
+small file performance clients clients client client recon sprite nfs presto data servers 
+throughput large file reads 
+client ran single application read mbyte file 
+multi server configurations data striped servers fragment size kbytes 
+line labeled client recon shows reconstruction performance server unavailable client reconstruct missing stripe fragments 
+addition servers storing file data zebra configuration server storing parity 
+maximum standard deviations mbytes second zebra mbytes second sprite mbytes second nfs 
+shows elapsed time single client write small files 
+nfs sprite tests client writing single file server zebra test storage servers stored parity file manager 
+zebra substantially faster nfs benchmark faster sprite 
+main reason zebra sprite caches naming information open close requires separate rpc file server file manager shows time spent rpcs 
+rightmost bars estimate times sprite zebra name caching implemented estimates running benchmark directly sprite file server 
+estimates show addition name caching reduce time required open close files result agrees published studies directory patterns 
+zebra significantly faster sprite cache flush portion benchmark 
+systems merge small files large blocks writing sprite doesn data reached server file transferred network separate message exchange 
+zebra batches files transferring network efficient amortizes overhead associated network transfer bytes data 
+elapsed time seconds resource utilization nfs sprite zebra sprite zebra standard name caching 
+performance small writes 
+single client created files kbyte length flushed files single server 
+elapsed time divided components time open close files time application write data time client flush cache server cache time server flush cache disk 
+nfs file flushed closed 
+rightmost bars estimates sprite zebra name caching implemented 
+maximum standard deviations components seconds nfs seconds sprite seconds zebra 
+shows utilizations various system components previous benchmarks zebra sprite 
+large reads writes zebra file manager cpu idle system scale dozens storage servers file manager performance bottleneck 
+compared sprite zebra higher utilizations client cpu server cpu server disk zebra running benchmark quickly 
+small writes zebra sprite spend time synchronous rpcs open close files 
+systems sum client cpu utilization file manager cpu utilization nearly exceed rpcs allow overlap processing cpus 
+zebra sprite appears server cpu saturate addition second client name caching server cpu performance bottleneck 
+benchmarks zebra client higher cpu utilization file manager opposite true sprite system 
+indicates zebra better able take advantage client performance improvements performance benchmark heavily dependent client performance sprite 
+large read write benchmarks zebra file manager utilized sprite file server utilized 
+open close write client flush server flush utilization related zebra sprite zebra sprite zebra sprite resource utilizations 
+utilizations file manager fm cpu disk client cpu storage server ss cpu disk previous benchmarks 
+zebra system consisted single client single file manager storage servers stored parity sprite system consisted single client single file server served file manager storage server 
+standard deviations measurements 
+key ideas zebra derived prior disk arrays log structured file systems 
+related projects areas striping availability 
+raid ii wilkes cao raid technology build highperformance file servers 
+raid ii uses dedicated high bandwidth data path network disk array bypass slow memory system server host 
+array processor disk nodes connected high performance interconnect parallel machine disk node 
+refinement focuses distributing functions traditionally centralized raid controller multiple processors removing controller single point failure 
+systems striping internal server zebra clients participate striping files 
+redundant array distributed disks schloss similar raid uses parity withstand loss disk differs separating disks geographically decrease likelihood losing multiple disks 
+furthermore stripe data data stored disk logically independent improve performance individual data accesses 
+striping file systems built 
+sfs bridge cfs pierce stripe nodes parallel computer knowledge swift cabrera stripes servers network file system :10.1.1.49.2577
+systems file striping best large files 
+swift performance reading writing large files improves nearly linearly number servers increases cpus disks swift slower zebra absolute performance lower zebra 
+swift prototype reimplemented incorporate reliability mechanisms described swift architecture long 
+prototype support variety parity organizations 
+measurements show parity computation incurs significant overhead performance server system parity enabled original swift prototype number servers 
+research efforts improve availability network file systems locus walker coda satyanarayanan deceit siegel ficus guy harp liskov 
+fm cpu client cpu ss cpu disk large write large read small write systems replicate data storing complete copies results higher storage update costs zebra parity scheme 
+harp uses write logs power supplies avoid synchronous disk operations reduce update overhead 
+addition systems locus coda replicas improve performance allowing client access nearest replica zebra parity approach permit optimization 
+approach highly available file service design file servers quickly reboot software failure baker 
+idea reboot file server quickly file service interrupted 
+alternative require redundant copies parity allow system continue operation event hardware failure 
+zebra borrows log structure lfs rosenblum high performance write optimized file system 
+seltzer seltzer shown adding extents ffs mckusick results file system called efs mcvoy comparable performance lfs large reads writes 
+efs improve performance small files lfs zebra address parity striping issues striped network file system 
+create delete deltas zebra similar active deleted sublists grapevine mail system manage entries registration database birrell 
+grapevine timestamps zebra uses version numbers allow system establish order different sources information recover crashes 
+zebra takes ideas originally developed managing disk subsystems striping parity logstructured file systems applies network file systems 
+result network file system attractive properties performance 
+large files read written times fast network file systems small files written faster 
+scalability 
+new disks servers added incrementally increase system bandwidth capacity 
+zebra stripe cleaner automatically reorganizes data time take advantage additional bandwidth 
+cost effective servers 
+storage servers need high performance machines special purpose hardware performance system increased adding servers 
+zebra transfers information storage servers large stripe fragments servers interpret contents stripes server implementation simple efficient 
+availability 
+combining ideas raid lfs zebra simple mechanisms manage parity stripe 
+system continue operation storage servers unavailable reconstruct lost data event total failure server disk 
+simplicity 
+zebra adds little complexity mechanisms network file system uses logging disk structures 
+deltas provide simple way maintain consistency components system 
+areas think zebra benefit additional name caching 
+name caching zebra provides speedup small writes comparison non striped sprite file system 
+think system name caching provide greater speedup 
+transaction processing 
+expect zebra workloads lfs includes workstation applications 
+significant amount controversy surrounding performance lfs transaction processing workload 
+needed understand area 
+metadata 
+convenient zebra prototype file existing file system store block pointers zebra file approach suffers number inefficiencies 
+think system improved metadata structures redesigned scratch zebra mind 
+small reads 
+interesting verify locality small file reads prefetching stripes provide substantial performance improvement 
+security protection 
+current design little provide security protection files stores 
+malicious clients overwrite existing files read files permission 
+addition security identifiers file blocks access control lists storage servers appears simple solution greatly improve zebra security 
+believe zebra offers higher throughput availability scalability today network file systems cost small increase system complexity 
+acknowledgments paul leach felipe cabrera ann ken shirriff bruce montague mary baker provided useful comments various drafts 
+ken lutz peter chen peter ares ho built timer boards proved invaluable debugging system running experiments 
+anonymous referees comments greatly improved 
+anderson thomas anderson david culler david patterson case networks workstations 
+appear ieee micro 
+baker mary baker john hartman michael kupfer ken shirriff john ousterhout measurements distributed file system proceedings th symposium operating systems principles sosp asilomar ca october 
+published acm sigops operating systems review 
+baker mary baker mark sullivan recovery box fast recovery provide high availability unix environment proceedings summer usenix conference june 
+baker mary baker satoshi etienne john ousterhout non volatile memory fast reliable file systems proceedings fifth international conference architectural support programming languages operating systems asplos boston ma october :10.1.1.124.4563
+bernstein philip bernstein nathan goodman concurrency control distributed database systems acm computing surveys june 
+birrell andrew birrell roy levin roger needham michael schroeder grapevine exercise distributed computing communications acm april 
+cabrera luis felipe cabrera darrell long swift distributed disk striping provide high data rates computing systems fall 
+cao pei cao lim shivakumar venkataraman john wilkes parallel raid architecture proceedings th annual international symposium computer architecture may 
+chen peter chen david patterson maximizing performance striped disk array proceedings th annual international symposium computer architecture may 
+owen anderson michael kazar bruce anthony mason robert sidebotham episode file system proceedings winter usenix conference january 
+peter michael scott carla ellis bridge high performance file system parallel processors proceedings th international conference distributed computing systems icdcs :10.1.1.49.2577
+ann ken shirriff john hartman ethan miller srinivasan seshan randy katz ken lutz david patterson edward lee peter chen garth gibson raid ii high bandwidth network file server proceedings st annual international symposium computer architecture april 
+floyd richard floyd carla ellis directory patterns hierarchical file systems ieee transactions knowledge data engineering june 
+vincent david gregory andrews distributed filaments efficient fine grain parallelism cluster workstations proceedings usenix symposium operating systems design implementation osdi november 
+guy richard guy john heidemann wai mak thomas page jr gerald popek dieter implementation ficus replicated file system proceedings summer usenix conference anaheim ca june 
+hagmann robert hagmann reimplementing cedar file system logging group commit proceedings symposium operating systems principles sosp november 
+published acm sigops operating systems review 
+hartman john hartman john ousterhout letter editor acm sigops operating systems review january 
+hisgen andy hisgen andrew birrell timothy mann michael schroeder garret swart availability consistency tradeoffs echo distributed file system proceedings second workshop workstation operating systems september 
+howard john howard michael kazar menees david nichols satyanarayanan robert sidebotham michael west scale performance distributed file system acm transactions computer systems february 
+liskov barbara liskov sanjay ghemawat robert gruber paul johnson shrira michael williams replication harp file system proceedings th symposium operating systems principles sosp asilomar ca october 
+published acm sigops operating systems review 
+long darrell long bruce montague luis felipe cabrera swift raid distributed raid system computing systems summer 
+lo verso susan lo verso marshall andy nanopoulos william milne richard wheeler sfs parallel file system cm proceedings summer usenix conference cincinnati oh june 
+mckusick marshall mckusick william joy samuel leffler robert fabry fast file system unix acm transactions computer systems august 
+mcvoy larry mcvoy steve kleiman extent performance unix file system proceedings winter usenix conference dallas tx january 
+nelson michael nelson brent welch john ousterhout caching sprite network file system acm transactions computer systems february 
+ousterhout john ousterhout andrew fred douglis mike nelson brent welch sprite network operating system ieee computer february 
+ousterhout john ousterhout critique seltzer usenix 
+available www com seltzer html 
+patterson david patterson garth gibson randy katz case redundant arrays inexpensive disks raid proceedings acm conference management data sigmod chicago il june 
+pierce paul pierce concurrent file system highly parallel mass storage subsystem proceedings fourth conference hypercubes monterey ca march 
+rosenblum mendel rosenblum john ousterhout design implementation log structured file system proceedings th symposium operating systems principles sosp asilomar ca october 
+published acm sigops operating systems review 
+satyanarayanan satyanarayanan james kistler kumar maria okasaki siegel steere coda highly available file system distributed workstation environment ieee transactions computers april 
+schloss gary schloss michael stonebraker highly redundant management distributed data proceedings ieee workshop management replicated data november 
+seltzer margo seltzer keith bostic marshall kirk mckusick carl staelin implementation log structured file system unix proceedings winter usenix conference san diego ca january 
+seltzer margo seltzer keith smith hari balakrishnan jacqueline chang sara venkata padmanabhan file system logging versus clustering performance comparison proceedings winter usenix conference january 
+alan robert lindell gerald popek name service locality cache design distributed operating system proceedings th international conference distributed computing systems icdcs may 
+shirriff ken shirriff john ousterhout trace driven analysis name attribute caching distributed file system proceedings winter usenix conference january 
+siegel alex siegel kenneth birman keith marzullo deceit flexible distributed file system proceedings summer usenix conference anaheim ca june 
+walker bruce walker gerald popek robert english charles kline greg thiel locus distributed operating system proceedings th symposium operating systems principles sosp november 
+published acm sigops operating systems review 
+wilkes john wilkes research project phase proceedings usenix file systems workshop may 
+

@@ -1,0 +1,570 @@
+distributed versioning consistent replication scaling back databases dynamic content web sites alan cox willy zwaenepoel department computer science rice university houston tx usa school computer communication sciences epfl lausanne switzerland cs rice edu willy zwaenepoel epfl ch 
+dynamic content web sites consist front web server application server back database 
+introduce distributed versioning new method scaling back database replication 
+distributed versioning provides consistency guarantees eager replication scaling properties lazy replication 
+combining novel concurrency control method explicit versions conflict aware query scheduling reduces number lock conflicts 
+evaluate distributed versioning dynamic content applications tpc commerce benchmark workload mixes auction site benchmark bulletin board benchmark 
+demonstrate distributed versioning scales better previous methods provide consistency 
+furthermore demonstrate benefits relaxing consistency limited conflict heavy tpc ordering mix 
+web sites serving dynamic content usually consist web server application server back database see 
+client request dynamic content causes web server invoke method application server 
+application server issues number queries database formats results html page 
+web server returns page response client 
+web server database server client internet application server sql fig 
+
+common architecture dynamic content web sites replication database back allows improved data availability performance scaling :10.1.1.43.1454
+providing consistency time performance scaling proven difficult challenge 
+eager replication schemes provide strong consistency copy serializability severely limit performance mainly due conflicts 
+lazy replication delayed propagation modifications provides better performance writes arrive order different sites reads access inconsistent data 
+argued distinct consistency models supplied dynamic content applications different consistency requirements 
+neptune proposes levels consistency 
+extension idea proposes continuum consistency models tunable parameters 
+programmer chooses appropriate consistency model appropriate parameters application adjusts application fit available models 
+adjusting application may require non trivial programmer effort 
+introduce distributed versioning technique maintains strong consistency copy serializability time allows scaling behavior 
+distributed versioning improves earlier conflict aware schedulers ways 
+limitation previous scheme conservative phase locking avoiding deadlocks severely limits concurrency 
+introduce novel deadlock free concurrency control algorithm explicit versions allows increased concurrency 
+distributed versioning integrates concurrency control algorithm conflict aware scheduler improve performance methods introduced earlier 
+
+investigate overhead copy serializability compared looser consistency models provided lazy replication 
+study overhead variety applications different consistency requirements 
+evaluation workload mixes browsing shopping ordering tpc benchmark auction site benchmark bulletin board benchmark 
+implemented web sites popular open source software packages apache web server php web scripting application development language mysql database server 
+results follows 
+distributed versioning increases throughput compared traditional eager protocol serializability factors browsing shopping ordering mixes tpc auction site bulletin board respectively largest configuration studied 
+
+browsing shopping workloads tpc bulletin board distributed versioning achieves performance best lazy protocol loose consistency 
+auction site performance 
+difference larger tpc ordering mix large number conflicts best lazy protocol respect application semantics 
+
+penalty enforcing serializability applications loose consistency bulletin board 
+outline rest follows 
+section describes programming model consistency model cluster design distributed versioning 
+section introduces distributed versioning 
+section describes prototype implementation 
+sections describes consistency models implementation different lazy protocols loose consistency models explored 
+section presents benchmarks 
+section presents experimental platform evaluation methodology 
+investigate distributed versioning affects scaling compare lazy protocols section 
+section discusses related 
+section concludes 
+environment section describes environment distributed versioning meant 
+particular describe programming model desired consistency cluster architecture 
+programming model single client web interaction may include transactions single transaction may include read write queries 
+application writer specifies application code transactions 
+absence transaction delimiters single query considered transaction automatically committed called auto commit mode 
+transaction consisting query programmer inserts pre declaration tables accessed transaction modes access read write 
+tables accessed single operation transactions need pre declared 
+additionally programmer inserts annotation particular table transaction 
+annotations currently done hand automated 
+consistency model consistency model distributed versioning copy serializability 
+copy serializability conflicting operations different transactions execute order replicas execution transactions equivalent serial execution total order 
+cluster architecture consider cluster architecture dynamic content site scheduler distributes incoming requests cluster database replicas delivers responses application server see 
+scheduler may replicated performance availability 
+application server interacts directly schedulers 
+scheduler particular configuration application server assigned particular scheduler transaction roundrobin 
+query transaction application server interacts single scheduler 
+interactions synchronous query application server blocks receives response scheduler 
+application servers scheduler looks database engine 
+database engine interacts scheduler regular application server 
+result shelf web server apache application server php shelf database mysql modification 
+front node switch included 
+switch distributed nature server transparent clients 
+web server application server web server application server db server db server web server application server db server scheduler ethernet switch fig 
+
+cluster design dynamic content web site distributed versioning distributed versioning achieves copy serializability absence deadlock high degree concurrency lazy read write replication scheme augmented version numbers described 
+lazy read write replication scheduler receives write commit query application server sends replicas returns response soon receives response replicas 
+reads sent single replica response sent back application server soon received replica 
+assigning version numbers separate version number maintained table database 
+transaction assigned version number table accesses single read transactions see 
+discussed section multi query transaction declares tables reads writes starts execution 
+tables accessed transactions implicitly declared query 
+information scheduler assigns table versions accessed queries transaction 
+assignment done atomically scheduler assigns version numbers transaction assigns version numbers transaction 
+version number assignment done way conflict current transaction earlier version numbers current transaction tables involved conflicts higher version numbers received earlier conflicting transaction 
+operations particular table executed replicas version number order 
+particular operation waits version available 
+new versions available result previous transaction committing result declarations see section 
+transactions consisting single read query treated differently 
+version numbers assigned 
+query simply forwarded replicas executes conflicting transactions complete 
+optimization results substantial performance improvement violating copy serializability 
+copy serializability absence deadlock transactions conflicting operations involving tables version numbers conflicting tables assigned earlier transaction strictly lower assigned tables transaction 
+conflicting operations execute version number order replicas conflicting operations transactions execute total order replicas 
+copy serializability established 
+similar argument shows distributed versioning avoids deadlock 
+tables cause conflicts transactions version numbers assigned transaction smaller larger assigned transaction 
+transactions wait completion operations lower version number circular wait deadlock avoided 
+limiting number conflicts scheduler sends write queries replicas relies asynchronous execution order version numbers 
+time write data item may sent replicas may completed subset 
+conflict aware scheduler maintains completion status outstanding write operations current version table database replicas 
+information scheduler sends read immediately follows particular write version number order replica knows write finished corresponding required version produced 
+avoids waiting due read write conflicts 
+reducing conflict duration absence declarations transactions versions various tables produced current transaction available commit time 
+presence declaration allows version produced immediately time declaration appears application code 
+early release version reduces time transactions wait version available 
+early releases compromise copy serializability 
+versions atomically pre assigned transaction version release occurs particular table 
+total ordering conflicting transactions replicas system early releases 
+rationale earlier conservative phase locking concurrency control method conflict aware scheduling 
+demonstrate distributed versioning leads concurrency conservative pl 
+conservative pl distributed versioning declaration tables going accessed transaction done transaction 
+behavior schemes terms waiting conflicts resolved totally different 
+particular conflict waiting times potentially lower distributed versioning reasons 
+conservative pl particular transaction waits locks available 
+contrast distributed versioning waiting transaction 
+version numbers assigned 
+waiting occurs operation tries access table conflicting operations earlier version number completed 
+key difference operation distributed versioning waits proper versions tables particular operation available 
+second conservative pl locks held commit 
+contrast distributed versioning new version table produced soon transaction completes access table 
+summary increased concurrency distributed versioning comes selective table waiting conflicts resolved earlier availability new versions tables early version releases 
+illustrate increase concurrency example 
+assume transactions execute code shown writing different tables 
+assume transaction serialized transaction conservative pl transaction waits locks tables freed starts executing see 
+contrast distributed versioning operations different tables pipelined 
+example clearly demonstrates general features distributed versioning selective table waiting early availability versions essential 
+single feature isolation produce behavior conservative pl concurrency 
+write write write fig 
+
+sequence updates transaction fig 
+
+serial execution conservative pl left versus increased concurrency distributed versioning right may wonder similar benefits available alternative pl schemes 
+case 
+selective waiting locks achieved implicit pl locks acquired immediately operation 
+implicit pl achieves selective waiting expense potential deadlocks 
+probability deadlock increases approximately quadratically number replicas concurrency control algorithm allows deadlock undesirable large clusters 
+deadlock avoidance scheme conjunction selective waiting locks early releases locks limited phase nature pl necessary achieving serializability 
+implementation overview implementation consists types processes scheduler processes scheduler machine sequencer process entire cluster database proxy processes database replica 
+sequencer assigns unique version numbers tables accessed transaction 
+database proxy regulates access database server letting query proceed database right versions tables named query 
+schedulers receive various operations application server transaction read write queries commit abort transaction forward appropriate sequencer database proxies relay responses back application server 
+describe actions taken scheduler database proxy type operation received processing response received database 
+transaction start application server informs scheduler tables going accessed particular table read written 
+scheduler forwards message sequencer see 
+sequencer assigns version numbers tables transaction returns result scheduler 
+scheduler stores information length transaction 
+responds application server continue transaction 
+version numbers passed application server 
+commit sch seq resp vn obj sch db db db resp vn resp resp vn resp vn sch seq resp rd resp rd vn db db db sch db db db resp resp commit commit commit resp commit resp write read fig 
+
+protocol steps type query query response operation read write version assigned fig 
+
+sequencer assigned version numbers series operations table sequencer remembers values sequence number read assigned request read sequence number write assigned request write 
+sequencer receives request scheduler set version numbers tables accessed particular transaction sequencer returns table read write sequence number depending particular table read written transaction 
+sequence number assigned write write incremented read set new value write 
+sequence number assigned read write incremented 
+intuition version number assignment version number assigned transaction particular table increases time new transaction contains conflicting operation previous transaction access table 
+example shows series read write operations particular table belonging different transaction order arrival transaction version number request sequencer 
+shows version numbers assigned sequencer table transaction values read write 
+long successive accesses reads transactions assigned version number 
+read write write read write write conflict higher version number assigned 
+assignment version numbers particular transaction atomic 
+words version numbers transaction assigned version number subsequent transaction assigned 
+result version numbers tables accessed particular transaction equal version numbers tables subsequent transaction 
+equal transactions conflict 
+read write application server executes transaction sends read write queries scheduler 
+explain scheduler database proxies enforce total order read write operations necessary copy serializability 
+enforcing copy serializability 
+read write queries scheduler tags table version number assigned table transaction 
+sends write queries replicas read queries sent replica see 
+rules govern execution query write query executed version numbers table database match version numbers query 
+read query executed version numbers table database greater equal version numbers query 
+write query needs wait assigned versions particular replica blocked database proxy replica 
+read query needs wait blocked scheduler replicas ready execute query 
+detail scheduler keeps track current version numbers tables database replicas 
+scheduler blocks read queries database tables query version numbers greater equal version numbers assigned transaction tables 
+replicas loaded replica chosen 
+single scheduler automatically aware version number changes database replicas result responses commits early version releases 
+multiple schedulers extra communication needed inform schedulers version number changes resulting transactions handled schedulers 
+single read transactions 
+single read transaction executes replica need assign cluster wide version numbers transaction 
+scheduler forwards transaction chosen replica assigning version numbers 
+chosen database replica read query executes update transaction highest version numbers corresponding tables proxy queues releases table versions 
+order execution single read transaction ultimately decided database proxy scheduler block queries 
+case conflict read query waits database proxy 
+scheduler attempts reduce wait selecting replica date version table needed query 
+case date version means table version number greater equal highest version number assigned previous transaction table 
+replica may necessarily exist 
+completion reads writes completion read write database see database proxy receives response forwards back scheduler 
+scheduler returns response application server response received write query response read query 
+scheduler keeps track state outstanding writes updates internal data structures database engines sends back reply 
+early version releases scheduler uses annotation send explicit version release message increments specified table version database 
+commit abort scheduler tags commit abort tables accessed transaction version numbers corresponding version release flag forwards commit abort replicas see 
+transaction commit carries version release flag tables early version releases performed 
+transactions carry implicit commit version release 
+completion database corresponding database proxy increments version number tables version release flag included message scheduler 
+returns answer scheduler updates state reflect reply 
+reply scheduler forwards response application server 
+copy serializability algorithm achieves copy serializability forcing transactions conflicting operations particular table execute total order version numbers assigned 
+transaction containing write table conflicts previous transactions access table 
+needs execute transactions lower version numbers table 
+achieved combination assignment version numbers rule governs execution write queries database replica seen argument 
+write counts earlier transactions access table 
+value assigned version number table transaction 
+
+database proxy increments version number time transaction accesses table completes 
+
+transaction allowed execute version number table equals version number table database proxy follows previous transactions accessed table completed 
+transaction containing read table conflicts previous transactions containing write table 
+follows needs execute transaction containing write table highest version number lower 
+achieved combination assignment version numbers rule governs execution read queries database replica seen argument 
+read remembers highest version number produced transaction write table 
+value assigned transaction version number table 
+
+current transaction allowed execute database proxy version number table database proxy reaches transaction version number table 
+
+algorithm allows read query execute database proxy database proxy version number table higher transaction 
+way happen result sequence transactions reads table execute parallel violating total order conflicting operations 
+earlier example add version numbers produced transaction commit assigned sequencer 
+reads assigned version number sequencer read versions versions produced concurrent readers 
+write required wait previous readers done version database incremented match write assigned version number 
+operation version assigned version produced fig 
+
+sequencer assigned version numbers series transactions version number produced database proxy transaction commits load balancing shortest execution length self load balancing algorithm 
+measure line execution time query idle machine 
+run time scheduler estimates load replica sum priori measured execution times queries outstanding back 
+scheduler updates load estimate replica feedback provided database proxy reply 
+self tries take account widely varying execution times different query types 
+shown self outperforms round robin shortest queue algorithms dynamic content applications 
+fault tolerance data availability scheduler web server return result update request user soon commit response database replica received 
+schedulers responsible coordinating completion updates database back ends case scheduler sequencer back database failure 
+meet goal completion status write queries update transaction transaction version numbers maintained fault tolerant highly available manner schedulers 
+high data availability achieved replicating state schedulers 
+additional fault tolerance provided logging information stable storage 
+details availability fault tolerance protocol similar ones described previous demonstrate aspects solution incur significant overhead terms computation memory disk accesses 
+loose consistency models performance evaluation section compare distributed versioning number replication methods provide looser consistency copy serializability 
+methods implementation introduced 
+definition describe consistency levels specified neptune types dynamic content web sites suitable 
+extend consistency models additional model designed incorporate features continuous consistency model spectrum 
+level 
+write replication 
+basic lazy consistency scheme offers ordering consistency guarantees 
+writes arrive order reconciled 
+scheme applicable simple services append commutative total updates mail service 
+level 
+ordered writes 
+writes totally ordered replicas reads access inconsistent data staleness bounds 
+scheme applicable services allow partial updates reads access stale inconsistent data discussion groups 
+level 
+ordered writes staleness control reads 
+writes totally ordered replicas reads satisfy criteria read serviced replica seconds stale staleness bound 
+read particular client perceives previous writes performed client correct order 
+consistency model suitable sites need stronger consistency requirements auction sites 
+example client needs perceive previous bids correct order guaranteed see sufficiently maximum bid 
+special 
+interaction object consistency model application specific 
+interaction object consistency model defined 
+approach applied web sites general strong consistency needs relaxations case case basis specific interactions objects 
+implementation loose consistency methods levels remove transaction delimiters annotations application code 
+scheduler database proxy modified follows 
+level remove checks pertaining order delivery writes database proxy 
+database proxy implements conflict resolution writes handled order arrival may different different replicas 
+version numbers 
+scheduler load balances reads database replicas 
+implement level scheduler obtains version numbers write database proxies deliver writes version number order distributed versioning 
+version numbers assigned reads 
+scheduler load balances reads database replicas 
+addition functionality implemented level level scheduler augments data structures wall clock timestamp database replica table 
+appropriate timestamp set time database replica acknowledges execution write table 
+scheduler load balances reads database machines satisfy staleness bound tables accessed query addition finished writes pertaining client connection 
+second staleness bound applications 
+original scheme described neptune staleness bound loose sense network time scheduler database proxy taken account 
+implementation special consistency models application specific implementation deferred section discuss application benchmarks 
+benchmarks provide basic characteristics benchmarks study 
+detail earlier 
+tpc tpc benchmark transaction processing council tpc transactional web benchmark designed evaluate commerce systems 
+interactions simulate activity bookstore 
+database contains tables frequently order line orders credit info give information orders placed item author contain information books 
+implement different interactions specified tpc benchmark specification 
+interactions read cause database updated 
+read interactions include access home page listing new products best sellers requests product detail order display interactions involving searches 
+update transactions include user registration updates shopping cart order placement transactions involving order display administrative tasks 
+database size determined number items inventory size customer population 
+items customers results database gb 
+inventory images totaling gb resident web server 
+tpc uses different workload mixes differing ratio read read write interactions 
+browsing mix contains read interactions shopping mix ordering mix 
+tpc implement special consistency model 
+model follows specification tpc allows departures copy serializability 
+detail specification requires update interactions respect serializability 
+read interactions retail inventory best sellers new products searches product detail interactions allowed return data seconds old 
+read interactions related particular customer home order display interactions required return date data 
+allowed read stale data queries need respect atomicity update transactions conflict 
+add number ad hoc rules scheduler implement special consistency model 
+auction site benchmark auction site benchmark modeled ebay implements core functionality auction site selling browsing bidding 
+database contains tables users items bids buy comments categories regions 
+users items tables contain information users items sale respectively 
+bid stored bids table includes seller bid max bid value 
+items directly bought auction stored separate buy table 
+speed displaying bid history browsing item information bids maximum bid current number bids kept relevant item items table 
+auction site defines interactions main ones browsing items category region bidding buying selling items leaving comments users consulting user page known ebay 
+browsing items includes consulting bid history seller information 
+size system observations ebay web site 
+items sale distributed categories regions average bids item 
+average bids item entries bids table 
+total size database gb 
+workload mix includes read write interactions 
+mix representative auction site workload earlier study ebay workloads mentioned 
+argued auction site supported level consistency model described section program modifications necessary ensure correct outcome auction site level consistency 
+problem code places relies atomic sequences longer available absence transactions 
+instance suppose transaction placing bid 
+transaction placing bid maximum bid read item table updated input bid acceptable higher 
+reading updating maximum bid item done critical section clients submit bids concurrently read maximum bid value item 
+assuming bids higher accepted maximum bid stored items table item wrong lower new bids 
+additional code necessary verify correctness maximum bid 
+bulletin board bulletin board benchmark modeled online news forum slashdot 
+particular support discussion threads 
+discussion thread logical tree containing story root number comments story may nested 
+main tables database users stories comments submissions tables 
+stories comments maintained separate new old tables 
+new stories table keep stories cut month 
+keep old stories period years 
+new old comments tables correspond new old stories respectively 
+majority browsing requests expected access new stories comments tables smaller efficiently accessible 
+story submission initially placed submissions table submitted moderator 
+defined web interactions 
+main ones generate stories day browse new stories older stories stories category show particular story different options filtering comments search keywords story titles comments user names submit story add comment review submitted stories rate comments 
+interactions contain transactions 
+instance stories inserted submission table moderated inserted respective tables part multi query atomic transaction individual update durable 
+generate story comment bodies words dictionary lengths kb kb 
+short stories comments common zipf distribution story length 
+database contains years stories comments average stories day comments story 
+emulate total users moderator access privilege 
+database size parameters mb 
+workload mix contains story comment submissions moderation interactions 
+mix corresponds maximum posting activity active newsgroup observed browsing internet typical breakdowns url requests bulletin board sites 
+loose consistency models discussed section normal semantics bulletin boards supported level consistency model 
+client emulation implement client browser emulator 
+client session sequence interactions client 
+client session client emulator opens persistent connection web server closes session 
+emulated client waits certain think time initiating interaction 
+interaction determined state transition matrix specifies probability go interaction 
+session time think time generated random distribution specified mean 
+experimental environment methodology study performance distributed versioning compare loose consistency models measurement small number database replicas simulation larger degrees replication 
+describe hardware software prototype implementation 
+describe simulation methodology 
+hardware hardware machines running emulated client schedulers web servers database engines corresponding simulators 
+amd athlon mhz processor running freebsd mb sdram gb ata disk drive 
+connected mbps ethernet lan 
+software popular open source software packages apache web server php web scripting application development language mysql database server 
+php implemented apache module web server application server exist machine 
+apache web server configured php module providing server side scripting generating dynamic content 
+mysql transactional extensions database server 
+simulation methodology study scaling distributed versioning techniques large number replicas configurable cluster simulators web application server front ends database back ends 
+front backend simulators drive actual execution schedulers database proxies 
+simulator models powerful server type web application server database equivalent running larger number real servers 
+web application server simulator takes request generated client emulator sends corresponding queries dummy arguments schedulers 
+database simulator maintains separate queue simulated database replica 
+simulator receives query destined particular replica record placed replica queue 
+record contains predicted termination time query 
+termination time predicted adding cost estimate query current simulation time 
+method cost estimation described earlier load balancing see section 
+estimates relatively accurate applications consider cost query primarily determined type query largely independent arguments 
+database simulator polls queues sends responses simulated time reaches termination time query 
+database simulator model disk accesses profiling real runs indicates disk accesses overlapped computation 
+overlap partly due locality application resulting disk accesses reads partly due lazy commit style writes 
+results performance comparison distributed versioning conservative pl algorithm 
+compare performance distributed versioning various loose consistency models 
+results obtained cluster schedulers data availability 
+experiment drive server increasing numbers clients sufficient number web application servers performance peaks 
+report throughput peak 
+simulators calibrated data measurements prototype implementation 
+simulated throughput numbers experimental numbers workloads 
+comparison distributed versioning conservative pl figures compare distributed versioning conservative pl shopping mix tpc ordering mix auction site respectively 
+omit results tpc browsing bulletin board workloads performance difference distributed versioning conservative pl 
+explanation workloads low conflict rates 
+graphs axis number database engines axis throughput client web interactions second 
+graphs show protocols subset features distributed versioning 
+uses version numbers selectively wait right version tables produce new version tables commit 
+vice versa waits correct versions tables transaction produces new versions immediately transaction particular table 
+results clearly confirm discussion section 
+increased conflict rates distributed versioning produces superior throughput compared conservative pl 
+features tpc shopping mix database engines throughput conservative pl eager fig 
+
+comparison distributed versioning conservative pl tpc shopping mix tpc ordering mix database engines throughput conservative pl eager fig 
+
+comparison distributed versioning conservative pl tpc ordering mix auction database engines throughput conservative pl eager fig 
+
+comparison distributed versioning conservative pl auction site distributed versioning selective waiting table versions early production new versions essential 
+improvement conservative pl minimal 
+comparison distributed versioning loose consistency methods section investigate overhead consistency maintenance maintaining serializability distributed versioning 
+purpose compare protocol protocols levels consistency including specialized looser required applications 
+allows detect overhead various parts solution 
+example detect overhead order delivery writes success conflict avoidance reduction techniques comparison upper bound obtained assuming overheads ordering writes resolving read write conflicts exist 
+figures show comparison throughput distributed versioning protocol various lazy replication methods 
+baseline include eager protocol 
+figures allow draw tpc browsing mix database engines throughput level level level special eager fig 
+
+comparison consistency levels tpc browsing mix 
+special specialized consistency level tpc shopping mix database engines level level level special eager fig 
+
+comparison consistency levels tpc shopping mix 
+special specialized consistency level tpc ordering mix database engines throughput level level level special eager fig 
+
+comparison consistency levels tpc ordering mix 
+special specialized consistency level bb database engines throughput level level level eager fig 
+
+comparison consistency levels bulletin board 
+level specialized consistency level auction database engines throughput level level level eager fig 
+
+comparison consistency levels auction site 
+level specialized consistency level 
+applications differences levels negligible 
+second workloads low conflict rates tpc browsing bulletin board difference protocols 
+third conflict rate increases growing difference levels hand 
+largest simulated configuration differences tpc shopping mix auction site tpc ordering mix respectively 
+fourth differences special consistency model small workloads tpc 
+bulletin board transactional requirements overhead enforcing copy serializability minimal 
+cluster messages usually arrive order sent delay message delivery low 
+furthermore interactions client database database replica completed previous request issued 
+conflict aware scheduler directs request precisely replica 
+observations explain small differences performance levels applications special tpc 
+loose consistency models show benefit transactional atomicity removed cost waiting read write conflicts alleviated 
+number conflicts increases benefit loose consistency models grows 
+applications case tpc shopping mix auction site tpc ordering mix 
+results viewed caveat explained section looser consistency models provide right semantics applications 
+additional programming effort required achieve right semantics possibly entailing additional execution time overhead 
+related concurrency control protocols multiple versions discussed implemented real systems increase concurrency maintaining serializability stand database systems 
+multiversion ordering optimized distributed database systems 
+systems transaction aborts resolve serialization inconsistencies 
+systems targeted advanced database applications computer aided design collaborative software development environments pre declared write sets determine schedule conflicting object level serialized avoiding transaction aborts 
+systems maintain history old versions distributed location need special scheme reducing version space consumption version access time limiting number versions stored 
+furthermore replication distributed systems goal increase availability particular version 
+contrast versioning concurrency control algorithm maintain old copies items modifications place 
+goal algorithm allow choose correct version different versions table occur naturally due asynchronous replication 
+hand multiversion systems advantage execution read transactions efficient completely decoupling execution update transactions 
+optimistic replication data disconnected mobile devices allowing devices perform local updates 
+case multiple versions item arise need serializing potentially conflicting updates disconnected clients replicas 
+eager replication group communication proposed optimized tackle problem providing serializability scaling time :10.1.1.128.9931
+approach implemented inside database layer 
+replica functions independently 
+transaction execution local database acquires proper locks read write accesses machine performs operations sends replicas write sets group communication 
+conflicts solved replica locally 
+implies need abort transactions write set coming conflicts local transaction 
+approaches eliminate need transaction aborts exist imply relaxing serializability requirement introducing acknowledgment coordination phase replicas transaction 
+approaches differ databases considered independent distributed wide area network clients little choice executing transactions locally 
+state database replicas consistency level data user sees controlled scheduler 
+extra database approach database modifications necessary 
+avoids paying price serializability applications don need providing specialized loose consistency models 
+neptune adopts primary copy approach providing consistency partitioned service cluster 
+scalability study limited web applications loose consistency scaling easier achieve 
+address commerce workloads web applications relatively strong consistency requirements 
+conventional wisdom replicated databases copy serializability scalability 
+result looser consistency models developed allow better scalability 
+demonstrated clusters databases serve back dynamic content web sites copy serializability scalability go hand hand 
+allows uniform handling applications familiar programming abstractions transactions 
+order achieve results novel technique called distributed versioning 
+technique combines new concurrency control algorithm explicit versions conflict aware scheduling achieve scalability 
+demonstrated distributed versioning provides better performance earlier techniques providing copy serializability including eager protocols earlier conservative phase locking 
+furthermore compared distributed versioning various replication methods provide loose consistency guarantees 
+find applications high conflict rates performance distributed versioning equals approaches looser consistency models 
+
+cox gil rajamani zwaenepoel 
+specification implementation dynamic web site benchmarks 
+th ieee workshop workload characterization november 
+
+cox zwaenepoel 
+scaling availability dynamic content web sites 
+technical report tr rice university 
+
+alan cox willy zwaenepoel 
+conflict aware scheduling dynamic content applications 
+proceedings fifth usenix symposium internet technologies systems march 
+
+todd anderson yuri breitbart henry korth wool 
+replication consistency practicality mutually exclusive 
+proceedings acm sigmod international conference management data june pages 
+
+apache software foundation 
+www apache org 
+
+kaiser 
+concurrency control advanced database applications 
+acm computing surveys volume pages sept 
+
+bernstein hadzilacos goodman 
+concurrency control recovery database systems 
+addison wesley reading massachusetts 
+
+breslau cao fan phillips shenker 
+web caching zipf distributions evidence implications 
+proceedings ieee infocom conference 
+
+shu yao chien vassilis carlo zaniolo 
+efficient management multiversion documents object referencing 
+vldb journal pages 
+
+line auctions ebay 
+ebay com 
+
+jim gray pat patrick neil dennis shasha 
+dangers replication solution 
+proceedings acm sigmod international conference management data montreal quebec canada june pages 
+
+jagadish singh mumick michael rabinovich 
+asynchronous version advancement distributed version database 
+proceedings th international conference data engineering 
+
+keleher 
+decentralized replicated object protocols 
+proc 
+th annual acm symp 
+principles distributed computing podc may 
+
+bettina kemme gustavo alonso 
+new approach developing implementing eager database replication protocols 
+acm transactions data base systems volume pages september 
+
+bettina kemme gustavo alonso 
+don lazy consistent postgres new way implement database replication 
+proceedings th international conference large databases september 
+
+mysql 
+www mysql com 
+
+martinez peris kemme alonso 
+scalable replication database clusters 
+international symposium distributed computing pages october 
+
+php hypertext preprocessor 
+www php net 
+
+postgres 
+www postgresql org docs 
+
+satyanarayanan agrawal 
+efficient execution read transactions replicated multiversion databases 
+tkde volume pages 
+
+shasha llirbat simon valduriez 
+transaction chopping algorithms performance studies 
+acm transactions data base systems volume pages sept 
+
+kai shen tao yang chu doug zhu 
+neptune scalable replica management programming support cluster network services 
+proceedings third usenix symposium internet technologies systems pages march 
+
+slashdot news 
+stuff matters 
+slashdot org 
+
+agrawal el abbadi 
+broadcast primitives replicated databases 
+proceedings th ieee international conference distributed computing systems icdcs pages amsterdam netherlands may 
+
+terry theimer petersen demers spreitzer hauser 
+managing update conflicts bayou weakly connected replicated storage system 
+proceedings th symposium operating systems principles pages december 
+
+transaction processing council 
+www tpc org 
+
+pedone schiper kemme alonso 
+database replication techniques parameter classification 
+proceedings th ieee symposium reliable distributed systems srds october 
+
+yu amin vahdat 
+design evaluation continuous consistency model replicated services 
+proceedings fourth symposium operating systems design implementation osdi october 

@@ -1,0 +1,450 @@
+episode file system owen anderson michael kazar bruce anthony mason robert sidebotham transarc describe design episode tm highly portable posix compliant file system 
+episode designed utilize disk bandwidth efficiently scale improvements disk capacity speed 
+utilizes logging meta data obtain performance restart quickly crash 
+episode uses layered architecture generalization files called containers implement 
+fileset logical file system representing connected subtree 
+unit administration replication backup episode 
+system works standalone file system distributed file system integrated osf distributed computing environment dce 
+episode shipped dce local file system component nfs 
+performance episode meta data operations significantly faster typical unix berkeley fast file system implementations due episode logging normal operations run near disk capacity 
+describes episode tm file system local file system osf distributed computing environment dce 
+episode intended file system distributed file servers designed exported various network file systems especially osf dce distributed file service dfs 
+episode separates concepts disk storage logical file system structure provides number features unix fl file systems berkeley fast file system mck 
+particular episode provides posix style draft access control lists useful form replication slowly changing data data representations support storage files size fragments bytes logging techniques reduce post crash recovery time improve performance operations update meta data 
+explains architecture file system 
+background part design process afs fl distributed file system component dce episode design team looked afs sat file system file server 
+significant features afs viewed valuable preserve episode access control lists afs volumes renamed 
+access control lists valuable large distributed systems primarily size user community systems 
+large community users require flexible mechanism specify exactly able access files 
+traditional unix protection mechanism grouping categories insufficient express flexible controls data 
+afs provides acls directories episode provides acls files directories enabling posix compliance 
+afs volumes support separation disk block storage concept logical file system structure single pool disk blocks provide storage thousands separate file system hierarchies sid 
+episode logical file system contains anode table roughly equivalent berkeley fast file system bsd inode table mck 
+various fileset describe root directory subsidiary files directories 
+fileset independently distributed file system independently 
+data representation facilitates movement partition minimum disruption exporting data distributed file system 
+data fileset located simply iterating anode table processing file turn 
+furthermore file low level identifier distributed file systems stored directories represented index fileset anode table 
+identifier remains constant moving fileset different partition machine 
+general model resource reallocation episode design keep single partition 
+partition begins fill busy develops transient errors administrator move transparently partition allowing continuous access network local clients 
+tools provided facilitate move multiple disks multiple servers osf dce 
+note model resource reallocation requires ability put fileset single partition resource reallocation operations available equivalent exchanging file system contents partitions move limited utility 
+episode implementation fileset moving administrative operations depend mechanism called fileset cloning 
+fileset clone fileset containing snapshot normal fileset sharing data original fileset copy write techniques 
+cloned fileset read located partition original read write fileset 
+clones created quickly essentially blocking access data cloned 
+feature important administrative operations implementation administrative tools clones read write data possible greatly reducing amount time require exclusive access read write data 
+episode underlying disk block storage provided aggregates 
+aggregates kaz simply partitions augmented certain operations create delete enumerate 
+conventional bsd file system biggest practical constraints disk space file server hold long disk check program fsck kow run event crash 
+episode uses logging techniques appropriated database literature hae hag cha guarantee crash file system meta data directories allocation bitmaps indirect blocks anode tables consistent generally eliminating need running fsck 
+idea new 
+ibm rs local file system jfs cha uses combination operation logging allocation bitmap new value logging meta data 
+hagmann followed similar approach building log version cedar file system hag 
+rs jfs uses hardware lock bits memory management hardware determine records locked memory mapped transactional storage 
+technique earlier supported ibm rt pc memory mapping unit system commercially available file system cha 
+veritas ver apparently uses new value logging technology 
+system logging technology sprite lfs ros principle dce tools allow exporting partition 
+data stored log 
+lfs uses operation logging handle directory updates new value logging operations 
+data architecture central conceptual object storing data episode container 
+container abstraction built top disk blocks available aggregate 
+generalization file provides read write create truncate operations sequence bytes 
+containers described byte structures analogous bsd inodes lef store user data meta data episode file system 
+fileset anode tables aggregate header superblock log container bitmap container aggregate fileset table container aggregate fileset table anode bitmap anode log anode fileset bird eye view episode aggregate 
+bird eye view aggregate provided 
+rectangular blocks represents file system block vertical columns blocks represent containers 
+episode aggregate specialized containers bitmap container log container aggregate fileset table 
+bitmap container stores pieces information fragment aggregate fragment allocated fragment represents logged data 
+distinction necessary certain buffer pool operations performed reusing logged block block vice versa 
+aggregate fileset table organized array fileset aggregate 
+anode corresponding particular fileset describes fileset anode table roughly equivalent file system inode table bsd file system 
+episode fileset anode table contains individual describing fileset directories files symbolic links access control lists 
+file system generally come sources names directories file ids arriving network file systems 
+name anode fileset id index fileset anode table 
+particular anode fileset starts searching aggregate fileset table desired fileset 
+fileset anode table container contains array specified anode fileset simply selected index 
+typical operation steps significantly sped caching 
+log container provides storage allocated aggregate transaction log 
+meta data updates recorded log 
+log processed circular buffer disk blocks tail log stored memory forced disk necessary 
+log constrained aggregate data logging restriction currently imposed initialization utilities 
+containers provide uniform mechanism data storage episode 
+disk data abstractions episode including allocation bitmap transaction log fileset table individual anode tables directories files stored containers 
+containers dynamically grow shrink meta data allocated containers principal dynamically resized 
+example need static allocation individual fileset fileset anode table container simply grow large number files created fileset 
+addition container abstraction maintained piece code logic allocating meta data exists place 
+despite potential dynamic resizing meta data stored containers certain containers current implementation change dynamically 
+log container grow shrink normal system operation information ensures log consistent placed log size changing 
+partition allocation bitmap created episode equivalent change size 
+directories shrink truncated part deletion 
+mentioned fileset clone read snapshot read write fileset implemented copy write techniques sharing data read write fileset block block basis 
+episode implements cloning cloning individual stored fileset 
+anode initially cloned original writable version anode cloned anode point data block disk addresses original anode direct blocks indirect blocks tagged copy write cow update writable fileset affect cloned snapshot 
+copy write block modified new block allocated updated cow flag pointer new block cleared 
+formation clones illustrated 
+component architecture episode layered architecture illustrated 
+operating system independent layer shown diagram asynchronous async layer comprise portability layers system 
+operating system independent layer provides system independent synchronization timing primitives 
+async layer acts veneer device drivers hiding small significant differences interfaces various kernels 
+provides simple event mechanism data block indirect block data block indirect block set cow bit cow bit cleared original anode clone anode data block container cloning extending 
+primary purpose providing operations awaiting completion events 
+base layers log buffer package 
+package provides abstraction unix buffer pool buffering blocks disk writing requested 
+package mediates buffer modifications logged required logging strategy employed hae moh 
+episode updates meta data grouped transactions atomic meaning updates transaction transaction commits transaction aborts applied 
+making file system meta data modifications atomic transactions file system restored consistent state crash 
+episode implements atomic transactions combination write ahead old value new value logging techniques moh 
+nutshell form logging works logging update file system meta data original new values updated data 
+furthermore buffer package allows dirty meta data buffer written back disk writes log entries disk 
+event crash updates file system meta data may disk 
+transaction aborted information log undo updates meta data restore meta data state transaction started 
+transaction committed information log redo meta data updates hadn disk buffers disk 
+recovery procedure runs crash replaying committed transactions undoing uncommitted transactions restoring file system consistent state 
+log contains information describing transactions progress recovery time proportional activity time crash size disk 
+result log replaying operation runs orders magnitude faster bsd fsck program 
+cases recovery procedure episode fileset utilities salvage verify vnode interface user space file system independent kernel async vfs interface layer vnode operations directory acl anode layer fileset buffer log recovery operations layering episode 
+regenerate consistent file system hard errors occur updating critical meta data 
+cases episode utility needs run performance characteristics similar fsck 
+anode layer manages data stored containers 
+container abstraction provides modes storage inline mode uses extra space anode store small quantities data 
+allows efficient implementation symbolic links acls small files 
+fragmented mode enables small containers big inline storage share disk block 
+fragments files smaller block 
+blocked mode describes large containers 
+levels indirect blocks mck address block addresses 
+due restrictions maximum size file bound min blocksize 
+fragment size block size file grow bytes 
+block allocation policies try ensure additional kernel modifications changes system call interface required files size contiguity support provided sparse files 
+directories implemented straightforwardly specially typed containers 
+episode augments directory implementation hash tables reduce search processing 
+directory page contains separate hash table 
+episode vnode layer extends vnode operations designed sun microsystems kle ros support acls 
+addition vnode operations read write files integrated virtual memory system sunos aix allowing episode virtual memory pool file cache 
+greatly improves performance read write operations files due increased cache size 
+episode optimized detect sequential access coalesce adjacent reads writes 
+logging architecture typical transactional systems phase locking pl ensuring consistency data modified transaction 
+phase locking transaction may time time obtain new locks release locks second phase transaction commits 
+forbidding release locks commit scheme guarantees transactions read uncommitted data 
+phase locking rules transaction lock modify commit data modified unlocked running transaction 
+example 
+pl ensures serializability atomicity transactions cost reduces concurrency system data locked hot spot transactions wish obtain lock hot spot wait entire transaction currently holding lock complete 
+addition pl add complexity interface design layered modular systems 
+layered system code higher layer typically calls code lower layer may lock private objects duration call 
+quite locks exported 
+order pl model export details locks obtained lower level modules locks obtain remain locked high level transaction commits failure set low level locks proper order lead deadlock 
+phase locking greatly increases complexity layered interface 
+better understand problem addressed phase locking known database literature problem cascading aborts consider scenario phase locking performed ub lb ub lb la transaction transaction time crash formation equivalent class 
+transaction starts time locks objects times la lb respectively 
+transaction shortly unlocks object time ub 
+transaction commits transaction modifies object transaction starts time locks object time lb kernels 
+unlocks object time ub 
+transaction commits change object time 
+assume system crashes shortly time marked crash 
+log replay occurs object contain changes transactions transaction committed changes object 
+object change transaction committed transaction committed 
+result changes transaction change object permanent 
+episode transaction manager avoids problems type specific approach transactional locking phase locking 
+episode transactions acquire locks need drop soon finished waiting transaction 
+allows greater concurrency system required alternate mechanisms prevent uncommitted data read transactions 
+order avoid problem updating uncommitted data episode aborts transactions able commit crash intervenes 
+specifically active transactions lock object lifetime merged equivalence class ec 
+ec property transactions commit 
+example transaction form ec 
+ec viewed umbrella transaction subsumes transactions belong 
+ecs formed active transactions exhibit read write sharing 
+system crashes transactions ec committed transactions ec aborted 
+desirable minimize duration number ecs formed system 
+transactions typically delay hot data close transaction possible minimize chance transaction read data commits 
+primary goal logging system episode guarantee consistency file system 
+decision impacted number design choices meta data changes disk deferred specifically requested operation fsync 
+consistency file system doesn require system current 
+transactional guarantees required user data consistency file system requires meta data consistent 
+episode logs meta data changes 
+restricting logging meta data greatly reduces log traffic mixing logged blocks file system introduces complexity 
+illustrate issues note crash occurs time data block allocated file time block written data may appear new file uninitialized data 
+problem arises allocation update commits data update fails data update occurs outside transaction system 
+episode fixes problem starting transaction block allocated write completes 
+system crashes transaction aborts recovery procedure special transaction zeroes contents block 
+users define start times transaction transaction sizes bounded 
+allows simple algorithm ensure running transactions exceed space available log 
+transactions run long modify data represent programming errors 
+mentioned episode logs new value old value data modified 
+number systems simply log new value modified data 
+systems log new data dirty data written final home disk transaction commits log contain information undo updates transaction manager transaction forms equivalence class member 
+redo updates get consistent state transaction ended modifications 
+design choice significantly influenced concern new value logging seriously constrain buffer package choice buffers write disk write buffers 
+old value new value logging hand de couples writing buffers transactions expense having write data log 
+introducing logging episode affected implementation vnode operations 
+bound transaction size required log space allocation policy dictated complicated time consuming operations broken smaller bounded operations bracketed 
+example delete large file broken sequence separate file truncation operations followed deletion empty file 
+transaction file system consistent final desired state 
+performance section details result running benchmarks measure performance episode file system ibm rs jfs sun bsd file system meta data operations 
+comparison sun bsd illustrates effects logging episode comparison jfs uses logging measures efficiency implementation 
+measurements taken platforms ffl sun sparcstation running sunos mb memory mb seagate st ns scsi disk peak data transfer rate mbytes sec average latency msec 
+ffl ibm rs model running aix mb memory mb ibm scsi disk peak data transfer rate mbytes sec average latency msec 
+performance goals episode perform meta data update operations significantly faster berkeley fast file system doing large operations essentially fast native disk driver perform large transfers 
+expect meta data update operations considerably faster bsd episode batches meta data updates writes file system log 
+terms experiments done section hope meta data update operations considerably faster sunos bsd implementation normal read write operations essentially fast jfs implementation 
+expect episode perform somewhat faster sunos bsd implementation 
+integration episode sunos virtual memory system complete 
+particular platform episode read ahead write operations asynchronous problems significantly impact sunos read write performance figures 
+aix completed level virtual memory system integration platform expected performance essentially ibm jfs 
+aside problems doing read ahead asynchronous aix sunos quite similar expect serious problems completing sunos implementation 
+sections results various performance tests discussion results 
+benchmark test suite tests functionality unix file system exercising file system related system calls 
+consists tests ffl test creates multi level directory tree populates files 
+meta data update intensive test 
+ffl test removes directories files created test 
+meta data update intensive test 
+ffl test sequence stat directory 
+primarily meta data read operations 
+ffl test executes sequence chmod stat group files 
+meta data update intensive test 
+ffl test writes mb file sequentially reads 
+primarily operations 
+ffl test reads entries directory 
+primarily meta data read operations 
+ffl test calls rename link group files 
+meta data update intensive test 
+ffl test creates symbolic links reads symlink readlink calls respectively multiple files 
+primarily meta data update intensive test significant meta data reading 
+ffl test calls 
+figures compare episode performance jfs rs bsd sparcstation 
+interesting numbers section come comparison episode bsd sun platform 
+tests representing primarily meta data updates tests show benefits logging meta data updates test episode twice bsd elapsed time 
+test gives episode difficulty test lot directory operations 
+operations private buffer cache appears examination read write counts small 
+addition compared episode log file system jfs 
+done additional check implementation verify performance approaching highly tuned commercial file system somewhat similar architecture 
+figures show episode performance meta data operations comparable better jfs terms elapsed time 
+addition comparing episode elapsed time measured cpu utilization figures 
+sets figures episode cpu utilization higher native file system 
+discuss reasons point expect situation improve episode performance tuned 
+particular meta data reading tests episode cpu bound expect reductions cpu usage map directly reductions elapsed time 
+meta data updates test test test test test test test test test elapsed episode time jfs comparison episode jfs rs platform executing tests 
+numbers listed averages runs 
+figures elapsed times seconds 
+benchmarks ran tests representing mix file system operations modified andrew benchmark ous benchmark systems 
+instances elapsed time appears cpu time due difference granularity measurement 
+meta data updates test test test test test test test test test elapsed episode time sunos comparison episode bsd sun platform executing tests 
+numbers listed averages runs 
+figures elapsed times seconds 
+meta data updates test test test test test test test test test cpu episode time jfs comparison episode jfs rs platform executing tests 
+numbers listed averages runs 
+figures cpu times seconds 
+modified andrew benchmark originally devised measure performance distributed file system operates series phases follows benchmark begins creating directory tree copying source code program tree 
+performs stat operation file hierarchy 
+subsequently reads file part compiling modified gnu compiler generates code experimental machine 
+results running benchmark rs configuration jfs completed test seconds episode took seconds 
+difference tests occurred stat copy phases benchmark 
+benchmark systems 
+altered local file system benchmark nfs benchmark 
+dependence kernel nfs statistics removed benchmark run locally server network client mounted nfs exported file system 
+standard mix operations test throughput jfs episode fstat read write tests run mb ibm rs running aix release 
+fujitsu disk hold file systems tests 
+test results indicate jfs reaches peak throughput level file system operations second processes episode reaches operations second processes 
+doing episode roughly twice cpu operation jfs achieve higher throughput levels 
+short episode ran slightly slower jfs modified andrew benchmark slightly faster jfs benchmark 
+feel performance episode benchmarks quite acceptable tuning done vendors ship episode 
+read write episode ability utilize available disk bandwidth shown comparison jfs rs read write tests 
+types tests run type measuring cached read performance type measuring uncached read write performance 
+cold cache read performance numbers cold cache write performance numbers show quite similar performance jfs episode 
+believe indicates episode algorithms doing operations large chunks working reasonably 
+episode warm cache read rate bit slower corresponding jfs rate seen meta data updates test test test test test test test test test cpu episode time sunos comparison episode bsd sun platform executing tests 
+numbers listed averages runs 
+figures cpu times seconds 
+bytes log scale epi jfs comparison episode jfs read rates cold vm cache 
+
+rate measures quickly file system locate data copy map virtual memory system caller buffers 
+file system performance tests virtual memory integration performance test 
+figures peak megabytes second disk actual data transfer rate 
+clear comparing warm cold read performance numbers key system performance successful integration virtual memory system 
+performance summary episode performs handling basic read write operations doing large chunk useful 
+area design borrowed heavily done aix jfs sunos bsd file systems mcv obtaining extent performance bsd style file system organizations 
+episode greatest performance benefits come performance meta data operations 
+operations logging greatly reduces number synchronous write operations required significantly improving system performance 
+addition episode relatively new file system undergoing significant performance measurement profiling tuning 
+tracing profiling facility rs produce traces recorded procedure entry exit timing information 
+detailed study traces micro benchmarks identified wealth targets optimization 
+particular bytes log scale epi jfs comparison episode jfs read rates warm vm cache 
+bytes log scale epi jfs comparison episode jfs write rates 
+ffl episode passing context information layers ffl certain invariant computations performed repeatedly ffl common data paths expensive general purpose interfaces special case data path efficient ffl various parameters size core caches vnodes buffers tuned 
+expect cpu usage drop considerably optimize code 
+integration episode virtual memory system sunos incomplete particular read ahead asynchronous write implemented platform 
+result performance episode sun test relatively poor compared bsd 
+rs episode better integrated native virtual memory system perform read ahead asynchronous writes exhibits read write performance comparable local file system jfs 
+leads expect implementation sun perform equally sun port completed 
+recovery time episode time recover depends primarily size active portion transaction log 
+active portion log part log needs replayed crash include uncommitted transactions undone event crash 
+active portion log may go back buffer cache contain dirty meta data blocks modified committed transactions 
+case updates log log requiring replay part log event crash 
+operation writing buffers modified committed transactions discarding portions longer required ensure permanence transactions generally called checkpointing log 
+order estimate size active portion log crash note matter system checkpointed way avoid active portion log containing transactions currently executing 
+system activity time crash increases see minimum recovery time rise correspondingly 
+addition log checkpointed seconds case episode active portion log rise include transactions modified dirty buffers resident buffer cache 
+course episode permit log full difficult guarantee bound size active portion log 
+course time replay block active log constant bounded maximum number meta data blocks updates described block log log blocks effect considerably fewer meta data blocks 
+discussion reader see recovery time episode partition rise proportion number processes actively modifying file system time crash number recovery calls take somewhat longer minimum committed transactions 
+order verify state affairs ran experiments timing recovery megabyte aggregate megabyte log configurations megabytes new data stored aggregate megabytes new data stored aggregate 
+crashing system active processes modifying mb file recovery took seconds execute crashing system active processes modifying mb file system recovery took seconds single instance ran 
+similarly experiment mb file system crashing system active processes took seconds recover crashing system active processes took seconds recover single instance ran 
+data see recovery takes essentially amount time small large aggregates 
+hand highly varying correspondence system activity time crash recovery time 
+tests megabyte file system recovering crash active process took seconds 
+recovering crash processes took seconds 
+recovering processes took seconds 
+recovering processes took seconds data point recovering crash active processes took seconds 
+note time recover depends complex way number variables aggregate size 
+despite complexity appears typical configurations recovery times seconds 
+status episode functionally complete undergoing extensive stress testing performance analysis 
+episode ship dce local file system lfs component works sun network file system san 
+episode designed portable kernels presently runs sunos sunos aix 
+design episode began full scale implementation began january 
+file system tested user space plugged kernel saving considerable amounts debugging kernel environment 
+code includes substantial debugging code test suites scaffolding run tests user space utilities lines wc 
+abstraction containers proved useful 
+separating policy mechanism placing data disk container abstraction helps isolate code responsible data location allocation making structures extensible free 
+resulting flexibility data layout policies enables releases episode knowledge allocating space user data meta data leaving disk format formally unchanged 
+experience episode shows general purpose transactional system required file system 
+episode log implements small subset functionality needed database system log recovery packages fraction size traditional database products 
+hand episode transaction manager deal technicalities database systems 
+complications introduced design storing meta data user data disk 
+furthermore decision form equivalence classes transactions phase locking required new code 
+original motivation implementing log system fast crash recovery obtaining substantial performance benefits 
+logging improved performance meta data updating operations reduced cumulative disk traffic permitting episode batch repetitive updates meta data 
+key obtaining performance read write operations successful integration virtual memory system performing large blocks 
+confirmed results disk bandwidth utilized efficiently data transfers occur large chunks 
+virtual memory system provides effective memory cache files enables merging requests adjacent disk blocks large request 
+general virtual memory systems exhibit great deal idiosyncratic behavior sufficiently diverse integration process difficult 
+grateful alfred spector comments corrections 
+go mike comer jeffrey prem peter phil hirsch running benchmarks posix compliance tests 
+various people ibm discussing various file system performance issues including chang carl burnett bryan harold liz hughes jack quin amal gouda 
+cha chang mergen 
+storage architecture programming 
+acm trans 
+computer systems february 
+cha chang mergen roberts porter 
+evolution storage facilities aix version risc system processors 
+ibm journal research development vol 
+january 
+gin robert joseph moran william shannon 
+virtual memory architecture sunos 
+usenix conference proceedings summer 
+hae reuter 
+principles transaction oriented database recovery 
+computing surveys vol 
+december 
+hag robert hagmann 
+reimplementing cedar file system logging group commit 
+proceedings th symposium operating systems principles november 
+howard kazar nichols nichols satyanarayanan sidebotham west 
+scale performance distributed file system 
+acm transactions computer systems vol 
+february 
+kaz kazar file system architectural overview 
+usenix conference proceedings june 
+kle kleiman 
+vnodes architecture multiple file system types sun unix 
+usenix conference proceedings summer 
+kow kowalski 
+fsck unix system check program 
+bell laboratory murray hill nj 
+march 
+lef leffler mckusick karels quarterman 
+design implementation bsd unix operating system 
+addison wesley 
+mck mckusick joy leffler fabry 
+fast file system unix 
+transactions computer systems volume august 
+mck mckusick karels keith bostic 
+memory file system 
+usenix conference proceedings summer 
+mcv mcvoy kleiman 
+extent performance unix file system 
+usenix conference proceedings winter 
+mog jeffrey mogul 
+representing information files 
+computer science department stanford university ca 
+september 
+moh mohan lindsay pirahesh schwarz 
+aries transaction recovery method supporting fine granularity locking partial rollbacks write ahead logging 
+research report ibm research division almaden research center san jose ca 
+january 
+ous john ousterhout 
+aren operating systems getting faster fast hardware usenix conference proceedings june 
+pea peacock 
+counterpoint fast file system 
+usenix conference proceedings winter 
+red reddy banerjee 
+evaluation multiple disk systems 
+ieee transactions computers vol 
+december 
+ren van renesse tannenbaum wilschut 
+design high performance file server 
+proc 
+ninth int conf 
+distributed comp 
+systems ieee 
+ros mendel rosenblum john ousterhout 
+lfs storage manager 
+usenix conference proceedings june 
+david rosenthal 
+evolving vnode interface 
+usenix conference proceedings summer 
+san sandberg goldberg kleiman walsh lyon 
+design implementation sun network file system 
+usenix conference proceedings summer 
+sat satyanarayanan howard nichols sidebotham spector 
+itc distributed file system principles design 
+proceedings th acm symposium operating systems principles 
+sid sidebotham 
+volumes andrew file system data structuring primitive 
+european unix user group conference proceedings august 
+sta staelin garcia molina 
+smart file systems 
+usenix conference proceedings winter 
+ver veritas software 
+veritas overview slides 
+veritas software great america parkway suite santa clara ca 
+biographical information owen anderson member file systems development group 
+worked file system security member andrew file system group carnegie mellon university information technology center 
+transarc continues specialization contributes design efforts kernel development 
+coming carnegie mellon anderson worked years lawrence livermore national laboratory livermore california 
+obtained wide variety experience ranging design operating system multi processor architectures debugging digital hardware 
+owen anderson graduated massachusetts institute technology degree physics 
+reached mail ota transarc com 
+involved andrew file system afs project june joined carnegie mellon university information technology center 
+transarc designers afs 
+continues design development afs 
+holds computer science university north carolina chapel hill tech 
+computer science engineering indian institute technology kanpur india 
+reached mail transarc com 
+role manager file systems architecture dr michael kazar transarc founders full responsibility development transarc distributed file systems products 
+undertaking natural combination dr kazar previous senior data carnegie mellon university information technology center 
+position instrumental design implementation andrew file system assuming responsibility management project early 
+itc dr kazar worked aspects file systems user interfaces 
+dr kazar received degrees massachusetts institute technology ph computer science carnegie mellon university area optimizing multiprocessor computations minimize communications costs 
+reached mail kazar transarc com 
+prior joining transarc dr bruce worked years scribe systems 
+participated development scribe document production system including scribe text formatter windows postscript 
+developed source source program translation technology enable scribe software ported multiple platforms 
+dr completed doctoral dissertation carnegie mellon 
+thesis research optimizing compilers outgrowth previous field including development compilers bliss language research language design implementation multiprocessors including implementation variant algol hydra operating system 
+holds harvard physics chemistry completed 
+harvard implemented chess playing program competed acm computer chess championship 
+reached mail bwl transarc com 
+anthony mason member afs team specializes data communications 
+prior joining transarc mason served systems programmer distributed systems group stanford university department computer science 
+involved development distributed system vmtp transport protocol 
+mason received degree mathematics university chicago 
+reached mail mason transarc com 
+robert sidebotham key designer andrew file system information technology center carnegie mellon university inventor volumes design implementation administration afs descendents 
+bob involved variety software projects digitizing imaging satellite data canadian satellite isis ii rendering architectural drawings design implementation operating system sweden system 
+founder pittsburgh niche software left join transarc 
+sidebotham graduated university calgary alberta canada bsc 
+computing science 
+reached mail bob transarc com 
+availability episode designed portable kernels presently runs sunos sunos aix 
+available local file system component osf distributed computing environment separate standalone product transarc 

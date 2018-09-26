@@ -1,0 +1,411 @@
+efficient user level shared memory mechanism application specific extensions richard west jason xin qi gabriel focuses efficient user level method deployment application specific extensions commodity operating systems hardware 
+sandboxing technique described supports multiple extensions shared virtual address space 
+applications register sandboxed code system may executed context process 
+code may implement generic routines handlers class applications system service extensions complement functionality core kernel 
+approach application specific extensions written conventional user level code utilizing libraries system calls advantage may executed traditional costs scheduling context switching process level protection domains 
+special hardware support segmentation tagged translation look aside buffers tlbs required 
+user level sandboxing mechanism requires paged virtual memory support sandboxed extensions written trusted source guaranteed type safe languages 
+fast method upcalls show mechanism provides significant performance improvements traditional methods invoking user level services 
+application approach implemented user level network subsystem avoids data copying kernel cases yields far greater network throughput kernel level approaches 
+general purpose systems linux increasingly number diverse applications including desktop server embedded environments 
+unfortunately services provided general purpose systems ill suited specific needs computer science department boston university boston ma cs bu edu applications 
+example real time application served scheduling policy consider timely predictable execution tasks 
+similarly web server may benefit buffer cache algorithm rides default caching paging policy 
+motivated researchers study various methods system application level extensibility allowing services tailored specific purposes :10.1.1.143.5553:10.1.1.117.6702
+unfortunately designing system supports extensibility poses conflicting challenges guarantee efficient execution extension code modifies adds functionality system application ensure safety extensions violate integrity system application provide support extensibility significant modification standard interfaces offered system 
+arguably efficient approach allow extensions linked single address space shared core system functionality 
+enables extensions invoked direct function calls requires special safety approaches prevent untrusted application specific code system correctness 
+various approaches proposed guarantee safety service extensions including sandboxing type safe languages proof carrying codes hardware support :10.1.1.117.6702:10.1.1.127.7825:10.1.1.142.4909
+hardware safety techniques page protection schemes common architectures 
+comparison software safety approaches typically efficient 
+said software fault isolation effective method isolating untrusted code fault domain inserting safety checks prevent jumps stores addresses outside restricted range 
+implementing safety checks typically requires number dedicated machine registers 
+problematic architectures intel limited number general purpose registers 
+software safety techniques assume coexistence untrusted trusted code single address space 
+researchers argued separation high level abstractions applicationspecific services basic services kernel 
+micro kernels adhere philosophy 
+unfortunately costs associated implementation services outside kernel 
+overheads typically incurred result communication trusted kernel scheduling switching address spaces isolate services 
+fact overheads caused major problems efficient design micro kernels special hardware features segmentation tagged translation look aside buffers tlbs 
+segmentation units tagged tlbs common processors page level protection prevalent 
+challenge support safe efficient service extensibility page hardware protection 
+possible separation core system abstractions high level services microkernels desired 
+motivation contributions motivated desire implement extensible services user level manner safe efficient requires minimal changes underlying kernel 
+show possible achieve goals user level sandboxing technique enables cots systems extended specific needs applications 
+fact approach places specific requirements underlying os structure 
+consequence possible technique implement micro kernel services interposition agents virtual machines entire library oses sandboxed region kernel say monolithic 
+supporting service extensions user level advantages 
+notably possible code leverage libraries unavailable kernel need custom interfaces extensions leverage existing system call interfaces possible rapidly prototype code cause system failure extensions developed manner similar regular application code awareness kernel internals 
+show efficiently extend behavior existing system user level traditional costs communicating logical protection domains 
+approach fast pure software fault isolation single address space eliminates costs heavyweight context switches multiple process level address spaces 
+approach provides efficient way pass control process private address space sandboxed service extension 
+fast method upcalls show sandboxing technique implementing logical protection domains provides significant performance improvements traditional methods invoking user level services signals 
+fundamentally signal handling mechanisms usually suffer system scheduling overheads signal generated kernel event remains pending corresponding address space active 
+numerous processes running system may arbitrarily long time pending signal serviced 
+effect traditional kernel event notification mechanisms suffer scheduling delays may proportional number processes system worse may depend cpu scheduling policy 
+case high priority process may starve execution pending signal 
+summary user level sandboxing mechanism provides 
+separation application specific services kernel address space avoiding unnecessary pollution trusted protection domain 
+predictable delay bounds generation delivery kernel events invoke user level services 
+delay bounds independent system load process activity cpu scheduling policies 
+basis efficient system design multiple trust levels kernel may mediate access rights specific resources upcalls sandboxed services 
+compare various techniques access sandboxed service extensions 
+pentium processor safely switch kernel sandboxed extension function cycles compared cycles invoke user level extension private address space currently active 
+show flexibility sandbox approach implementing user level cpu service manager network protocol stack avoids data copying kernel similar net 
+case stack implementation able achieve better network throughput kernel level methods cases 
+section describes user level sandbox technique detail 
+followed section evaluates performance approach linux platform 
+related discussed section 
+described section 
+user level sandboxing overview basic idea user level sandboxing modify address space processes logical protection domains contain shared pages virtual addresses 
+virtual address range shared processes provides sandboxed memory region extensions may mapped 
+normal operation shared pages accessible kernel 
+kernel wishes pass control extension changes privilege level shared page pages containing extension code data executed user level capabilities 
+prevents extension code violating integrity kernel 
+extension code run context user space process register extension system 
+potential corrupt ill written extension code modify memory area running process 
+guard require extension code written trusted source guaranteed memory safe type safe languages cyclone software fault isolation methods 
+astute reader wonder simply link extension code kernel address space require written trusted source memory safe manner 
+allow trusted users kernel developers link application specific code kernel possible introduce accidental bugs user level sandboxing prevents potential problem 
+likewise type safe language guarantee memory safety managing access rights devices controlled privileged instructions problematic language prevents issuing instructions requires special features device specific driver development library 
+user level sandboxing upcall promote access rights sandbox extension access subset space 
+example allows controlling privilege levels task process basis restricting range port addresses accessible user level code 
+noted require entire system kernel written type safe language 
+kernel written language linking type safe extensions ways similar linking sandbox extensions unsafe user level libraries 
+arbitrary casts pointer arithmetic functions accessed external interfaces violate memory protection 
+isolate extensions kernel maintain system integrity care taken allowing arbitrary sandbox extension execute host 
+possible user level processes adversely affected misbehaving sandbox routine 
+hardware support memory safe extensions approach assumes hardware support limited page virtual memory processors mmu 
+specialist hardware methods implementing logical protection domains accommodate extension code include processors tagged tlbs combined segmentation paging units 
+tagged tlbs provide fast way switch protection domains mapped separate address spaces storing virtual physical address translations address spaces non overlapping regions dedicated hardware cache 
+alternatively hardware lacking tagged tlbs supporting segmented memory isolate logical protection domains different memory segments 
+tagged tlbs advantage need entirely flushed reloaded switching address spaces process context switch untagged tlbs cache address translations unspecified virtual memory region 
+tagged tlbs sparc mips processors address space identifiers mark entries tlb 
+contrast processors intel ia variant powerpc untagged tlbs employ segmentation paging units 
+specifically processor uses segmentation hardware convert logical linear addresses paging hardware translate linear physical addresses untagged instruction data tlbs cache linear physical translations 
+advantage architecture protection domains mapped separate memory segments restricted specific ranges linear addresses 
+switching protection domains different linear address ranges simply involves changing base limit values addresses active segment 
+segmentation tagged tlbs offer various benefits common architectures 
+meant systems linux support process protection domains page granularity 
+switching process address space linux system requires changing page tables linear address translation 
+unfortunately results tlb flush reload expensive tasks large working sets 
+disparity processor memory speeds increases clearly desirable keep address translations separate protection domains cache memory possible 
+certainly case processors clocking range main memory accessed hz range 
+user level sandboxing avoids need expensive page table switches tlb reloads ensuring sandbox common address spaces 
+implementation details implemented user level sandboxing linux system small changes approximately lines core kernel 
+changes required create shared sandbox region support protected mapping sandboxed extensions allow access restricted sandboxed memory regions conventional process address spaces invoke extension functions kernel 
+key modifications involve additional entries page tables precisely global directories processes implementation upcall code toggles page protection bits 
+just completed binary rewriting approach eliminates need patch recompile kernel order enable user level sandboxing 
+technique scope involves setting jump instructions key kernel memory locations invoke alternative code module 
+rewritten memory locations identified kernel system map table identifying addresses kernel symbols 
+effect sandboxing approach theoretically applied existing systems significant disruption preexisting kernel 
+part approach restricted linux 
+necessary describe system specific features required user level sandboxing 
+user level sandboxing implementation requires additional interface functions provided traditional system call interface 
+interface functions contained kernel loadable modules invoked avoiding need new system calls 
+logical protection domains extension code traditional operating systems provide logical protection domains processes mapped separate address spaces shown 
+user level sandboxing process address space divided parts conventional process private memory region shared virtual memory region 
+shared region acts sandbox mapped extensions 
+technically speaking sandbox implementation divided public protected areas explained general requirement approach 
+kernel events delivered sandbox code handled context current process eliminating scheduling costs 
+important process exchange data extensions registered sand box 
+result allow controlled access region sandbox addresses code region code sandbox 
+ioctl function registered kernel called allocate mapped data maps region sandbox process private address space 
+mapped region accessible calling process sandbox extensions corresponding range addresses 
+data sharing scheme relies hardware page protection mapped data allocates memory kb page boundaries 
+sandbox regions current implementation sandbox consists mb regions virtual memory identically mapped address space physical memory shown 
+regions employ page size extensions supported pentium processor represented page directory entry process number mmu enabled processors support multiple page sizes sandbox designed minimize number pages uses occupying largest memory area necessary extensions 
+evident design consideration shows benefits number tlb entries sandbox average working set size typical application system processes 
+mb sandbox region permanently assigned read execute permission user acts public area 
+region marked global page global flag supported pentium pro ia processors 
+prevents page directory entry page invalidated context switch occurs 
+region permanently assigned read write permission kernel level default inaccessible userlevel 
+refer region protected area 
+region accessible user level toggling user supervisor flags page directory entry invalidating relevant tlb entry instruction 
+allowed upcall occurs trusted kernel 
+general sandbox need classes memory regions case 
+chose way means trade security efficiency 
+sandbox upcall threads sandboxed code link libraries system calls 
+care taken extension registered process affect progress process issuing blocking system call 
+example process pi registers extension ei invoked time process pj active may possible ei affect progress pj bit processor uses level paging scheme comprising page directories tables 
+user level kernel level pn process address space kernel events 
+user level sandbox region shared virtual address space kernel level process private address space extension 
+kernel events sandbox region user level accessible pn mapped data extension pn traditional view logical protection domains mapped separate address space 
+process address space shared virtual memory region sandbox extensions mapped 
+process physical memory process private address space sandbox public area protected area extension code read data mapped data extension stacks mapped data sandbox public area protected area mb mb common processes mapped physical address ranges 
+pages sandbox mapped process private address spaces exchange data 
+issuing slow system calls 
+sandbox code issues blocking system call promoted new thread execution associated thread 
+sandbox threads execute process context essentially inexpensive schedule 
+sandbox bound thread execution created user level process upcall interface function 
+interface function posix pthread create produces new thread control sharing credentials file descriptor tables caller 
+thread produced create upcall possess conventional address space 
+sandbox threads execute page tables active address space 
+mapping code sandbox existence shared sandbox requires modification page tables address spaces created processes forked 
+stated earlier processes page tables resolve virtual addresses instructions data memory area enabling sandbox code execute process context 
+loader utilizing functions gnu binary file descriptor library map extensions sandbox 
+effect loader similar routine gnu suite loads object sandbox kernel 
+current implementation extension compiled target object currently elf format loader maps text sections object public super page 
+bss data sections object loaded read write protected region 
+extension code activated upcalls trusted kernel 
+ensure protected region sandbox user level accessible kernel toggles user supervisor flag corresponding super page issuing upcall 
+toggling privilege protection flag tlb entry super page flushed reloaded eliminate stale flag settings 
+process page tables sandbox function scheduled user supervisor flag reset process control cpu user level 
+necessary keep malicious processes gaining access protected sandbox area 
+additional support user level sandboxing sandbox extensions conventional address spaces unable certain system interfaces related memory management modification 
+affected interfaces include brk mmap 
+interfaces fulfill variety needs brk affects breakpoint heap data area process allocates shared memory segments 
+likewise mmap allocate process private shared virtual memory providing memory mapped file current implementation allow cyclone extensions link slightly modified version library manage sandbox memory 
+fast upcalls traditionally signals kernel event notification schemes invoke actions user level address spaces specific kernel state changes 
+unfortunately schemes incur costs associated traversal kernel user boundary process context switching scheduling 
+upcall mechanism operates software trap mirror image typical system call efficiently vector events user level sandbox extensions 
+operating systems linux leverage hardware protection separate user kernel address spaces support conventional trap gates userlevel 
+general protection faults occur attempting trap ring protection critical kernel 
+architectures intel ia support instructions conjunction model specific registers allow fast transitions kernel user level address spaces 
+ia architecture rings protection instructions enable efficient transitions rings kernel privilege level user privilege level 
+unnecessary memory lookup retrieve segment descriptors followed corresponding protection checks avoided enter 
+instructions portable approach implementing fast upcalls possible substitute activation records placed kernel stack trick hardware thinking returning user level 
+reason allow sandbox scheme configured support sy enter traditional activation records 
+return interrupt instruction similar architectures contents stack activation record popped machine registers pass control user level 
+worth noting linux systems windows xp enter intel implement system calls 
+able virtualize model specific registers unable special instructions systems 
+notwithstanding stack activation records expensive shown section 
+avoid problem generating upcalls user level process running kernel thread active extensions utilize private stack sandbox 
+potential protection problems general scheme upcall event issued kernel mechanism modify relevant entries current process page equivalently global directory table 
+user level access protected region sandbox allowed upcall event processed 
+preemption signal handling execution code sandbox disabled 
+allowing preemption may cause problems process runs upcall occurs conventional signal handling provide trap door sandbox malicious users 
+example signal delivered current process executing sandbox code protected sandbox memory region open read write access signal handler 
+minor changes kernel simply delay delivery signals extensions completed execution sandbox protected area reset supervisor privilege level 
+dispatching upcalls process registers code sandbox assigned client identifier ensure correct extension invoked upcall occurs 
+multiple upcalls may pending client corresponding queue related events 
+similar posix specification real time signals 
+posix signals remain pending corresponding process allocated cpu depends scheduling order processes 
+current implementation sandboxing scheme developed generic kernel routine start upcall delivers upcall events appropriate clients 
+active sandbox extension loops events queue returning pure upcall function sleeping thread 
+specifically event associated posix structure carry different arguments extensions 
+eventually intend implement full featured event notification scheme 
+implemented method trigger events various bottom half handlers invoked predetermined timer intervals linux 
+method requires changes core kernel wholly contained kernel module 
+experimental evaluation section assesses effectiveness user level sandboxing implementation applied linux kernel 
+exception experiments sections cases involve patched linux kernel running series ghz pentium systems connected gigabit ethernet network 
+interposition interposition agents introduce user code operating system interface applications order modify replace services operating system provides 
+linux kernel series introduced extensions facilitate system call interception user level 
+ptrace mechanism incurs large overhead form context switches system call 
+significantly reduces performance applications interposition frequent kernel service requests 
+show sandbox reduce interposition overheads experiment involves series agents simply trace system call unmodified thttpd web server range request loads 
+requests generated host gigabit ethernet network httperf 
+file targeted request timeout second 
+average rate successful responses recorded requests types interposition agents kernel scheduled thread traditional process address space ptrace process traced kernel scheduled thread sandbox ptrace sandbox thread upcall handler agent executing sandbox sandbox upcall responses second untraced process sandbox upcall tlb flush sandbox upcall sandbox thread tlb flush sandbox thread process traced requests second performance thttpd web server tracing system calls variety mechanisms 
+shows relative performance agents compared situation web server runs untraced untraced process 
+comparison measurements taken sandbox agents sandbox left open user space tlb flushes performed context switching web server agent 
+tlb flush case 
+results show existing ptrace interface sandbox reduce interposition overheads appropriate interface additional gains 
+part motivation fact projects user mode linux intercept system calls direct requests guest kernel running host os 
+technique possible implement entire guest system user mode linux sandbox avoiding costs associated switching tracing thread protection domain traced 
+inter protection domain communication investigate effects working set size effectiveness sandbox extensions number ipc ping pong experiments similar conducted small spaces carried 
+experiments consider effects instruction data tlbs architecture 
+pentium processor entry data tlb entry instruction tlb address translation 
+threads exchange byte messages connected pipes 
+thread simulates application thread traditional address space configurable instruction data tlb working set 
+second thread acts extension running separate full address space sandbox 
+application thread fills number tlb entries sends message extension thread reads reply message 
+application thread accesses previously referenced pages 
+extension thread small fixed tlb size executed sandbox traditional address space 
+simulate various data tlb sizes application thread reads bytes data series memory addresses spaced byte apart 
+simulate instruction tlb sizes application thread performs series relative jumps instructions spaced bytes apart 
+spacings chosen avoid cache interference effects 
+tlb counts obtained pentium cpu performance counters 
+shows data tlb working set application thread maintained approximately entries extension thread mapped sandbox 
+point combined data tlb demands operating system application extension longer fit entries available pentium page access incurs tlb note extension thread traditional address space data page access ipc ping pong incurs tlb regardless working set size tlb entries purged context switch 
+shown instruction tlb entries data tlb misses user sandbox referenced data pages instruction tlb misses user sandbox referenced instruction pages effects working set sizes terms data instruction pages number tlb misses inter protection domain communication 
+user case traditional inter process communication sandbox case shows communication costs process sandboxed protection domain 
+application thread preserved extension located sandbox 
+instruction tlb misses occur working set approaches entries close available tlb entries 
+number instruction tlb misses similar extension types 
+results correspond small spaces uses segmentation features implement multiple logical protection domains single address space 
+shows user level sandbox technique achieve inter protection domain communication performance similar approaches specialist hardware features segmentation 
+shows communication latency remains lower sandbox extension data tlb rates similar 
+likewise pipe latency considerably lower sandboxed extension instruction tlb filled 
+web server performance dynamic content requests experiments carried evaluate performance applications composed traditional address space processes extended sandbox code 
+unmodified apache web server configured support fastcgi interface web servers external processes generate dynamic content 
+apache configured communicate local unix domain socket multi threaded fastcgi process satisfy requests coming host 
+request fastcgi process reads kilobyte xml file filesystem transforming kilobyte html response 
+request generated httperf second timeout 
+shows performance application fastcgi threads running separate address space apache server process user case fastcgi threads executing sandbox sandbox case 
+seen maximum response rate improved fastcgi threads mapped sandbox 
+similarly average request connection time remains lower larger request rate fastcgi threads execute sandbox 
+summary experiments show working sets logical protection domains exceed tlb limits fast inter protection domain communication possible method 
+possible need special hardware support segmentation 
+microbenchmarks operation cost cpu cycles upcall including tlb flush reload tlb flush reload raw upcall signal delivery current process signal delivery different process table microbenchmarks taken ghz pentium ram 
+cycles time stamp counter 
+table presents number microbenchmarks point effectiveness fast upcalls method invoking sandbox code 
+table fast upcall costs shown enter implementation 
+complete upcall cost includes cpu cycles required go kernel space user space upcall handler function 
+includes costs flushing sandbox data area tlb entry placing arguments pipe latency cpu cycles user sandbox referenced data pages pipe latency cpu cycles user sandbox referenced instruction pages latency communication pipe protection domains function working set sizes terms data instruction pages 
+response rate sandbox user request rate connection time milliseconds sandbox user request rate performance unmodified apache web server handling dynamic content requests help fastcgi processes mapped separate address spaces user case sandboxed memory regions sandbox case 
+upcall stack performing executing user level prologue upcall handler function 
+tlb flush reload time dominates upcall cost remaining raw upcall cost accounts quarter elapsed cycles 
+copying arguments trampoline code user level upcall stack consumes majority clock cycles associated raw upcall 
+trampoline code simply instruction placed upcall stack arguments referenced return address stack upcall handler 
+cycles raw upcall attributed instruction rest associated saving information kernel stack return corresponding 
+signal costs measure overheads delivering signal user space kernel address space context different address spaces 
+costs delivering signal address space lower cost upcall hardware protection overheads involved address space switch scheduling operation involved costs delivering signal kernel user space process times cost full upcall 
+note measured cost delivering signal different process involves making process highest priority guaranteed scheduled 
+previous table include costs activation records tests suggest incur additional overheads compared sy enter 
+better signals invoke user level services activation records fixed overheads dependent system load process behavior cpu scheduling policies 
+system service extensions sandbox set experiments compare performance kernel level extensions user level approaches monitoring adapting system resource usage 
+aim see possible implement systemwide service extensions user level sandbox achieve similar level control physical resources kernel approaches 
+set experiments uses standalone mhz pentium iii mb ram 
+case user level sandbox implemented patched linux kernel 
+different methods dynamically managing cpu usage compared set processes specific resource requirements finite windows realtime 
+details exact setup experiments earlier 
+methods implement cpu service manager user level process sandboxed thread pure upcall function sandbox kernel bottom half handler 
+processes target cpu demands ms period ms ms period ms ms period ms respectively 
+simplicity processes memory footprints kb stripped symbols merely iterate number integer computations 
+note similar experiments realistic complex application processes encode number video frames groups pictures 
+results experiments included due space constraints show similar performance patterns shown section 
+case processes static real time priorities initialized target period target period denote target cpu time required request period measured milliseconds 
+linux real time priorities range lowest highest kernel daemons assigned real time priorities higher ensuring system continues function 
+kernel service manager invoked ms linux timer queue monitor cpu allocations cpu bound processes 
+similarly upcall service manager invoked ms upcall events triggered timer bottom half 
+corresponding handler functions case adjust timeslice process necessary pid controller described prior experiments 
+guard function allows process timeslice increase long average cpu usage measured twice period target utilization 
+kernel pure upcall service managers check identity running process invoked kernel timer queue 
+accounting information cpu usage current process proportional plus integral plus derivative 
+updated nearest clock tick 
+kernel approach accounts lost ticks sandboxed approach making method tracking cpu usage slightly accurate 
+contrast process thread managers determine cpu usage processes proc filesystem scheduled kernel 
+ensure predictable service process thread managers assigned real time priorities 
+service manager methods background disturbance process attempts consume available cpu cycles active 
+execution pattern markov modulated poisson process average exponential inter burst times seconds average geometric burst lengths seconds 
+burst disturbance triggered initial priority corresponding service manager active disturbance priority adjusted maintain service processes 
+cases disturbance scheduled posix sched fifo policy 
+aim maintain fine grained control cpu allocation processes part real time application 
+cpu cpu disturbance time seconds disturbance time seconds cpu service management controlled user level real time process sandboxed thread 
+figures show abilities service management method maintain cpu allocations processes target levels 
+process cpu cpu time seconds disturbance time seconds disturbance cpu service management controlled pure upcall function sandbox kernel bottom half handler 
+thread approaches suffer need scheduling kernel order control resource allocation 
+disturbance uses sched fifo scheduling preempted service manager scheduled initial priority 
+brevity include results case disturbance scheduled sched rr policy pure upcall kernel approaches perform better 
+having disturbance scheduled sched fifo indicates vulnerability process thread approaches user level service management 
+dependent parameters schedulable entities scheduling policy enforced underlying kernel 
+contrasts pure upcall kernel service managers entirely depend underlying nature kernel scheduling policy 
+seen implementing efficient service extension dynamic management cpu cycles possible user level sandboxing 
+upcall service manager successfully maintains target cpu allocations processes allowing background disturbance hog resources active 
+kernel approach provides finest granularity control re source allocation implementing extensions kernel precludes libraries system calls benefits isolating application specific code outside kernel protection domain 
+user level approaches including pure upcall method conventional system calls sched available control cpu allocations 
+general slight reduction fine grained control resources offset ease programming user level 
+user level networking sandbox application approach implemented network stack sandbox avoids copying processing kernel 
+effect allows custom stack configurations implemented network data processed applicationspecific manner 
+example implement special purpose routing protocol user space technique 
+experiments ibm series servers connected gigabit ethernet cards 
+machine ghz pentium cpu mb ram 
+slight modifications ethernet driver linux kernel able dma data directly sandboxed memory 
+details extension sandbox system accompanying 
+throughput mbps number background threads user mode udp kernel thread sandbox throughput comparison optimized sandbox stack versus alternative user kernel level implementations 
+compares throughput sandboxed networking stack versus alternative kernel user level implementations forward data udp socket points 
+alternative user level approach relays data process simply reads socket writes 
+contrast kernel approach uses kernel thread connect socket points 
+seen kernel method yields highest throughput background threads active host 
+kernel user level relaying agents execute thread contexts subject scheduling overheads 
+seen fact sandboxed networking approach maintains level throughput irrespective number background threads 
+summary experiments discussed section primarily focus performance gains approach novelty particular sandboxed services 
+user level sandboxing flexible support number fairly powerful service extensions capabilities controlled upcalls trusted kernel 
+example sandbox services may granted controlled access devices upcalls enable access subset available io port addresses 
+results show jitter sensitive applications may suffer scheduling switching overheads policies associated traditional user level services isolated separate protection domains 
+evident cpu service management experiments similar published part safe kernel extension 
+related number related research efforts focus os structure extensibility safety service invocation 
+example micro kernels mach offer basic abstractions moving implementation complex services policies application level components 
+separating kernel user level services micro kernel implementations suffered significant domain communication costs lack portability 
+os approaches exokernel try efficiently multiplex hardware resources applications linked library operating systems 
+common exokernel approach user level sandboxing enables services extensions linked process address spaces library code may 
+approach provides method execute service extensions arbitrary address spaces scheduling context switching overheads 
+require service extensions multiple different applications written trusted source guaranteed memory safe techniques type safe languages software fault isolation 
+spin operating system example uses modula enforce memory protection untrusted extensions linked core system abstractions 
+approach type safe language support useful isolate extensions prevent unauthorized access active process private address space 
+page level protection provide clean separation extensions kernel 
+extensible systems transaction schemes process private address spaces special hardware support isolate guard potential ill effects untrusted service extensions 
+example leverages segmentation multiple rings protection support user kernel level extensions 
+interestingly reorganizes application extension code extensions located privileged ring protection code invokes services 
+method primarily targeted systems relies hardware support protection 
+user level sandboxing require segmentation multiple rings protection 
+area research related focused service invocation kernel event notifications upcalls 
+concerned way trigger user level services handlers due condition event kernel 
+example freebsd banga kernel event notifications alleviate costs associated traditional methods event delivery poll select 
+offer upcalls mechanisms akin mirror image system call capable triggering handlers scheduling overheads 
+part upcall mechanism intend implement general kernel event notification scheme approaches ability directly invoke function sandbox 
+observe confused user level resource constrained sandboxing chang karamcheti 
+focuses enforce quantitative restrictions resource usage 
+propose method instrumenting application intercept requests resources cpu cycles memory bandwidth 
+emphasis provide safe efficient shared memory support execution user level extensions arbitrary process address spaces 
+assume page level protection provided hardware finer granularity protection scheme mondrian desirable 
+said hardware approach readily available 
+describes safe efficient method userlevel extensibility employing shared virtual memory area common address spaces 
+approach allows applications register sandboxed code system may executed context process avoiding unnecessary scheduling context switching overheads 
+upcalls trusted kernel required toggle page level protection bits allow extension code execute user level sandbox 
+extensions executed user level may utilize libraries system calls 
+approach differs implementations require special hardware support segmentation tagged tlbs implement multiple protection domains single address space support fast switching address spaces 
+likewise require entire system written type safe language provide fine grained protection domains 
+user level sandboxing mechanism requires paged virtual memory support sandboxed extensions written trusted source guaranteed memory safe 
+mechanism benefits small number extended super pages architectures pages cached untagged tlbs 
+hardware support variety super pages appearing different architectures ultrasparc ia 
+enable larger extensions mapped sandbox 
+contrast software fault isolation assumes untrusted code isolated fault domain single address space support ability place extension code memory region shared separate address spaces 
+technique suitable existing systems support multiple process private address spaces single memory area systems dos 
+envision approach laying foundations method implementing class user level services tailored needs specific applications 
+class mean service capabilities privileges traditional kernel services exception kernel may revoke access rights service abusing capabilities 
+philosophy keeping micro kernel design past micro kernel implementations invoke user level services low overhead requiring esoteric hardware support 
+involves thorough study costs software fault isolation methods type safe languages cyclone enforce multiple untrusted extensions userlevel sandbox 
+address issues related cpu protection enforce sandbox extensions execute unbounded periods 
+earlier safe kernel extensions suggests cpu protection enforced requiring extensions reserve cpu share registered system 
+extension may corresponding timer decremented clock tick execution 
+trap controlling kernel issued extension executes cpu quota 
+point form action may taken 
+user level sandboxing software available request 
+current implementation requires minimal set changes core linux kernel 
+outside scope successfully applied binary rewriting techniques necessary minor changes kernel having patch recompile source code 
+date requirement user reboots machine reserve area physical memory user level sandbox 
+king russinovich tracey high performance memory web servers kernel user space performance proceedings usenix annual technical conference boston massachusetts june 
+burnett bent arpaci dusseau arpaci dusseau exploiting gray box knowledge buffer cache management proceedings usenix annual technical conference june 
+small seltzer comparison os extension technologies usenix annual technical conference pp 
+
+rodrigues petrou anderson slic extensibility system commodity operating systems proceedings usenix annual technical conference 
+bershad savage pardyak sirer fiuczynski chambers extensibility safety performance spin operating system proceedings th acm symposium operating systems principles pp 
+
+seltzer endo small smith dealing disaster surviving misbehaved kernel extensions proceedings nd symposium operating systems design implementation 
+chiueh pradhan integrating segmentation paging protection safe efficient transparent software extensions proceeedings acm symposium operating systems principles pp 
+
+clarke coulson architecture dynamically extensible operating systems proceedings th international conference configurable distributed systems may 
+chandra vahdat application specific network management energy aware streaming popular multimedia format proceedings usenix annual technical conference june 
+fiuczynski bershad extensible protocol architecture application specific networking proceedings usenix annual technical conference san diego ca january 
+wahbe lucco anderson graham software fault isolation proceedings th acm symposium operating systems principles december 
+jim morrisett grossman hicks cheney wang cyclone safe dialect proceedings usenix annual technical conference monterey california june 
+necula lee safe kernel extensions run time checking proceedings nd symposium operating systems design implementation pp 
+
+liedtke kernel construction proceedings th acm symposium operating systems principles acm december 
+jones interposition agents transparently interposing user code system interface proceedings th acm symposium operating systems principles pp 
+december 
+goldberg survey virtual machine research ieee computer magazine vol 
+pp 
+
+
+lim virtualizing devices vmware workstation hosted virtual machine monitor proceedings usenix annual technical conference june 
+engler kaashoek jr exokernel operating system architecture application level resource management proceedings th acm symposium operating systems principles december 
+clark structuring systems upcalls proceedings th acm symposium operating systems principles pp 
+acm 
+von eicken basu vogels net user level network interface parallel distributed computing proceedings th acm symposium operating systems principles pp 
+
+uhlig heiser performance multiplexing pentium tech 
+rep university karlsruhe germany 
+intel ia intel architecture software developer manual volumes 
+banga mogul druschel scalable explicit event delivery mechanism unix proceedings usenix annual technical conference monterey ca june 
+lemon kqueue generic scalable event notification facility proceedings usenix annual technical conference freenix track 
+west qos safe kernel extensions real time resource management th euromicro international conference real time systems june 
+qi west hernandez efficient host architecture high performance communication user level sandboxing tech 
+rep bucs tr boston university 
+submitted publication 
+accetta baron bolosky golub rashid tevanian young mach new kernel foundation unix development summer usenix conference pp 
+
+chang karamcheti userlevel resource constrained sandboxing proceedings th usenix windows systems symposium 
+witchel cates mondrian memory protection asplos acm 

@@ -1,0 +1,484 @@
+context prefetch implementing objects relations philip bernstein shankar pal david implementing persistent objects relational database major performance issue prefetching data minimize number database 
+especially hard navigational applications accesses unpredictable 
+propose context object loaded predictor accesses context stored collection relationships query result complex object 
+object state loaded similar state objects context prefetched 
+design maintaining context guide prefetch 
+give performance measurements implementation microsoft repository showing reduction running time 
+describe variations selectively apply technique exploit asynchronous access application supplied performance hints 
+way implement persistent objects map relational database system rdbms 
+approach main benefits provides persistent object views existing relational databases allows rdbms customer build new object oriented databases introducing new database engine avoids changes database administration procedures interoperability problems existing applications 
+approach attractive object relational dbmss support desired object functionality database engine 
+main disadvantage mapping permission copy fee part material granted provided copies distributed direct commercial advantage vldb copyright notice title publication date appear notice copying permission large data base endowment 
+copy republish requires fee special permission endowment 
+proceedings th vldb conference edinburgh scotland microsoft microsoft way redmond wa microsoft com objects relations performance common usage scenarios objectoriented database systems oodbs storage servers designed explicitly object oriented access 
+important feature persistent object implementations kind storage system ability load persistent objects active main memory objects object model application environment java smalltalk omg corba com 
+minimizes impedance mismatch language dbms creates performance challenges database implementation especially mapped rdbms custom storage system 
+major performance problem application object models inherently navigational 
+objects relationships objects applications follow time 
+caching accessed objects helpful avoid accessing rdbms 
+caching access object entails round trip rdbms performance slow 
+get feeling performance penalty rdbms consider simple experiment 
+define relational database consisting table rows bytes 
+row byte objectid column clustered index byte string valued columns byte integer valued columns 
+suppose application knows objectid values wants retrieves rows randomly selected keys batches rows 
+warm server cache factor cost disk accesses ran experiment rdbms product retrieved rows second rows second rows second batch sizes respectively 
+corresponds retrieval time ms milliseconds ms ms rows 
+experiments commodity hardware 
+hardware software configurations left unspecified avoid usual legal competitive problems publishing performance numbers commercial products 
+performance measurements averages multiple trials trials higher variance measurements 
+case times faster get rows object states batch rows row ata time 
+minimize performance penalty database applications issue query identify objects interest scan resulting cursor object time 
+tells dbms objects retrieve batch leaves open pieces objects state desired tables access 
+simple popular navigational patterns relationship nuisance issue query 
+application programmer happier navigate object accessing objects needs letting dbms automatically determine data prefetch 
+programming interfaces oodbs odmg model satisfy desire offering navigational query access 
+dbms prefetch response navigational access 
+central question addressed 
+oodbs page servers 
+accessing object page oriented oodb retrieves page containing object prefetches data page 
+clustering data accessed page ensures effective prefetching 
+clustering approach amounts static prefetching algorithm 
+clustering prefetching dual problems 
+suppose navigational application gets object time shortly accesses objects page best case performance case hard beat 
+comparison implementing objects rdbms additional query processing step find records clustered page 
+rdbms clusters records way takes time find gather transmission application simply ships page 
+clustering strategy optimal average workload access patterns vary prefetching mistakes 
+useless prefetches fetched data isn subsequently accessed 
+times prefetch opportunities predictable access pattern hits objects different pages 
+mistakes inherent architecture static clustering records page oriented accesses 
+system maps objects rdbms ll call probably match access pointed michael franklin 
+patterns follow physical data clustering 
+may able earn back lost performance ways 
+uses row server page server prefetch arbitrary combination rows 
+knowledge application behavior identify combinations rows worth prefetching powerful query processor find retrieve rows round trip data physically clustered 
+contrast generally retrieves pages server demand 
+data layout retrieve number pages 
+query prefetching allows prefetch rows re referenced reducing latency 
+second density desired rows page low better client cache prefetches desired rows network bandwidth transfer prefetched rows 
+course oodbs object servers page servers tactic benefit techniques described 
+prefetching objects related decisions objects prefetch portions objects state prefetch 
+illustrate technique focus question simple example see 
+suppose application accesses relationship object returns set objects suppose state object spread multiple tables 
+application may access state object 
+avoid prefetching state application need delays deciding state prefetch 
+simply retrieves object ids objects making round trip rdbms waits see application 
+suppose application selects object application cache accesses attribute 
+requires roundtrip 
+just retrieving retrieves prefetches objects useful application accesses objects common access pattern workloads observed 
+set simple example context prefetch notice prefetch decision application access pattern statically determined 
+member collections database 
+decision prefetch objects fact fetched part collection 
+remember fact basis prefetching core idea prefetching technique uses context object accessed predictor objects accessed 
+implement approach creates structure context object describes structure object fetched 
+examples structures stored collections relationships query results complex objects 
+accessing state object prefetches pieces state objects structure context example accessing attribute objects structure context call approach prefetch 
+example approach beneficial objects context undergo similar manipulation 
+rest organized follows 
+section summarizes related general problem implementing efficiently 
+section presents basic mechanisms context controlled prefetch 
+technique cost effective situations section proposes performance hints selectively enable optimizations 
+summary implementation microsoft repository version microsoft sql server discussed section 
+performance measurements section show fold speedup due optimizations 
+section describes extensions asynchronous prefetch lazy loading objects prefetching paths 
+section 
+related published implementation persistent objects little uses rdbms underlying store 
+keller provide overview issues 
+papers assume set objects retrieved defined query issues running query efficiently assembling objects caching query result reuse queries 
+navigational access applied result query prefetch 
+descriptions commercial products map objects relations 
+proponents oodbs published white papers show products outperform similar implementation rdbmss little scientific literature 
+useful bibliography 
+prefetching architectures behavior described 
+palmer zdonik microsoft trademark microsoft 
+pre analyzed traces guide prefetch 
+krishnan vitter compression algorithms guide page prefetch behavior 
+approaches exact objects pages retrieved 
+contrast approach works sequence conforms generic navigational pattern possibly time objects accessed allows application programmers influence prefetch decisions 
+approaches appear complementary potentially system possible subject investigation 
+structure context object model describe details approach need define object model 
+choose similar common odmg model com uml 
+approach largely insensitive details model 
+model groups objects structures 
+persistent object persistent state consists attributes 
+attribute value scalar object set 
+scalar valued attribute conforms scalar type gives name attribute data type string integer boolean 
+object scalar valued objectid attribute uniquely identifies object 
+object valued attribute side binary relationship 
+relationship consists objects refer 
+set valued attribute contains object type set turn contains set scalar values object 
+concept set representative example generic structure type 
+structure types handled analogously sets sequence array table record structure consider 
+object conforms object type 
+object type name set attribute types contain 
+binary relationship conforms relationship type gives name relationship object types related object types attribute name accessed 
+class body code implements object types 
+includes class factory produces objects instances class 
+includes code implements usual read write operations attributes structures object types class implements 
+operations set navigational object oriented operations consider getnext 
+meant representative sample kinds navigational operations programming interfaces persistent object systems 
+objectid returns running copy persistent object unique identifier objectid 
+attrname returns value attribute attrname object 
+notation means execute method object 
+result scalar object set depending attribute type 
+set associated cursor initially pointing set element 
+getnext returns scalar object identified set cursor advances cursor cursor points returns null 
+returns set objects satisfy query qualification oql 
+database schema maps objects rows tables 
+class maps table columns represent single valued attributes 
+optimizations applicable independent rules map attributes class particular table 
+completeness give details mappings commonly 
+simplest mapping map class exactly table contains class attributes 
+complex mappings popular 
+example suppose class inherits class classes concrete instances separate tables columns inherits may stored tables ii table iii called vertical partitioning 
+case state reconstructed joining tables 
+columns stored tables concrete classes inherit case corresponding table store table tb called horizontal partitioning 
+assume relationship type represented junction table 
+separate junction table relationship type columns generic junction table relationship types columns source objectid 
+relationship represented class attribute 
+attribute class attribute 
+attribute table ta table tb 
+am bn table ta table key ii iii mapping classes tables junction table foreign key side parent child foreign key parent stored child 
+attribute consisting set scalars stored table columns objectid short form attribute name value 
+set maximum cardinality known stored columns class table attrname 
+table structures isomorphic relationships single valued attributes respectively prefetch scenarios set scalar attributes isomorphic cases treated 
+prefetch pattern discussed section main approach maintain structure context simply context object describes structure object loaded context guide prefetch decisions 
+section explain usage approach detail 
+reapply usage operations section 
+consider operation sequence returns set objects value relationship attribute getnext returns object returns value scalar valued attribute 
+scenario 
+attribute corresponds column table containing state class wide lots long columns costs little retrieve columns part state retrieve cost disk accesses retrieve columns disk fetched 
+chance columns accessed worth prefetching columns 
+retrieved expect objects accessed similarly prefetch columns objects just 
+avoids round trips database object optimization illustrated 
+table shown relationships implemented junction table steps illustrated ii iii respectively 
+notice step uses selection clauses step joins get columns objects just 
+table source target table objid 
+
+select target select source target objid source ii iii 
+prefetching scenario experiment section suggests prefetch profitable items collection accessed batch retrieval times cost single row retrieval 
+addition objectlevel processing reduces fractional contribution db round trips total cost 
+experiments variety workloads database profiles prefetch profitable items subsequently accessed combination data server network 
+items accessed round trips saved prefetch greater benefit 
+objects state tables worth getting attributes 
+usually 
+example extended experiment section duplicating table model 
+getting rows tables round trip added execution time retrieving cost needlessly getting columns high 
+benefit modest retrieving rows tables slower round trips vs retrieving join round trip 
+retrieve columns certain needed 
+technique heavily uses cache interactions prefetching cache management need careful attention 
+cache nearly full data prefetch large prefetch may 
+see examples 
+generate sql query shown iii needs context 
+context include information create set initially object id relationship source relationship name parameters needed construct sql query retrieves desired attributes objects context 
+expect worth supporting variations pattern attribute predefined subset attributes retrieved attributes table 
+slight variation main idea don consider 
+case analysis generalize section navigational access patterns suggest navigational behavior 
+suggestions lead naturally prefetch recommendations retrieve data needed service accesses accesses occur 
+course navigational accesses don guarantee accesses occur prefetch recommendations applied selectively issue discuss section 
+simply describe potentially useful prefetches implement operation types section 
+descriptions omit initial test determine requested data cache need fetched 
+objectid prefetch object state 
+note load object main memory needs know object class know class instantiate object exists know return error 
+prefetching object state optional stage 
+set object context null means loaded directly part larger structure 
+attrname attrname name attribute class 
+cases consider case case vi case attrname single valued object context null get object database 
+object stored foreign key table containing attributes retrieve attributes 
+example suppose attrname relationship class class see 
+suppose table tc objid contains scalar attributes foreign key attribute contains object id object related getting od involves accessing column row tc prefetch attributes row 
+classes 
+stored table stored table instance table objid table objid ii prefetching attributes foreign key tc indexed compound key objid just objid query processor get od accessing row making cheaper retrieve 
+index objid non clustered raises incremental cost getting prefetched high probability subsequent access 
+case ii attrname scalar context null simply retrieve attribute 
+case retrieve attributes state table containing attrname column 
+case prefetching attributes cost beneficial subsequently referenced 
+case iii attrname object context set prefetch object just run sql statement returns objectid value attrname objects 
+case object stored foreign keys table containing attributes retrieve attributes 
+prefetching object objects objects subsequently accessed 
+case essentially multiple rows tc retrieved object just 
+case iv attrname scalar context set objects attrname corre sponds step section 
+prefetch described iii 
+case attrname set valued context null retrieve set content set scalar values objects 
+case assign context object set objects object stored foreign keys referenced objects retrieve attributes referenced objects stored table foreign key 
+modifying example attrname relationship class class get bm retrieved objects referenced usual prefetching attributes cost beneficial referenced objects class class stored table stored table instance table tc objid table objid bm ii 
+prefetching attributes referenced objects case vi attrname set scalars objects context set prefetch attrname set object 
+example suppose attrname relationship set objects 
+execute sql statement returns table objid objid pairs objid denotes object objid denotes object referenced objid prefetching object ids members set object 
+analogous section scalar attributes objects prefetched 
+set si referenced objid assign si context object si 
+prefetch sets accessed objects 
+continuing example class class represented foreign key table td attributes objects prefetched modulo additional cost depending part compound index td 
+apply context prefetch set results execution query just set stored object cases iii iv 
+executing query saving resulting objectid set sending objectid rdbms prefetch 
+inefficient large query results problematic query prefetch exceed maximum size sql statement stored procedure call 
+re execute query prefetch inefficient query cheap 
+store context server temporary table 
+assume session temporary table temp objectid dbms 
+associate unique query 
+map query insert statement appends rows temp objectid result query 
+execute insert return objectid query result set identified creating context cost beneficial attributes objects subsequently accessed making prefetches attributes cost beneficial query expensive re execute perform prefetch 
+temp created time starting database session call 
+query result query context temp transaction boundaries application read committed repeatable read isolation 
+getnext return designated element prefetching accomplished loaded objectid attrname 
+managing structure context structure context part state loaded object 
+context lifetime governed object 
+object released context deallocated 
+includes context information maintained object typically main memory 
+releasing set result includes deleting rows temporary table containing cached result query 
+deallocation done lazily asynchronously respect processing 
+persistent database tables performance characteristics temporary tables carefully analyzed cache query results 
+example depending space managed may important temporary table space 
+may may valuable index depending queries processed size query results query results concurrently active 
+suppose object loaded multiple times different navigational paths 
+example application load object attrname attrname set containing reload objectid 
+programming interfaces operation return loaded object returns copy persistent object 
+expect objects share cached persistent object state refer object 
+objects loaded different paths different contexts 
+example object context second null 
+performance hints prefetch optimizations section cost effective important able enable disable 
+enabling optimization essentially performance hint underlying 
+general approach application supplied hints adopted object relational mapping systems commercial products 
+main optimizations worth controlling way 
+attributes object accessing object prefetch scalar attributes 
+
+relationships object accessing object prefetch objects 
+ma 
+attributes objects accessing scalar attribute object prefetch attributes table objects set context 
+relationships objects accessing relationship attribute object prefetch objects related object set context 
+contexts large large prefetch attributes relationships object context 
+specify threshold context size ma prefetch disabled 
+may better stream prefetched data batches 
+requires finding query retrieves subset data prefetched plus remainder query identifies remaining data prefetched 
+isn doable 
+example ma prefetch attribute values large unordered set need column value partitions set non overlapping subsets 
+appropriate enable prefetch optimization application entire execution 
+example application accesses members sets member ma speed accesses slow accesses 
+beneficial enable disable optimizations dynamically execution 
+performance hints added tags information model specify default prefetch behavior class 
+example class tagged enable disable ma 
+default behavior overridden application 
+prefetch enabled disabled dynamically beneficial maintain context loaded object 
+possible perform context prefetch object loaded prefetching disabled 
+maintaining context cheap little benefit disabling possible exception result query cached temporary table context object result 
+adding result temporary table non negligible cost probably worth disabling cases known ineffective 
+manual control performance hints offer worthwhile better system automatically decide enable disable prefetching 
+approach run application sample data generate traces analyze traces determine type optimization cost effective run 
+approach statically analyze application predict certain access patterns 
+example common pattern call relationship returns set object loop result accessing attributes object 
+case program modified enable ma entering loop 
+finer grained control possible exact set attributes referenced known hint reducing cost prefetch 
+cache control mechanism beneficial reduce amount prefetching cache stressed 
+cache manager track amount free space purpose 
+implementation microsoft repository prefetch optimizations section implemented latest version microsoft repository storage engine persistent object layer implemented top microsoft sql server 
+product object model table layout api include alternatives sections 
+differences relevant prefetch optimizations considered relationships currently stored single junction table table foreign keys class oriented tables 
+object model com classes implement interfaces interfaces single valued scalar properties relationship valued collections 
+interface scalar properties stored columns table rows contain state object class implements interface 
+table store properties interfaces class interfaces need stored table 
+additional method gets set objects instances class class supports interface 
+objects retrieved method retrieved set context represented identity class interface 
+similar case section attrname attrname designates set object 
+time persistent object loaded new com object created shares cached state com objects represent context stored com object load operation may different navigational path different context guide prefetch 
+object model table layout api described detail 
+performance measurements prefetch optimizations implemented microsoft repository useful customer applications tested frequently enabled especially ma beneficial 
+hard report way bears scientific scrutiny application yields varying workload hard characterize succinctly 
+ran controlled experiments show optimizations practice 
+experiment benchmark test show benefits ma benchmark highly regular workload representative persistent object applications brief summary appendix 
+ran queries traversals microsoft repository medium sized database mb 
+ran cold server cache ensure optimizations fully penalized useless prefetches 
+run structural modifications behavior affected optimizations 
+queries form retrieve set objects case access objects state 
+accesses state form subquery object outer query retrieves set object pairs 
+benefit optimization ma prefetches objects state round trip cached query result 
+reports percentage improvement running time execution prefetch optimizations enabled old new old 
+benefit varies size result algorithm joining temp table containing cached query results attribute table server 
+query form query plan prefetch sub optimal making ma ineffective 
+queries benefit don access relationships attribute object accessed 
+query simply counts number objects result query benefit prefetching properties relationships 
+benefit test ma benefit test ma ii benefit prefetch traversals navigate relationships starting root 
+queries traversals access attributes benefit ma 
+access attributes ma effect 
+access object collection prefetching attributes objects cost compensating benefit 
+ma decreases performance 
+principle traversals benefit 
+traversals visit entire bill materials hierarchy base assembly includes atomic parts 
+overflows client cache causing prefetched objects replaced accessed 
+currently handle situation gracefully cache overflow 
+version adaptive algorithm 
+experiment xml export application highly regular workload xml export utility ships product 
+wrote program uses utility export set objects reachable root doing breadth traversal root writing xml stream 
+exported uml model consisting objects relationships 
+execution time ms optimizations ms enabled ms ma ms ma 
+execution faster optimizations ma ma respectively 
+helps uml object relationship types accessed export determine re empty 
+ma helps relationship non empty attributes related objects exported 
+benefits nearly independent benefit ma nearly sum benefits ma 
+experiment measuring measure benefits controlled setting created object hierarchy stored relationships junction table table clustered index key source target 
+hierarchy top level fan second level fan 
+traversed hierarchy running sql 
+baseline ran sql query get children root followed query child get children 
+model replaced queries grandchildren query get grandchildren 
+retrieves amount data replaces fixed overhead queries just query 
+resulting execution time faster enabled disabled 
+sensitive size context applied affects number queries saves 
+example running previous experiment hierarchy top level fan second level fanout benefit half previous case 
+amount data retrieved queries grandchildren replaced query 
+effect explains part lack benefit traversals fan outs size 
+xml hurts performance probably contexts small prefetch requires extra expensive join 
+extensions asynchronous prefetch improve response time desirable minimal necessary return data access call prefetch additional data asynchronously respect call 
+extent application manually reordering logic gets data application needs 
+crude recommendation approaches making prefetch asynchronous pipeline prefetch prefetch processing request 
+pipelined approach issues query retrieve requested prefetched data 
+packet arrives db server starts populating cache 
+soon requested data arrives returns application continues processing packets asynchronously prefetched data arrived 
+dbms supports multiple active statements database session second application request executed previous prefetch active 
+dbmss support requires parallel nested transactions concurrent sql statements independently backed 
+feature second session needed avoid delaying application call prefetch tying session 
+case application asks item prefetched blocked 
+non pipelined approach retrieves requested data plus subset data prefetched 
+receiving data returns application asynchronously issues query remaining data prefetch 
+discussed section finding query retrieves subset data prefetched plus remainder query gets remaining data prefetched infeasible 
+cases unavoidable fetch entire result returning caller 
+example microsoft repository stores sequenced collections rows linked back pointers 
+application requests item collection collection elements loaded cache engine determine requested item 
+defeats pipelined non pipelined approaches 
+statistics needed determine prefetch 
+goal fetch small amount avoid delaying application prefetch fetch keep application busy second asynchronous prefetch running 
+prefetching paths extend context prefetch apply paths relationships 
+example consider persistent object base contains database schema definition object contains table definition objects contains column definition objects related data type definition object 
+accessing column table definition prefetch column definitions table definitions 
+showed section yield significant improvements 
+may beneficial prefetch scalar attributes column definitions section case relationships data type definitions adding hop path 
+estimate benefit recall section getting rows identical tables byte rows round trips slower getting join round trip 
+extend hints section specify prefetch path 
+issue approach representation inherently hierarchical result prefetch relational query 
+observed relationship retrieving children parent parent information repeated child due normalization inherent relational queries 
+possible solutions return result nested table tree structure xml stream represents tree structure require extension underlying rdbms 
+lazy loading sets suppose attrname returns set objects case iv case vi section 
+execute storing definition attrname instances main memory 
+insert new objects existing state needs loaded significant optimization 
+existing objects retrieved instances loaded invocation getnext 
+suppose known objects instances concrete class different specializations 
+getnext avoid loading instances creating hollow instance done cached type information accessing database instances 
+state populated attributes accessed 
+point ma kicks retrieves attribute possibly table objects prefetch gets object ids objects side effect allows populated instances 
+initial round trip rdbms get object ids objects entirely avoided leaving round trip get attributes objects halving number round trips scenario 
+benefit appealing unfortunately line logic attain quite sound empty getnext return null 
+known impossible set enforced integrity constraint saying non zero cardinality technique works fine 
+return null valid return hollow instance benefit optimization change needed programming interface 
+options hint issued call getnext tell system attribute prefetch getnext call optionally include list attributes interest semantics getnext modified getnext empty set returns object exception raised attempting access object attributes 
+hint strikes best alternatives 
+described technique predicting useful prefetches navigational object oriented interface implemented relational dbms 
+design technique measured performance commercial product microsoft repository 
+proposed number extensions benefit automatically issuing hints enable prefetch optimization prefetching paths relationships 
+published efficient implementations persistent objects 
+having worked implementation persistent objects relational database past years feel problem optimizing performance system partially understood benefit research 
+advent object relational dbmss need offer persistent object interfaces top importance problem growing 
+appendix summary benchmark bill materials database 
+medium database assembly sub assemblies levels 
+assembly composite parts associated document interconnected atomic parts 
+queries retrievals taken paraphrased save space random atomic part id get atomic parts exist number retrieved 
+range dates containing dates atomic parts retrieve atomic parts 
+range dates containing dates atomic parts retrieve atomic parts 
+random document titles document find base level assemblies composite part corresponding document 
+return number base assemblies 
+find base assemblies composite part build date base assembly 
+report number base assemblies 
+scan atomic parts 
+find pairs documents atomic parts atomic part document id equals document id return number pairs 
+traverse assembly hierarchy 
+base assembly visit unshared composite parts 
+composite part depth search atomic parts 
+done return number atomic parts visited 
+swap attributes objects update atomic part composite part 
+update atomic part encountered 
+update atomic part composite part times 
+update indexed date field 
+composite part visit root atomic part 
+note 
+traversals omitted run fast lead inaccurate high variance measurements 
+acknowledgments thomas jason carlson stimulating discussions performance microsoft repository 
+grateful daniel implementing approaches described jim gary measuring helped uncover detailed problems addressed 
+
+bernstein harry sanders microsoft repository proc 
+rd vldb conf pp 
+
+
+bernstein carlson pal sanders microsoft repository version open information model information systems appear 
+
+booch rumbaugh jacobson unified modeling language user guide 
+addison wesley reading ma 
+
+carey michael david dewitt jeffrey naughton benchmark proc 
+acm sigmod conf pp 
+
+
+carey michael david dewitt kant jeffrey naughton status report benchmark proc 
+oopsla pp 
+
+
+carey michael david dewitt jeffrey naughton oo benchmark technical report ftp cs wisc edu univ jan 
+
+cattell barry bartels eastman jordan springer wade 
+object database standard odmg morgan kaufmann publishers 
+
+chang randy katz exploiting inheritance structure semantics effective clustering buffering object oriented dbms proc 
+acm sigmod conf pp 
+
+
+chaudhri resources www soi city ac uk html dir resources html 
+cluet designing oql allowing objects queried information sys 
+pp 
+
+
+copeland maier making smalltalk database system proc 
+acm sigmod conf pp 
+
+
+krishnan vitter practical prefetching data compression proc 
+acm sigmod conf pp 
+
+
+keller basu predicate caching scheme client server database architectures vldb journal jan pp 
+
+
+keller jensen agrawal persistence software bridging object oriented programming relational database proc 
+acm sigmod conf pp 
+
+
+lamb charles gordon landis jack orenstein daniel weinreb objectstore system cacm pp 
+
+
+lee gio wiederhold outer joins filters instantiating objects relational databases views ieee trans 
+knowledge data eng 
+pp 
+
+
+lee gio wiederhold efficiently instantiating view objects remote relational databases vldb journal pp 
+
+
+bernhard hamid pirahesh peter bruce lindsay norbert sql xnf processing composite objects abstractions relational data proc 
+int conf 
+data eng pp 
+
+
+ontos www ontos com 
+orenstein jack kamber accessing relational database object oriented database interface proc 
+st vldb conf pp 
+
+
+palmer zdonik fido cache learns fetch proc 
+th vldb conf pp 
+
+
+persistence software www persistence com 
+pirahesh hamid bernhard norbert bruce lindsay composite object views relational dbms implementation perspective information sys pp 
+
+
+poet software poet sql object factory poet com factory htm 
+rational software unified modeling language resource center 
+www rational com uml 
+rogerson inside com 
+microsoft press 
+
+software www com products 

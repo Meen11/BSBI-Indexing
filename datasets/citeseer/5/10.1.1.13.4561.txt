@@ -1,0 +1,287 @@
+implementation scheduler activations netbsd operating system nathan williams systems com presents design implementation level thread scheduling system netbsd 
+system provides foundation efficient flexible threads uniprocessor multiprocessor machines 
+scheduler activations kernel interface proposed anderson userlevel control parallelism presence multiprogramming multiprocessing 
+thread programming popular important part application development 
+programs want improve performance exploiting concurrency find threads natural way decompose application structure 
+major types thread implementation available user threads kernel threads significant drawbacks overhead concurrency limit performance applications 
+potential solution problem exists form hybrid level thread system known scheduler activations divides kernel user levels 
+system potential achieve high performance user threads retaining concurrency kernel threads 
+purpose describe design implementation level system associated thread library netbsd show speed thread operations competitive user thread implementations demonstrate implemented hurting performance unrelated parts system 
+motivation section describes traditional thread implementations 
+scheduler activations explained context level thread implementations described detail 
+section gives interface scheduler activations system presents programs section follows details kernel implementation interface 
+thread library built interface described section performance system thread library examined compared libraries section 
+section concludes considers directions 
+thread systems historically major types thread implementations unix systems essential differences participation kernel thread management 
+type significant drawbacks gone finding compromise third way 
+type thread system implemented purely user level 
+system thread operations manipulate state private process kernel unaware presence threads 
+type thread system known thread system thread implementation maps application threads single kernel resource 
+examples type thread system include gnu pth thread library pthreads ptl mit pthreads library original dce threads package formed basis posix thread effort 
+large software packages contain thread system especially originally written support platforms native thread support green threads sun original java implementation 
+currently user level packages primary thread system 
+user level threads implemented kernel support useful platforms native thread support applications particular subset thread operations needed 
+gnu pth library example support preemptive time slicing threads simpler 
+thread creation synchronization context switching implemented cost comparable ordinary function call 
+operations conceptually block single thread blocking system calls read page faults block entire process kernel oblivious presence threads 
+difficult user level threads exploit concurrency provide interactive response 
+user level thread packages partially problem intercepting system calls application replacing non blocking variants call thread scheduler 
+workarounds entirely effective add complexity system 
+additionally purely user level thread package multiple cpus system 
+kernel aware entity scheduled run process allocates single processor 
+result user level thread packages unsuitable applications natural fits shared memory multiprocessors large numerical simulations 
+thread implementation spectrum operating system kernel aware threaded nature application existence application thread 
+model known model direct correspondence user threads kernel resources 
+kernel responsible thread management tasks creation scheduling synchronization disposal 
+kernel entities share resources traditionally associated process address space file descriptors running state saved context 
+approach provides kernel awareness concurrency exists application 
+benefits realized user thread model thread blocking impede progress multiprocessor parallelism exploited 
+problems 
+overhead thread operations high managed kernel operations performed requesting services kernel usually system call relatively slow operation 
+thread consumes kernel memory usually scarce user process memory 
+kernel threads provide better concurrency user threads expensive time space 
+relatively easy implement operating system support kernel execution entities share resources clone system call linux sproc system call irix lwp create system call solaris 
+operating systems including linux irix windows nt model thread system 
+advantages disadvantages thread implementation models natural attempt combine achieve balance costs benefits 
+hybrids collectively known systems map number application threads usually smaller number kernel entities 
+known twolevel thread systems parties kernel user parts thread system involved thread operations scheduling 
+quite variety different implementations thread systems different performance characteristics 
+thread systems complicated models difficult develop debug effectively 
+aix solaris thread systems default 
+thread system key question manage mapping user threads kernel entities 
+possibility associate groups threads single kernel entities permits concurrency groups groups reaching balance concurrency systems 
+scheduler activations model put forward anderson way managing mapping maintaining concurrency thread system 
+model kernel provides application abstraction virtual processors guarantee run certain number application threads simultaneously cpus 
+kernel events affect number running threads communicated directly application way maintains number virtual processors 
+message application informs dg ux operating system prototyped implementation took advantage software state saving risc processor permit fast access simple kernel operations 
+technique widely adopted 
+sun solaris ships thread library application developers encouraged evaluate thread libraries application 
+state changed context user threads involved lets user level scheduler decide proceed resources available 
+system advantages systems kernel resource usages kept small comparison number user level threads voluntary thread switching cheap similar user level threads systems application concurrency fully maintained 
+scheduler activations implemented research purposes taos mach bsd os adopted commercially digital unix compaq tru unix 
+scheduler activations system shares systems problems increased complexity systems 
+additionally concern problems addressed scheduler activations important problems space threaded applications 
+example making thread context switches cheap little value thread thread switching infrequent thread switching occurs side effect heavyweight operations 
+implementing scheduler activations netbsd attractive major reasons 
+netbsd needs native thread system preemptive ability exploit multiprocessor computer systems 
+second scheduler activations interface implementation available open source operating system continued research utility viability intuitively appealing model 
+scheduler activations described anderson scheduler activations kernel provides application set virtual processors application complete control threads run virtual processors 
+number virtual processors set controlled kernel response competing demands different processes system 
+example application may express kernel keep processors busy single threaded application trying run kernel allocate processors set virtual processors application give fourth processor single threaded program 
+order application able consistently virtual processors know threads blocked stopped restarted 
+user level operations cause threads block sleeping mutex waiting condition variable thread blocking hands control thread library schedule thread run usual manner 
+kernel level events block threads read select system calls example fault page memory disk 
+event occurs number processors executing application code decreases 
+scheduler activations kernel needs tell application happened give virtual processor 
+mechanism known upcall 
+perform upcall kernel allocates new virtual processor application begins running piece application code new execution context 
+application code known upcall handler invoked similarly traditional signal handler 
+upcall handler passed information identifies virtual processor stopped running reason stopped 
+upcall handler perform userlevel thread bookkeeping switch runnable thread application thread queue 
+eventually thread blocked kernel unblock ready return application 
+thread directly return violate constraints scheduler activations number virtual processors increase application unaware state thread changed 
+event communicated upcall 
+order maintain number virtual processors thread currently executing application processors preempted 
+upcall run context virtual processor carrying notifications thread returning kernel second thread preempted 
+upcall handler knowing decide thread run processing needs 
+typically choose highest priority thread involved upcall notification 
+scheduling related events communicated upcall 
+change size virtual processor set communicated application reschedule thread running removed processor schedule code run new processor 
+traditional posix signals normally cause control flow change application communicated upcall 
+additionally mechanism provided application invoke upcall processor order bring processor back control thread engine case thread en code running processor decides different higher priority thread start running processor 
+kernel interface application interface scheduler activations system consists system calls 
+sa register call tells kernel entry point scheduler activations upcall registering signal handler 
+sa informs kernel level concurrency available application maximum number processors may profitably allocated 
+sa enable call starts system invoking upcall current processor 
+application running sa yield sa preempt calls allow application manage giving processors interrupting processors application upcall 
+upcalls upcalls interface scheduler activations system kernel inform application scheduling related event 
+application scheduler activations registers procedure handle upcall registering signal handler 
+event occurs kernel take processor allocated application possibly preempting part application switch user level call registered procedure 
+signature upcall void sa upcall int type struct sa sas int events int interrupted void arg type argument indicates event triggered upcall 
+types meanings described 
+sas field points array pointers struct sa describe activations involved event 
+element array sas points sa running activation 
+elements array sas sas events describe activations directly involved event 
+value events may zero case array elements purpose 
+remaining elements array sas events sas events interrupted describe activations stopped order deliver upcall innocent 
+value interrupted may zero case elements purpose 
+upcalls expected switch executing application code return 
+set events generates upcalls follows sa upcall upcall notifies process new processor allocation 
+upcall program triggered sa enable type 
+sa upcall preempted upcall notifies process reduction processor allocation 
+may multiple event activations allocation reduced processors 
+sa upcall blocked upcall notifies process activation blocked kernel 
+sa context field event continued sa upcall unblocked event delivered activation 
+sa upcall unblocked upcall notifies process activation previously blocked sa upcall blocked upcall delivered ready continued 
+sa upcall signal upcall deliver posix style signal process 
+signal synchronous trap event sas points activation triggered trap 
+asynchronous signals event 
+arg parameter points structure describes signal delivered 
+sa upcall user upcall delivered requested process sa preempt 
+sas activation activation specified call 
+processor allocated process preempted application informed immediately 
+allocated processor upcall inform application previous preemption new allocation user level scheduler reconsider application needs 
+low level upcall mechanism similar signal delivery 
+piece code known upcall trampoline copied user space start program execution 
+invoke upcall application kernel copies upcall arguments user memory registers switches user level arguments upcall address upcall entry point available starts running trampoline code calls upcall routine 
+stacks upcall code application code written needs stack storage local variables return addresses 
+stack preempted thread possible preempted thread case new processor allocations 
+stack preempted thread thread management difficult thread runnable upcall code exiting processor start running overwrite upcall handler stack area 
+upcalls allocated set stacks 
+sa stacks system call gives kernel set addresses sizes stacks upcalls 
+kernel keep track upcall handler finished running application keep track stacks upcalls periodically call sa stacks recycle stacks available 
+batching stacks cost sa stacks system call amortized number upcalls 
+signals posix thread specification relatively complicated signal model distinctions drawn signals directed particular thread signals directed process general thread signal blocking masks process level signal actions interfaces wait particular signals process thread level 
+method handling signals scheduler activations permit thread package implement posix signal model 
+kernel know specific threads maintain thread signal masks affect signal delivery 
+signals handed application upcall mechanism arg parameter pointing struct user thread library invoke signal handler appropriate thread context 
+order user thread code intercept application calls sigaction maintain table signal handlers 
+kernel implementation section describes changes needed implement scheduler activations netbsd kernel including separation traditional process context execution context mechanics adapting kernel execution mechanics maintaining invariants scheduler activations separation machinedependent machine independent code implementation 
+lwps systems scheduler activations implemented date taos mach digital unix kernels user process built set kernel entities represent execution context 
+fits scheduler activations single process running blocked execution contexts 
+unfortunately netbsd kernel rest bsd family monolithic process structure includes execution context 
+implementation scheduler activations bsd os seltzer small dealt problem entire process structures execution context 
+substantial problems 
+amount kernel memory activation larger necessary 
+second multiple processes single application causes great deal semantic difficulty traditional process interfaces kernel 
+applications ps top show multiple processes apparently amount memory confuses users attempting understand resource usage system 
+sending posix signals action defined process ids targeting process sub part application conflicts posix threads original netbsd process states new netbsd process lwp states specification entire application respond signals thread may handle incoming signal 
+complexity introduced kernel synchronize process data structures file descriptor lists resource limits credentials 
+stage implementing scheduler activations separating process context execution context netbsd 
+slow largely mechanical undertaking 
+parts classic bsd struct proc related execution context relocated new structure struct lwp lwp light weight process solaris 
+included scheduling counters priority run state sleep fields kernel stack space execution machine dependent fields 
+process state values reduced represent state entire process execution related process state values changed lwp state values 
+audit variable type struct proc kernel determine process context execution context 
+execution context turned linuxthreads pthread implementation scheduler activations uses entire processes threads problems 
+doesn kill threaded application frequently heard question linux thread programming forums 
+prevalent variables especially global variable 
+conversion process consisted replacing variables struct proc struct lwp changing code referred process level state access indirectly pointer struct lwp 
+scheduler converted handle scheduling lwps processes fork system call changed create new lwps new processes kernel subsystem adjusted remove dead lwps dead processes 
+conversion complete stage permit existence concurrent execution lwps single process 
+scheduler activations system lwps single process time sliced doing way testing lwp infrastructure may useful binary compatibility systems multiple lwps process 
+interface solaris lwp functions adopted lwp create lwp self lwp exit lwp suspend lwp continue 
+areas kernel significantly affected signal delivery process exit 
+previously signal delivery straightforward switch state process 
+multiple lwps large combination possible states signal delivery code iterate lwps order find accept signal 
+signals actions affect state lwps iterate lwps continue appropriate 
+process exit complicated need clean lwps just invokes exit 
+lwp attempt exit wait lwps clean cleaning process context 
+kernel lwp wait primitive requires help especially presence lwps may similar sleep loops kernel 
+coerced quit sleep loops permitting exiting lwp continue loop 
+done making exit process trying exit noted flag struct proc providing flag exiting lwp wait loop ignore 
+machine dependent parts netbsd kernel require porting lwps 
+straightforward implementing machine dependent back ends system calls changing flags 
+involved splitting machinedependent parts old struct proc new struct proc struct lwp 
+example tss selector needs lwp specific pointer system call entry point needs proc specific 
+architectures powerpc machine dependent part struct proc empty 
+delicate required code implements process context switch usually written assembler 
+existing cpu switch function picks process run run queue modified return flag indicating switched process 
+scheduler activations code determine preemption upcall needs sent 
+variant routine called cpu preempt implemented takes new lwp switch picking run queue 
+scheduler activations code continue executing process lwp blocked 
+scheduler activations kernel implementation actual scheduler activations system centered routine sa upcall registers need upcall delivered process modify user state 
+routine example system calls directly generate upcalls sa preempt sa enable 
+interesting occurs process running scheduler activations enabled kernel calls function intended block execution context operating system select process run 
+scheduler activations philosophy moment send upcall process new virtual processor continue running handled having call function called sa switch conventional mi switch 
+mechanics complicated resource allocation issues allocating new activation lwp block memory shortage blocking means calling recursion inside result 
+avoid problem spare lwp pre allocated cached scheduler activations enabled lwp allocates action runs ensuring double sleep recursion occurs 
+sa switch code sets lwp return blocked upcall switches 
+new lwp exits kernel starts execution application registered upcall handler 
+lwp called woken wakes middle sa switch 
+switch code sets current lwp return unblocked upcall potentially including previously running lwp interrupted activation belongs process 
+important upcall preempted upcall 
+scheduling code netbsd periodically calls routine select new process exists higher priority 
+routine calls sa upcall preempts scheduler activations lwp 
+upcall delivery done just crossing protection boundary back user space 
+arguments copied machine dependent code process trap frame adjusted cause run code previously active 
+machine dependence architecture dependent code needed support scheduler activations netbsd amounts lines changed code architecture 
+bulk mechanical replacement struct proc struct lwp 
+lines new code necessary implement machinedependent upcall code cpu preempt function 
+date architecture support scheduler activations done author architectures people 
+volunteers porting reported significant problems interface machine dependent machine independent scheduler activations code 
+thread implementation principal motivation scheduler activations system support user level concurrency threads currently dominant interface expressing concurrency imperative languages 
+part project implementation application thread library utilizes scheduler activations interface 
+library intended supported pthreads library netbsd 
+thread library uses scheduler activations interface described previously implement posix threads 
+threads completely preemptable kernel may interrupt thread transfer control upcall handler time 
+practice occurs system call blocks thread returns having blocked process system preempted threaded process returned 
+uniprocessor system example logging remotely ssh running threaded process produces terminal output causes frequent threaded process kernel frequently allocates time process send terminal output back user 
+periodic timers generate regular upcalls implement round robin scheduling requested application 
+complete scheduler activations threads problem violates atomicity critical sections code 
+example thread library maintains run queue upcall happens run queue operated havoc result upcall handler want manipulate run queue invalid state 
+spin locks protect critical sections problem lead deadlock upcall handler attempts acquire lock interrupted thread 
+original scheduler activations mach implementation faced problem adopted strategy recovery prevention 
+violate semantics scheduler activations providing mechanism prevent interruption critical section devised ways detect critical section interrupted recover situation 
+implementations upcall handler examines state interrupted thread determine running critical section 
+thread permitted run critical section completion upcall handler enters critical section 
+implementation critical section recovery thread library closely follows mach implementation 
+critical sections protected spin locks adding terminological confusion sun solaris documentation refers start functions temporarily inhibit preemption lwp scheduler activations 
+spin lock acquisition routine increments spin lock counter acquiring thread descriptor 
+upcall occurs upcall handler checks spin lock count interrupted threads 
+finds interrupted thread holds spin locks sets flag descriptor indicating thread continued finish critical section switches context thread 
+critical section finishes spin lock release routine sees continuation flag set descriptor context switches back upcall handler proceed knowing critical sections left unfinished 
+mechanism continues execution upcalls preempted may continuing preempted critical sections 
+system effective preventing problems preempted critical sections need manipulate examine thread descriptor spin lock operation undesirably adds overhead common case critical section preempted 
+area exploration mechanism similar anderson original implementation uses knowledge program addresses critical sections shift costs preemption recovery uncommon case critical section preempted 
+thread implementation machinedependent component smaller kernel component 
+short routines switch thread saving restoring necessary register context variants routines needed preemption detection described needed cpu type supported netbsd 
+performance analysis goals examining performance scheduler activations system 
+determining added complexity having scheduler activations kernel hurts performance ordinary applications 
+second comparing performance resulting thread system existing thread systems demonstrate merits scheduler activations approach 
+measurements done hbench os package harvard university 
+hbench os focuses getting individual measurements explore performance system detail 
+tests measure system call latency results netbsd kernel implementation scheduler activations shown measured mhz digital alpha system 
+sa sa getpid sbrk sigaction results mixed tests faster slower 
+larger set hbench os tests test process switch latency variety process memory footprints number processes switched set showed similarly mixed results 
+performance system changed slightly conclusively get faster slower 
+result attractive netbsd require accepting performance trade order get better thread system 
+measuring thread operation costs different micro operations measured time create start destroy thread time lock unlock mutex varying degrees contention time switch context exiting threads 
+operations measured apple mhz processor cache 
+tests conducted scheduler activations thread library netbsd gnu pth library netbsd linuxthreads 
+sa pth linux thread mutex context linuxthreads exhibited roughly linear scaling lock time number threads contending lock sa library pth noticeable increases lock time demonstrating interesting differences scheduler involved 
+pth null thread creation time surprisingly large pure user space thread library low overhead 
+linux quite context switch test worth investigating get speed netbsd 
+benchmarks scheduler activations threads demonstrated basic operations competitive pure user threads kernel threads 
+design implementation level thread scheduling system scheduler activations model including kernel interface kernel implementation user implementation 
+measurements taken demonstrate competitive thread performance sacrifice application performance 
+implementation sufficiently divided machine dependent machine independent parts porting architecture days 
+initially hypothesized scheduler activations viable model thread system netbsd 
+existence scheduler activations implementation portable open source operating system enable research properties appealing system 
+project continues evolve goals clear integration main netbsd source tree cooperation support symmetric multiprocessing netbsd implementation better critical section preemption described implementation optional posix threads features realtime scheduling performance tuning 
+availability kernel user code described available bsd license netbsd project source servers currently cvs branch called sa 
+machine dependent code written alpha arm mips motorola powerpc vax architectures way 
+integration trunk netbsd current expected release netbsd 
+acknowledgments frans kaashoek mit laboratory computer science supervising early stages project systems sponsoring continued development 
+klaus klein providing single unix specification compliant implementation associated system calls 
+please see www netbsd org documentation current ways getting netbsd bill jason thorpe review interface useful suggestions project 
+chris small margo seltzer implementation scheduler activations bsd os am indebted demonstration feasibility 
+thomas anderson brian bershad edward lazowska henry levy 
+scheduler activations effective kernel support user level management parallelism 
+proc 
+th acm symposium operating system principles pages 
+paul barton davis dylan mcnamee raj edward lazowska 
+adding scheduler activations mach 
+technical report department computer science engineering university washington august 
+brown seltzer 
+operating system benchmarking wake lmbench case study performance netbsd intel architecture 
+proceedings acm conference measurement modeling computer systems pages 
+david 
+programming posix threads 
+addison wesley 
+isbn 
+digital equipment 
+guide 
+digital equipment 
+part number dpd tk 
+ralf 
+gnu portable threads 
+www gnu org software pth pth html 
+portable threads library 
+www media osaka cu ac jp abe ptl 
+christopher 
+portable thread library 
+ftp mit edu pub pthreads 
+christopher small margo seltzer 
+scheduler bsd sharing thread management kernel application 
+technical report harvard university 

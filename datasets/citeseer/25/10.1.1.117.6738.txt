@@ -1,0 +1,544 @@
+store column oriented dbms mike stonebraker daniel abadi adam chen mitch cherniack miguel ferreira edmond lau lin sam madden elizabeth neil pat neil alex nga tran stan zdonik mit csail cambridge ma brandeis university waltham ma presents design read optimized relational dbms contrasts sharply current systems write optimized 
+differences design storage data column row careful coding packing objects storage including main memory query processing storing overlapping collection projections current fare tables indexes non traditional implementation transactions includes high availability snapshot isolation read transactions extensive bitmap indexes complement tree structures 
+preliminary performance data subset tpc show system building store substantially faster popular commercial products 
+architecture looks encouraging 
+
+major dbms vendors implement record oriented storage systems attributes record tuple placed contiguously storage 
+row store architecture single disk write suffices push fields single record disk 
+high performance writes achieved call dbms row store architecture write optimized system 
+especially effective oltp style applications 
+contrast systems oriented ad hoc querying large amounts data read optimized 
+data warehouses represent class read optimized system periodically bulk load new data performed followed relatively long period ad hoc queries 
+read applications include customer relationship management crm systems electronic library card catalogs ad hoc inquiry systems 
+environments column store architecture values single column attribute stored contiguously efficient 
+efficiency demonstrated warehouse marketplace products sybase iq umass boston boston ma brown university providence ri adda kdb kdb 
+discuss design column store called store includes number novel features relative existing systems 
+column store architecture dbms need read values columns required processing query avoid bringing memory irrelevant attributes 
+warehouse environments typical queries involve aggregates performed large numbers data items column store sizeable performance advantage 
+major distinctions drawn architecture read optimized write optimized 
+current relational dbmss designed pad attributes byte word boundaries store values native data format 
+thought expensive shift data values byte word boundaries main memory processing 
+cpus getting faster greater rate disk bandwidth increasing 
+sense trade cpu cycles abundant disk bandwidth 
+tradeoff appears especially profitable read environment 
+ways column store cpu cycles save disk bandwidth 
+code data elements compact form 
+example storing attribute customer state residence states coded bits abbreviation requires bits variable length character string name state requires 
+second values storage 
+example column store straightforward pack values bits long bits 
+coding compressibility advantages column store row store previously pointed 
+course desirable dbms query executor operate compressed representation possible avoid cost decompression values need application 
+commercial relational dbmss store complete tuples tabular data auxiliary tree indexes attributes table 
+indexes primary rows table stored close sorted order specified attribute possible secondary case attempt keep underlying records order indexed attribute 
+indexes effective oltp write optimized environment perform read optimized world 
+case data structures advantageous including bit map indexes cross table indexes materialized views ceri 
+read optimized dbms explore storing data read optimized structures support write optimized ones 
+store physically stores collection columns sorted attribute 
+groups columns sorted attribute referred projections column may exist multiple projections possibly sorted different attribute 
+expect aggressive compression techniques allow support column sort orders explosion space 
+existence multiple opens opportunities optimization 
+clearly collections shelf blade grid computers cheapest hardware architecture computing storage intensive applications dbmss dewi 
+new dbms architecture assume grid environment nodes computers private disk private memory 
+propose horizontally partition data disks various nodes shared architecture ston 
+grid computers near may tens hundreds nodes new system architected grids size 
+course nodes grid computer may physically located divided clusters located nodes 
+database administrators hard pressed optimize grid environment essential allocate data structures grid nodes automatically 
+addition intra query parallelism facilitated horizontal partitioning stored data structures follow lead gamma dewi implementing construct 
+warehouse systems west maintain copies data cost recovery dbms log processing large terabyte data set prohibitive 
+option rendered increasingly attractive declining cost byte disks 
+grid environment allows store replicas different processing nodes supporting tandem style highly available system tand 
+requirement store multiple copies exact way 
+store allows redundant objects stored different sort orders providing higher retrieval performance addition high availability 
+general storing overlapping projections improves performance long redundancy crafted data accessed sites fails 
+call system tolerates failures 
+store configurable support range values clearly essential perform transactional updates read environment 
+warehouses need perform line updates correct errors 
+increasing push real time warehouses delay data visibility shrinks zero 
+ultimate desire line update data warehouses 
+obviously read worlds crm needs perform general line updates 
+tension providing updates optimizing data structures reading 
+example kdb columns data maintained entry sequence order 
+allows efficient insertion new data items batch column 
+cost retrieval structure query workloads run faster data order 
+storing columns non entry sequence insertions difficult expensive 
+store approaches dilemma fresh perspective 
+specifically combine single piece system software read optimized column store update insert oriented writeable store connected tuple mover noted 
+top level small writeable store ws component architected support high performance inserts updates 
+larger component called read optimized store rs capable supporting large amounts information 
+rs name implies optimized read supports restricted form insert batch movement records ws rs task performed tuple mover 
+writeable store ws tuple mover read optimized store rs 
+architecture store course queries access data storage systems 
+inserts sent ws deletes marked rs purging tuple mover 
+updates implemented insert delete 
+order support high speed tuple mover variant lsm tree concept supports merge process moves tuples ws rs bulk efficient method merging ordered ws data objects large rs blocks resulting new copy rs installed operation completes 
+architecture support transactions environment large ad hoc queries smaller update transactions continuous inserts 
+obviously blindly supporting dynamic locking result substantial read write conflict performance degradation due blocking deadlocks 
+expect read queries run historical mode 
+mode query selects timestamp committed transactions query semantically guaranteed produce correct answer point history 
+providing snapshot isolation requires store timestamp data elements inserted careful programming runtime system ignore elements timestamps lastly commercial optimizers executors row oriented obviously built prevalent row stores marketplace 
+rs ws sense build column oriented optimizer executor 
+seen software looks traditional designs prevalent today 
+sketch design updatable column store store simultaneously achieve high performance warehouse style queries achieve reasonable speed oltp style transactions 
+store column oriented dbms architected reduce number disk accesses query 
+innovative features store include 
+hybrid architecture ws component optimized frequent insert update rs component optimized query performance 
+
+redundant storage elements table overlapping projections different orders query solved advantageous projection 
+
+heavily compressed columns coding schemes 
+
+column oriented optimizer executor different primitives row oriented system 
+
+high availability improved performance safety sufficient number overlapping projections 
+
+snapshot isolation avoid pc locking queries 
+emphasized topics parallels things studied isolation past combination real system store interesting unique 
+rest organized follows 
+section data model implemented store 
+explore section design rs portion store followed section ws component 
+section consider allocation store data structures nodes grid followed presentation store updates transactions section 
+section treats tuple mover component store section presents query optimizer executor 
+section comparison store performance achieved popular commercial row store popular commercial column store 
+tpc style queries store significantly faster alternate system 
+performance comparison taken degree skepticism implemented tuple mover overhead may significant 
+sections discuss related previous 
+
+data model store supports standard relational logical data model database consists collection named tables named collection attributes columns 
+relational systems attributes collections attributes store tables form unique primary key foreign key primary key table 
+store query language assumed sql standard sql semantics 
+data store physically stored logical data model 
+row stores implement physical tables directly add various indexes speed access store implements projections 
+specifically store projection anchored logical table contains attributes table 
+addition projection contain number attributes tables long sequence foreign key relationships anchor table table containing attribute 
+form projection project attributes interest retaining duplicate rows perform appropriate sequence value foreign key joins obtain attributes non anchor table 
+projection number rows anchor table 
+course elaborate projections allowed believe simple scheme meet needs ensuring high performance 
+note term projection slightly differently common practice store base table projection derived 
+name age dept salary bob math bill eecs jill biology table sample emp data denote ith projection table ti followed names fields projection 
+attributes tables prepended name logical table come 
+section consider example standard emp name age salary dept dept dname floor relations 
+sample emp data shown table 
+possible set projections tables shown example 
+emp name age emp dept age dept floor emp name salary dept dname floor example possible projections emp dept tuples projection stored column wise 
+attributes projection data structures storing single column sorted sort key 
+sort key column columns projection 
+tuples projection sorted key left right order 
+indicate sort order projection appending sort key projection separated vertical bar 
+possible ordering projections emp name age age emp dept age dept floor dept floor emp name salary salary dept dname floor floor example projections example sort orders lastly projection horizontally partitioned segments segment identifier sid sid 
+store supports value partitioning sort key projection 
+segment projection associated key range sort key projection 
+set key ranges partitions key space 
+clearly answer sql query store covering set projections table database column table stored projection 
+store able reconstruct complete rows tables collection stored segments 
+need join segments different projections accomplish storage keys join indexes 
+storage keys 
+segment associates data value column storage key sk 
+values different columns segment matching storage keys belong logical row 
+refer row segment term record tuple 
+storage keys numbered rs physically stored inferred tuple physical position column see section 
+storage keys physically ws represented integers larger largest integer storage key segment rs 
+join indices 
+reconstruct records table various projections store uses join indexes 
+projections cover table join index segments segments logically collection tables segment consisting rows form sid storage key segment entry join index tuple segment contains segment id storage key corresponding joining tuple 
+join indexes projections anchored table mapping 
+alternative view join index takes sorted order logically resorts order 
+order reconstruct segments tk possible find path set join indices maps attribute sort order path collection join indexes originating sort order specified projection ti passes zero intermediate join indices ends projection sorted order example able reconstruct emp table projections example need join indices 
+choose age common sort order build indices map emp emp ordering emp 
+alternatively create join index maps emp emp maps emp emp 
+shows simple example join index maps emp emp assuming single segment sid projection 
+example entry emp bob corresponds second entry emp entry join index storage key 
+join index emp emp 
+practice expect store column projections allowing maintain relatively join indices 
+join indexes expensive store maintain presence updates modification projection requires join index points updated 
+segments projections database connecting join indexes allocated various nodes store system 
+store administrator optionally specify tables database 
+case loss nodes grid allow tables database reconstructed despite failed sites exist covering set projections set join indices map common sort order 
+failure occurs store simply continues safety failure repaired node brought back speed 
+currently working fast algorithms accomplish 
+store physical dbms design problem determine collection projections segments sort keys join indices create collection logical tables database 
+physical schema give best performance training workload provided store administrator subject requiring space budget additionally store instructed keep log queries periodically training workload 
+skilled go writing automatic schema 
+similar issues addressed turn representation projections segments storage keys join indexes store 
+
+rs rs read optimized column store 
+segment projection broken constituent columns column stored order sort key projection 
+storage key tuple rs ordinal number record segment 
+storage key stored calculated needed 
+encoding schemes columns rs compressed encodings 
+encoding chosen column depends ordering column ordered values column self order corresponding values column projection foreign order proportion distinct values contains 
+describe encodings 
+type self order distinct values column encoded type encoding represented sequence triples value stored column position column appears number times appears column 
+example group appears positions captured entry 
+columns self ordered requires triple distinct value column 
+support search queries values columns type encoded columns clustered tree indexes value fields 
+online updates rs index leaving empty space 
+large disk blocks height index kept small 
+type foreign order distinct values column encoded type encoding represented sequence tuples value stored column bitmap indicating positions value stored 
+example column integers type encode pairs 
+bitmap sparse run length encoded save space 
+efficiently find th value type encoded column include offset indexes trees map positions column values contained column 
+type self order distinct values idea scheme represent value column delta previous value column 
+example column consisting values represented sequence entry sequence value column subsequent entry delta previous value 
+type encoding block oriented form compression scheme entry block value column associated storage key subsequent value delta previous value 
+scheme reminiscent way vsam codes tree index keys vsam 
+tree tree block level index coded objects 
+type foreign order distinct values large number values probably sense leave values unencoded 
+investigating possible compression techniques situation 
+tree indexing 
+join indexes join indexes connect various projections anchored table 
+noted earlier join index collection sid storage key pairs 
+fields stored normal columns 
+physical database design implications concerning store join indexes address section 
+addition join indexes integrate rs ws revisit design section 
+
+ws order avoid writing optimizers ws column store implements identical physical dbms design rs 
+projections join indexes ws 
+storage representation drastically different ws efficiently updatable 
+storage key sk record explicitly stored ws segment 
+unique sk insert logical tuple table execution engine ensure sk recorded projection stores data logical tuple 
+sk integer larger number records largest segment database 
+simplicity scalability ws horizontally partitioned way rs 
+mapping rs segments ws segments 
+sid storage key identifies record containers 
+assume ws trivial size relative rs effort compress data values represent data directly 
+projection uses tree indexing maintain logical sort key order 
+column ws projection represented collection pairs sk value column sk corresponding storage key 
+pair represented conventional tree second field 
+sort key projection additionally represented pairs sk sort key value sk storage key describing appears 
+structure represented conventional tree sort key field 
+perform searches sort key uses tree find storage keys interest uses collection find fields record 
+join indexes fully described 
+projection represented collection pairs segments ws rs 
+record sender store sid storage key corresponding record receiver useful horizontally partition join index way sending projection locate join index partitions sending segment associated 
+effect sid storage key pair pointer record rs ws 
+
+storage management storage management issue allocation segments nodes grid system store perform operation automatically storage allocator 
+clear columns single segment projection located 
+noted join indexes located sender segments 
+ws segment located rs segments contain key range 
+constraints working allocator 
+system perform initial allocation reallocation load unbalanced 
+details software scope 
+column storage simply persistence collection columns 
+analysis shows raw device offers little benefit relative today file systems 
+big columns megabytes stored individual files underlying operating system 
+
+updates transactions insert represented collection new objects ws column projection plus sort key data structure 
+inserts corresponding single logical record storage key 
+storage key allocated site update received 
+prevent store nodes needing synchronize assign storage keys node maintains locally unique counter appends local site id generate globally unique storage key 
+consistent rs storage keys set corresponding high order bits zero 
+building ws top tree structures package support data structures 
+insert projection results collection physical inserts different disk pages column projection 
+avoid poor performance plan utilize large main memory buffer pool affordable cost byte primary storage 
+expect hot ws data structures largely main memory resident 
+store processing deletes influenced locking strategy 
+specifically store expects large numbers ad hoc queries large read sets interspersed smaller number oltp transactions covering records 
+store conventional locking substantial lock contention observed leading poor performance 
+store isolate read transactions snapshot isolation 
+snapshot isolation works allowing read transactions access database time past guarantee uncommitted transactions 
+reason snapshot isolation need set locks 
+call time past snapshot isolation run high water mark hwm introduce low overhead mechanism keeping track value multi site environment 
+read transactions set effective time arbitrarily support general time travel expensive task 
+low water mark lwm earliest effective time read transaction run 
+update transactions continue set read write locks obey strict phase locking described section 
+providing snapshot isolation key problem snapshot isolation determining records ws rs visible read transaction running effective time perform updates place 
+update turned insert delete 
+record visible inserted deleted determination requiring large space budget coarse granularity epochs described section unit timestamps 
+maintain insertion vector iv projection segment ws contains record epoch record inserted 
+program tuple mover described section ensure records rs inserted lwm 
+rs need maintain insertion vector 
+addition maintain deleted record vector drv projection entry projection record containing tuple deleted entry contains epoch tuple deleted 
+drv sparse zeros compactly coded type algorithm described earlier 
+store drv ws updatable 
+runtime system consult iv drv visibility calculation query record record basis 
+maintaining high water mark maintain hwm designate site timestamp authority ta responsibility allocating timestamps sites 
+idea divide time number epochs define epoch number number epochs elapsed time 
+anticipate epochs relatively long seconds exact duration may vary deployment deployment 
+define initial hwm epoch start current epoch 
+periodically ta decides move system epoch sends epoch message site increments current epoch causing new transactions arrive run timestamp 
+site waits transactions began epoch earlier epoch complete sends epoch complete message ta 
+ta received epoch complete messages sites epoch sets hwm sends value site 
+illustrates process 
+ta broadcast new hwm value read transactions reading data epoch earlier assured data committed 
+allow users refer particular realworld time query start maintain table mapping epoch numbers times start query epoch nearest user specified time 
+avoid epoch numbers growing bound consuming extra space plan reclaim epochs longer needed 
+wrapping timestamps allowing reuse old epoch numbers protocols tcp 
+warehouse applications records kept specific amount time say years 
+merely keep track oldest epoch drv ensure wrapping epochs zero overrun 
+deal environments epochs effectively wrap little choice enlarge wrap length epochs size epoch 
+locking concurrency control read write transactions strict phase locking concurrency control gray 
+site sets locks data objects runtime system reads writes implementing distributed lock table distributed databases 
+standard write ahead logging employed recovery purposes force steal policy gray differ traditional implementation logging locking log site site site undo records performing redo described section strict phase commit avoiding prepare phase described section 
+locking course result deadlock 
+resolve deadlock timeouts standard technique aborting deadlocked transactions 
+distributed commit processing store transaction master responsible assigning units corresponding transaction appropriate sites determining ultimate commit state transaction 
+protocol differs phase commit pc prepare messages sent 
+master receives commit statement transaction waits workers completed outstanding actions issues commit message site 
+site received commit message release locks related transaction delete undo log transaction 
+protocol differs pc master prepare worker sites 
+means possible site crash writing updates log records related transaction stable storage 
+cases failed site recover state reflect updates committed transaction projections sites system recovery 
+transaction rollback transaction aborted user store system undone scanning backwards undo log contains entry logical update segment 
+logical logging aries physical logging result log records due nature data structures ws 
+recovery mentioned crashed site recovers running query copying state projections 
+recall store maintains safety sufficient projections join indexes maintained sites fail time recover system able maintain transactional consistency 
+cases consider 
+failed site suffered data loss bring date executing updates queued network 
+ta epoch epoch complete site epoch complete site epoch complete site new hwm time start epoch 
+illustration showing hwm selection algorithm works 
+gray arrows indicate messages ta sites vice versa 
+reading tuples timestamp transactions epoch committed 
+note executing hwm incremented read transactions see updates running epoch 
+anticipate read environments roll forward operation onerous 
+recovery common type crash straightforward 
+second case consider catastrophic failure destroys rs ws 
+case choice reconstruct segments projections join indexes system 
+needed functionality ability retrieve auxiliary data structures iv drv remote sites 
+restoration queued updates run 
+third case occurs ws damaged rs intact 
+rs written tuple mover expect typically escape damage 
+discuss common case detail 
+efficiently recovering ws consider ws segment sr projection sort key key range recovering site collection projections mb contain sort key sr seen section ws segment guaranteed contain tuples timestamp equal epoch number call number lwm 
+recovering site inspects projection collection covers key range segment having lwm lwm sr 
+succeeds run collection queries form select desired fields recovery segment epoch lwm sr sort key long queries return timestamp field fields segment appropriate join indexes 
+long collection segments cover key range sr technique restore sr current hwm 
+executing queued updates complete task 
+hand cover desired property tuples sr moved rs remote site 
+query remote site challenging identify desired tuples retrieving rs differencing local rs segment obviously expensive operation 
+efficiently handle case common force tuple mover log tuple moves storage key rs corresponds storage key epoch number tuple moved ws 
+log truncated timestamp oldest tuple ws site tuples need recovered 
+case recovering site remote ws segment plus tuple mover log solve query lwm somewhat younger lwm sr 
+reconstruct ws portion join indexes stored locally sr sender merely entails querying remote receivers compute join index generate tuples transferring ws partition join index recovered columns 
+
+tuple mover job tuple mover move blocks tuples ws segment corresponding rs segment updating join indexes process 
+operates background task looking worthy segment pairs 
+finds performs merge process mop rs ws segment pair 
+mop find records chosen ws segment insertion time older lwm divide groups ones deleted lwm 
+discarded user run queries time existed 
+ones deleted deleted lwm 
+moved rs 
+mop create new rs segment name rs 
+reads blocks columns rs segment deletes rs items value drv lwm merges column values ws 
+merged data written new rs segment grows merge progresses 
+new master approach efficient update place strategy essentially data objects move 
+notice records receive new storage keys rs requiring join index maintenance 
+rs items may deleted maintenance drv mandatory 
+rs contains ws data join indexes modified rs system cuts rs rs 
+disk space old rs garbage collected 
+periodically timestamp authority sends site new lwm epoch number 
+lwm chases hwm delta chosen mediate needs users want historical access space requirements deleted records greater lwm 
+
+store query execution query optimizer accept sql query construct tree structured query plan consisting execution nodes 
+section describe nodes appear plan architecture optimizer 
+query operators plan format node types accepts operands produces results type projection proj column col bitstring bits 
+projection simply set columns cardinality ordering 
+bitstring list zeros ones indicating associated values record subset described 
+addition store query operators accept predicates pred join indexes ji attribute names att expressions exp arguments 
+join indexes bitstrings simply special types columns 
+included projections inputs operators appropriate 
+briefly summarize operator 
+
+decompress converts compressed column uncompressed type representation 
+
+select equivalent selection operator relational algebra producing restriction input produces bitstring representation result 
+
+mask accepts bitstring projection cs restricts cs emitting values corresponding bits 
+project equivalent projection operator relational algebra 
+
+sort sorts columns projection subset columns sort columns 
+
+aggregation operators compute sql aggregates named column group identified values projection 
+
+concat combines projections sorted order single projection 
+permute permutes projection ordering defined join index 
+
+join joins projections predicate correlates 
+
+bitstring operators band produces bitwise bitstrings 
+bor produces bitwise bitstrings 
+produces complement bitstring 
+store query plan consists tree operators listed access methods leaves iterators serving interface connected nodes 
+store access methods merge data ws rs hiding distinction storage systems 
+non leaf plan node consumes data produced children modified version standard iterator interface calls get reduce communication overhead number calls get plan nodes store iterators return blocks single column 
+specifically store iterators move projection blocks get vertical get horizontal columns get vertical returns block current column get horizontal returning block column output projection 
+approach preserves benefit iterators coupling data flow control flow changing granularity data flow better match column model 
+store query plan consists tree operators listed access methods leaves iterators serving interface connected nodes network link 
+store access methods merge data ws rs hiding distinction storage systems 
+non leaf plan node consumes data produced children modified version standard iterator interface calls get column receiving 
+reduce communication overhead number calls get plan nodes store iterators return blocks usually compressed data size 
+approach preserves benefit iterators coupling data flow control flow changing granularity data flow promote data streaming performance 
+query optimization plan selinger style optimizer uses cost estimation plan construction 
+anticipate phase optimizer hong limit complexity plan search space 
+note query optimization setting differs traditional query optimization respects need consider compressed representations data decisions mask projection bitstring 
+store operators capability operate compressed uncompressed input 
+shown section ability process compressed data key performance benefits store 
+operator execution cost terms memory buffer requirements dependent compression type input 
+example select type data foreign order values stored delta encoded bitmaps bitmap value performed reading bitmaps disk values match predicate despite column sorted 
+operators take type data input require larger memory buffer space page memory possible value column types compression 
+cost model sensitive representations input output columns 
+major optimizer decision set projections query 
+obviously time consuming construct plan possibility select best 
+focus pruning search space 
+addition optimizer decide plan mask projection bitstring 
+example cases desirable push mask early plan avoid producing bitstring performing selection type compressed data cases best delay masking point possible feed bitstring operator plan count produce results solely processing bitstring 
+
+performance comparison time storage engine executor minus value joins rs running 
+tackle ws tuple mover 
+performance analysis limited queries position report updates 
+rs support segments multiple grid nodes 
+report single site numbers 
+comprehensive performance study done pieces system built 
+benchmarking system ghz pentium running redhat linux gbytes memory gbytes disk 
+decision support warehouse market tpc gold standard simplified version benchmark current engine capable running 
+specifically implement lineitem order customer tables follows create table lineitem orderkey integer null partkey integer null suppkey integer null integer null quantity integer null integer null char null shipdate integer null create table orders orderkey integer null custkey integer null orderdate integer null create table customer custkey integer null nationkey integer null chose columns type integer char simplify implementation 
+standard data table schema tpc scale totals gb generated data generator available tpc website 
+tested systems gave storage budget gb roughly times raw data size data plus indices 
+systems described popular commercial relational dbms systems implements row store implements column store 
+systems turned locking logging 
+designed schemas systems way achieve best possible performance storage budget 
+row store unable operate space constraint gave gb needed store tables plus indices 
+actual disk usage numbers shown 
+store row store column store gb gb gb obviously store uses space row store uses redundancy row store 
+main reasons store compression absence padding word block boundaries 
+column store requires space store 
+store store redundant schema space superior compression absence padding 
+ran queries system 
+determine total number shipped day day select shipdate count lineitem shipdate group shipdate 
+determine total number shipped supplier day select suppkey count lineitem shipdate group suppkey 
+determine total number shipped supplier day select suppkey count lineitem shipdate group suppkey 
+day determine latest shipdate items ordered day 
+select orderdate max shipdate lineitem orders orderkey orderkey orderdate group orderdate 
+supplier determine latest shipdate item order date select suppkey max shipdate lineitem orders orderkey orderkey orderdate group suppkey 
+supplier determine latest shipdate item order date select suppkey max shipdate lineitem orders orderkey orderkey orderdate group suppkey 
+return list identifiers nations represented customers total lost revenue parts returned 
+simplified version query tpc 
+select nationkey sum lineitem orders customers orderkey orderkey custkey custkey group nationkey constructed schemas systems best matched query workload 
+schema tuned individually capabilities system 
+store schema orderkey partkey suppkey quantity shipdate shipdate suppkey orderdate shipdate suppkey orderdate suppkey orderdate custkey orderkey orderdate nationkey custkey nationkey custkey materialized join views 
+added completeness don queries 
+included answer arbitrary queries schema true product schemas 
+addition ran benchmark hardware commercial row store dbms 
+common relational schema collection system specific tuning parameters lastly ran benchmark commercial dbms system specific tuning parameters 
+believe chose values commercial systems obviously guarantee optimal 
+table indicates performance observed 
+measurements seconds taken dedicated machine 
+query store row store column store seen store faster commercial product 
+main reasons column representation avoids reads unused attributes competing column store 
+storing overlapping projections table allows storage multiple orderings column appropriate 
+better compression data allows orderings space 
+query operators operate compressed representation mitigates storage barrier problem current processors 
+order give systems possible advantage tried running materialized views correspond projections store 
+time systems space follows store numbers change included store row store column store gb gb gb relative performance numbers seconds follows query store row store column store seen performance gap closes time amount storage needed commercial systems grows quite large 
+summary query benchmark store average times faster commercial times faster commercial space constrained case 
+case unconstrained space store times faster commercial row store row store takes times space 
+store average times faster commercial column store column store requires times space 
+course performance data preliminary 
+get ws running write tuple mover better position exhaustive study 
+
+related thrusts warehouse market maintaining called data cubes dates arbor software early effective slicing dicing large data sets gray 
+efficiently building maintaining specific aggregates stored data sets widely studied zhao 
+precomputation aggregates general materialized views especially effective prespecified set queries run regular intervals 
+hand workload anticipated advance difficult decide precompute 
+store aimed entirely problem 
+including differently architected dbmss single system studied data mirrors rama 
+goal data mirrors achieve better query performance achieved underlying systems warehouse environment 
+contrast goal simultaneously achieve performance update workloads ad hoc queries 
+consequently store differs dramatically data mirror design 
+storing data columns implemented systems including sybase iq bubba cope monet kdb name 
+monet probably closest store design philosophy 
+systems typically store data entry sequence hybrid architecture model overlapping materialized projections 
+similarly storing tables inverted organization known 
+attribute stored sort indexing record identifiers find corresponding attributes columns 
+store uses sort organization ws extends architecture rs tuple mover 
+substantial compressed data databases roth van horn roth provide excellent summary techniques developed 
+coding schemes similar techniques derived long history topic broader field computer science witt 
+observation possible operate directly compressed data 
+lastly materialized views snapshot isolation transaction management high availability extensively studied 
+contribution store innovative combination techniques simultaneously provides improved performance safety efficient retrieval high performance transactions 
+
+design store radical departure architecture current dbmss 
+current commercial systems aimed read dbms market 
+innovative contributions embodied store include column store representation associated query execution engine 
+hybrid architecture allows transactions column store 
+focus storage representation disk coding data values dense packing data 
+data model consisting overlapping projections tables standard fare tables secondary indexes projections 
+design optimized shared machine environment 
+distributed transactions redo log phase commit 
+efficient snapshot isolation 
+adda www com products sls htm hal critique ansi sql isolation levels 
+proceedings sigmod 
+peter 
+monetdb hyper pipelining query execution 
+proceedings cidr 
+ceri ceri widom 
+deriving production rules incremental view maintenance 
+vldb 
+cope george copeland data placement bubba 
+proceedings sigmod 
+dewi david dewitt gamma database machine project 
+ieee transactions knowledge data engineering march 
+dewi david dewitt jim gray 
+parallel database systems high performance database processing 
+communications acm 
+clark french 
+size fits database architectures dss 
+proceedings sigmod 
+goetz graefe leonard shapiro 
+data compression database performance 
+proceedings symposium applied computing 
+graefe 
+query evaluation techniques large databases 
+computing surveys 
+gray jim gray andreas reuter 
+transaction processing concepts techniques morgan kaufman 
+gray gray datacube relational aggregation operator generalizing group cross tab sub totals 
+data mining knowledge discovery 
+hong wei hong michael stonebraker 
+exploiting parallelism xprs 
+sigmod 
+kdb www kx com products database php yannis kotidis nick roussopoulos 
+dynamic view management system data warehouses 
+proceedings sigmod 
+mohan aries transaction recovery method supporting fine granularity locking partial rollbacks write ahead logging 
+tods march 
+patrick neil edward cheng dieter gawlick elizabeth neil log structured merge tree 
+acta informatica june 
+patrick neil quass 
+improved query performance variant indexes proceedings sigmod 
+oracle 
+oracle database data warehousing business intelligence 
+white 
+www oracle com solutions business intelligence oracle idw 
+ailamaki 
+automating schema design large scientific databases data partitioning 
+ssdbm 
+rama ravishankar david dewitt 
+qi su case mirrors 
+proceedings vldb 
+roth mark roth scott van horn database compression 
+sigmod record 
+
+patricia selinger morton astrahan donald chamberlain raymond lorie thomas price 
+access path selection relational database 
+proceedings sigmod 
+www com docs martin staudt matthias jarke 
+incremental maintenance externally materialized views 
+vldb 
+ston michael stonebraker 
+case shared 
+database engineering 
+www sybase com products tand tandem database group nonstop sql distributed high performance high availability implementation sql 
+proceedings 
+vsam boulder ibm com nsf sg html till donald kossmann sven guido moerkotte 
+implementation performance compressed databases 
+sigmod record 
+west paul 
+data warehousing wal mart model 
+morgan kaufmann publishers 
+witt witten neal cleary 
+arithmetic coding data compression 
+communications acm june 
+zhao zhao deshpande naughton 
+array algorithm simultaneous multidimensional aggregates 
+proceedings sigmod 

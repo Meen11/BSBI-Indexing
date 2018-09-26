@@ -1,0 +1,628 @@
+quantifying performance garbage collection vs explicit memory management matthew hertz computer science department college buffalo ny matthew hertz edu garbage collection yields numerous software engineering benefits quantitative impact performance remains elusive 
+compare cost conservative garbage collection explicit memory management programs linking appropriate collector 
+kind direct comparison possible languages designed garbage collection java programs languages naturally contain calls free 
+actual gap time space performance explicit memory management precise copying garbage collection remains unknown 
+introduce novel experimental methodology lets quantify performance precise garbage collection versus explicit memory management 
+system allows treat unaltered java programs explicit memory management relying oracles insert calls free 
+oracles generated profile information gathered earlier application runs 
+executing inside architecturally detailed simulator oracular memory manager eliminates effects consulting oracle measuring costs 
+evaluate different oracles liveness oracle aggressively frees objects immediately oracle conservatively frees objects just reachable 
+oracles span range possible placement explicit deallocation calls 
+compare explicit memory management copying non copying garbage collectors range benchmarks oracular memory manager real non simulated runs lend validity results 
+results quantify time space tradeoff garbage collection times memory appel style generational collector mature space matches performance explicit memory management 
+times memory collector runs average slower explicit memory management 
+twice memory garbage collection degrades performance nearly 
+performed university massachusetts amherst 
+permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+oopsla october san diego california usa 
+copyright acm emery berger dept computer science university massachusetts amherst amherst ma emery cs umass edu physical memory scarce paging causes garbage collection run order magnitude slower explicit memory management 
+categories subject descriptors programming languages dynamic storage management processors memory management garbage collection general terms experimentation measurement performance keywords oracular memory management garbage collection explicit memory management performance analysis time space tradeoff throughput paging 
+garbage collection automatic memory management provides significant software engineering benefits explicit memory management 
+example garbage collection frees programmers burden memory management eliminates memory leaks improves modularity preventing accidental memory overwrites dangling pointers :10.1.1.142.3082
+advantages garbage collection incorporated feature number mainstream programming languages 
+garbage collection improve programmer productivity impact performance difficult quantify 
+previous researchers measured runtime performance space impact conservative non copying garbage collection programs 
+programs comparing performance explicit memory management conservative garbage collection matter linking library boehm demers weiser collector 
+unfortunately measuring performance trade languages designed garbage collection straightforward 
+programs written languages explicitly deallocate objects simply replace garbage collection explicit memory manager 
+extrapolating results studies conservative collectors impossible precise relocating garbage collectors suitable garbage collected languages consistently outperform conservative non relocating garbage collectors :10.1.1.103.6500
+possible measure costs garbage collection activity tracing copying impossible subtract garbage collection effect mutator performance 
+garbage collection alters application behavior visiting reorganizing memory 
+degrades locality especially physical memory scarce 
+subtracting costs garbage collection ignores improved locality explicit memory managers provide immediately recycling just freed memory 
+reasons costs precise step collection derivation death records 
+step execution explicit memory management 
+copying garbage collection versus explicit memory management quantified 
+contributions conduct empirical comparison garbage collection explicit memory management java 
+enable comparison develop oracular memory manager 
+memory manager relies oracle indicates system deallocate objects 
+profiling run system gathers object lifetimes generates program heap trace processed generate oracles 
+different oracles span range possible explicit deallocation calls 
+lifetime oracle aggressive uses object lifetimes instruct memory manager objects earliest time safely freed 
+reachability oracle conservative reclaims objects moment program call free unreachable 
+reachability oracle relies precise object reachability information obtained processing program heap traces merlin algorithm :10.1.1.10.6857
+discuss approaches detail section 
+find line version reachability oracle interferes mutator locality increases runtime 
+eliminate problem executing oracular memory manager inside extended version dynamic simplescalar architecturally detailed simulator 
+approach allows measure cost java execution memory management operations excluding disruptions caused consulting oracle 
+believe framework independent interest studying memory management policies 
+framework measure impact garbage collection versus explicit memory management runtime performance space consumption page level locality 
+perform measurements range benchmarks garbage collectors including copying non copying collectors explicit memory managers 
+show genms appel style generational collector mark sweep mature space matches exceeds runtime performance best explicit memory manager times memory 
+times memory garbage collection slows performance average 
+garbage collection performance degrades smaller heap sizes ultimately running slower average 
+explicit memory management exhibits better memory utilization page level locality generally requiring half fewer pages run number page faults running orders magnitude faster physical memory scarce 
+oracular memory management framework 
+remainder organized follows section presents oracular memory management framework detail section discusses implications limitations 
+sections experimental methodology results comparing explicit memory management range different garbage collectors 
+section addresses related section discusses directions section concludes 
+
+oracular memory management presents overview oracular memory management framework 
+shows executes java program calculate object lifetimes generate program heap trace 
+system processes program heap trace uses merlin algorithm compute object reachability times generate reachability oracle 
+lifetime oracle comes directly lifetimes computed profiling run 
+oracles oracular memory manager executes program shown allocating objects calls invoking free objects directed oracle see 
+trace generation takes place inside simulator oracle generation happens line system measures costs allocation deallocation 
+describe steps detail discuss solutions challenges generating oracles detecting memory allocation operations inserting explicit deallocation calls distorting program execution 
+discuss implications limitations approach section 
+step data collection processing java platform oracular memory manager uses extended version jikes rvm version configured produce powerpc linux code 
+jikes widely research platform written entirely java 
+key advantage jikes accompanying memory management toolkit mmtk freed live lifetime oracle dead reachable explicitly freed freed reachability oracle unreachable collected object lifetime 
+lifetime oracle frees objects earliest safe point reachability oracle frees unreachable possible moment explicit memory manager free 
+allows number garbage collection algorithms :10.1.1.123.2069
+oracular memory manager executes inside dynamic simple scalar dss extension simplescalar superscalar architectural simulator permits code 
+repeatable runs oracular memory manager uses allocation order identify objects ensure sequence allocations identical run run 
+take number steps jikes rvm simulator ensure repeatable runs 
+fast configuration jikes rvm optimizes system possible compiles virtual machine 
+jikes rvm uses timer sampling runtime optimize methods reach certain level 
+eliminate considerable source nondeterminism methodology optimizes hot methods determined mean runs 
+employ deterministic thread switching switches threads number methods executed regular time intervals 
+modify dss update simulated os time register clocks deterministically 
+cycle instruction counts change add calls free modifications advance clocks fixed amount system call 
+changes ensure runs perfectly repeatable 
+tracing liveness oracle profiling run simulator calculates object lifetimes generates program heap traces 
+simulator obtains object lifetime information recording location allocated object 
+memory access simulator looks object updates latest lifetime allocation time 
+unfortunately capture object 
+example testing equality argument objects java equality operation compares addresses examine memory locations 
+capture object uses mark root referenced objects 
+extended definition potentially overestimates object lifetimes slightly eliminates risk freeing object early 
+system preserves objects feel programmer reasonably free 
+instance system detect code type information objects developer able deallocate real program 
+similarly system free objects optimize class loading 
+optimizations include objects mapping class member string names type information class files jikes internal representation 
+objects programmer free preserve enable lazy method compilation reduce time spent scanning jar files 
+profiling run system preserves objects objects refer extending lifetime program 
+tracing reachability oracle generate reachability oracle compute object reachability information efficiently precisely merlin algorithm :10.1.1.10.6857
+line implementation merlin algorithm operates analyzing program heap trace 
+trace processing merlin algorithm updates timestamp associated object unreachable pointer overwritten 
+entire trace processed generates death records list ordered allocation time indicates objects unreachable time 
+key difficulty capturing information required merlin algorithm affecting program execution 
+need execute code step trace collection step simulation 
+memory allocation object lifetimes different compiler generate differently sized chunks code 
+significant amount information merlin algorithm requires including object allocations intra heap pointer updates program roots object freed 
+possible obtain information normal optimized code 
+replacing normal opcodes illegal ones heart approach non generating needed heap traces 
+new opcodes uniquely identify key events new objects allocated 
+simulator encounters opcode outputs record trace 
+executes illegal opcode exactly legal variant 
+enable generation illegal opcodes extend jikes rvm compiler intermediate representations 
+jikes rvm includes nodes irs differentiate method calls vm calls host system minimizing modifications needed support different os calling conventions 
+build adding set nodes represent calls 
+extension allows compiler treat object allocations function call emitting illegal opcode usual branch instruction 
+modify jikes rvm replace intra heap stores illegal instructions 
+opcodes allow detect events needed heap tracing inserting code distort instruction cache behavior 
+step simulating explicit memory management allocation simulator consults oracle determine objects freed 
+freeing object saves function parameter size request malloc jumps sets return address execution returns malloc call instruction 
+simulator repeats cycle objects left reclaimed allocation program execution continues normal 
+malloc free invoked method calls 
+functions implemented outside vm called jikes foreign function interface vm syscall discuss impact section 
+validation live oracular memory management addition simulation framework described implemented live version oracular memory manager uses reachability oracle runs real machine 
+simulation oracular memory manager live oracle executes java programs uses actual instructions place illegal ones 
+live oracular memory manager uses object lifetime information buffer recording objects allocated fill special oracle buffer containing addresses objects freed 
+determine program running time measure total execution time subtract time spent checking objects freed time spent buffer containing addresses objects free 
+measure distortion introduced oracle compare cost running garbage collection usual running null oracle 
+null oracle loads buffers way real oracular memory manager execution proceeds normally objects 
+distortion introduced unacceptably large erratic 
+example genms collector jack benchmark null oracle reports increase runtime versus running oracle 
+contrast null oracle slows collector running javac benchmark 
+collectors show distortions null oracle obvious predictable patterns 
+attribute distortions pollution caches induced processing oracle buffers 
+live oracular memory manager noisy reliable precise measurements results lend credence simulation approach 
+shows live version closely mirrors trends reachability oracle simulation results 
+
+discussion preceding sections focused methodology employ strives eliminate measurement noise distortion 
+discuss key assumptions approach address possible concerns 
+include invoking free unreachable dead objects cost foreign function calls memory operations effect multithreaded environments unmeasured costs explicit memory management role custom memory allocators effects memory managers program structure 
+methodology may appear hurt explicit memory management making garbage collection look better argue differences negligible 
+reachability versus liveness oracular memory manager analyzes explicit memory management performance different oracles 
+oracle deallocates objects aggressively possible opportunity safely 
+reachability oracle frees objects possible moment program execution calls require reachable pointer parameter 
+described section liveness oracle preserves objects 
+liveness oracle frees objects reachability oracle 
+number objects involved small pseudojbb compress free objects 
+liveness oracle additional calls objects unreachable plausibly deallocated knowledgeable programmer 
+real program behavior fall extremes 
+expect programmers reclaim objects immediately similarly expect wait point objects reachable freeing 
+oracles bracket range explicit memory management options 
+show section gap oracles small 
+oracles provide similar runtime performance liveness oracle reduces heap footprints reachability oracle 
+results generally coincide previous studies java programs 
+compare liveness reachability benchmark suite including applications 
+find aggressive interprocedural liveness analysis find significant gap benchmarks reducing average object lifetime gzip allocation time gap remains 
+study including benchmarks examine measure average impact inserting null assignments java code simulating nearly perfect placement explicit deallocation calls 
+report average difference space consumption deallocating objects unreachable 
+malloc overhead allocators implemented oracular memory manager invokes allocation deallocation functions syscall foreign function call interface 
+free calls incur overhead jni invocations 
+total cost just instructions loads stores register moves load immediate jump 
+cost similar invoking memory operations malloc free functions defined external library libc 
+examine allocator implements malloc free jikes rvm 
+case oracular memory manager uses normal jikes rvm method call interface vm syscall interface 
+need determine allocation occurs appropriate insert calls inline allocation fast path 
+may prevent potential optimizations aware explicitly managed programming language implements memory operations function call overhead 
+multithreaded versus single threaded experiments assume single processor environment disable atomic operations jikes rvm lea allocator 
+multithreaded environment memory allocators require atomic operation call malloc free test set operation lock allocators compare swap operation nonblocking allocators 
+atomic operations costly architectures 
+example pentium cost atomic operation compare swap cycles 
+garbage collection amortize cost atomic operations performing batch allocations boehm observes faster explicit memory allocation 
+issue multithreaded versus single threaded environments orthogonal comparison garbage collectors explicit memory managers explicit memory allocators avoid atomic operations memory operations 
+particular version hoard version maintains thread local generally uses atomic operations flushing 
+thread local cheap normally register reserved accessing thread local variables 
+architectures lacking support hoard places start thread stack aligned mb boundaries accesses stack variable 
+smart pointers explicit memory management performance costs 
+example programs manage object ownership smart pointers 
+classes transparently implement counting add expense pointer update 
+example gc bench benchmark performance boost intrusive pointer embeds existing class twice slow boehm demers weiser collector 
+smart pointers appear widespread 
+searched programs standard auto ptr class boost library ptr open source web site sourceforge net large programs 
+attribute lack cost richard jones personal communication 
+benchmark statistics benchmark total alloc max reach alloc max compress jess raytrace db javac jack pseudojbb table memory usage statistics benchmark suite 
+total allocation maximum reachable bytes 
+alloc max denotes ratio total allocation maximum reachable measure allocation 
+programmers tend particularly conscious expensive operations inflexibility 
+example smart pointer class manage scalars arrays arrays require different syntax deletion delete 
+programmers generally conventions function caller allocates objects passes callee callee allocates objects returns caller 
+conventions impose little performance overhead optimized code 
+patterns memory usage inherently difficult manage malloc free 
+example allocation patterns parsers managing individual objects unacceptably difficult burden 
+situations programmers resort custom memory allocators 
+custom allocation explicitly managed programs custom allocators general purpose allocators simplify accelerate memory management 
+particular berger show allocation useful variety workloads faster general purpose allocation generally consume space needed :10.1.1.119.5298
+exploring custom allocation policies regions scope 
+program structure programs examine written garbage collected environment 
+written language explicit memory management written differently 
+unfortunately see way quantify effect 
+possible onerous attempt measure manually rewriting benchmark applications explicit deallocation factor impact individual programmer style 
+despite apparent difference program structure expect observe common java programs assign null objects longer 
+sense programming garbage collected environment occasionally analogous explicit memory management 
+particular explicit nulling pointers resembles delete trigger chain class specific object destructors 
+
+experimental methodology quantify performance garbage collection versus explicit memory management compare performance benchmarks variety garbage collectors 
+table presents benchmarks 
+include specjvm benchmarks 
+persistent xml database system pseudojbb garbage collectors marksweep non relocating non copying single generation gencopy generations copying mature space semispace space single generation genms generations non copying mature space nursery heap collection allocators lea combined approximate best fit mmtk marksweep explicit freeing table memory managers examined 
+section presents detailed description allocators collectors 
+fixed workload variant specjbb benchmark 
+pseudo jbb executes fixed number transactions simplifies performance comparisons 
+benchmark run garbage collector heap sizes ranging smallest complete times larger 
+simulated runs memory processor configuration powerpc processor assume ghz clock 
+page size linux windows 
+table presents exact architectural parameters 
+relying reported heap usage compare actual heap footprints examining run maximum number heap pages 
+pages allocated kernel touched 
+include unused pages allocated untouched pages pages unmapped assigned physical memory 
+counting pages ensures proper accounting memory usage including metadata space occasionally 
+oracular memory management experiments lea gnu libc allocator variant mmtk marksweep collector 
+lea allocator approximate best fit allocator provides high speed low memory consumption 
+forms basis memory allocator included gnu library 
+version hybrid allocator different behavior object size objects different sizes may adjacent memory 
+small objects bytes allocated exact size linked list freed objects multiple bytes 
+lea allocator coalesces objects lists combining adjacent free objects response conditions requests medium sized objects 
+medium objects managed immediate coalescing splitting memory approximates best fit 
+large objects allocated freed 
+lea allocator best allocator terms combination speed memory usage aware 
+lea allocator excellent point comparison differs significantly garbage collectors examine 
+importantly written java 
+order isolate impact explicit memory management added individual object freeing mmtk marksweep collector large object manager treadmill 
+block memory maintains stack free slots reuses slot freed 
+allocator labelled graphs 
+table lists garbage collectors examine high throughput world collectors 
+include non copying collector marksweep pure copying collectors semispace gencopy hybrid collectors geometric mean relative simulated cycles relative simulated cycles relative heap footprint geometric mean relative heap footprint lea reachability lea liveness genms gencopy marksweep semispace geometric mean garbage collector performance relative lea allocator reachability oracle 
+genms 
+generational collectors collector names starting gen appel style variable sized nursery nursery shrinks survivors fill heap 
+versions collectors included mmtk memory management toolkit descriptions adapted blackburn :10.1.1.123.2069
+marksweep marksweep organizes heap blocks divided fixed size chunks manages 
+mark sweep traces marks reachable objects lazily finds free slots allocation 
+semispace semispace uses bump pointer allocation copy spaces 
+allocates space fills copies reachable objects space swaps 
+gencopy gencopy uses bump pointer allocation 
+classic appel style generational collector 
+allocates young nursery copy space promotes survivors old semispace 
+write barrier records pointers old nursery objects 
+gencopy collects nursery full reduces nursery size size survivors 
+old space full collects entire heap 
+genms hybrid generational collector gencopy uses marksweep old space 
+non generational collector write barriers uses bump pointer allocation allocate copy space 
+space fills performs heap collection copies survivors marksweep old space 
+
+experimental results section explore impact garbage collection explicit memory management total execution time memory consumption page level locality 
+runtime memory consumption presents geometric mean garbage collection performance relative lea allocator reachability oracle 
+runtime versus space results individual benchmarks garbage collectors graph compares garbage collectors lea allocator reachability oracle 
+points graph represent heap footprint axis runtime axis garbage collection algorithm relative explicit memory manager 
+readability include individual graphs benchmarks compress raytrace 
+table summarizes results relative performance genms best performing garbage collector 
+graphs compactly summarize results time space tradeoff involved garbage collection 
+pages touched requested heap size occasionally exhibit zig zag effect surprising 
+heap size increases number heap pages normally increases increase heap size reduce number heap pages visited 
+example fragmentation alignment restrictions larger heap size may cause objects straddle pages 
+effect tends pronounced marksweep reduce fragmentation compacting heap 
+graphs show garbage collectors exhibit similar trends 
+initially small heaps cost frequent garbage collection dominates runtime 
+heap sizes grow number full heap garbage collections correspondingly decreases 
+eventually total execution time asymptotically approaches fixed value 
+genms value somewhat lower cost explicit memory management 
+largest heap size genms equals performance lea allocator 
+best relative performance benchmark ranges faster slower db benchmark unusually sensitive locality effects 
+performance gap collectors lowest benchmarks low allocation intensity ratio total bytes allocated maximum reachable bytes 
+benchmarks mark sweep tends provide best performance especially smaller heap multiples 
+collectors marksweep need copy reserve effective heap 
+allocation intensity grows generational garbage collectors generally exhibit better performance marksweep provides best performance heap size multiple quite large 
+generational collectors genms gencopy exhibit similar performance trends genms normally faster 
+genms marksweep mature space space efficient gencopy mature space managed semispace 
+shape garbage collection curves confirms analytical models predict performance garbage collection inversely proportional heap size 
+note cost explicit memory management depend heap size linear number objects allocated 
+inverse proportionality relationship holds marksweep semispace find average genms runs time inversely proportional square heap size 
+particular function execution time factor heap size factor characterizes trend genms execution time factor performance dilation respect lea heap size factor multiple minimum required heap size 
+parameters curve excellent fit 
+visually curves indistinguishable rms root mean square error fit just perfect fit 
+find similar result gencopy rms error just 
+far know inverse quadratic behavior previously noted 
+explanatory model conjecture behavior arises survival rate nursery collections inversely proportional heap size 
+relative number simulated cycles relative number simulated cycles relative number simulated cycles simulated cycles spec db relative memory footprint db simulated cycles spec javac lea reachability lea liveness genms gencopy marksweep semispace relative memory footprint javac simulated cycles spec jess lea reachability lea liveness genms gencopy marksweep semispace relative memory footprint jess lea reachability lea liveness genms gencopy marksweep semispace relative number simulated cycles relative number simulated cycles relative number simulated cycles simulated cycles pseudojbb relative memory footprint pseudojbb simulated cycles lea reachability lea liveness genms gencopy marksweep semispace relative memory footprint simulated cycles spec jack lea reachability lea liveness genms gencopy marksweep semispace relative memory footprint jack lea reachability lea liveness genms gencopy marksweep semispace runtime garbage collectors versus lea allocator reachability oracle 
+axis gives maximum number heap pages visited zigzag effect primarily caused fragmentation see section 
+graphs increasing allocation intensity alloc max parentheses lower graphs allocation intensive 
+simulated powerpc system actual powerpc system cache direct mapped cycle latency way associative cycle latency cache way associative cycle latency way associative cycle latency unified way associative cycle latency way associative cycle latency chip way associative cycle latency caches byte lines caches byte lines ram cycles ns cycles ns table memory timing parameters simulation live experimental frameworks see section 
+simulator ghz powerpc microprocessor actual system uses ghz powerpc microprocessor 
+genms vs lea reachability vs lea liveness heap size footprint runtime footprint runtime table geometric mean memory footprints runtimes genms versus lea 
+heap sizes multiples minimum amount required run genms 
+vs genms reachability liveness benchmark footprint runtime footprint runtime compress jess raytrace db javac jack pseudojbb geo 
+mean table memory footprints runtimes versus lea 
+table results comparing results run similar oracles 
+table compares footprints runtimes explicit memory management mmtk mark sweep implementation lea allocator oracle 
+substantially memory efficient lea requiring space 
+results runtime performance similar 
+reachability oracle runs average slower lea liveness oracle runs faster 
+worst case locality sensitive db segregated size classes cause run slower reachability oracle 
+hand runs faster lea javac reachability oracle benchmark stresses raw allocation speed 
+exception db allocators roughly comparable performance confirming performance characteristics generated java code mmtk infrastructure 
+especially revealing case runtime performance just greater lea marksweep allocation infrastructure runs slower 
+experiments demonstrate performance differences explicit memory management garbage collection due garbage collection underlying differences allocator infrastructure 
+comparing simulation live oracle compare runtime performance various garbage collectors live oracle described section 
+experiments powerpc mb ram running linux single user mode report mean value runs 
+architectural details experimental machine table 
+comparison results live oracle experiments simulations appears 
+graphs compare geometric means executing benchmarks 
+memory demands heap trace generation process difficulties duplicating time operating system calls currently unable run pseudojbb raytrace live oracle 
+despite different environments live simulated oracular memory managers achieve strikingly similar results 
+differences graphs accounted cache smaller main memory latency compared simulator 
+null oracle adds noise data justify simulator similarity results strong evidence validity simulation runs 
+comparing liveness reachability oracles compare effect liveness reachability oracles 
+graph presents average relative execution time space consumption allocators liveness reachability oracles 
+usual values normalized lea allocator reachability oracle 
+axis shows relative execution time note compressed scale ranging just 
+axis shows relative heap footprint scale ranges 
+summary individual runtime graphs figures include datapoint lea allocator liveness oracle 
+find choice oracle little impact execution time 
+expected liveness oracle improve performance enhancing cache locality objects soon possible 
+recycling best mixed effect runtime degrading performance lea allocator improving 
+liveness oracle improve runtime performance reducing number data cache misses 
+relative execution time geometric mean relative execution time geometric mean relative heap footprint live oracular results lea reachability genms gencopy marksweep semispace relative simulated cycles geometric mean relative simulated cycles geometric mean relative heap footprint simulated oracular results lea reachability genms gencopy marksweep semispace comparison live simulated oracular memory manager geometric mean execution time relative lea identical sets benchmarks 
+geometric mean relative simulated cycles geometric mean simulated cycles relative number heap pages lea reachability lea liveness reachability liveness geometric mean relative heap footprint geometric mean explicit memory managers relative lea allocator reachability oracle 
+liveness oracle reduces mean heap footprint substantially choice oracle little effect mean execution time 
+shows liveness oracle executes faster reachability oracle 
+improvement due halving data cache rate 
+hand liveness oracle significantly degrades cache locality benchmarks db pseudojbb causing execute slower respectively 
+db notoriously susceptible cache effects pseudojbb result surprising 
+case lifetime oracle results poor object placement increasing cache rate nearly 
+benchmarks outliers 
+shows average lea allocator liveness oracle runs slower reachability oracle 
+liveness oracle pronounced impact space consumption reducing heap footprints 
+liveness oracle reduces lea average heap footprint 
+compress reliance large objects limits liveness oracle improve heap footprint benchmarks see space consumption reduced 
+page level locality virtual memory systems page level locality important performance total memory consumption 
+results page level locality experiments form augmented curves 
+assuming virtual memory manager observes lru discipline graphs show time taken axis different number pages allocated process axis 
+note axis log scale 
+assume fixed millisecond page fault service time 
+presents total execution times lea allocator garbage collector benchmarks 
+garbage collector fastest performing heap size selected 
+graphs show reasonable ranges available memory hold entire application explicit memory managers substantially outperform garbage collectors 
+instance pseudojbb running mb available memory lea allocator completes seconds 
+amount available memory genms takes times longer complete seconds 
+see similar trends benchmark suite 
+pronounced case javac mb lea allocator total execution time seconds genms total execution time seconds fold increase 
+culprit garbage collection activity visits far pages application 
+allocation intensity increases number major garbage collections increases 
+garbage collection visit pages evicted performance gap garbage collectors explicit memory managers grows number major collections increases 
+
+related previous comparisons garbage collection explicit memory management generally taken place context conservative non relocating garbage collectors 
+thesis detlefs compares performance garbage collection explicit memory management programs 
+finds estimated time needed seconds log estimated time needed seconds log estimated time needed seconds log estimated time available memory db available memory mb db lea reachability lea liveness reachability liveness genms gencopy semispace marksweep estimated time available memory javac available memory mb javac lea reachability lea liveness reachability liveness genms gencopy semispace marksweep estimated time available memory jess available memory mb jess lea reachability lea liveness reachability liveness genms gencopy semispace marksweep estimated time needed seconds log estimated time needed seconds log estimated time needed seconds log estimated time available memory pseudojbb available memory mb pseudojbb lea reachability lea liveness reachability liveness genms gencopy semispace marksweep estimated time available memory available memory mb lea reachability lea liveness reachability liveness genms gencopy semispace marksweep estimated time available memory jack available memory mb jack lea reachability lea liveness reachability liveness genms gencopy semispace marksweep estimated time benchmarks including page fault service time note axis log scale 
+graphs increasing allocation intensity 
+garbage collection generally resulted poorer performance overhead garbage collected version cfront performs faster version modified general purpose memory allocation exclusively 
+garbage collected version runs slower original version cfront custom memory allocators 
+zorn compares conservative garbage collection explicit memory management context programs 
+finds boehm demers weiser collector occasionally faster explicit memory allocation memory consumed bdw collector higher consumed explicit memory managers ranging 
+hicks find programs written cyclone type safe variant linked bdw collector require memory pure explicit memory management 
+find conservative garbage collection provides throughput equal explicit memory management benchmarks benchmark showed significant performance improvement explicit memory management 
+studies examine conservative garbage collectors running programs focus performance code written outset garbage collection 
+closest blackburn measure similar range garbage collectors benchmarks jikes rvm memory management toolkit mmtk :10.1.1.103.6500
+conclude generational garbage collection achieves locality benefits faster freelist style allocation 
+approximate explicit memory management measure mutator time execution mmtk mark sweep garbage collector show exceeds total execution time generational collectors 
+approach account cache pollution caused garbage collection beneficial locality effects explicit memory managers achieve promptly recycling allocated objects 
+addition mmtk marksweep collector objects size disrupts allocation order 
+lea allocator maintains segregated free lists allows objects different sizes adjacent memory 
+preserving allocation order especially important java approximates locality effects object inlining 
+numerous studies sought quantify overhead garbage collection explicit memory management application performance :10.1.1.119.5298
+steele observes garbage collection overheads lisp accounting application runtime 
+ungar measures cost generational scavenging berkeley smalltalk finds accounts just cpu time 
+measurement excludes impact garbage collection memory system 
+trace driven simulations sml nj benchmarks diwan conclude generational garbage collection accounts application runtime measured cycles instruction 
+uniform cost model memory accesses appel presents analysis shows space garbage collection faster explicit memory management see miller rebuttal claim respect stack allocation activation frames 
+observes frequency collections inverse heap size cost collection essentially constant function maximum reachable size 
+increasing size heap reduces cost garbage collection 
+wilson argues hold modern machines deep memory hierarchies 
+results system support appel analysis find appel style collector runs inversely proportionally square heap size 
+
+addresses individual object management objects allocated malloc freed free 
+custom allocation schemes regions dramatically improve performance applications explicit memory management :10.1.1.119.5298
+regions increasingly popular alternative complement garbage collection :10.1.1.23.5498:10.1.1.32.6278:10.1.1.10.8871
+plan framework examine impact regions hybrid allocator reaps compared garbage collection :10.1.1.119.5298
+lea allocator places byte object headers prior allocated object 
+headers increase space consumption impair cache level locality 
+plan evaluate memory allocators vam style big bag pages allocation avoid object headers 
+intend compare virtual memory performance explicit memory management bookmarking collector specifically designed avoid paging 
+examines world non incremental non concurrent garbage collectors 
+generally provide highest throughput exhibit largest pause times 
+explore effect pause times various garbage collectors relative explicit memory managers exhibit pauses 
+example lea allocator normally allocates objects cycles occasionally empties coalesces 
+linear best fit search large objects 
+knowledge pauses caused explicit memory management measured compared garbage collection pauses 
+
+presents tracing simulation experimental methodology executes unaltered java programs explicit memory management 
+framework compare time space performance range garbage collectors explicit memory management lea memory allocator 
+comparing runtime space consumption virtual memory footprints range benchmarks show runtime performance best performing garbage collector competitive explicit memory management memory 
+particular garbage collection times memory required runtime performance matches slightly exceeds explicit memory management 
+garbage collection performance degrades substantially smaller heaps 
+times memory runs slower average twice memory runs slower 
+garbage collection susceptible paging physical memory scarce 
+conditions garbage collectors examine suffer order magnitude performance penalties relative explicit memory management 
+believe results useful practitioners researchers 
+practitioners results guide choice explicitly managed languages garbage collected languages java 
+applications deployed systems times ram needed garbage collection provide reasonable performance 
+deployed systems ram applications compete processes memory practitioners expect garbage collection exact substantial performance cost 
+cost especially pronounced applications performance tied efficient memory memory databases search engines 
+version lea allocator uses tries optimize search 
+researchers results guide development memory management algorithms 
+study identifies garbage collection key weaknesses poor performance tight heaps settings physical memory scarce 
+hand large heaps garbage collection competitive slightly better explicit memory management 
+
+acknowledgments steve blackburn hans boehm sam martin richard jones scott kaplan doug lea kathryn mckinley yannis smaragdakis trevor anonymous reviewers helpful comments drafts 
+material supported national science foundation award cns cise research infrastructure eia 
+opinions findings recommendations expressed material author necessarily reflect views national science foundation 
+
+hardware performance programming dec 
+available athttp developer apple com hardware html 
+alpern attanasio barton burke cheng 
+choi cocchi fink grove hind hummel lieber litvinov mergen ngo sarkar serrano shepherd smith sreedhar srinivasan whaley 
+virtual machine 
+ibm systems journal feb 
+alpern attanasio barton cocchi hummel lieber ngo mergen shepherd smith 
+implementing java 
+proceedings sigplan conference object oriented programming languages applications volume acm sigplan notices pages denver oct 
+acm press 
+appel 
+garbage collection faster stack allocation 
+information processing letters 
+appel 
+allocation locking 
+software practice experience 
+short communication 
+
+hoard memory allocator 
+available www hoard org 
+berger zorn mckinley 
+composing high performance memory allocators 
+proceedings acm sigplan conference programming language design implementation pldi snowbird utah june 
+berger zorn mckinley :10.1.1.119.5298
+reconsidering custom memory allocation 
+oopsla acm conference object oriented systems languages applications acm sigplan notices seattle wa nov 
+acm press 
+berger zorn mckinley :10.1.1.119.5298
+reconsidering custom memory allocation 
+proceedings conference object oriented programming systems languages applications oopsla seattle washington nov 
+blackburn cheng mckinley :10.1.1.103.6500
+myths reality performance impact garbage collection 
+sigmetrics performance joint international conference measurement modeling computer systems june 
+blackburn cheng mckinley :10.1.1.123.2069
+oil water 
+high performance garbage collection java mmtk 
+icse th international conference software engineering page appear may 
+blackburn mckinley 
+counting fast garbage collection long wait 
+oopsla acm conference object oriented programming systems languages applications oct 
+
+boehm 
+reducing garbage collector cache misses 
+hosking editor ismm proceedings second international symposium memory management volume acm sigplan notices minneapolis mn oct 
+acm press 
+
+boehm weiser 
+garbage collection uncooperative environment 
+software practice experience sept 
+burger austin bennett 
+evaluating microprocessors simplescalar tool set 
+computer sciences technical report cs tr university wisconsin madison madison wi 
+adler 
+boost smart pointers oct 
+available athttp www boost 
+org smart ptr smart ptr htm 
+
+specjbb 
+available athttp www spec org jbb docs html 
+
+specjvm documentation mar 
+detlefs 
+concurrent garbage collection 
+lee editor topics advanced language implementation 
+mit press 
+diwan tarditi moss 
+memory system performance programs intensive heap allocation 
+acm trans 
+comput 
+syst aug 
+
+automatic inline allocation objects 
+proceedings sigplan conference programming languages design implementation acm sigplan notices las vegas nevada june 
+acm press 
+chien 
+evaluation object inline allocation techniques 
+oopsla acm conference object oriented systems languages applications acm sigplan notices vancouver oct 
+acm press 
+chien 
+automatic object inlining evaluation 
+proceedings sigplan conference programming languages design implementation acm sigplan notices pages vancouver june 
+acm press 
+feng berger 
+locality improving dynamic memory allocator 
+proceedings acm sigplan workshop memory system performance msp chicago illinois june 
+fenichel 
+lisp garbage collector virtual memory computer systems 
+commun 
+acm nov 
+gay aiken 
+memory management explicit regions 
+proceedings acm sigplan conference programming language design implementation pldi pages montreal canada june 
+gay aiken 
+language support regions 
+proceedings acm sigplan conference programming language design implementation pldi pages snowbird utah june 
+
+dynamic memory allocator implementations linux system libraries 
+available www dent med uni muenchen de malloc slides html 
+grossman morrisett jim hicks wang cheney 
+region memory management cyclone 
+proceedings acm sigplan conference programming language design implementation pldi pages berlin germany june 
+guy steele 
+multiprocessing garbage collection 
+communications acm 
+hanson 
+fast allocation deallocation memory object lifetimes 
+software practice experience volume pages 
+wiley jan 
+hertz berger 
+garbage collection paging 
+proceedings acm sigplan conference programming language design implementation pldi pages june 
+hertz blackburn moss mckinley 
+error free garbage collection traces cheat get caught 
+proceedings international conference measurement modeling computer systems sigmetrics pages marina del ray ca june 
+hertz immerman moss 
+framework analyzing garbage collection 
+foundations information technology era network mobile computing ifip th world computer congress tc stream tcs pages montreal canada aug 
+kluwer 
+hicks morrisett grossman jim 
+experience safe manual memory management cyclone 
+diwan editor ismm proceedings third international symposium memory management acm sigplan notices vancouver oct 
+acm press 
+hicks moore nettles 
+measured cost copying garbage collection mechanisms 
+proceedings acm sigplan conference functional programming pages 
+acm june 
+diwan hosking 
+usefulness liveness garbage collection leak detection 
+knudsen editor proceedings th european conference object oriented programming ecoop volume springer verlag budapest june 
+springer verlag 
+huang blackburn mckinley moss wang cheng 
+garbage collection advantage improving program locality 
+proceeding acm conference object oriented systems languages applications vancouver bc canada oct 
+huang moss mckinley blackburn burger 
+dynamic simplescalar simulating java virtual machines 
+technical report tr university texas austin feb 
+johnstone wilson 
+memory fragmentation problem solved 
+international symposium memory management vancouver canada 
+jones lins 
+garbage collection algorithms automatic dynamic memory management 
+wiley chichester july 
+
+kamp 
+malloc revisited 
+freebsd dk pubs malloc pdf 
+korn 
+vo 
+search better malloc 
+usenix conference proceedings summer pages portland 
+lea 
+memory allocator 
+available edu dl html malloc html 
+mccarthy 
+recursive functions symbolic expressions computation machine 
+communications acm 
+michael 
+scalable lock free dynamic memory allocation 
+proceedings sigplan conference programming languages design implementation acm sigplan notices washington dc june 
+acm press 
+miller 
+garbage collection fast stack faster 
+technical report aim mit ai laboratory mar 
+
+comparing observed bug productivity rates java 
+software practice experience 
+moss berger 
+mc high performance garbage collection memory constrained environments 
+proceedings acm conference object oriented systems languages applications vancouver bc canada oct 
+
+lbnl traceroute heap corruption vulnerability 
+available www securityfocus com bid 
+kolodner sagiv 
+estimating impact liveness information space consumption java 
+detlefs editor ismm proceedings third international symposium memory management acm sigplan notices pages berlin june 
+acm press 
+smaragdakis kaplan wilson 
+eelru adaptive replacement algorithm 
+performance evaluation july 
+
+parrot garbage collection june 
+available athttp www 
+org dan blog archives html 
+tofte 
+talpin 
+region memory management 
+information computation 
+torvalds 
+re faster compilation speed 
+available gcc gnu org ml gcc msg html 
+ungar 
+generation scavenging non disruptive high performance storage reclamation algorithm 
+proceedings acm sigsoft sigplan software engineering symposium practical software development environments pages pittsburgh pennsylvania apr 
+acm sigplan notices may 
+
+inside java virtual machine 
+mcgraw hill osborne media jan 
+wikipedia 
+comparison java 
+available en wikipedia org wiki comparison java 
+wilson 
+uniprocessor garbage collection techniques 
+cohen editors proceedings international workshop memory management volume lecture notes computer science st malo france sept 
+springer verlag 
+wilson lam moher 
+caching considerations generational garbage collection 
+conference record acm symposium lisp functional programming pages san francisco ca june 
+acm press 
+yang hertz berger kaplan moss 
+automatic heap sizing real memory account 
+proceedings acm sigplan international symposium memory management nov 
+zorn 
+measured cost conservative garbage collection 
+software practice experience 

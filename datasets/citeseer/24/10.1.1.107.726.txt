@@ -1,0 +1,328 @@
+evolving vnode interface david rosenthal sun microsystems garcia ave mountain view ca vnode interface succeeded supporting wide range file system implementations year history 
+time accommodate evolution file system semantics relationship file system virtual memory system 
+effects evolution elegant pressures evolution mounting 
+evolution interface reviewed order identify problems caused robust revision interface design proposed 
+design permits new file systems implemented terms pre existing file system implementations streams interface respect 
+current state prototype implementation described performance characterized 
+lazily 
+
+life care want supplied kind monarch thought people happy gain great change store 
+gilbert sullivan utopia 
+vnode interface developed file system operations order support multiple file system implementations particular nfs berkeley file system 
+years successful versions unix kernel form different file system implementations 
+time accommodate evolution file system semantics relationship file system virtual memory system 
+effects evolution elegant pressures evolution mounting 
+review evolution interface order identify problems caused experience sunos prototype copyright sun microsystems 
+extract system release vnode file copyright reproduced kind permission 
+unix trademark bell laboratories 
+propose robust revision interface design 
+design permits new file systems implemented terms pre existing file system implementations streams interface layered protocols kernel respect 
+characterize performance prototype 
+important stress am merely reporting current state research progress know current plans changes ones describe sun products 
+
+review vnode evolution original vnode design goals provide defined interface file system implementations rest kernel 
+support require unix file system semantics 
+particular support local disk file systems stateless remote file systems file systems ms dos 
+define interface kernel resident implementations remote file servers 
+file system operations atomic 
+enum vreg struct vnode short flag short count short short struct vfs struct op union struct socket socket struct stream struct vfs enum type caddr data struct int vn open int vn close int vn int vn ioctl int vn select int vn getattr int vn setattr int vn access int vn lookup int vn create int vn remove int vn link int vn rename int vn mkdir int vn rmdir int vn readdir int vn symlink int vn readlink int vn fsync int vn inactive int vn int vn strategy int vn bread int vn original vnode interface implementation added little performance degradation 
+static table sizes required 
+file systems forced central resources 
+interface re entrant 
+object oriented programming approach 
+operation done behalf current process 
+goals resulted design outlined 
+vnode contains small amount data pointer ops vector structure defining operations rest kernel invoke vnode object 
+terminology entries ops vector virtual functions vnode class 
+detailed semantics virtual functions various vnode versions aren important argument 
+operations invoked macros define vop foo vp vp op vn foo vp note particular machine architecture structures calling conventions functions define binary interface merely way making legible 
+
+sunos release sunos considerable evolution occurred vnode interface shown 
+fields added vnode increasing size bytes entries added entries deleted ops vector see table 
+changes motivated rewrite virtual memory system 
+unified file paging replacing buffer cache operations vn vn strategy vn bread vn paging operations vn vn vn map required new field pages vnode 
+representation special files file system type 
+added field operation vn 
+system support 
+added field operation vn new vnode type 
+
+system release release system release vnode evolved 
+shown structure lost fields gained reserved expanding bytes 
+ops vector gained actual operations plus reserved 
+motivations changes enum vreg struct vnode short flag short count short short struct vfs struct op union struct socket socket struct stream struct page pages struct vfs enum type dev long caddr data struct int vn open int vn close int vn int vn ioctl int vn select int vn getattr int vn setattr int vn access int vn lookup int vn create int vn remove int vn link int vn rename int vn mkdir int vn rmdir int vn readdir int vn symlink int vn readlink int vn fsync int vn inactive int vn int vn fid int vn int vn int vn map int vn dump int vn cmp int vn int vn sunos vnode interface replacement unix domain sockets streams removed vnode type field vnode 
+need support semantics added vnode type 
+removal berkeley style locks removed vnode fields 
+additional remote file system support added new operations 
+
+problems evolution evolution vnode summarized table 
+steady growth size vnode number operations ops vector 
+table vnode evolution release year fields bytes ops sunos sunos svr fill svr fill prototype system release half vnode structure half ops vector devoted preparing evolution 
+believe demonstrates current techniques dealing evolution kernel interfaces inadequate 
+idea impose space overheads data structures order cope change 
+appears revision vnode interface robust face changing demands file system functionality required 
+
+design overhead intended achieve 
+problem customer kernels built components supplied object form number suppliers 
+want independent software vendors supply file system implementations need new file system semantics achieve ends object form protect investment 
+processes releasing distributing software mean customers expect get new operating system release corresponding release product time 
+possible customer build working kernel object components kernel higher release number file system implementations 
+note general customer demand kernels file system implementations higher level rest kernel situation relatively easy supply old new versions file system 
+attempting revise vnode interface main goals enum vreg struct vnode short flag short count struct vfs struct op struct vfs struct stream struct page pages enum type dev caddr data struct long filler struct int vop open int vop close int vop read int vop write int vop ioctl int vop int vop getattr int vop setattr int vop access int vop lookup int vop create int vop remove int vop link int vop rename int vop mkdir int vop rmdir int vop readdir int vop symlink int vop readlink int vop fsync void vop inactive int vop fid void vop void vop int vop seek int vop cmp int vop int vop space int vop int vop int vop int vop map int vop int vop int vop poll int vop dump int vop int vop filler svr vnode interface interface evolve meet new demands gracefully supporting versioning reduce effort needed implement new file system functionality allowing vnodes stacked idea stacking vnodes new file systems sunos translucent loopback file systems example implement vnodes operators simply invoke operators underlying vnode slightly altered arguments 
+severe restrictions ways vnode operations overridden 
+wanted able override vnode operations completely general way support breaking file system functionality small modules streams modules 
+viewing file systems large monolithic structures wanted able plug smaller pieces 
+
+design guidelines investigate solutions problems evolved prototype starting alpha version sunos 
+prototype running quite time result evolution design 
+experimented evolved set design guidelines vnodes stack 
+words possible interpose new functionality operations invoked existing vnode locating pointers updating 
+especially important page structure contains vnode pointer requiring file system code find update page structures leads inadmissible mixing file virtual memory sub systems 
+fact vnodes tree 
+possible higher level vnode represent number lower level vnodes 
+example consider fan fs operations simply invoke corresponding operation set underlying vnodes 
+fs vnode fan fs vnode fs vnode vnode tree fs vnode special case code mount 
+concept stacking vnodes generalization concept mount 
+possible replace special case code name lookup currently implements mounts vfs field vnode 
+vnodes opaque 
+words data structure visible higher levels kernel contain data pointer ops vector 
+visible datum vnode represents possible operation updating value datum overridden ops vector doesn need go ops vector 
+problems evolving interface visible data vnode structure changes 
+data vnode change 
+vnodes cheap 
+vnodes stack tree vnodes 
+space vnode premium 
+important advantage opaque vnodes data don contain doesn take space 
+need reserve space shape filler case non existent data expands 
+argued opaque vnodes achieve move data public private part vnode 
+surprise data public part sunos vnode form private part 
+vnode type 
+vnode type field vnode type operator invitation higherlevel kernel code test type behave differently depending result 
+cause difficulties file systems trying intercept operations 
+better rest kernel treat vnodes equally leave special case catching error generation file system specific code 
+example sunos kernel checks see vnode asked look name directory generates isn simply call vnode vn lookup operator generate vnode doesn represent names looked 
+cheap way lock stack vnodes 
+process manipulating stack vnodes processes prevented invoking operations vnodes stack 
+locking stack sense shouldn involve example traversing stack setting lock flag vnode 
+vnodes support versioning 
+possible higher level kernel code file system implementations constructed versions interface similarly build file system implementations kernels implement different versions interface 
+
+new vnode believe new vnode look 
+isn quite way currently looks prototype prototype bears lot exploratory hacking 
+note vnode opaque count visible fields needed implement vnode stack 
+held top fields shown 
+public pointer 
+representation set vnodes vnode private vnode file system implementation higher level code knows cares vnodes may exist vnode 
+absence public pointer principle allow higher level code traverse vnode trees invoke lower level vnode operations intervening vnode finding 
+vnode find ops vector invoking appropriate operation previous vnode interfaces macro finds top vnode stack invokes appropriate operation ops vector 
+vnode pointer points middle stack code gets invoked corresponding operation top vnode stack 
+vnode executes operation forwards vnodes prototype hasn demonstrated versioning vnode operations return values error code ops vector contains operations 
+isn compatible sunos returns wrong code errors 
+struct vnode struct vnode top struct vnode struct op short readers short count caddr data struct int vn version int vn open int vn close int vn int vn ioctl int vn select int vn getattr int vn setattr int vn access int vn lookup int vn create int vn remove int vn link int vn rename int vn mkdir int vn rmdir int vn readdir int vn symlink int vn readlink int vn fsync int vn inactive int vn int vn fid int vn int vn int vn map int vn dump int vn cmp int vn int vn int vn socket int vn stream int vn int vn int vn int vn int vn push int vn pop int vn int vn int vn int vn ideal vnode higher level code invokes operations vnode pointer define vop foo vp vp top op vn foo vp concern invoker effect pointer vnode alias top vnode stack 
+counting links simple pointers hold counted vnode point top pointers 
+normally file system specific downward links hold vnode 
+
+implementation 
+stack manipulation operators vnode stacks manipulated new vnode operators vop push vop pop 
+vop push arranges new top vnode stack containing vp top stack vop pop vp pops 
+implementation operators file system specific deal private representation implementation uses set vnodes vnode operations may file system specific side effects 
+mount operations facilities 
+mount simply stack root directory mount point directory lookup operations lower vnode automatically look upper vnode special case code file system independent parts kernel 
+special case code left file system 
+arranges fall lower vnode looked upper 
+current implementation definition top stretched slightly 
+time vop push applied vnode special stack head vnode created floats vnodes pushed stack 
+vop pop removes vnode stack head 
+avoids need descend stack update top pointers pushing popping simplifies locking 
+
+stacks vm system sunos vm system page cache uses vnode pointer offset establish identity page 
+allowing multiple aliases vnode pointer introduces potential aliasing page cache 
+avoid necessary establish rule file system implementations 
+rule vnode belonging file system implementation wants control page cache pushed stack claim existing pages stack 
+popped ensure pages cache restore previous identity 
+vnode vnode vnode top top top vnode links page cache labelled identity vop operator unlabelled vop 
+current vm system operators add delete pages page hash lists 
+function renames pages applied cached pages vnode error vop vp fn data principle interface allows file system implementation choose representation set memory pages 
+practice needed refine vm fs interface feasible 
+vm cache locking see section relationship far happy current implementation respect 
+
+locking order ensure processes don see malformed vnode stack method locking entire stack manipulated 
+cheap involve traversing stack 
+technique currently working puts readers writers lock special stack head vnode 
+changing stack writer switches ops vector stack head containing operations containing operations 
+capture process invoking operation vnode pointer stack puts sleep 
+writer waits static int foo vp struct vnode vp return vop foo vp vnode operation unlocked static int foo vp struct vnode vp int error int void vop hold vp vp top op slow ops void sleep caddr vp top op void error vop foo vp void vop rele vp return error vnode operation locked readers edits stack switches ops vector stack head back 
+technique overhead vnodes aren part stack tail recursion type procedure call stack vnodes locked 
+cost maintaining count number readers stack significant 
+
+versioning described advantage opaque vnodes need version vnode structure 
+evolution far indicates change ops vector anticipated 
+fortunately stacking opaque vnodes allows adaptor file system defined convert new version interface kernel older interface file system implementation see 
+adaptor fs vnode needs private data pointer 
+technique overheads small increase size vnode structure increase size ops vector small increase run time vnodes supported back level file system implementations 
+vnode adaptor fs vnode vnode version fs vnode adaptor fs kernel fs small increase space consumption adaptor fs vnode vnode supported back level file system implementation 
+despite technique allows change interface adding fillers 
+arbitrary limits interface change provided adaptor fs emulate minimum required new functionality old interface terms 
+
+performance prototype exploring tuning performance technique applied existing vnode interfaces 
+current file system implementations single vnode ops vector vnodes create ops vector pointer fact unpleasant parts kernels ops vector pointer decide file system vnode comes 
+changed file systems separate ops vector type vnode support 
+example ufs file system implementation different vector normal files directories 
+vn lookup entry directory vector points ufs lookup file vector points routine int vfs vp struct vnode vp return way file system implementation doesn start operations examining type field generating errors wrong 
+computation done vnode create time time operation invoked 
+fact prototype contains vnode ops vector supported nancy reagan file system ops vector entries point error stubs vfs framework just vnode type ops vector private data 
+defining inode equivalent new file system need provide space directory offset private data regular file 
+running sun synthetic workload benchmark suites prototype kernel initially revealed approximately degradation special benchmarks name lookup showing approximately degradation 
+obviously unacceptable prototype 
+major causes degradation turned vnode counting completely opaque vnodes turned vn hold vn rele macros vnode operations called ops vector 
+detecting vnodes root mounted file system eliminated flag expensive way 
+fixing resulted kernel detectable degradation synthetic workload benchmarks degradation name lookup 
+worst case path looking mount point degradation 
+started working locking 
+various locking implementations tried far degradations range worst case paths name lookup 
+
+file system modules providing evolution way decomposing file system functionality modules connecting run time various ways allows opportunities new ways implementing file system functionality 
+illustrate describe possible modules 
+haven implemented ideas discussing show potential concept 
+
+quotas support file space quotas interesting example possible file system modules 
+current sunos source ifdef quota appears files ranging init main despite ufs file system supports quotas 
+suppose construct file system module pushed top mounted file systems provide quota services 
+intercept operations file systems underneath maintain internal space usage database 
+operations violating quotas rejected 
+quota fs normal file system operations underlying file system externalize space database 
+way single file system module implementation ifdef quota kernel provide quotas file system implementations 
+
+temporary file system performance problems ufs need write directories synchronously order ensure consistent form system crashes 
+particular problem tmp user may care files survive crash 
+sunos includes file system implementation called represents files virtual memory may get paged swap area written disk 
+mounting tmp usr tmp improves performance significantly cost ensuring files tmp usr tmp survive crash 
+problem approach 
+applications vi example require temporary files survive crashes scavenged tmp cleaned 
+fortunately applications normally fsync temporary files checkpointing sure don hang buffer cache get caught crash 
+exploit building fsync module 
+module route writes vnode process invoked fsync operator 
+point file copied underlying file system 
+way files fsync ed get full benefit really temporary files appear permanent storage 
+
+watchdogs possible module implement watchdogs described bershad pinkerton 
+watchdog fs vnode intercept selected operations convert vnode vnode vnode write fsync vnode vnode tmp vnode temporary file system ipc messages stream wait response user level watchdog process reading stream 
+content response determine operation passed stack returned invoker 
+
+read caching consider module 
+operations invoked forwards fs vnode 
+operation succeeds result returned 
+operation represents cache forwarded fs vnode 
+typically case cache fs try prevent cache misses example copying file fs fs 
+fs vnode vnode vnode cache fs vnode vnode fs vnode ro cache file system simple module file system file level cache read file system 
+knowledge file systems sees opaque vnodes 
+shows local writable ufs file system cache remote read nfs file sys tem reducing load server 
+possible configuration local writable ufs file system cache cd rom obscuring speed penalty cd 
+ufs vnode disk vnode vnode cache fs vnode vnode nfs vnode nfs protocol network local disk cache ro nfs file level caching inefficient 
+file system cache persuaded example flag vop call reject reads holes files returning zeros block level cache 
+new entry cache created file full holes filled reads fs vnode fail appropriate error 
+simple change ufs 
+
+read write caching srinivasan mogul modified nfs protocols adding cache consistency protocols sprite operating system 
+environment adding cache consistency enabling read write file cache need involve modifying nfs protocol 
+allowing cache fs implementations communicate cache consistency protocol sprite system leases alongside nfs protocol able add caching changing protocol move data fro see 
+
+fall back useful module fall back fs shown 
+operation receives sent underlying ufs vnode disk vnode vnode cache fs vnode vnode nfs vnode nfs protocol network cache consistency protocol local disk cache rw nfs vnodes 
+fails error return timeout vnodes chosen operation tried 
+way reliability availability file system seen top vnode interface greater individual underlying file systems accomplished knowledge modification underlying file systems 
+fs vnode vnode fall back fs vnode fs vnode fall back fs fs vnode typically spread load number nfs file servers read file systems avoid clients blocked servers went 
+
+replication similar useful module replicate fs shown 
+operation receives sent underlying vnodes 
+returned successfully replicate fs returns upwards 
+read operations choose randomly 
+implementations replicate fs communicate ordering protocol ensure sees sequence operations stays consistent 
+nfs vnode vnode replicate fs vnode ufs vnode ordering protocol replicate fs nfs vnode module reliable replicated configuration assembled unreliable pieces 
+example set machines operate replicating operations local copy file system remote mount system copies 
+
+started exploring ideas 
+working prototype sunos kernel close vnode interface prefer done little versioning aspects problem 
+converted existing file system implementations sunos new interface started implementing new file system modules cache fs 
+great deal happy locking technique relationship vm page cache 
+performance semantic issues resolved 
+system release kernel file system implementations need modified way 
+don anticipate major problems doing 
+file system modules need implemented 
+adaptor fs versioning technique needs implemented tested 
+experiments techniques internal kernel interfaces particularly vfs interface needed 
+question multi threading totally ignored 
+assuming achieved large number questions answered technology 
+vnode interface part system release standard formal change control 
+discussions needed investigate role techniques play system 
+demands system changed vnode interface evolved match 
+techniques currently cope evolution expensive 
+alternative techniques opaque vnode structures stacking cope evolution better lower cost 
+importantly opaque vnodes assembled tree structures 
+allows file system functionality small independent modules akin streams modules interconnected run time 
+course just example objectoriented programming 
+examples object oriented programming binary level 
+ideas back mind early discussions andrew file system carnegie mellon information technology center owe bob sidebotham 
+particular somewhat brainstorming session itc party bob david nichols led holey cache file concept 
+steve kleiman bill joy designed original vnode interface extraordinarily helpful efforts change 
+applies colleagues systems group sun especially bill shannon rob mike powell glenn skinner 
+special due steve penetrating reviews drafts 
+grateful sun management patience project taken times longer initial estimate far finished encouraged take time right thing 
+
+brian bershad brian pinkerton watchdogs extending unix file system pp 
+proceedings 
+winter usenix conference dallas tx february 
+howard rfs sunos pp 
+proceedings summer usenix 
+conference phoenix az june 
+robert joseph moran william shannon virtual memory architecture sunos pp 
+proceedings summer usenix conference 
+phoenix az june 
+ed gould network file system implemented bsd pp 
+proceedings summer usenix conference 
+atlanta ga june 
+cary gray david cheriton leases efficient fault tolerant mechanism distributed file cache consistency pp 
+proceedings th acm symp 
+operating systems principles park az 
+december 
+david hendricks translucent file service pp 
+proceedings autumn conference vienna austria october 
+
+norman hutchinson larry peterson mark abbott sean malley rpc kernel evaluating new design techniques pp 
+proceedings th acm symp 
+operating systems principles park az december 
+
+steven kleiman vnodes architecture multiple file system types sun unix pp 
+proceedings summer 
+usenix conference atlanta ga 
+kirk mckusick fast file system unix acm tocs vol 
+pp 
+august 
+
+michael nelson brent welch john ousterhout caching sprite network file system acm trans 
+computer systems vol 
+pp 
+february 
+
+dennis ritchie stream input 
+output system bell laboratories tech 
+vol 
+october 
+rosen michael wilde nfs portability pp 
+proceedings summer usenix conference atlanta ga june 
+
+srinivasan jeffery mogul nfs implementation performance cache consistency protocols research rept 
+digital western research lab palo alto ca may 
+
+srinivasan jeffery mogul 
+nfs experiments cache consistency protocols pp 
+proceedings th acm symp 
+operating systems principles park az december 
+bjarne stroustrup programming language pp 
+addison wesley reading ma 
+
+ian vessey glenn skinner implementing berkeley sockets system release pp 
+proceedings winter usenix conference washington dc january 
+author david rosenthal distinguished engineer sun microsystems 
+holds degree cambridge university ph 
+university london worked computer graphics user interface technologies operating systems university edinburgh architecture dept cwi amsterdam carnegie mellon university information technology center 
+looks sign making progress recovering year addiction window systems 

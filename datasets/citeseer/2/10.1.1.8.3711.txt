@@ -1,0 +1,235 @@
+disassembly executable code revisited benjamin schwarz saumya debray gregory andrews department computer science university arizona tucson az debray gregg cs arizona edu machine code disassembly routines form fundamental component software systems statically analyze modify executable programs 
+task disassembly complicated indirect jumps presence data jump tables alignment bytes instruction stream 
+existing disassembly algorithms able cope successfully executable files containing features fail silently produce incorrect indication results producing incorrect 
+serious problem compromise correctness binary rewriting tool 
+examine disassembly algorithms illustrate shortcomings 
+propose hybrid approach performs better algorithms sense able detect situations disassembly may incorrect limit extent disassembly errors 
+experimental results indicate algorithm quite effective amount code flagged incurring disassembly errors usually quite small 
+significant amount attention focused binary rewriting link time code optimization years :10.1.1.33.4933
+fundamental requirement software system aims statically analyze modify executable program accurate disassembly machine code instructions 
+task recovering instructions complicated presence non executable data jump tables alignment bytes instruction stream 
+poses chicken egg problem identify instructions knowing data vice versa 
+fact link time binary modification tools prepared deal hand coded assembly routines due statically linked libraries complicates problem means assume code follows familiar source level conventions function single entry point uses recognizable compiler idioms 
+presence variable length instructions commonly cisc architectures widely intel results additional degree complexity renders simple heuristics extracting instruction sequences ineffective 
+examine techniques currently disassembly discuss drawbacks introduce improved method extraction instructions statically linked binary contains relocation information 
+algorithm capable identifying jump tables embedded text segment offset tables position independent code pic sequences data inserted alignment purposes align loop headers 
+importantly able avoid disassembly errors occur existing disassembly techniques 
+implemented approach post link time optimizer intel architecture 
+experimental results indicate algorithm able cope statically linked executables containing highly optimized hand coded assembly code high degree precision identifying potential disassembly problems failing silently limiting extent problems small portion input executables 
+preliminaries relocation information linkers capable producing relocation tables stage linking process 
+default final executables contain relocation information needed loader re map program 
+binary rewriting frameworks carry translation optimization utilize information 
+tables identify bit sequences executable correspond addresses program 
+single supported part national science foundation ccr eia ccr 
+entry table usually contains section offset ii bit specifies relocation pc relative absolute iii width typically size address architecture relocation 
+systems analyze transform machine code programs information way linkers 
+code moved addresses changed need updated reflect new position executable 
+knowledge locations address binary modification system fairly conservative kinds code transformations able effect 
+remainder assumes relocation tables available executable 
+feel unnecessarily onerous user sufficiently concerned performance link time optimizer willing invoke compiler additional flags needed retain relocation information 
+binary rewriting systems notably om atom requirement linkers capable producing tables 
+position independent code compilers instructed emit code rely bound particular position program address space 
+code sequences referred position independent code pic 
+particular pic sequences contain relocatable addresses embedded instructions 
+property enables code regardless memory location runtime 
+furthermore pic need patched loader enabling mapped read data useful shared code dynamically linked libraries 
+compiler emitting position independent code typically creates jump tables 
+tables usually embedded text segment executable consist sequence offsets virtual addresses 
+jump uses offset table loads nearby address uses index table retrieve offset 
+offset added address previously loaded indirect jump reach desired destination 
+problems posed position independent jump tables fold offset tables really different data appear instruction stream ii code sequences perform indirect jumps complicated may adhere single pattern easily recognizable iii entirely possible offset table contain relocation entries 
+taken properties task disassembling pic sequences involving jump tables difficult standard code 
+methods instruction disassembly linear sweep straightforward approach disassembly decode appearing sections executable typically reserved machine code 
+method programs gnu utility link time optimizers alto om spike 
+main advantage simplicity 
+disadvantage data embedded instruction stream misinterpreted code disassembled 
+special circumstances invalid opcode decoded situations discovered 
+problem illustrated code fragment shown taken machine code function standard library libc redhat linux pentium iii processor 
+starting address ef null bytes data shown highlighted inserted push loop header address ef forward presumably alignment purposes 
+null bytes subsequent instructions misinterpreted utility uses scheme described decode instructions 
+inspection jump address targets middle instruction 
+addition instructions decoded suspicious current context add address ef absolute memory location appear scope executable 
+instruction sequence clearly invalid linear sweep algorithm unable discern data code 
+problem case arises intel architecture null byte valid opcode arisen programmer nop instructions force alignment 
+larger point illustrated example remains valid data embedded text segment misidentified code linear sweep algorithm cause disassembly errors remainder instruction stream 
+intel done call instruction followed pop eax instruction effect storing instruction address register eax 
+location memory contents disassembly results 
+ef eb ef ef ef ee ee ef 
+jmp ef add eax add ee ebx add jae ef example disassembly problems linear sweep recursive traversal problem linear sweep algorithm illustrated example take account control flow behavior program particular jmp instruction immediately null bytes inserted alignment 
+result unable discern alignment bytes reachable execution mistakenly interprets executable code 
+obvious fix take account control flow behavior program disassembled order determine disassemble 
+intuitively encounter branch instruction disassembly determine possible control flow successors instruction addresses execution continue proceed disassembly addresses conditional branch instruction consider branch target fall address 
+variations basic approach disassembly term recursive traversal number binary translation optimization systems :10.1.1.25.279
+virtue algorithm simplicity effectiveness avoiding disassembly data 
+basic algorithm recursive traversal proc disassemble addr addr visited return instr addr addr visited true add instr instr branch function call set possible control flow successors instr target disassemble target addr instr length addr instruction addr valid instruction address executable contains entry point usually specified program header 
+routine disassemble initially invoked entry point 
+assumption able identify possible control flow successors branch function call operation program ensures instruction reachable program entry correctly disassembled 
+method able handle code fragment shown 
+decoding jump instruction address ef disassembly continues address ef control flow successor instruction 
+eventually instruction address reached path point turn causes disassembly proceed instruction ef 
+null bytes disassembled reachable execution path program 
+location memory contents disassembly results 
+ff lea eax eax eax jmp eax lea esi esi mov esi eax adc edx eax mov eax edi example disassembly problems recursive traversal key assumption algorithm identify possible control flow successors control transfer operation program 
+may straightforward case indirect jumps 
+jump tables appearing text segment poses correctness issue imprecision determining size jump table result failure disassemble reachable code table size overestimated erroneous disassembly data size underestimated 
+problem complicated fact structure code generated switch statements differ widely instance switch specific compiler target architecture 
+existing proposals identifying targets indirect jumps usually resort nontrivial program analyses program slicing constant propagation 
+need control flow graph function order carry analyses 
+unfortunately construction control flow graph function instructions disassembled straightforward 
+resort simpler technique relocation information 
+disassembling code function set relocatable text segment addresses lies start address start address function set addresses location contains relocatable text segment address 
+intuitively expect indirect jump address implemented loading text segment address assumption code text segment register jumping indirectly case address relocatable set consists addresses lie function possible targets indirect jump set specifies elements jump table entries contain code target jump 
+set possible targets indirect jump taken set addresses approach plausible uses conservative estimate set possible targets indirect jump means address fact target jump considered reachable code disassembled 
+problem may consider addresses fact targets 
+produce incorrect disassembly results illustrated example library routine redhat linux called mpn add shown 
+intel instruction set lea load effective address instruction form lea effect lea instruction address computes address register eax value depends contents eax instruction 
+inspection hand coded assembly routine function reveals loop begins address address computed lea instruction accurate identification possible targets indirect jump jump table difficult assume control flow graph available general count jump program accompanied bounds check enable identify extent jump table 
+checks may excised hand crafted assembly code careful programmer aware specific invariants hold program aggressive optimizing compiler may able elide check program analyses identify range values variable optimizations analogous elimination array bounds checks 
+may encounter indirect jumps don involve jump table don bounds check 
+middle loop exactly determined contents eax 
+turns register takes value results valid instruction address computed 
+static examination instruction stream guarantee eax guarantees general require nontrivial analyses constant propagation program slicing turn require control flow graph function available disassembly 
+address appears relocatable text segment address function location contain relocatable text segment address considered possible target indirect jump location recursive traversal disassembly corresponds possibility register eax value instruction executed 
+result continue disassembling input starting location 
+problem address middle instruction recursive traversal produces incorrect disassembly case 
+improved algorithm linear sweep recursive traversal disassembly algorithms discussed previous section complementary strengths weaknesses 
+rely precise identification targets indirect jumps correct disassembly trouble coping data embedded instruction stream able decode data embedded text segment may problems indirect jumps targets precisely identified 
+section discusses algorithms combined exploit strengths 
+extending linear sweep algorithm simple linear sweep algorithm discussed section disadvantage data appearing text segment causes disassembly errors 
+particular means algorithm deal jump tables embedded text segment 
+section discuss linear sweep algorithm extended handle jump tables embedded instruction stream 
+mentioned section assume relocation information available file disassembled 
+take advantage information identify jump tables embedded text segment note jump tables data segment pose problem primary goal identify extent jump tables text segment avoid code 
+address appearing jump table embedded text segment properties memory locations containing marked relocatable ii address points text segment 
+properties necessary jump table entries may sufficient depending architecture relocatable addresses possibly pointing text segment may appear immediate operands instruction 
+instruction sets typical modern architectures impose architecture specific upper bound max number immediate operands appear adjacent instruction intel architecture max 
+text segment contains adjacent relocatable addresses point text segment max max may part instruction remaining max addresses data 
+information modify linear sweep algorithm disassembly goes data blocks identified text segment 
+course resolve status max entries sequence determine part jump table immediate operands instruction 
+return point shortly 
+crucial property approach allows identify jump table appears text segment 
+text segment divided chunks code separated jump tables 
+chunk starts entry point function previous jump table 
+simple linear sweep algorithm section disassemble chunk examine instruction disassembled chunk 
+suppose instruction contains addresses max immediate operands appearing instruction 
+know contiguous relocatable addresses appearing chunk addresses part instructions remaining addresses constitute jump table entries 
+resulting algorithm follows instruction lea esi esi address serves byte op purpose align instruction loop byte boundary 
+
+sequence contiguous relocatable text segment addresses appearing program max mark max addresses sequence data 
+
+sequence unmarked addresses text segment disassemble simple linear sweep algorithm section 
+disassembly reaches marked location 
+instruction disassembled incompletely disassembled marked location reached discard instruction 
+examine correctly disassembled instruction number relocatable text segment addresses appearing max 
+max unmarked relocatable text segment addresses instruction marked location 
+mark addresses data 
+resulting algorithm able handle jump tables appearing text segment 
+relies relocation information unable deal data embedded text segment relocation information associated null bytes example 
+discuss combine enhanced linear sweep algorithm recursive traversal address problem 
+hybrid disassembly algorithm biggest problem recursive traversal algorithm section extended linear sweep algorithm described previous result undetected disassembly errors compromise correctness binary rewriting system 
+basic idea approach combine algorithms way allows detect identify extent disassembly errors 
+approach straightforward 
+disassemble program extended linear sweep algorithm described section verify results disassembly function time recursive traversal algorithm 
+verification process checks instruction sequence obtained function self consistent contain errors branch middle instruction 
+function verification fails linear sweep recursive traversals disagree precluded subsequent optimization 
+function verified follows recursive traversal disassemble instruction function 
+instruction obtained address check original disassembly linear sweep obtained instruction address report failure 
+failure encountered processing instructions function report success 
+practical measure verification step construct second copy disassembled instruction sequence function wasteful memory 
+simply checks instructions encounters goes match disassembly results obtained linear sweep 
+verification fails function code function marked problematic precluded subsequent optimization 
+retain original machine code sequence functions insert back program optimization remainder program 
+may require updates addresses machine code problematic functions may reinserted original addresses 
+addresses identified original relocation information associated 
+imagine extending approach verification fails function disagreement linear sweep recursive traversal algorithms try determine correct 
+case results disassembly algorithms deemed produced correct result simply giving function marking problematic 
+example function contain indirect jumps guaranteed recursive traversal algorithm correct 
+current system implement extensions 
+disassembly time sec program linear recursive hybrid hybrid linear hybrid recursive compress gcc go ijpeg li ksim perl vortex geometric mean specint disassembly time sec program linear recursive hybrid hybrid linear hybrid recursive bzip crafty eon gcc gzip mcf parser twolf vortex vpr geometric mean specint key linear disassembly time extended linear sweep algorithm recursive disassembly time recursive traversal hybrid disassembly time hybrid algorithm table performance disassembly speed experimental results tested evaluated various disassembly algorithms described context link time optimizer developed intel architecture specint specint benchmark suites 
+experiments run unloaded mhz pentium iii system gb main memory running redhat linux 
+programs compiled gcc version optimization level additional flags instructing linker retain relocation information produce statically linked executables 
+statically linked executables results requirement input binaries contain relocation information linker ld refuses retain relocation information executables statically linked 
+turns useful forces deal highly optimized library code including hand crafted assembly code presents interesting disassembly challenges 
+programs eon program specint suite contains jump tables text segment resulting fragments position independent code 
+measured disassembly time includes time taken read text segment memory different algorithms extended linear sweep recursive traversal hybrid precision hybrid disassembly algorithm amount code marked problematic 
+execution times linear sweep recursive traversal algorithms purposes algorithm produces correct disassembly results fails silently portions program described earlier 
+results shown table 
+expect time taken hybrid algorithm roughly equal sum times linear sweep recursive traversal algorithms 
+average hybrid slower linear traversal scheme twice slow recursive traversal scheme 
+purposes disassembly time accounts relatively small fraction total processing time additional time 
+functions 
+text bytes program compress gcc go ijpeg li ksim perl vortex geometric mean specint 
+functions 
+text bytes program bzip crafty eon gcc gzip mcf parser twolf vortex vpr geometric mean specint key total 
+functions 
+functions inferred problematic total 
+bytes text segment 
+bytes problematic functions table performance precision disassembly taken hybrid disassembly algorithm pose performance issue 
+table shows precision disassembly sense proportion code program properly disassembled passes verification 
+problematic functions identified result highly optimized library routines 
+programs problematic functions called mpn add mpn sub programs problematic functions mentioned mpn cmp 
+case problem verification recursive traversal incorrectly thinks conditional jump mpn add goes middle valid instruction mpn cmp 
+function accounts majority bytes problematic code 
+seen amount code problematic small average fewer functions comprising program text segment 
+words text segment verified correctly disassembled eligible subsequent processing 
+results effective optimization binaries significant performance improvements 
+related simple linear sweep disassembly algorithm described section number systems analyze modify executable files 
+include gnu utility qpt profiling tool successor eel alto link time optimizer om spike link time optimizers atom binary instrumentation tool compaq 
+systems produce incorrect input binaries text segments contain data 
+happens systems qpt alto om spike atom target risc architectures fixed sized instructions easier detect disassembly errors 
+examples binary rewriting systems recursive traversal disassembly include uqbt 
+relies relocation information identify addresses 
+uqbt handles indirect jumps indirect function calls speculative disassembly disassembly areas appear code expectation targets control transfers 
+system keeps track text disassembled explores gaps coverage possible code 
+disassembling gaps speculative bit set means invalid disassembled disassembly abandoned 
+disassembly restarted word risc machines byte machines pentium 
+describes system relies knowledge specific compiler generate executable guide disassembly 
+problem approach guarantee code executable produced compiler case statically linked binaries different libraries may compiled different compilers different versions compiler 
+algorithm assumes existence module identifies targets indirect jumps specify carried 
+lot dynamic binary rewriting dynamic optimization see 
+disassembly issues systems different discussed runtime examine indirect jump operation just executed order identify actual address jump target 
+correct disassembly executable fundamental requirement tool intends modify executable programs 
+existing algorithms static disassembly suffer disadvantage fail silently produce incorrectly disassembled code 
+turn compromise correctness entire binary rewriting tool 
+discussed reasons algorithms fail propose hybrid disassembly algorithm able check disassembled instruction sequence produces 
+allows discover disassembly errors limit scope errors 
+code fragments possibly contain disassembly errors way precluded subsequent optimizations 
+experiments specint specint benchmark suites indicates able successfully decode text segment input binaries 
+bala duesterwald banerjia dynamo transparent dynamic optimization system proc 
+sigplan conference programming language design implementation june pp 
+
+cifuentes personal communication may 
+cifuentes gough decompilation binary programs software practice experience jul 
+cifuentes van emmerik recovery jump table case statements binary code proceedings international workshop program comprehension may 
+cifuentes van emmerik ung simon washington preliminary experiences uqbt binary translation framework proc 
+workshop binary translation oct 
+cohn goodwin lowney rubin optimizing alpha executables windows nt spike digital technical journal vol 
+pp 
+
+consel hornof lawall marlet muller thibault 
+volanschi tempo specializing systems applications acm computing surveys symposium partial evaluation sep 
+de de bus de static analysis indirect control transfers binaries proc 
+international conference parallel distributed processing techniques applications pdpta 
+gnu project free software foundation gnu manuals online www gnu org manual html chapter html 
+harrison compiler analysis value ranges variables ieee transactions software engineering pp 
+may 
+wolfe elimination redundant array subscript range checks proc 
+sigplan conference programming language design implementation june pp 
+
+larus ball rewriting executable files measure program behavior software practice experience feb 
+larus schnarr eel machine independent executable editing proc 
+sigplan conference programming language design implementation june pp 
+
+levine linkers loaders morgan kaufman 
+muth debray de alto link time optimizer compaq alpha software practice experience jan 
+rinard symbolic bounds analysis pointers array indices accessed memory regions proc 
+sigplan conference programming language design implementation june pp 
+
+schwarz debray andrews legendre link time optimizer intel ia architecture rd workshop binary translation sept 
+srivastava eustace atom system building customized program analysis tools proc 
+sigplan conference programming language design implementation june pp 
+
+srivastava wall practical system intermodule code optimization link time journal programming languages march pp 
+
+extracting safe precise control flow binaries proceedings th conference real time computing systems applications dec 
+

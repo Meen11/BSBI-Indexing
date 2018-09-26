@@ -1,0 +1,471 @@
+fbufs high bandwidth cross domain transfer facility peter druschel larry peterson department computer science university arizona tucson az designed implemented new operating system facility buffer management data transfer protection domain boundaries shared memory machines 
+facility called fast buffers fbufs combines virtual page remapping shared virtual memory exploits locality traffic achieve high throughput protection security modularity 
+goal help deliver high bandwidth afforded emerging high speed networks user level processes monolithic microkernel operating systems 
+outlines requirements cross domain transfer facility describes design fbuf mechanism meets requirements experimentally quantifies impact fbufs network performance 
+optimizing operations cross protection domain boundaries received great deal attention 
+efficient cross domain invocation facility enables modular operating system design 
+part earlier focuses lowering control transfer latency assumes arguments transferred cross domain call small supported part national science foundation ccr arpa contract dabt 
+copied domain 
+considers complementary issue increasing data transfer throughput interested intensive applications require significant amounts data moved protection boundaries 
+applications include real time video digital image retrieval accessing large scientific data sets 
+focusing specifically network observe hand emerging network technology soon offer sustained data rates approaching gigabit second host hand trend microkernel operating systems leads situation data path may intersect multiple protection domains 
+challenge turn network bandwidth application compromising os structure 
+microkernel system find device drivers network protocols application software residing different protection domains important problem moving data domain boundaries efficiently possible 
+task difficult limitations memory architecture notably cpu memory bandwidth 
+network bandwidth approaches memory bandwidth copying data domain simply keep improved network performance 
+introduces high bandwidth cross domain transfer buffer management facility called fast buffers fbufs shows optimized support data originates terminates device potentially traversing multiple protection domains 
+fbufs combine known techniques transferring data protection domains page remapping shared memory 
+equally correct view fbufs shared memory page remapping dynamically change set pages shared set domains page remapping pages mapped set domains cached transfers 
+originator domain receiver domains data sink data source cross domain transfers layers distributed multiple protection domains background section outlines requirements buffer management cross domain data transfer facility examining relevant characteristics network reviews previous light requirements 
+discussion appeals reader intuitive notion data buffer section defines specific representation 
+characterizing network interested situation data processed sequence software layers device drivers network protocols application programs may distributed multiple protection domains 
+depicts abstractly data generated source module passed software layers consumed sink module 
+data passed module traverses sequence protection domains 
+data source said run originator domain modules run receiver domains 
+note section considers general case multiple protection domains discussion applies equally systems domains involved kernel user 
+section shows different transfer mechanisms perform domain case section discusses larger issue domains expect practice 
+networks buffers input side network adapter delivers data host granularity protocol data unit pdu arriving pdu received buffer 
+higher pdu size may larger network packet size atm network 
+pdus appropriate unit level protocols may reassemble collection pdus larger application data unit adu 
+incoming adu typically stored sequence non contiguous pdu sized buffers 
+output side adu stored single contiguous buffer fragmented set smaller pdus lower level protocols 
+fragmentation need disturb original buffer holding adu fragment represented offset length original buffer 
+pdu sizes network dependent adu sizes applications dependent 
+control overhead imposes practical lower bound 
+example gbps link kbyte pdus results pdus second 
+hand network latency concerns place upper bound pdu size particularly pdus sent network fragmentation 
+similarly adu size limited application specific latency requirements physical memory limitations 
+allocating buffers time buffer allocated assume known buffer data 
+certainly case device driver allocates buffers hold incoming packets reasonable expectation place application programs 
+note strictly necessary application know buffer eventually find way device transfer buffer domain 
+situation depicted oversimplified implies exists single linear path subsystem 
+general data may traverse number different paths software layers con consider hosts sees 
+sequence visit different sequences protection domains 
+call path data path say buffer belongs particular data path 
+assume data originates terminates particular communication endpoint socket port travels data path 
+application easily identify data path buffer time allocation referring communication endpoint intends 
+case incoming pdus data path pdu buffer belongs determined network adaptor interpreting atm cell vci adaptation layer info hardware having device driver inspect headers arriving pdu prior transfer pdu main memory 
+locality network communication implies traffic particular data path traffic expected path near 
+consequently buffer particular data path reused soon data path 
+accessing buffers consider buffers accessed various software layers data path 
+layer allocates buffer initially writes 
+example device driver allocates buffer hold incoming pdu application program fills newly allocated buffer data transmitted 
+subsequent layers require read access buffer 
+intermediate layer needs modify data buffer allocates writes new buffer 
+similarly intermediate layer prepends appends new data buffer protocol attaches header allocates new buffer logically concatenates original buffer buffer aggregation mechanism join set pdus reassembled adu 
+restrict buffers immutable created initial data content may subsequently changed 
+buffers implies originator domain needs write permission newly allocated buffer need write access transferring buffer 
+receiver domains need read access buffers passed 
+buffers transferred layer move copy semantics 
+move semantics sufficient passing layer need buffer data 
+copy semantics required passing layer needs retain access buffer example may need retransmit 
+note performance advantages providing move copy semantics buffers immutable 
+immutable buffers copy semantics achieved simply sharing buffers 
+consider case buffer passed originator domain 
+described reason correct behaved originator write buffer transfer 
+protection security needs generally require buffer transfer facility enforce buffer immutability 
+reducing originator access permissions read 
+suppose system enforce immutability buffer said volatile 
+originator trusted domain kernel allocated buffer incoming pdu buffer immutability clearly need enforced 
+originator buffer trusted application generated data 
+receiver buffer fail crash interpreting data buffer modified malicious faulty application 
+note layers subsystem generally interpret outgoing data 
+application merely interfere output operation modifying buffer asynchronously 
+result may different application put incorrect data buffer 
+approaches 
+enforce immutability buffer originator loses write access buffer transferring domain 
+second simply assume buffer volatile case receiver wishes interpret data request system raise protection buffer originator domain 
+op originator trusted domain 
+consider issue long particular domain keep buffer 
+buffer passed untrusted application domain may retain arbitrarily long time necessary buffers 
+words cross domain transfer facility operate wired pinned buffers 
+summary requirements summary examining buffers network subsystem able identify set requirements buffer management transfer system conversely set restrictions reasonably placed users transfer facility 
+ffl transfer facility support single contiguous buffers non contiguous aggregates buffers 
+ffl reasonable require special buffer allocator data 
+ffl time allocation data path buffer traverse known 
+cases transfer facility employ data path specific allocator 
+ffl subsystem designed immutable buffers 
+consequently providing copy semantics reasonable 
+ffl transfer facility support mechanisms protect asynchronous modification buffer originator domain eagerly enforce immutability raising protection buffer originator transfers lazily raise protection request receiver 
+ffl buffers 
+section gives design cross domain transfer facility supports exploits requirements restrictions 
+related unacceptable cost copying data buffer widely recognized 
+subsection reviews literature addresses problem 
+page remapping operating systems provide various forms virtual memory vm support transferring data domain 
+example kernel dash support page remapping accent mach support copy write cow 
+page remapping move copy semantics limits utility situations sender needs access transferred data 
+copy write copy semantics avoid physical copying data written sender receiver transfer 
+techniques require careful implementation achieve performance 
+time takes switch supervisor mode acquire necessary locks vm data structures change vm mappings levels page perform tlb cache consistency actions return user mode poses limit achievable performance 
+consider highly tuned implementations detail 
+anderson evaluate remap facility dash operating system 
+reports incremental overhead secs page sun 
+measures ping pong test case page remapped back forth pair processes include cost allocating deallocating pages 
+practice high bandwidth data flows direction data path requiring source continually allocate new buffers sink deallocate 
+authors fail consider cost clearing filling zeros newly allocated pages may required security reasons 
+update anderson results quantify impact limitations implemented similar remap facility modern machine decstation 
+measurements show possible achieve incremental overhead secs page ping pong test expect incremental overhead secs page costs allocating clearing deallocating buffers depending percentage page needed cleared 
+improvement secs page sun secs page dec taken evidence page remapping continue faster rate processors faster 
+doubt extrapolation correct 
+secs required remap page cpu stalled waiting cache fills approximately half time 
+operation memory bound gap cpu memory speeds widens 
+second rpc system reduces rpc latency remapping single kernel page containing request packet server address space serve server thread runtime stack 
+authors report cost secs operation sun 
+suspect reason number remap page merely modifying corresponding page table entry 
+system vm state encoded sun physical page tables 
+portability concerns caused virtually modern operating systems employ level virtual memory system 
+systems mapping changes require modification low level machine dependent page tables high level machineindependent data structures 
+sun modern architectures decstation require flushing corresponding tlb entries change mappings 
+dash fbuf mechanism described section implemented level vm system 
+overlaps receipt pdu ethernet copying previous pdu user kernel boundary 
+strategy scale high speed networks microkernel systems 
+network bandwidth approaches memory bandwidth contention main memory longer allows concurrent reception copying possibly network speeds 
+shared memory approach statically share virtual memory domains memory transfer data 
+example dec firefly rpc facility uses pool buffers globally permanently shared domains 
+domains read write access permissions entire pool protection security compromised 
+data copied shared buffer pool application private memory 
+example lrpc uses argument stacks pairwise shared communicating protection domains 
+arguments generally copied argument stack 
+techniques reduce number copies required eliminating copying 
+sufficient improve latency rpc calls carry relatively small amounts data preserve relatively low bandwidth ethernet lans 
+fbuf mechanism different goal preserving bandwidth afforded highspeed networks user level 
+fbufs complement low latency rpc mechanism 
+bottom line statically shared memory eliminate copying poses problems globally shared memory compromises security pairwise shared memory requires copying data immediately consumed third domain group wise shared memory requires data path buffer known time allocation 
+forms shared memory may compromise protection sharing domains 
+systems attempt avoid data copying transferring data directly unix application buffers network interface 
+approach works data accesses single application domain 
+substantial amount memory may required network adapter interfacing high bandwidth networks 
+memory limited resource dedicated network buffering 
+fbufs hand network data buffered main memory network subsystem share physical memory dynamically subsystems applications file caches 
+design section describes design integrated buffer data transfer mechanism 
+begins introducing basic mechanism evolves design series optimizations 
+optimizations applied independently giving rise set implementations different restrictions costs 
+basic mechanism data stored buffers called fbufs consists contiguous virtual memory pages 
+protection domain gains access fbuf explicitly allocating fbuf implicitly receiving fbuf ipc 
+case domain called originator fbuf case domain receiver fbuf 
+data type layered top fbufs support buffer aggregation 
+abstractions typically provide operations logically join buffers aggregate split aggregate separate buffers clip data aggregate 
+examples aggregation abstractions include kernel messages bsd unix mbufs 
+purpose discussion refer abstraction aggregate object kernel directed acyclic graph dag representation depicted 
+aggregate object fbufs aggregate object virtual page remapping facility logically copies moves set virtual memory pages protection domains modifying virtual memory mappings 
+conventional remap facility copy semantics baseline design 
+facility transfer aggregate object involves steps 
+
+allocate aggregate object originator find allocate free virtual address range originator fbuf allocate physical memory pages clear contents page update physical page tables page 
+send aggregate object originator generate list fbufs aggregate object fbuf raise protection originator read access fbuf update physical page tables ensure tlb cache consistency page 
+receive aggregate object receiver find reserve free virtual address range receiver fbuf update physical page tables page construct aggregate object list fbufs fbuf 
+free aggregate object originator receiver deallocate virtual address range fbuf update physical page table ensure tlb cache consistency page free physical memory pages page note receiver forwards aggregate object domain perform actions step 
+careful implementation actions result substantial overhead 
+example simple data path domain crossings requires physical page table updates page may require tlb cache consistency actions 
+allocated physical page may need cleared filled zeroes security reasons 
+optimizations set optimizations designed eliminate page fbuf costs associated base remapping mechanism 
+restricted dynamic read sharing optimization places functional restrictions data transfer 
+pages limited range virtual addresses remapped 
+address range called fbuf region globally shared domains 
+note sharing address range imply unrestricted access memory mapped range 
+second write accesses fbuf receiver originator receiver holding fbuf illegal result memory access violation exception 
+restriction implies fbuf mapped virtual address originator receivers 
+eliminates need action transfer 
+note dash remap facility uses similar optimization 
+shared mapping virtual address precludes virtual address aliasing simplifies speeds management virtually tagged caches machines employ caches 
+second restriction eliminates need copy write mechanism 
+restrictions require special buffer allocator immutable buffers 
+fbuf caching optimization takes advantage locality interprocess communication 
+specifically exploit fact pdu adu followed certain data path visited certain sequence protection domains pdus adus expected travel path soon 
+consider happens pdu arrives network 
+fbuf allocated kernel filled transferred times data consumed destination domain 
+point fbuf mapped read permission set domains participate data path 
+ordinarily fbuf unmapped domains physical pages returned free memory pool 
+write permissions returned originator fbuf placed free list associated data path 
+packet arrives data path fbuf reused 
+case clearing buffers required appropriate mappings exist 
+fbuf caching eliminates actions ac common case fbufs reused 
+reduces number page table updates required irrespective number transfers 
+eliminates expensive clearing pages increases locality level tlb cache main memory 
+optimization requires originator able determine data path time fbuf allocation 
+integrated buffer management transfer recall aggregate object abstraction layered top fbufs 
+transfer facility described point transfers fbufs aggregate objects protection boundaries 
+aggregate object translated list fbufs sending domain list passed kernel effect transfer aggregate object rebuilt receiving side 
+note case internal data structures maintained aggregate object interior dag nodes stored memory private domain 
+consequence design fbufs transfer data domain boundary different representation aggregated data side boundary 
+consider optimization incorporates knowledge aggregate object transfer facility eliminating steps 
+optimization integrates buffer management cross domain data transfer facility placing entire aggregate object fbufs 
+fbuf region mapped virtual address domains internal pointer translations required 
+send operation root node aggregate object passed kernel 
+kernel inspects aggregate transfers fbufs reachable nodes reside shared mappings exist 
+receiving domain receives root node aggregate object 
+steps eliminated 
+volatile fbufs previous optimizations transport fbuf originator receiver requires physical page table updates page remove write permission originator fbuf transferred return write permissions originator fbuf freed receivers 
+need removing write permissions originator eliminated cases defining fbufs volatile default 
+receiver assume contents received fbuf may change asynchronously explicitly requests fbuf secured write permissions removed originator 
+argued section removing write permissions unnecessary cases 
+volatile fbuf optimization applied conjunction integrated buffer management additional problem arises 
+aggregate object dag stored fbufs receiving domain traverse dag access data receiver may vulnerable asynchronous changes dag 
+example bad pointer cause protocol kernel domain fail traversing dag order compute checksum 
+problem solved way 
+receivers verify dag pointers locations fbuf region involves simple range check 
+second receivers check cycles dag traversals avoid infinite loops 
+third read accesses receiver address fbuf region receiver permissions handled follows 
+vm system maps page appropriate location offending domain initializes page leaf node contains data allows read complete 
+invalid dag appear receiver absence data 
+summary optimizations described eliminate page fbuf costs associated cross domain data transfer common case data path identified fbuf allocation time appropriate fbuf cached removing write permissions originator unnecessary 
+common case kernel involvement required cross domain data transfer 
+facility suited user level ipc facilities highly optimized ipc mechanisms mms 
+implementation issues level allocation scheme domain allocators ensures fbuf allocations satisfied kernel involvement 
+range virtual addresses fbuf region reserved protection domain including kernel 
+request kernel hands ownership fixed sized chunks fbuf region userlevel protection domains 
+fbuf region ordinary virtual memory physical memory allocated lazily access 
+fbuf allocation requests fielded fbuf allocators locally domain 
+allocators satisfy space needs requesting chunks kernel needed 
+deallocated fbufs placed appropriate allocator free list maintained lifo order 
+fbufs amount physical memory allocated fbufs depends level traffic compared system activity 
+similarly amount physical memory allocated particular data path fbufs determined traffic 
+lifo ordering ensures fbufs front free list physical memory mapped 
+kernel reclaims physical memory fbuf free list discards fbuf contents page secondary storage 
+message deallocated corresponding fbufs owned different domain put list deallocated external 
+rpc call owning domain occurs reply message carry deallocation notices list 
+freed accumulated explicit message sent notifying owning domain 
+practice rarely necessary send additional messages purpose deallocation 
+domain terminates may hold fbufs received 
+case abnormal tion domain may properly relinquish 
+note domain part data path 
+termination cause destruction communication endpoint turn cause deallocation associated fbufs 
+terminating domain may originator fbufs domains hold 
+kernel retain chunks fbuf region owned terminating domain external relinquished 
+incorrect malicious domain may fail deallocate fbufs receives 
+eventually cause exhaustion fbuf region virtual address range 
+prevent kernel limits number chunks allocated data path specific fbuf allocator 
+performance section reports experiments designed evaluate performance fbufs 
+software platform experiments consists cmu mach microkernel mk augmented network subsystem university arizona kernel version 
+hardware platform consists pair decstation workstations mhz mips attached prototype atm network interface board called osiris designed bellcore aurora gigabit testbed 
+osiris boards connected null modem support link speed mbps 
+kernel network subsystem consists protocol graph span multiple protection domains including mach microkernel 
+proxy objects kernel forward cross domain invocations mach ipc 
+kernel supports message data type similar shown 
+message type immutable instances created initial content subsequently changed 
+protocols device drivers deal network data terms message abstraction 
+incorporating fbufs environment required mach microkernel modified provide virtual memory support fbufs kernel messages modified fbufs malloc ed buffers proxy objects upgraded fbuf data transfer facility osiris device driver written uses fbuf kernel messages 
+new approaches described forthcoming required reduce interrupt overhead driver 
+true long protocols access message operations exported message abstraction 
+experiment quantifies performance fbuf transfers single protection boundary 
+test protocol originator domain repeatedly allocates kernel message writes word vm page associated fbuf passes message dummy protocol receiver domain 
+dummy protocol touches reads word page received message deallocates message returns 
+table shows incremental page costs independent ipc latency calculated asymptotic bandwidths 
+things notice numbers 
+cached volatile case performs order magnitude better uncached non volatile cases 
+performs order magnitude better anderson page remapping mechanism reimplemented hardware 
+second page overhead cached volatile fbufs due tlb misses caused accesses test dummy protocols 
+tlb misses handled software mips architecture 
+third cost clearing pages uncached case included table 
+filling page zeros takes secs decstation 
+fourth relatively high overhead mach cow facility partly due lazy update strategy physical page tables causes page faults transfer 
+second experiment measures throughput function message size 
+results shown 
+table throughput rates shown small messages graphs strongly influenced control transfer latency ipc mechanism intrinsic buffer transfer facility 
+mach native transfer facility included comparison uses data copying message sizes kbytes cow 
+small messages kb performance break follows 
+message sizes kb mach native data transfer facility slightly faster uncached non volatile fbufs due latency associated invoking virtual memory system optimized current implementation 
+cached volatile fbufs outperform mach transfer facility small message sizes 
+consequently special casing necessary efficiently transfer small messages 
+third experiment demonstrates impact fbufs network throughput protocol processing overhead account 
+valuable macro experiment accurately reflects effects processor instruction data caches 
+test protocol originator domain repeatedly creates kernel message sends udp ip protocol stack incremental asymptotic page cost secs throughput mbps fbufs cached volatile fbufs volatile fbufs cached fbufs mach cow copy table incremental page costs throughput mbps message size bytes mach cached volatile fbufs volatile uncached fbufs non volatile cached fbufs theta theta theta theta theta theta theta theta theta theta theta non volatile uncached fbufs throughput single domain boundary crossing resides network server domain 
+ip fragments large messages pdus kbytes 
+local loopback protocol configured ip turns pdu sends back protocol stack 
+ip message way back sends receiver domain contains dummy protocol experiment 
+loopback protocol real device driver simulates infinitely fast network 
+experiment ignores effects limited bus bandwidth network bandwidth currently available commercial hardware 
+comparison purposes performed experiment components configured single protection domain domains 
+comparing results impact domain boundaries network throughput 
+shows measured throughput case 
+anomaly single domain udp ip slightly modified support messages larger kbytes 
+graph caused fixed fragmentation overhead sets messages larger kbytes 
+cost gradually amortized messages larger kbytes 
+peak occur multiple domain cases due dominance cross domain latency kbyte transfers 
+things observe results 
+cached fbufs leads twofold improvement throughput uncached fbufs entire range message sizes 
+significant performance uncached fbufs competitive fastest page remapping schemes 
+second considered single domain crossing direction corresponds structure monolithic system 
+microkernel system possible additional domain crossings occur 
+third message sizes kbytes larger cached fbuf throughput throughput data path involves domain boundary crossings 
+practical importance large messages common high throughput mbps message size bytes single domain domains cached fbufs domains uncached fbufs throughput udp ip local loopback test plications 
+fourth test run loopback mode throughput achieved roughly half expect connected infinitely fast network 
+final experiment measures throughput udp ip null modem connection osiris network interface boards 
+protocol suite identical previous experiment local loopback protocol ip replaced driver osiris board ip pdu size set kbytes 
+test protocol uses sliding window facilitate flow control 
+shows measured throughput achieved cached volatile fbufs function message size 
+kernel kernel case entire protocol stack including test protocol configured kernel 
+case serves baseline evaluating impact domain boundary crossings throughput 
+user user case involves kernel user boundary crossing host 
+user user case udp configured separate user level server domain necessitating user user kernel user boundary crossing part data path host 
+
+maximal throughput achieved mbps net bandwidth supported network link limitation due capacity decstation bus software overheads 
+peak net bandwidth mbps derived link bandwidth mbps minus atm cell overhead 
+bandwidth mbps dma startup latencies reduce effective throughput 
+osiris board currently initiates dma transfer atm cell payload limiting maximal throughput mbps 
+bus contention due cpu memory traffic reduces attainable throughput mbps 
+second domain crossings virtually effect throughput large messages kb cached volatile fbufs 
+medium sized messages kb mach ipc latencies result significant throughput penalty domain crossing 
+throughput small messages protocol processing overheads 
+medium sized messages throughput penalty second domain crossing larger penalty crossing 
+difference large explained different latency kernel user user user crossings 
+attribute penalty exhaustion cache tlb third domain added data path 
+version mach unix support shared libraries program text implements kernel infrastructure duplicated domain 
+duplication reduces instruction access locality reduces hit rates tlb instruction cache 
+shared libraries help mitigate effect 
+shows measured throughput uncached non volatile fbufs 
+non volatile fbufs cost transmitting host kernel originator fbufs receiving host 
+similar reasons uncached fbufs incur throughput mbps message size kbytes kernel kernel user user user user udp ip throughput cached volatile fbufs loop back experiment significance uncached non volatile case comparable best achieve page remapping 
+graph included baseline comparison 
+maximal user user throughput mbps 
+uncached fbufs leads throughput degradation boundary crossing occurs host 
+throughput achieved user user case marginally lower 
+reason udp resides domain access message body 
+need map corresponding pages domain 
+consequently additional cost uncached fbufs case small 
+note maximal throughput achieved uncached fbufs cpu bound throughput bound cached fbufs 
+throughput fully reflect benefit cached fbufs 
+test part benefit takes form reduction cpu load 
+specifically cpu load receiving host reception mbyte packets cached fbufs cpu saturated uncached fbufs shift effect setting ip pdu size kbytes cuts protocol processing overheads roughly half freeing cpu resources 
+case additional cost receiving host 
+test cost non volatile fbufs hidden larger cost uncached fbufs 
+cpu load derived rate counter updated low priority background thread 
+test bound uncached fbufs uncached throughput approaches cached throughput large messages 
+cpu saturated reception mbyte messages uncached fbufs cpu load cached fbufs 
+cached fbufs leads entirely reduction cpu load 
+hand hypothetical system higher bandwidth throughput cpu bound cached uncached fbuf cases 
+local loopback test simulates infinite bandwidth demonstrated cached fbufs leads twofold improvement throughput uncached fbufs case 
+decstation cached fbufs reduce cpu load increase throughput factor compared uncached fbufs case single user kernel domain crossing occurs 
+discussion domains 
+important question answered domains data path intersect practice 
+hand trend microkernel systems motivation systems structured way easier configure extend debug distribute 
+system user level networking server domain crossings third party window multimedia server add additional domain crossings 
+throughput mbps message size kbytes kernel kernel user user user user udp ip throughput uncached non volatile fbufs hand microkernel system necessarily imply multiple domain crossings required 
+example suggests possible implement tcp ip protocol suite application libraries requiring single user kernel crossing common case 
+responses question 
+systems undeniable advantages general technique possible transparently add new services entire os personalities modification rebuilding kernel applications 
+clear application library approach achieve effect generalize tcp ip 
+second shows avoid negative impact domain crossings throughput large messages 
+significant applications demand high throughput generate consume large data units 
+applications include continuous media data visualization scientific programs 
+applications minimizing domain crossings may critical 
+third demonstrated previous section fbufs suited situations single kernel user domain crossing occurs data path 
+characteristics network revisited fbufs gain efficiency partly placing certain restrictions buffers described section 
+fbufs transparently integrated network subsystems written immutable buffer abstraction demonstrated kernel implementation 
+necessary modifications restricted software modules allocate buffers cached fbufs modules interpret data 
+interest preserving user level throughput necessary transfer buffers application programs operating system efficiently modules operating system 
+unfortunately semantics unix read write interface difficult fbufs vm technique 
+unix interface copy semantics allows application specify unaligned buffer address address space 
+propose addition interface high bandwidth uses immutable buffer aggregates 
+new high bandwidth applications interface existing applications continue old interface requires copying 
+interface requires applications data type encapsulates buffer aggregates 
+implies application reads input data prepared deal potentially non contiguous storage buffers willing pay performance penalty copying data contiguous storage 
+minimize inconvenience application programmers proposed interface supports generator operation retrieves data buffer aggregate granularity application defined data unit structure line text 
+copying occurs data unit crosses buffer fragment boundary 
+fbufs immutable data modifications require new buffer 
+network subsystem incur performance penalty data ma applied entire data presentation conversions encryption localized header trailer 
+case buffer editing functions join split clip aggregate object logically concatenate new header remaining unchanged buffer 
+true application data manipulations long manipulations part data localized warrant small overhead buffer editing 
+imagine application problem 
+cached fbufs require data path fbuf identified time fbuf allocated 
+cases data path determined default allocator 
+allocator returns uncached fbufs consequence vm map manipulations necessary domain transfer 
+driver osiris network interface experiments employs strategy 
+driver maintains queues preallocated cached fbufs data paths plus single queue preallocated uncached fbufs 
+adapter board performs reassembly incoming pdus atm cells storing cell payloads buffer main memory dma 
+adapter board needs new reassembly buffer checks see preallocated fbuf virtual circuit identifier vci incoming pdu 
+uses buffer queue uncached fbufs 
+note cached fbufs requires demultiplexing capability network adapter permit host cpu inspect packet header prior transfer data main memory 
+ethernet network adapters capability network adapters high speed networks subject research 
+prototypes interfaces familiar osiris board hp board adequate support 
+architectural considerations observed section performance cached fbufs large messages limited tlb handling overhead 
+modern architectures including mips tlb entries tagged domain identifier 
+organization penalizes sharing global address space separate tlb entry required domain particular shared page address mapping protection information identical 
+modern processors permit single tlb entry mapping physical pages mips 
+facility reduce implementation clusters dag nodes reduce number pages occupied single fbuf aggregate 
+tlb overhead large fbufs 
+physical pages mapped single tlb entry contiguous physical address 
+requires form physical memory management currently operating systems 
+choosing size fbuf region involves tradeoff 
+region large accommodate buffering needs kernel user domains 
+hand large window reduces size private address spaces kernel user domains 
+trend machines bit wide virtual addresses issue 
+relationship vm systems describes integrated implementation fbufs modifying extending mach kernel 
+briefly discuss ways layer fbufs top existing vm systems 
+note case kernel modifications required give kernel software modules device drivers access fbuf facility 
+modern vm systems provided mach chorus microkernels export external pager interface 
+interface allows user process determine semantics virtual memory object mapped protection domains 
+designed fbuf implementation uses mach external pager require modifications vm system 
+implementation fbuf transfer requires vm mapping changes involve external pager requires communication sender fbuf pager subsequently pager kernel 
+consequently penalty uncached non volatile fbufs expected quite high 
+shared memory facility provided system unix presumably implement fbufs 
+unclear semantics read accesses protected locations fbuf region section achieved 
+implementations system shared memory severe limitations regard number size shared memory segments 
+presents integrated buffer management transfer mechanism optimized highbandwidth mechanism called fbufs exploits locality traffic achieve high throughput compromising protection security modularity 
+fbufs combine page remapping technique dynamically mapped group wise shared virtual memory 
+worse case performs fastest page remapping facilities described literature 
+offers better performance shared memory common case data path buffer know time allocation 
+fbufs compromise protection security 
+achieved combination group wise sharing read sharing weakening semantics buffer transfers volatile buffers 
+micro experiment shows fbufs offer order magnitude better throughput page remapping single domain crossing 
+macro experiments involving udp ip protocol stack show cached volatile fbufs domain crossings virtually impact throughput large messages 
+special bellcore making osiris boards available bruce davie time invested supporting 
+accetta baron golub rashid tevanian young 
+mach new kernel foundation unix development 
+proceedings summer usenix technical conference exhibition june 
+bershad anderson lazowska levy 
+lightweight remote procedure call 
+acm transactions computer systems feb 
+bershad anderson lazowska levy 
+user level interprocess communication shared memory multiprocessors 
+acm transactions computer systems may 
+cheriton 
+distributed system 
+communications acm mar 
+dalton watson banks edwards 
+
+ieee network july 
+davie 
+host network interface architecture atm 
+proceedings sigcomm conference pages switzerland sept 
+druschel abbott peterson 
+network subsystem design 
+ieee network july 
+fitzgerald rashid 
+integration virtual memory management interprocess communication accent 
+acm transactions computer systems may 
+govindan anderson 
+scheduling ipc mechanisms continuous media 
+proceedings th acm symposium operating systems principles pages 
+association computing machinery sigops october 
+hutchinson peterson 
+kernel architecture implementing network protocols 
+ieee transactions software engineering jan 
+johnson zwaenepoel 
+high performance rpc system 
+software practice experience feb 
+leffler mckusick karels quarterman 
+design implementation bsd unix operating system 
+addison wesley publishing 
+maeda bershad 
+protocol service decomposition high performance networking 
+proceedings fourteenth acm operating system principles dec 
+mogul 
+network locality scale processes 
+acm transactions computer systems may 
+ousterhout 
+aren operating systems getting faster fast hardware 
+usenix summer conference pages june 
+schroeder burrows 
+performance firefly rpc 
+acm transactions computer systems feb 
+smith 
+giving applications access gb networking 
+ieee network july 
+thekkath nguyen moy lazowska 
+implementing network protocols user level 
+proceedings sigcomm symposium sept 
+
+anderson 
+performance message passing restricted virtual memory remapping 
+software practice experience mar 

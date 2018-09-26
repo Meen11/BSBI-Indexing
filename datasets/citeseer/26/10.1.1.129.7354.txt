@@ -1,0 +1,481 @@
+scalable virtualization self virtualizing devices raj ivan karsten schwan college computing georgia institute technology atlanta ga schwan cc gatech edu jimi ibm watson research lab yorktown ny watson ibm com virtualization devices integral part system virtualization 
+includes virtualizing physical devices managing multiple guest virtual machines vms domains running top virtual machine monitor vmm hypervisor hv 
+presents notion self virtualizing devices higher smart devices selected virtualization functionality offloaded devices 
+particular self virtualizing device aware virtualized environment implements virtual device abstraction device 
+presents interface hv manage virtual devices 
+virtual device abstraction guest domain interact physical device minimal hv involvement 
+outcomes reduced virtualization costs caused hv additional software components required virtualize device improved scalability device interactions guest domains 
+prototype self virtualizing device described leverages multi core nature modern computer architectures 
+uses ixp network processor multiple internal specialized communication cores implement self virtualizing network interface attached host machine 
+device conjunction xen hypervisor provides virtual network interfaces vifs guest domains 
+initial results demonstrate performance self virtualizing network interface exceeds network interfaces virtualized software hv driver domain single guest domain improvement latency obtained 
+device performance scales increasing number guest domains part self virtualizing network device reduces system resource utilization driver domain hv 
+additional insights design implementation self virtualizing devices concern device side functionality appropriate effective virtualization issues concerning efficient interaction hv domain activities devices heterogenous multi core systems 
+virtualization technologies long high server class systems provide server consolidation optimal resource usage machines ibm 
+integral element processor architectures include lower machines 
+basis virtualization hvs virtual machine monitors vmms running machines support creation execution multiple guest domains platform enforce isolation properties necessary underlying shared platform resources appear exclusive domain examples include xen vmware esx server denali name 
+hvs utilize strict partitioning time sharing combination thereof 
+create virtual instances physical resources including peripheral devices 
+dynamically manage virtualized components multiple guest domains manner enforces physical performance isolation domains 
+examples alternative approaches isolation upper level operating system vs hvs lower level physical resources resource containers class kernel resource management 
+operating system level techniques isolation applications 
+gain widespread acceptance due degree isolation provided schemes 
+due heterogeneous requirements including os different application workloads os level solution result effective resource consolidation 
+focuses virtualization peripheral resources device virtualization peripherals managed hv trusted domain driver domain 
+case controlling entity export guest domains interface virtualized device provides multiplexed de multiplexed access actual physical device properly supports necessary performance isolation multiple domains 
+realize typical approach force device accesses pass single controlling entity 
+fact current implementations device virtualization driver domain device driver domain set devices run driver code part hv 
+approach dismissed order avoid hv complexity increased probability hv failures caused potentially faulty device drivers 
+current systems approaches performance suffers fact physical device access requires scheduling multiple domains 
+example xen hv network packet receive requires scheduling driver domain run device driver physical device 
+domain packet appropriate guest domain receives packet scheduled 
+virtualization driver domains incurs significant performance overheads outlined 
+prior long recognized utility specialized hardware support implementing select system functionality order achieve higher performance improved capabilities 
+similarly research higher programmable peripheral devices experiment evaluate functionality needed device virtualization 
+specifically developing self virtualizing devices reduce costs peripheral virtualization presenting guest domain virtual device abstraction 
+abstraction permits domain interact virtualized device minimal hv involvement 
+outcome fast path actions currently carried driver domain offloaded device improving performance scalability compared prior solutions peripheral virtualization 
+leveraging multi core nature modern computer architectures design uses multiple heterogeneous cores implement functionality self virtualizing devices interactions guest domains running virtualized system 
+heterogeneous multi core platforms exist emulate attaching programmable communication device intel ixp network processor np host machine pci 
+host single multiple computational cores running guest domains controlled xen hv 
+attached ixp specialized communication cores termed micro engines implement fast path network virtual network interfaces vifs 
+management functions implemented outside fast path trusted controller running host cpu additional non specialized core resident ixp xscale cpu 
+outcome self virtualizing network interface communication cores implement functionality software ethernet bridge responsible de multiplexing network packets multiple virtual interfaces physical interface 
+host computational cores responsible directing interrupts generated device course packet processing guest domains virtual interfaces 
+management functionality run trusted controller xscale core includes creating destroying modifying virtual interfaces provisioning physical resources guest domains modifying attributes 
+virtualized systems host resident hv maintains isolation multiple guest domains resource partitioning imposing suitable access restrictions 
+contributions 
+presents prototype self virtualizing communication device internal concurrency offer scalable support virtual interfaces vifs high bandwidth low latency 
+
+virtual devices capable operating full link speed mbps ethernet links 
+gigabit links current implementation limited difficulty extracting full pci performance offering tcp bandwidth latency mbps ms respectively 
+
+experimental results demonstrate improved scalability self virtualization approach compared alternatives virtualize devices driver domain guest domains latency tcp throughput better 
+discuss limiting factors scalability current implementation 
+
+exploration architectural implications affecting design self virtualizing devices assuming heterogeneous multi core platforms 
+self virtualizing network interface section describes design self virtualizing network interface 
+particular device aware virtualized environment provide virtual interfaces vifs network device 
+anatomy vif quite similar regular network devices vif consists message queues outgoing messages send queue incoming messages receive queue 
+queues configurable sizes determine transmit receive buffer lengths 
+vif assigned unique id associated pair signals 
+sent device driver executing host indicating completion packet transmission initiated driver sent device driver indicating packet received associated vif enqueued processing driver 
+delivery signals programmable driver selectively choose enable disable deemed necessary packet processing 
+network packets sent received device driver associated message queues 
+vifs managed demand described section 
+self virtualized network interface realized ixp network processor np board refered np nic 
+board resides host pci add device 
+exports sdram configuration registers host intel non transparent pci pci bridge 
+bridge provides pci window host memory access np dynamically configured map certain area host memory 
+board features xscale processing core control functions specialized communication cores termed micro engines carrying network micro engine supports hardware contexts minimal context switching overhead 
+evident sections environment provides flexibility programmability concurrency needed efficiently implement self virtualizing device 
+device capable running non self virtualizing mode 
+mode np nic behaves regular nic capable sending receiving packets physical media providing host driver 
+regular nic single unique id mac address programmed run promiscuous mode 
+essential implementation software ethernet bridging needed alternative software virtualization techniques 
+functions self virtualizing nic main functions managing vifs performing network management functions carried xscale core fast path functions solely executed micro engines 
+virtual interface management functions include creation vifs removal changing attributes resources associated 
+discussed detail section describe usage vifs virtualized platform 
+network completely managed micro engines 
+divided parts egress ingress 
+egress deals multiplexing multiple vifs packets send queues physical network ports 
+ingress deals demultiplexing packets received physical network ports appropriate vifs receive queues 
+vifs export regular ethernet device abstraction host implementation models software layer ethernet switch 
+current implementation xscale core micro engine context vif egress 
+simple load balancing context selected pool contexts belonging single micro engine round robin fashion 
+ingress managed vifs pool contexts micro engine 
+micro engines physical network input output respectively 
+important note implementation uses capacity ixp device leaving room implementation capable scaling larger multi core host platforms 
+virtual interfaces implementation detail insights pci performance limitations 
+key requirements vifs low overhead high performance terms bandwidth latency 
+attain vif implementation deal certain limitations chosen host np implementation platform described previously 
+specific issue deal platform limitations pci read bandwidth shown micro benchmark section 
+current vif implementation avoids pci reads possible placing send message queue vif np sdram downstream communication space receive message queue implemented host memory upstream communication space 
+result egress path host side vif driver places network packets send message queue pci write transactions 
+read locally np sdram micro engines sent physical network 
+ingress path micro engines demultiplex incoming network packet appropriate vif receive message queue pci write transactions read locally host memory host side driver 
+need mmu 
+case downstream access host address location np sdram current firmware restrictions limit host memory np mb 
+firmware modifications hard limit gb 
+np access complete host address space np host data transfers target specific buffers host memory termed bounce buffers 
+bounce buffers mapped np pci address space entry look table mechanism entry maps configurable page size area host memory 
+vif receive queue consists multiple bounce buffers 
+ease implementation bounce buffers currently allocated contiguously host memory necessary hardware 
+keeping standard unix implementations host side vif driver copies network packet receive queue socket buffer structure 
+alternative approach avoiding copy directly utilize receive queue memory 
+achieved implementing specific new page allocator uses receive queue pages having pre defined receive queue construct contains bus addresses allocated 
+effectively requires np able access entire host memory possible due limitations discussed translating bus address accessible np memory address allocated 
+ease implementation pursued prototype optimization plan consider 
+host implementation emulates functionality bounce buffers plus message copying essentially realizing 
+summary construction vif network path facilitated direct downstream host access np sdram upstream translated np accesses host memory 
+related issue self virtualizing nic provide performance security isolation multiple vifs 
+implementation attains performance isolation np spatially partitioning memory resources time sharing np micro engine hardware contexts 
+discuss security isolation aspect implementation section provided host hypervisor 
+demultiplexing vif signals limited interrupt space 
+signals associated vif implemented pci interrupts 
+described signals sent micro engines host micro engines poll information flowing host 
+specifically vif assigned bits np bit interrupt identifier register send receive directions 
+bits shared multiple vifs case total number vifs exceeds 
+setting bit identifier register causes master interrupt asserted host 
+association bits vifs host determine vif potential set vifs case sharing generated master interrupt reading identifier register 
+interrupt result redundant signaling vifs sharing id bit 
+discuss implications virtual interrupt space sharing section 
+multiple ways address issue 
+apart increasing size interrupt identifier register replace interrupt id sharing asynchronous messaging system messages contain exact id vif signaled 
+messages managed shared message queue host np 
+way implement large signaling space multiple physical message signaled interrupts proposed revisions pci pci express bus specifications 
+example pci device obtain upto pci express limit 
+large numbers physical interrupt messages obviate need interrupt id required virtual interrupt identification 
+functionality currently available np board pci pci bridge connecting np board host system 
+self virtualization xen hv self virtualizing mode np nic provides vifs guest domains referred network involvement driver domains minimal involvement hv 
+functionality driver domain carried np nic physical network provides virtual devices 
+controller domain referred dom runs management driver manages vifs created np nic service different guest domains 
+depicts various management interactions host including dom management driver guest driver xen hv self virtualizing np nic create vif 
+shows signaling paths vif np nic guest domain 
+setup usage paths discussed detail 
+management functionality includes destruction vif changing attributes np nic vif 
+destruction requests initiated hypervisor vif removed guest 
+result guest vm shutdown security reasons vm compromised nics torn apart 
+certain attributes set dom management driver vif creation time change properties vif 
+example bandwidth available vif directly depends buffer space provided np nic host management driver 
+depends scheduling algorithm np processing packets corresponding different vifs 
+changing attributes affect runtime changes available bandwidth vif 
+order guest domain utilize vif provided np nic able write messages np sdram corresponding vif send queue 
+read messages host ram corresponding vif receive queue 
+addition signals generated np nic particular vif routed correct guest domain device driver take appropriate actions 
+np sdram part host pci address space 
+access available default privileged domains 
+order non privileged able access vif send queue address space management driver uses xen table mechanism authorize write access corresponding memory region requesting guest domain 
+guest domain request xen map region page tables 
+page table entries installed guest domain inject messages directly send queue 
+security reasons ring buffer structure part region read mapped guest part containing packet buffers mapped read write 
+necessary ring buffer structure writable malicious guest influence np read arbitrary locations inject bogus packets network 
+host api interactions controller domain management driver 
+id sq rq 
+vif channel create 
+sq rq irq guest path hypervisor np nic control 
+vif create 
+sq rq irq signal path vif 
+rq receive queue guest domain vif driver 
+map rq pages 
+sq pages 
+register irq sq send queue management interactions host self virtualizing np nic create vif current implementation host memory area accessible np bounce buffers owned controller domain 
+management driver access region belonging particular vif corresponding guest domain 
+guest domain requests xen map region page tables subsequently receive messages directly vif receive queue 
+part region containing ring buffer structure mapped read part containing actual packet buffers mapped read write 
+ring buffer structure mapped read malicious guest influence np perform writes memory areas doesn corrupting domain state 
+note np access host memory extra memory copy required upstream direction involving bounce buffers eliminated making ring buffer writable guests install bus addresses 
+break isolation malicious guest install bus address ring buffer 
+address security isolation issue section 
+mappings created vif creation time remain effect life time vif usually life time guest domain 
+remaining logic implement packet buffers inside queues send receive operations implemented completely inside guest domain driver np micro engines 
+table mechanism described enforces security isolation guest domain access memory space upstream downstream vifs 
+guest domain perform management related functionality influence np perform illegal vif 
+current xen design interrupt virtualization responsibility driver domains physical access device 
+device interrupts routed xen corresponding driver domain responsibility generate appropriate logical interrupt signal sent xen correct guest domain 
+path high latency requires multiple protection level switches hv os scheduling multiple domains require context switches complete handling routing signal target 
+
+order reduce overhead self virtualizing devices implement interrupt virtualization xen 
+master interrupt generated np nic intercepted xen 
+xen determines set target vifs guest domains interrupt identifier register described previously directly sends signal requiring involvement domain 
+alternative approach virtualize interrupts controller domain 
+approach incur switching overhead entailed higher latency obviate hypervisor changes 
+quantified costs benefits associated alternative approach plan 
+alternative techniques efficient upstream communication outlined previous section latency overhead reduced removing extra copy guest domain 
+possible devices access host memory restrictions systems support forcing modifications upstream ring buffer go protected interface 
+check bus address installed corresponds memory address owned guest domain 
+batched order amortize high costs hypervisor calls current architectures 
+requires additional device specific code pushed hypervisor desirable 
+alternative relatively costly approach outlined perform runtime checking 
+self virtualizing device check guest page tables ensure target bus address belongs guest dma upstream transfer micro engines started 
+page table remain locked entire duration transfer 
+plan access cost alternatives implementation 
+hardware appropriate solution problem device access host memory 
+instance new hardware assisted virtualization systems amd hardware support device exclusively domain 
+device dma certain bus addresses belong domain owning 
+rogue domain programs device dma controller dma area doesn transfer aborted runtime ownership check 
+enhanced support multiple virtual devices real physical device support dev virtual device 
+evaluation experimental setup experiments reported hosts attached np nic 
+gigabit network ports np nics connected gigabit switch 
+host regular gigabit ethernet card connects separate subnet developmental 
+evaluate costs benefits device self virtualization conjunction host virtualization xen hv 
+sets experiments performed 
+set uses np nic regular non self virtualized ethernet device accessible controller domain dom 
+device tunnels packets back forth physical interface np nic device driver running dom 
+virtualized dom xen software bridging generic network frontend backend network drivers 
+solution total number network packet copies dom device driver device driver running self virtualized environment 
+backend driver uses page flipping pass packets frontend network driver running inside 
+second set experiments uses self virtualized np nic discussed section provide vifs directly guest domains controller domain involvement network path 
+compare performance self virtualized approach vs non self virtualized base case 
+hosts dual way ht pentium total logical processors ghz servers gb ram running xen 
+dom runs linux kernel redhat enterprise linux distribution run linux kernel small distribution 
+embedded boards ixp np mb sdram running linux kernel preview kit distribution 
+non self virtualized case experiment uniprocessor dom smp dom support processors 
+default xen cpu allocation policy cpus assigned dom share second cpus 
+metrics evaluate performance virtual ethernet devices provided guest domains latency throughput 
+latency simple libpcap client server application termed measure packet round trip time guest domains running different hosts 
+client sends byte probe messages server packet sockets sock raw mode 
+packets directly handed device driver linux network layer processing 
+server receives packets directly device driver immediately echoes back client 
+client sends probe packet server waits indefinitely reply 
+receiving reply waits random amount time ms sending probe 
+rtt serves indicator inherent latency network path includes interface virtualization cost 
+detailed discussion breakdown latency terms host np components refer section 
+throughput iperf benchmark application 
+client server processes run guest vms different hosts 
+client sends data server seconds tcp connection default parameters average throughput flow reported 
+experiments run hosts access pattern number guest domains host 
+guest domains machine run server processes instance guest 
+guest domains second machine run client processes instance guest 
+guest domain running client application communicates distinct guest domain running server application host 
+total simultaneous flows system 
+experiments involving multiple flows clients started simultaneously specific time pre spawned guest domains 
+assume time guest domains kept synchronized hypervisor seconds resolution 
+experimental results latency shows rtt reported np nic self virtualizing capability 
+axis total number concurrent guest domains host machine 
+axis average latency concurrent flows flow connects average latency computed follows server latency median latency median measure central tendency flow robust outliers occur due unrelated system activity specially heavy load guest domains 
+results demonstrate self virtualization obtain close latency reduction vifs 
+latency reduction results non involvement dom network path 
+particular cost scheduling dom demultiplex packet bridging code sending packet frontend device driver correct guest domain saved receive path cost scheduling dom receive packet guest domain frontend determining outgoing network device bridging code saved send path 
+latency single vif np nic self virtualized similar np nic self virtualization dom demonstrating cost self virtualization low fully contained device hv 
+latency value increases cases number guest domains number simultaneous flows increases increased cpu contention guests 
+due interrupt identifier sharing latency self virtualized np nic increases past non self virtualized np nic vifs 
+case identifier bit shared vifs requires average latency ms self virt vifs non self virt vifs dom non self virt vifs smp dom total number concurrent guest domains latency np nic self virtualization 
+dotted line represents latency dom np nic self virtualization 
+redundant domain schedules average signal received correct domain 
+system cpus available domain schedules require context switching 
+results demonstrate non self virtualizing case latency vifs smp dom slightly uniprocessor dom 
+described previously dual processor enabled smp dom runs physical cpus 
+guest domains scheduled share resources dom 
+shared resources include data cache tlb caches 
+sharing effectively reduces speed guest domain execute 
+case uniprocessor dom half share physical processor dom scheduled exclusively utilize shared resources execute maximum possible speed reducing latency 
+latency degrades due cpu contention guests expect see better performance large way smp 
+case self virtualization solution perform better guests virtual interrupt identifier shared 
+signaled domains running different cpus 
+performance non self virtualized solution remain similar case single guest domain way smp results shown 
+throughput shows throughput tcp flow reported iperf np nic self virtualization 
+setup similar latency experiment described 
+cumulative throughput simultaneous flows shown axis 
+results observations performance non self virtualized case self virtualized case large numbers guest domains 
+factors contribute performance drop non self aggregate throughput mbps self virt vifs non self virt vifs dom non self virt vifs smp dom total number concurrent guest domains tcp np nic self virtualization 
+dotted line represents throughput dom np nic self virtualization 
+virtualized case suggested including high cache misses instruction overheads xen due remapping page transfer driver domain guest domains instruction overheads driver domain due software ethernet bridging code 
+comparison self virtualizing vifs add overhead xen interrupt routing overhead incurred micro engines software bridging 
+performance single vif np nic self virtualized similar np nic dom non self virtualization mode 
+shows cost self virtualization low purely np nic hv 
+performance smp dom slightly better uniprocessor dom non self virtualized case due overlap data copying receive queue dom device driver sending messages backend driver 
+performance non self virtualized case number guests lower single vif self virtualized case non self virtualized solution take advantage hardware parallelism np nic 
+non self virtualized case np nic runs tunnel mode performance similar single vif self virtualized case 
+throughput tcp flow depends multiple tunable parameters including tcp send receive window sizes 
+parameters set properties network link order obtain maximum throughput high speed network links 
+results iperf default sender receiver window sizes 
+larger values may provide better throughput cases 
+self virtualization micro benchmarks order better assess costs associated self virtualization micro benchmark specific parts micro engine host code determine underlying latency throughput limitations 
+cycle counting performance monitoring micro engines host 
+latency figures show latency results egress ingress paths respectively micro engines 
+sub sections egress path considered msg recv time takes context specific vif acquire information new packet queued host side driver transmission 
+involves polling send queue sdram 
+additional delay perceived application due scheduling contexts micro engine 
+scheduling non preemptive contexts frequently yield micro engine pkt tx packet transmit queue physical port 
+ingress path consider sub sections pkt rx packet receive queue physical port 
+channel demux demultiplexing packet destination mac address 
+crucial step self virtualization implementation 
+msg send copying packet host memory interrupting host pair pci write transactions 
+time taken network micro engine transmitting packet physical link receiving packet physical link shown consider part network latency 
+increasing number vifs cost egress path increases due due increased sdram polling contention micro engine contexts message reception host 
+cost ingress path show significant change hashing map incoming packet correct vif receive queue 
+effect cost increases latency small 
+host side performance monitoring count cycles message send pci write receive local memory copy guest domain interrupt virtualization physical interrupt handler including dispatching signals appropriate guest domains xen instruction 
+vifs host takes message receive message send interrupt virtualization 
+vifs average cost interrupt virtualization increases respectively costs message receive send show little variation 
+cost interrupt virtualization increases multiple domains need signaled redundantly case vifs 
+throughput micro benchmarked available throughput pci path host np read write reading writing large buffer pci bus host np 
+order model behavior np nic packet processing read write done bytes time 
+results benchmark 
+results show asymmetric nature pci interconnect favoring writes reads 
+addition demonstrate bottleneck currently lies ingress path np nic 
+exacerbated need bounce buffers due limited host ram np 
+better ingress path performance achieved dma engines available np board egress path host provide data fast np sustain link speed 
+architectural considerations virtual interrupt space currently small bit identifier interrupt source interrupt uniquely mapped signal virtual interface total number vifs size identifier 
+results redundant signaling guests domains redundant checking new network packets 
+cycles cycles total msg recv pkt tx egress path vifs vifs vifs total pkt rx demux msg send ingress path latency micro benchmarks vifs vifs vifs micro seconds micro seconds throughput mbps pci write pci read np host pci throughput host np np host depending order redundant signal provided domains domains suffer cumulative context switching latency scheduled simultaneously due cpu contention 
+depicts effect guest domains 
+demonstrate benefits attained having larger identifier artificially restrict size identifier ranging bit bits 
+identifier space shared domains id shared domains number bits 
+perform latency experiment application described guests assigned spot sharing list id setup explores maximum latency signal delivered right domain 
+shows boxplot median inter quartile range latencies 
+expected latency optimized domains share id results advocate large interrupt identifiers self virtualizing devices 
+insights heterogeneous multi cores modern computer architectures different interconnects buses connect various components system memory cpu particular topology 
+buses connected bridges providing communication path different components 
+shows typical organization modern architecture interconnection busses cpus memory devices 
+mch ich blocks represent glue logic chipset central platform important responsibility routing flows data system busses 
+systems chipset divided north south bridges known memory controller hub mch controller hub ich 
+mch primarily responsible fast connections cpus main memory video devices 
+ich responsible latency ms profile concurrent running guests devices typically handling pci isa extension busses faster pci express busses 
+organization implies non uniform communication latency bandwidth different components communication path cpu core memory usually faster higher bandwidth path cpu core devices 
+interconnect technologies improved throughput latency devices situate relatively far processing units subject data streams bus contention arbitration chipset path 
+particularly problematic devices low latency requirements short data transfers take advantage bursts 
+particular negative impact self virtualizing physical devices may potentially need issue larger number interactions order signal multiple domains housing virtual devices 
+upcoming chip multi processor systems multiple cpu cores placed closely chip 
+furthermore cores may heterogeneous including specialized cores graphics processors network processing engines similar nps general purpose cores 
+cores may share certain resources cache greatly reduce communication latency 
+heterogenous multi core environment provide better support efficient realization self virtualizing devices 
+quantify compare architectural latency effects current data path paradigm run simple ping pong benchmark passes short bit message back forth distinct physical cpu cores cpu core attached np shared memory mailboxes 
+cpu np benchmark local mailbox cpu core np host memory np sdram remote mailbox cpu core np np sdram host memory 
+cpu cpu benchmark mailboxes host memory 
+cases experiment polling directions poll poll polling direction latency ms number domains sharing interrupt effect virtual interrupt sharing coupled asynchronous notification irq direction poll irq receiving message local mailbox peer 
+case directions omitted host cpu send notification np packet processing cores micro engines 
+inter processor interrupts ipi send irq notification cpu cores pci interrupt send np host cpu 
+architecture ipi sent cpu core cpu core routed local programmable interrupt controller system bus pci interrupt sent np routed io apic pci bus intermediate bridge forwards interrupt system bus 
+results reported 
+times complete round trip measured instruction host cpu 
+difference core core results core np results attributable difference length complexity data path messages need traverse 
+np pci device path cpu cores np respective remote mailboxes longer cpu cores memory interconnect 
+extra distance adds overhead variance especially overload conditions various busses scheduling arbitration stress 
+difference polling asynchronous irq notifications caused costs saving restoring cpu context os level interrupt processing demultiplexing potentially shared irq lines 
+clear approaching heterogeneous multi core world substantial benefits attained positioning np communication cores close compute engines having cores dedicated particular tasks allow polling slow variable asynchronous interrupts 
+communication latencies polling solutions reduced cores share resources caches reduce eliminate costs associated cache invalidations accessing system memory 
+cost modern computer architecture interrupt solutions may reduced system bus connecting interrupt controllers cores architecture implemented chip 
+low latency advantages polling suffers heat signature causes cpu spin tight loop constantly exercises data cache 
+power factor important cores packed denser multi core chips 
+fortunately hardware solution exists available today form introduced monitor instructions 
+pair arm dedicated bus snooping circuit address shared memory mailbox put cpu core power efficient sleep state mailbox written 
+polling loop new instructions achieves latency low regular time minimizing power signature 
+unfortunately testbed cpus support new instructions benchmark different platform dell precision ghz pentium processor 
+results show power efficient polling suffers minor degradation compared regular polling terms latency 
+cause latency increase optimized sleep state exited interrupts adding false positive wake ups associated latency 
+place data manipulation heterogeneous cores provide specific functionality costly implement general purpose processors 
+example network processors perform network specific processing data include application specific data processing filtering information message streams certain business rules 
+multi core system resultant data information available cores case executing parts application logic 
+resource sharing modern systems enable host cpu access np sdram vice versa cost accessing shared resources place data manipulation different cores prohibitively costly shown cpu core cycles poll irq poll poll cpu np cpu cpu communication latency simple ping pong benchmark cpu cores core attached np 
+micro benchmarks np host pci read bandwidth limited 
+result multiple data copies different cores local memory efficiently operate 
+coupled fact application logic running core may complete knowledge information requirements cores may result large amounts wasted memory bandwidth increased latency due redundant data copying 
+heterogeneous multi core systems alleviate problem cores equidistant main memory able access shared information similar cost 
+cost accessing memory frequently bottleneck case collaborative place data manipulation multiple cores 
+early trends demonstrate multi core systems share caches level 
+increasing number cores raise multiple issues cache sharing 
+multiple cmp configuration chip small number cores coherency issue caches different chips require complex cache coherence protocols token coherence 
+second large scale cores chip large shared caches longer uniform access time depend wire distance core specific part cache accessed 
+require restructuring applications access behavior order extract performance 
+related modern computer systems perform variety tasks suitable execution general purpose processors 
+platform consisting general purpose specialized processing capability provide high performance required specific applications 
+prototype platform envisioned cpu np utilized unison 
+due limitations pci interconnect micro seconds cpu core cycles cpu cpu irq cpu cpu cpu cpu poll communication latency simple ping pong benchmark cpu cores 
+regular polling power efficient polling synchronous notification irq 
+special interconnect designed provides better bandwidth latency cpu np communication 
+multiple heterogeneous cores placed chip 
+cores share resources lower level shared memory cache greatly improving bandwidth latency inter core communication 
+similar heterogeneous platform consisting xeon cpus ixp np communicating pci interconnect 
+performance self virtualizing network device implementation greatly benefit better interconnect host cpu cores np shown microbenchmark results 
+self virtualizing network device provides virtual interfaces vifs implement virtual channel abstraction proposed 
+particularly device encapsulates certain hv functionality implements np closer physical network port host cpu 
+similar abstraction implemented frontend backend device driver model xen albeit solution offers improved performance terms latency bandwidth 
+similar approach proposed virtualizing new generation devices provide virtual channels directly guest domains 
+order improve network performance user applications multiple configurable programmable network interfaces designed 
+interfaces extended self virtualizing functionality 
+network device implements functionality virtualized environment osa network interface 
+interface uses general purpose powerpc cores purpose contrast np np nic 
+believe specialized network processing cores provides performance benefits domain specific processing allowing efficient scalable self virtualization implementation 
+furthermore virtual interfaces efficiently enhanced provide functionality packet filtering protocol offloading 
+nps generally standalone carrying network packet processing fast micro seconds path minimal host involvement previous collaborative manner hosts extending host capabilities fast packet filtering 
+np similar fashion implement self virtualizing np nic 
+application specific code deployment nps specialized cores explored 
+design initial implementation self virtualizing network interface device ixp network processor board 
+performance virtual interfaces provided self virtualizing np nic analyzed compared non self virtualizing np nic platforms xen hypervisor 
+performance self virtualized solution better non self virtualized case 
+scales better increasing number virtual interfaces increasing number guest domains 
+self virtualization enables high performance part ability reduce hv involvement device solution hv host responsible managing virtual interfaces self virtualizing device virtual interface configured actions necessary network carried hv involvement 
+limiting factor current platform hv remains responsible routing interrupt generated self virtualizing device appropriate guest domains 
+hardware enhancements larger interrupt id spaces support message signaled interrupts may alleviate problem 
+self virtualizing device allows host re configure virtual interfaces configurable terms available resources 
+properties device ideal candidate virtualizing sharing network resources server platform 
+improve current performance vifs plan changes current np nic implementation improve upstream throughput replacing micro engine programmed dma 
+improve tcp performance tcp segment offload 
+support large mtu sizes frames 
+changes improve performance self virtualized non self virtualized scenarios 
+part investigating logical virtual devices built self virtualizing np nics 
+simple example vif provides additional services programmability packet filtering header information application level filtering message streams 
+devices remote virtualization devices different hosts provide virtual device level abstraction guest domains 
+logical virtual devices enhanced certain qos attributes 
+amd virtualization technology 
+www amd com 
+ibm technology 
+ftp ftp software ibm com pc pc servers pdf pdf 
+intel pentium processor specification 
+www intel com products processor pentium index htm 
+intel virtualization technology specification ia intel architecture 
+ftp download intel com technology computing pdf 
+iperf 
+dast nlanr net projects iperf 
+message signaled interrupts pci sig specification 
+www com 
+osa express ibm 
+www ibm com servers library pdf pdf 
+tcpdump libpcap 
+www tcpdump org 
+cell architecture 
+www research ibm com cell 
+vmware esx server 
+www vmware com products esx 
+banga druschel mogul 
+resource containers new facility resource management server systems 
+proceedings osdi 
+bos de bruijn cristea nguyen 
+fairly fast packet filters 
+proceedings osdi 
+gardner 
+measuring cpu overhead processing xen virtual machine monitor 
+proceedings usenix annual technical conference 
+fraser hand harris ho pratt warfield barham neugebauer 
+xen art virtualization 
+proceedings sosp october 
+mackenzie schwan mcdonald 
+stream handlers application specific message services attached network processors 
+proceedings hot 
+
+device virtualization xen 
+xen summit january available www com files xs pdf 
+bock chu oliver 
+platform level support high throughput edge applications twin cities prototype 
+ieee network july august 
+kim burger 
+adaptive non uniform cache structure wire delay dominated chip caches 
+proceedings asplos 
+marty bingham hill hu martin wood 
+improving multiple cmp systems token coherence 
+proceedings hpca 
+mcauley neugebauer 
+case virtual channel processors 
+proceedings acm sigcomm workshops 
+menon santos turner zwaenepoel 
+diagnosing performance overheads xen virtual machine environment 
+proceedings st acm usenix international conference virtual execution environments 
+franke kashyap zheng 
+improving linux resource control 
+proceedings ottawa linux symposium 
+pratt fraser 
+arsenic user accessible gigabit network interface 
+proceedings ieee infocom 
+pratt fraser hand warfield nakajima mallick 
+xen art virtualization 
+proceedings ottawa linux symposium 
+riedel gibson 
+active disks remote execution network attached storage 
+technical report cmu cs carnegie mellon university 
+rosu schwan fujimoto 
+supporting parallel applications clusters workstations virtual communication machine architecture 
+proceedings cluster computing 
+uhlig 
+scalable multiprocessor virtual machines 
+proceedings rd virtual machine research technology symposium pages san jose ca may 
+whitaker shaw gribble 
+scale performance denali isolation kernel 
+sigops oper 
+syst 
+rev si 
+kim pai 
+efficient programmable gigabit ethernet network interface card 
+proceedings hpca 
+

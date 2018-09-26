@@ -1,0 +1,487 @@
+asynchronous exceptions haskell simon marlow simon peyton jones microsoft research cambridge andrew moran oregon graduate institute john reppy bell labs lucent technologies nd february asynchronous exceptions timeouts important robust modular programs extremely difficult program programming languages heavily restrict ban altogether 
+extend earlier added synchronous exceptions haskell support asynchronous exceptions 
+design introduces scoped combinators blocking unblocking asynchronous interrupts somewhat surprising semantics operations suspend 
+uniquely give formal semantics system 
+note program committee 
+version workshop highlevel concurrent languages montreal sept 
+proceedings informal workshop rewritten obtained prior agreement pldi program chair 
+important goal language design support modularity 
+concurrent languages goal means language support localizing synchronization issues support composing components interference 
+concurrent language feature appears antithesis modularity asynchronous signaling killing thread 
+definition signaling occur point target thread execution locks held target may properly released invariants may maintained 
+reasons concurrent languages thread libraries support truly asynchronous signalling discouraged 
+situations allowing thread asynchronously signal thread extremely useful 
+example wish provide timeout operator limits execution time computation wish run different computations parallel result terminating 
+extension concurrent haskell supports true pldi :10.1.1.30.8705
+chronous signalling robust modular way 
+principal contributions follows ffl explain fully asynchronous signalling useful opposed semi asynchronous signalling feasible section 
+fact imperative languages polling implement semi asynchronous signalling mechanism explain signalling necessarily truly asynchronous purely functional languages concurrent haskell 
+ffl propose extension concurrent haskell supports asynchronous delivery exceptions threads section 
+mechanism allows thread terminate 
+ffl motivated subtle race conditions introduce control mechanism postponing delivery asynchronous exceptions scoped combinators block unblock section 
+necessary allow indefinitely blocking operations interrupted show mechanisms enable acquire release locks safely presence asynchronous exceptions section 
+ffl give operational semantics concurrent haskell section extend asynchronous exceptions section 
+precise specification exactly asynchronous exceptions crucial programmers implementors asynchronous exceptions subtle 
+believe formalization asynchronous exception interrupt mechanism 
+addition give definitions useful combinators built top low level exception primitives including composable timeout combinator sections outline implementation asynchronous exceptions associated primitive operations section 
+asynchronous exceptions high level languages provide exceptions way support robust handling error conditions 
+errors signaled throwing exception handled catching exception 
+say exception normally mean synchronous exception sense exception raised direct consequence executing program 
+examples include divide zero pattern match failure explicitly raising user exception 
+synchronous exceptions relatively tractable ffl denotation meaning expression says evaluating expression raise synchronous exception specifies set exceptions may raised 
+words synchronous exceptions expression may raise properly part semantics expression 
+ffl follows compiler reasonably infer approximation set synchronous exceptions expression possibly raise 
+exceptions provide control flow mechanism signalling handling exceptional conditions natural consider extending exception handling mechanism include asynchronous exceptions 
+asynchronous exceptions raised result external event signal thread occur point execution 
+evaluation expression yield asynchronous exception sensibly consider asynchronous exceptions part semantics expression 
+property asynchronous exceptions tractable semantically programmer standpoint synchronous exceptions 
+compelling reasons support asynchronous exceptions speculative computation 
+parent thread start child thread compute value speculatively parent thread decide need value want kill child thread 
+timeouts 
+computation complete specified time budget aborted 
+user interrupt 
+interactive systems need cancel computation started example user clicks button web browser 
+resource exhaustion 
+haskell implementations stack heap essentially finite resources reasonable inform program memory running order take remedial action 
+exceptions occur program point natural treat asynchronous 
+naive approach problems provide mechanism thread kill thread 
+mechanism gets job done creates serious problems 
+thread killed holds lock lock get released 
+thread process mutating shared data structure reestablish data structure invariants 
+reasons simple kill mechanism unacceptable 
+practice concurrent languages provide mechanism thread asynchronously signal thread 
+common semi asynchronous mechanisms polling target occasionally checks signals safe points reasons keep notions distinct orthogonal main points 
+see section discussion 
+target accepts signals certain designated points 
+example terminate thread set global flag rely thread periodically check flag done posix threads modula java section elaborates 
+semi asynchronous approach avoids breaking synchronization abstractions non modular target code written signalling mechanism 
+worse semi asynchronous approach simply incompatible purely functional language concurrent haskell 
+problem polling global flag functional operation concurrent haskell program time spent purely functional code 
+hand absolutely problem abandoning purely functional computation point asynchronous exceptions safe functional setting 
+short functional setting fully asynchronous exceptions necessary safe imperative context exceptions solution unsafe 
+reasons semi asynchronous approach universal imperative languages 
+motivations concern premature abortion computation 
+deal resumption interrupted computation resumed 
+deal killing rogue threads threads exploit mechanisms ignore asynchronous exceptions 
+concurrent haskell concurrent haskell extends standard haskell small set primitives creating new threads performing simple inter thread communication forkio io :10.1.1.30.8705
+io threadid io threadid sleep int 
+io data mvar io mvar putmvar mvar 
+
+io takemvar mvar 
+io throw exception 
+io catch io 
+exception 
+io 
+io new thread forked forkio informal understanding io computation passed forkio may arbitrarily interleaved current computation 
+cooperative preemptive implementations concurrent haskell exist 
+forkio function returns threadid forked thread 
+thread obtain threadid calling 
+support equality 
+threads sleep specified period time microseconds calling sleep 
+mvars generic synchronization mechanism similar structures id 
+value type mvar thought box possible states empty containing value type takemvar operation waits finds box empty removes returns contents 
+putmvar operation puts new value box waking threads waiting mvar full waits mvar full 
+mvars complex datatypes concurrent communication built including typed channels semaphores :10.1.1.30.8705
+synchronous exception raised throw caught catch 
+computation catch runs succeeds result result catch 
+raises exception handler run passing exception raised types throw catch identical ioerror catch operations haskell standard enlarged ioerror type exception take account non io exceptions 
+asynchronous exceptions haskell ready asynchronous exceptions 
+start adding new primitive concurrent haskell enable thread asynchronously raise exception throwto throwto threadid 
+exception 
+io informally meaning throwto exception raised thread soon possible call returns immediately 
+practice exception may delivered target thread time running processor machine 
+thread died completed throwto trivially succeeds 
+note implementing throwto simple target thread may blocked mvar woken exception raised 
+implementation throwto covered detail section 
+note throwto source asynchronous exceptions system asynchronous interrupts environment may converted asynchronous exceptions programmer 
+safe locking consider issues raised writing code presence asynchronous exceptions 
+example illustrates number issues locking provide concurrency control shared mutable state 
+important asynchronous exceptions handled leaving shared mutable state internally inconsistent state 
+concurrent haskell shared mutable state normally represented mvar holds value current state 
+thread wishing access state take value mvar leaving temporarily empty put new state back mvar 
+single thread access state time 
+problem approach exception raised thread holds mvar left empty state deadlock may ensue 
+process safe presence synchronous exceptions straightforward simply arrange exception raised building new value state old value replaced mvar exception propagated caller 
+mvar question compute io operation takes old state returns new state code look takemvar catch compute 
+putmvar throw putmvar fine synchronous exceptions presence asynchronous exceptions race condition exception occur just takemvar catch exception handler place restore state 
+try fix hole moving catch takemvar opens race window exception occur takemvar causing putmvar replaces old state block forever full mvar addition fact expanding scope catch takemvar difficult propagate value old state exception handler 
+blocking exceptions clearly way postpone delivery asynchronous exceptions critical sections needed 
+standard method disable interrupts operations placed critical section block io unblock io idea executing block puts thread state asynchronous exceptions blocked unblock reverse 
+combinators somewhat clumsy purposes see try fix locking example block takemvar catch unblock process block 
+putmvar throw putmvar unblock notice try unblock asynchronous exceptions duration call compute 
+exception raised compute synchronous asynchronous control passed exception handler asynchronous exceptions unblocked opens race window possibility receive exception replacing contents mvar 
+somewhat unsatisfactory fragility programming model easy forget re enable exceptions critical section especially control flow complicated 
+better approach scoped combinators block io 
+io unblock io 
+io block takemvar catch unblock process 
+putmvar throw putmvar meaning block execute state asynchronous exception delivery blocked unblock reverse 
+block unblock combinators may arbitrarily nested 
+counting scopes nested blocks behave single block 
+notice scoping block closes race condition exception handler exception received process exit scope unblock enter exception handler inside blocked scope 
+appears solve original problem windows vulnerability thread terminate lock hand 
+new problem thread wait lock waits blocked state 
+violation cardinal rules concurrent programming block holding lock reason increases potential deadlock 
+practically means time thread waiting lock acquires lock 
+interruptible operations take mvar atomically install exception handler soon mvar 
+solution subtle change semantics blocking operations operation may need wait indefinitely resource takemvar may receive asynchronous exceptions enclosing block resource unavailable 
+operations termed interruptible operations 
+wait minute 
+just shot foot 
+previously block sure protection asynchronous interrupts 
+reasons adopting approach ffl having modification semantics takemvar behaves atomically enclosed block 
+takemvar may receive asynchronous exceptions right point acquires mvar 
+change takemvar unsafe inside block 
+ffl strange operations inside block may raise asynchronous exceptions exceptions synchronous nature specify exactly operations interruptible 
+code acquire mvar works fine addition semantics difference takemvar operation interruptible 
+note careful wording definition implication states interruptible operation interrupted resource attempting acquire available 
+looking back locking example previous section putmvar interruptible operation exception handler case putmvar non interruptible sure mvar empty 
+operational semantics section give operational semantics concurrent haskell exceptions proceed add exists published operational semantics concurrent haskell denotational semantics exceptions haskell operational semantics exceptions haskell far published semantics links concepts describes exceptions io monad :10.1.1.30.8705
+variable constant constructor ch char integer exception mvar threadid values 
+delta delta delta mn ch return putchar ch getchar putmvar mn takemvar sleep throw catch terms delta delta delta syntax values terms 
+new features asynchronous exceptions 
+far introduced new constructs informal definitions semantics section precisely specifies intended meanings 
+semantics stratified levels inner denotational semantics describes behaviour pure terms outer monadic transition semantics describes behaviour io computations 
+range terms language ranges values 
+value term considered inner purely functional semantics evaluated 
+values include constants lambda abstractions usual unusual ways ffl treat primitive monadic io operations values 
+example putchar value 
+done term purely functional world time hand outer behavioural semantics 
+way sleep return values 
+ffl monadic io values arguments arbitrary terms values 
+example putchar chr value putchar putchar strict data constructor 
+reason choice evaluating putchar argument done purely functional world done output operation take place 
+sections confuse mvar name mvar threadid name thread 
+treat mvar thread names normal variables may bound ff converted 
+program transitions give semantics describing program state evolves new program state making transition 
+program state consists collection threads mvars parallel see 
+lmm thread computation named finished thread named empty mvar named full mvar named holding restriction parallel composition syntax program states 
+comm assoc swap fn fn alpha ff gamma 
+ff gamma 
+par ff gamma 
+ff gamma 
+nu ff gamma 
+ff gamma 
+equiv structural congruence structural transitions 
+transition program state may may labelled event ff 
+write transition ff gamma 
+events ff represent communication external environment input output 
+just events ffl ch gamma gamma 
+means program state move writing character ch standard output 
+ffl ch gamma gamma 
+means program state move reading character ch standard input 
+ffl gamma 
+means program state move amount time elapsed 
+standard way define structural equivalence processes formalising idea solution processes la chemical machine :10.1.1.30.8705:10.1.1.30.8705
+congruence equivalence relation preserved process contexts satisfies standard rules contains alpha equivalence 
+rules par nu allow transitions parallel compositions inside restrictions respectively 
+equivalence rules comm assoc say associative commutative scope restricted expanded long interfere existing scopes equiv says free equivalence rules bring parts program state 
+transition rules transition rules standard io concurrency operations 
+transitions take place evaluation contexts evaluation context defined delta catch em find evaluation site repeatedly look inside argument catch 
+rules standard form describe briefly sequencing io operations handled 
+left operand return rule bind passes returned value right operand 
+input output 
+canonical io operations putchar getchar described putchar getchar 
+basic operations openfile analogous semantics 
+rule sleep deliberately sleep 
+label represents external clock interrupt indicating microseconds passed sleep blocked 
+correct implementation guarantee microseconds passed thread executing sleep woken delay acceptable 
+mvar operations described rules putmvar takemvar 
+recall represents empty mvar represents full mvar containing note takemvar finds empty mvar transition take place stuck thread modeled semantics 
+similarly putmvar mvar full thread transitions 
+forking new thread described rule fork threadid allows thread access threadid 
+synchronous exceptions raised throw propagated propagate caught catch catch 
+rule handle explains catch behaves computation protects succeeds 
+termination 
+rules return gc throw gc state final return values uncaught exceptions lost proc gc says main thread finished threads eventually die 
+rules value evaluation site 
+example rule bind evaluation site application match rules described far 
+course evaluate application inner semantics rules eval raise 
+inner operational semantics described 
+defines relations terms ffl convergence terms written meaning closed term evaluates value ffl exceptional convergence written means closed term may raise exception apart describing call name evaluation language inner semantics allows raise catch exception purely functional code function le return gamma 
+le bind le putchar ch ch gamma gamma 
+le return putchar le getchar ch gamma gamma 
+le return ch getchar le sleep gamma 
+le return sleep le putmvar mm gamma 
+le return putmvar le takemvar gamma 
+le return takemvar le gamma 
+le return fn le forkio gamma 
+le return fn fork le gamma 
+le return threadid le throw gamma 
+le throw propagate le catch return gamma 
+le return catch le catch throw gamma 
+le handle mm gamma 
+return gc em gamma 
+throw gc main gamma 
+main proc gc io le gamma 
+le eval io le gamma 
+le throw raise transition rules 
+raise exception 
+crucial characteristic inner semantics convergence exceptional convergence mutually exclusive term evaluates value raises exception 
+convergence deterministic exceptional convergence 
+words term may raise different exceptions raise evaluated decided run time 
+essence imprecise exceptions 
+inner semantics rule eval lifts evaluation inner semantics transition outer system 
+stipulate prevent infinite sequences form gamma 
+gamma 
+gamma 
+delta delta delta similarly evaluation yields exception rule raise replaces failing evaluation throw exception 
+operational semantics asynchronous exceptions extend semantics support asynchronous exceptions introduced section 
+firstly need add new values throwto block unblock throwto block unblock secondly need add new form process represents exception flight jt ek jt ek represents exception thrown thread received 
+thirdly need extend notion evaluation context distinguish blocked unblocked contexts delta catch fh block unblock split level evaluation context allows specify innermost context thread block unblock 
+unblocked context form unblock follow convention parsing term view matching evaluation context rules contexts maximal 
+need distinguish threads runnable stuck trying putmvar full mvar trying take empty mvar 
+denote runnable threads superscript ffi lmm ffi stuck threads superscript ffl lmm ffl write lmm mean thread runnable stuck know care 
+rules concern runnable threads normally elide ffi interests reducing clutter 
+rules section valid new definition contexts apply runnable threads 
+rules change discussed 
+le putchar ch ch gamma gamma 
+le return ffi putchar le getchar ch gamma gamma 
+le return ch ffi getchar le sleep gamma 
+le return ffi sleep le forkio gamma 
+le return mmu fn fork le block return gamma 
+le return block return le unblock return gamma 
+le return unblock return le block throw gamma 
+le throw block throw le unblock throw gamma 
+le throw unblock throw le throwto gamma 
+le return mu jt ek throwto le unblock jt ek gamma 
+le unblock throw block receive le ffl jt ek gamma 
+le throw ffi interrupt le putchar ch ffi gamma 
+le putchar ch ffl stuck putchar le getchar ffi gamma 
+le getchar ffl stuck getchar le sleep ffi gamma 
+le sleep ffl stuck sleep le putmvar mn ffi gamma 
+le putmvar mn ffl stuck putmvar le takemvar ffi gamma 
+le takemvar ffl stuck takemvar transition rules asynchronous exceptions 
+new transition rules 
+rules revised versions rules section 
+rules concerned propagating return values exceptions block unblock unsurprising 
+rule throwto describes invoking throwto causes exception spawned separate entity caller throwto continuing immediately 
+rule receive says runnable thread may interrupted exception targeted threadid provided thread executing unblocked context 
+thread stuck may interrupted interrupt interruption allowed context 
+side effect interrupted thread runnable 
+express fact wait impetus outside world putchar getchar sleep may immediately stuck 
+say may allow signal environment take precedence 
+putmvar stuck putting full mvar takemvar stuck trying take empty mvar 
+building powerful combinators features introduced section expressive low level 
+advocate programming directly hope build library robust abstractions layered top primitives express common programming patterns 
+example embodies concept happens io 
+io 
+io possible implementation block catch unblock 
+throw return symmetric process abstractions forkio primitive asymmetric forks child parent continues parallel 
+symmetrical forms forking io 
+io 
+io io 
+io 
+io executes arguments concurrently returns result finish thread sent exception 
+evaluates arguments concurrently waits terminate returning results pair 
+informal descriptions simple presence asynchronous exceptions precise behaviour 
+instance happens asynchronous exception sent thread executing 
+get child threads 
+happens child threads raises exception 
+precise specification desired behaviour ffl run concurrently ffl result left finishes returns right finishes returns throw raises exception returns result 
+ffl thread executing asynchronous exception children 
+ffl behaviour undefined computation throws exception main thread 
+possible implementation uses child threads mvar hold result data exception block aid forkio catch unblock putmvar 
+putmvar bid forkio catch unblock putmvar 
+putmvar loop catch takemvar 
+throwto aid throwto bid loop loop throwto aid throwto bid case 
+return left 
+return right 
+throw note received exceptions children returned result raised exception 
+important throwto calls main thread non interruptible sure exceptions properly children children sent exception return 
+throwto interruptible properties hard guarantee see section discussion alternative design throwto interruptible 
+time outs having allows define composable timeout combinator timeout int 
+io 
+io timeout sleep case left 
+right 
+just timeouts may arbitrarily nested semantics ensure interfere 
+safe points immutable value represent data structure interested passed foreign language interface structure dealing large creating new operation expensive standard haskell mutable structures compilers support extensions 
+concurrent haskell mvars commonly hold immutable value equally conventional way semaphore protect directly mutable structure 
+mvar protect shared mutable data structure mutable array chances want disturbed operate exception received operation may leave mutable data structure inconsistent state 
+case sense omit call unblock locking example previous section 
+compute going take long time 
+explicitly program checkpoints code compute receive pending asynchronous exceptions designated safe points execution 
+easiest way implement safe point unblock short period time io unblock return implementation implementing synchronous exceptions done standard way ffl catch pushes catch frame stack contains pointer handler execute argument 
+ffl exception raised stack truncated including nearest enclosing catch frame control passed handler exception argument 
+additional issue haskell computations progress thunks 
+program may attempt demand value thunk evaluation exception triggered 
+exception synchronous know re evaluating thunk yield exception safe overwrite thunk closure immediately raise exception demanded 
+details 
+implementation asynchronous exceptions differs treatment thunks sure reevaluating thunk raise asynchronous exception revert thunk initial state freeze point exception received 
+difference techniques operational effect observable programmer 
+technique freezing thunks 
+implementation block unblock extend implementation exceptions block unblock operations ffl extend thread data block include current state asynchronous exceptions blocked unblocked 
+blocked state thread data block maintains queue threads waiting raise exceptions thread recall throwto synchronous sense raising thread wait exception delivered continue ffl extend catch frame include state blocked unblocked asynchronous exceptions time frame placed stack 
+necessary restore correct state handling exception 
+ffl add new types stack frame block frame unblock frame 
+execution returns unblock frame asynchronous exceptions unblocked waking threads blocking queue frame removed stack 
+block frames identical exceptions blocked execution returns frame 
+implementation block fairly straightforward 
+exceptions blocked go step 
+set asynchronous exception state current thread blocked 
+
+block frame top stack remove 
+push unblock frame stack 
+
+continue executing argument block 
+implementation unblock obtained reversing block unblock sequence adding extra step continuing wake threads current thread exception blocking queue 
+step appears confusing designed avoid unnecessary stack growth 
+consider example block unblock block push unblock frame stack top stack reach unblock 
+simply pushed block frame calling stack look caller unblock frame block frame stack continue grow frames recursive call adjacent block unblock frames superfluous return simply block asynchronous exceptions immediately unblock pair block unblock frames 
+step implementation block designed remove extra frames functions run constant stack space 
+implementation throwto throwto operation quite straightforward ffl place exception target thread queue pending exceptions 
+may involve sending message target thread distributed multiprocessor implementation 
+ffl soon thread exits scope block regular intervals execution inside unblock check queue pending exceptions 
+queue non empty exception queue raised 
+design alternatives alternative design experimented time throwto synchronous operation waits exception delivered returning 
+design throwto interruptible operation block indefinitely 
+choice designs hard arguments favour approaches ffl synchronous version throwto easier program provides guarantee target thread received exception 
+hand synchronous throwto interruptible operation cause headaches 
+ffl asynchronous version throwto easily implemented terms synchronous simply forking new thread perform throwto 
+reverse somewhat harder usually achieved mvar 
+ffl asynchronous throwto easier implement efficient multi processor distributed environment doesn require synchronisation target thread 
+single processor environment designs equally straightforward implement 
+ffl presentation semantics asynchronous version throwto simpler synchronous version synchronous version needs special case thread throwing exception extra cases deal throwto 
+proposal uses single datatype synchronous asynchronous exceptions 
+choose design simplifies presentation semantics arguments favor distinguishing type system 
+synchronous exceptions dependent local execution thread possible analysis check uncaught exceptions compiler optimize control flow statically matching throw catch pairs 
+adding asynchronous exceptions mix means expression source exception renders techniques useless 
+problem sequential code written thought asynchronous exceptions may break assumptions combinators 
+example put expression catch 
+context timeout combinator intercept timeout exception breaks combinator 
+argue universal handlers bad programming practice code quite reasonable sequential setting understands exactly exceptions expression raise 
+solution define datatypes exceptions alerts distinct catch operator type 
+haskell overload catch operator provide syntactic unification 
+java addresses similar problem distinguishing type system checkable exceptions methods declare checkable exceptions may raise 
+related knowledge language provides supports fully asynchronous exceptions way safely resorting gratuitous exception handlers recover exceptions 
+furthermore believe semantics formal accounting truly asynchronous signalling 
+erlang asynchronous exceptions kind processes linked process receive asynchronous exception dies reason 
+exception caught normal way 
+erlang way control delivery asynchronous exceptions providing opportunity delivered asynchronous message passing exceptions 
+control mechanism stateful scoped approach doesn allow safe exception handlers defined asynchronous exceptions enabled entry exception handler race window disabled 
+standard ml originally weak form asynchronous interrupt external control asynchronously raise interrupt exception 
+possible write robust handlers interrupt exception removed revision language 
+sml new jersey system uses general mechanism asynchronous signal handlers replacement 
+mechanism asynchronous exception causes current thread control reified class continuation passed signal handler 
+signal handler runs signals masked additional signals deferred handler done 
+signal handler may resume interrupted thread transfer control different thread 
+sml nj class continuations signal handler mechanism possible implement asynchronous signaling mechanism block unblock combinators 
+mechanism expensive unix kill system call internal signaling 
+block combinator preserve tail recursion see section 
+concurrent ml ocaml provide concurrency exceptions provides asynchronous signaling threads 
+concurrent languages provide support exceptions 
+example modula defines mechanism thread alert causes alert exception raised target 
+raising exception deferred target calls 
+alert mechanism formalized part larch specification modula thread synchronization 
+java supports similar mechanism unblocking waiting sleeping thread 
+thread waiting sleeping interrupt method merely sets thread interrupt flag polled interrupted 
+big difference mechanisms design fully asynchronous 
+java originally offered fully asynchronous exception method method thread class deprecated feature version 
+reason discussed section method may receive asynchronous exception making changes object mutable state feature dangerous program 
+parallel lisp scheme dialects support speculative computation form operator combinator 
+language child thread throw exception caught parent scope catch includes threads spawned 
+furthermore computations catch terminated siblings throwing thread 
+provides unwind protect form support cleanup exception thrown cleanup handler runs state multiple throws problem 
+main difference asynchronous signalling mechanisms mechanism motivated controlling speculative computation asynchronous signalling heavyweight mechanism affects tree threads 
+possible build similar mechanisms primitive construct 
+difference formal semantics 
+respects language may closest mechanism 
+thread invoke class continuation thread effect forcing control target thread call cc bound continuation 
+uses primitive mechanism define higher level combinators parallel 
+published description appear signal masking mechanism block unblock combinators 
+existing languages provided support asynchronous signaling operating systems mechanisms 
+best known example posix signal mechanism model signals sml nj 
+posix signals sufficient implement asynchronous signaling expensive operations involve user kernel transitions posix library code asynchronous signal safe 
+extending posix signals multithreaded programs written posix threads api pthreads proven problematic recommended practice multithreaded programs designate single thread handle asynchronous signals 
+pthreads api provide asynchronous method killing threads called thread cancellation 
+thread define type cancellation accepts deferred asynchronous enable disable cancellation 
+deferred cancellation called default behavior 
+mode cancellation messages deferred target thread executes library function defined cancellation point similar notion operations 
+mechanism maintaining stack cleanup routines provided allows threads restore invariants 
+asynchronous cancellation discouraged safely code hold resources modify global state 
+basic function pthread cancellation similar design language approach offers advantages programmer 
+block unblock combinators easier correctly changing operations pthreads 
+furthermore combinators support robust cleanup asynchronous exceptions pthread cleanup routines robust asynchronous cancellation mode possibility multiple cancellation requests 
+design advantage allowing signalled thread continue executing cancelled thread terminate cleanup 
+shown asynchronous exceptions incorporated concurrent haskell way safely robustly 
+changes required existing code safe presence asynchronous exceptions kept minimum 
+case pure code changes required able asynchronous exception enabled system property guaranteed type expression analysis required 
+means haskell large proportion libraries automatically thread safe automatically exception safe 
+asynchronous exception model advantages existing methods example compositional nature timeout function relies true asynchronous exceptions 
+synchronous exceptions just want modify code timing unavailable include checkpoints 
+scoped nature block unblock combinators leads clean elegant operational semantics concurrent haskell exceptions 
+hope able formulate proofs semantics simple combinators built primitives properties expect 
+experience asynchronous exception model limited construct prototype fault tolerant server heavy timeouts multithreading exceptions 
+tony hoare valuable comments earlier draft 
+grateful claus detailed comments earlier draft apart improving generally led correction bug semantics 
+armstrong virding williams 
+concurrent programming erlang 
+prentice hall europe second edition 
+arnold gosling 
+java programming language 
+java series 
+addison wesley second edition 
+barth nikhil arvind 
+structures extending parallel non strict functional language state 
+hughes editor proc 
+fpca volume lncs pages 
+springer verlag 
+birrell guttag horning levin 
+thread synchronization formal specification 
+nelson editor systems programming modula chapter pages 
+prentice hall englewood cliffs nj 
+gabriel mccarthy 
+queue multiprocessing lisp 
+proc 
+lfp pages aug 
+ito matsui 
+parallel lisp language kernel specification 
+parallel lisp languages systems volume lncs pages june 
+leroy emy vouillon doligez 
+objective caml system documentation user manual release 
+technical report inria 
+caml inria fr ocaml 
+milner 
+polyadic calculus tutorial 
+brauer schwichtenberg editors logic algebra specification 
+springer verlag 
+milner tofte harper macqueen 
+definition standard ml revised 
+mit press cambridge massachusetts 
+moran lassen peyton jones 
+imprecise exceptions inductively 
+proc 
+volume electronic notes theoretical computer science paris sept 
+peyton jones hughes augustsson barton boutel burton fasel hammond hinze hudak johnsson jones launchbury meijer peterson reid runciman wadler 
+report programming language haskell 
+technical report feb 
+peyton jones gordon finne :10.1.1.30.8705
+concurrent haskell 
+proc 
+popl pages st petersburg florida jan 
+acm press 
+peyton jones reid hoare marlow henderson 
+semantics imprecise exceptions 
+proc 
+pldi volume acm sigplan notices pages 
+acm press may 
+reid 
+handling exceptions haskell 
+research report yaleu dcs rr yale university aug 
+reid 
+putting spine back spineless tagless machine implementation 
+proc 
+ifl selected papers volume lncs pages 
+springer verlag 
+reppy 
+asynchronous signals standard ml 
+technical report tr cornell university computer science department aug 
+reppy 
+concurrent programming ml 
+cambridge university press oct 
+thread thread suspend thread resume runtime deprecated 
+java sdk standard edition documentation 
+java sun com products jdk docs guide misc html 
+yi 
+compile time detection uncaught exceptions standard ml programs 
+sas volume lncs pages sept 
+

@@ -1,0 +1,312 @@
+safe space threads standard ml lambda ken cline peter lee chris okasaki chris stone carnegie mellon university pittsburgh pennsylvania threads easily implemented class continuations straightforward approaches doing lead space leaks especially language exceptions standard ml 
+show space leaks arise give new implementation threads safe space 
+ability provide simple implementations lightweight concurrent threads cited great attractions class continuations 
+show task nearly simple previously thought concerned space safety 
+programming threads common domains networking operating systems user interfaces 
+threads strictly necessary applications designing systems threads leads system structure easier understand modify 
+principles programming threads undergraduate textbook operating system design 
+excellent source advice nelson book modula 
+lambda revised version acm sigplan workshop continuations 
+research sponsored part advanced research projects agency ito title fox project advanced languages systems software darpa order 
+issued esc ens contract 
+
+views contained document authors interpreted representing official policies expressed implied advanced research projects agency government 
+signature coroutine sig exception val fork unit 
+unit 
+unit val yield unit 
+unit val exit unit 
+interface simple threads package 
+known threads implemented elegantly language class continuations scheme standard ml extended callcc 
+naive implementations suffer potential space leaks involving continuations involving exceptions 
+space leak involving continuations easily optimized away compiler space leak involving exceptions 
+describe necessary implement safe space threads standard ml class continuations provided standard ml new jersey system sml nj 
+developing simple threads package point fix bizarre behavior caused exceptions 
+describe potential space leaks show avoided clever callcc 
+sketch difficulties achieving comparable implementation control operators felleisen control prompt danvy filinski shift reset gunter emy riecke set 
+draw 
+simple threads package considering simple threads interface shown 
+operations specified signature coroutine fork yield exit 
+fork procedure takes function argument evaluates expression newly created thread 
+new process called child process process called fork parent process 
+notion main thread thread created call fork 
+main thread thread return value significant result result entire program 
+concurrency threads obtained having individual threads voluntarily suspend giving threads chance execute 
+sense threads cooperative coroutines parallel pre time sliced processes thread calls yield place queue ready processes activate thread 
+ready processes typically executed order considered bad programming style depend ordering 
+exit procedure terminates current thread activates ready thread 
+yield call exit returns 
+transfers control directly waiting thread raises exception threads remaining queue 
+child thread implicitly exits expression evaluating returns 
+subtleties involving happen main thread returns 
+implicitly wait threads finish 
+point view implementor simplest approach threads silently disappear main thread returns 
+approach describe 
+questions happen main thread calls exit returning allowed 
+shall return matter section 
+implementation class continuations provided sml nj built type cont primitive operators callcc throw 
+standard approach advocated wand represent thread continuation 
+type thread unit cont sleeping thread activated throwing continuation 
+queue ready processes easily implemented queue continuations 
+standard structure queue implementation imperative queues provided sml nj library definition ready queue extending system pre emption straightforward exercise suitable primitives interrupting programs regular intervals 
+see done sml nj interested reader consult source code ml threads cml part sml nj standard distribution available ftp research bell labs com 
+space safety considerations discussed applicable coroutining pre threads 
+val thread queue queue queue couple auxiliary functions turn useful 
+called dispatch activates thread ready queue 
+threads waiting ready queue exception raised 
+exception fun dispatch val queue dequeue handle queue dequeue 
+raise throw second auxiliary function simply shorthand enqueuing continuation ready queue fun enqueue queue enqueue helper functions hand simple definitions main thread routines 
+fork fun fork callcc fn parent 
+enqueue parent exit start new process capture continuation parent process enqueue 
+activate child function return value irrelevant returns thread calling exit 
+note ways schedule parent child threads fork 
+instance code enqueues child process continues parent 
+fun fork val child callcc fn return 
+callcc fn child 
+throw return child exit enqueue child alternatively enqueue threads call dispatch run thread ready queue 
+yield definition fun yield callcc fn thread 
+enqueue thread dispatch capture enqueue current continuation call dispatch run thread 
+exit immediately starts thread 
+fun exit dispatch note exit capture current continuation calling dispatch 
+current thread lost 
+implementation essentially similar wand implementation threads scheme 
+existing implementations threads standard ml ml threads cml differ mainly treatment exceptions discussed section 
+problem exceptions simple implementation exhibits bizarre behavior presence exceptions 
+key question thread raises exception caught thread exception go 
+obvious callcc involved keep mind current exception handler stack part context captured callcc restored throw armed knowledge easily see yield effect exception handlers particular process handlers active yield active yielding thread resumes 
+fun yield callcc fn thread 
+enqueue thread dispatch current handlers captured callcc 
+process reaches head ready queue handlers restored throw dispatch 
+formal semantics combining exceptions cass continuations section 
+reasoning fork effect exception handlers parent process 
+note callcc saves current handlers change 
+inspecting code fork fun fork callcc fn parent 
+enqueue parent exit see executed exception context inherited parent process 
+exception escapes child thread may caught parent thread 
+example program print surprise fun child div fun parent fork child handle div 
+print surprise fork parent may reasonable small change see behavior undesirable 
+fun child div fun parent fork child handle div 
+fork parent child raises div exception parent catches exception increments note parent thread ready queue 
+eventually reaches head ready queue dispatched increment second time 
+example exception prematurely sleeping process 
+slight change exception process exited 
+examples rely fact fork suspends parent thread immediately executes child thread 
+similar examples devised different scheduling policies 
+fun child yield div fun parent fork child handle div 
+fork parent example child thread voluntarily yields control parent thread executes completion 
+child thread resumes raises exception re executes parent process 
+situation worse slightly different implementation strategy threads 
+example threads represented functions type unit 
+unit continuations 
+function passed fork transferred directly ready queue possibly minor modifications involving exception handlers 
+thread suspended continuation coerced function partially applying throw 
+representation child thread may executed exception context parent exception context thread happens active child thread reaches head ready queue 
+exceptions escape child thread caught parent unrelated thread 
+returning implementation threads continuations take step solving kinds problems guaranteeing exception escapes thread 
+accomplish installing new thread universal handler catch discard errant exceptions 
+fun fork callcc fn parent 
+enqueue parent handle 
+exit quite 
+exit culprit 
+words raised exception calling exit ready queue empty threads exited 
+handler installed fork catch exception exception immediately re raised subsequent exit 
+exception caught internal handler parent resurrecting parent dead handler wrapped parent fork 
+case exception immediately re raised subsequent exit 
+fashion exception propagate ancestors way main thread 
+problem arise child thread calls exit main thread exited 
+result main thread result entire program reasonable forbid main thread calling exit 
+easily accomplished keeping track current thread main thread child thread raising new exception main thread attempts call exit 
+approach thread ready queue executing child thread main thread 
+dispatch fail longer need exception 
+recall main thread returns opposed exiting sleeping threads silently disappear 
+forbid main thread exiting provide way main thread find safe return threads exited 
+difficult provide primitive allow main thread sleep threads exited 
+details primitive changes necessary prevent main thread calling exit see full implementation appendix space safety threads package term space safety refers informally notion implementation feature mechanism normal leak heap stack storage 
+notion informal depends intricate details particular implementation constitutes normal 
+common practices areas automatic garbage collection allow useful space safety mechanisms threads 
+threads implementations far safe space 
+suffer kinds potential space leaks 
+kind leak child thread unnecessarily retains parent continuation 
+potential leak optimized away compiler 
+second kind leak serious 
+leak child thread unnecessarily retains parent exception handlers 
+callcc throw raise handle cps translation exceptions unfortunately second leak optimized away enormous advances compiler technology 
+fact implementations leak storage surprising implementations ml threads cml years 
+speculate kinds idioms space leaks prove problematic arisen leaks hidden obvious leaks 
+experience leaks shown fatal long running applications web server 
+explanatory purposes assume compiler uses cps intermediate representation 
+yields direct description implementation exception handling continuation primitives allowing succinct explanation space leaks 
+leaks specific cps compilers compilation strategy problems 
+shows standard translation exception continuation primitives cps write denote translation term translated expressions parameterized standard continuation exception handling continuation invoked raise 
+translation relatively straightforward cases simply standard call value cps translation augmented pass exception continuation 
+unusual cases raise discards standard continuation invokes exception continuation handle extends exception 
+simplicity assume handle takes expressions evaluating handler function accepts exception argument 
+setting space leaks arise child thread retains parent standard continuation exception handling continuation see occurs consider fork function 
+fun fork callcc fn parent 
+enqueue parent handle 
+exit note code sequence handle 
+exit comprises child thread 
+applying cps translation call fork get fork enqueue exit continuation mentions standard continuation exception continuation parent simple tracing garbage collector hang continuations case exit returns invokes raises exception invokes 
+parent thread exits garbage collected child thread releases 
+fact continuations part context descendants child thread parent thread memory may retained child thread child thread descendants exited 
+fortunately reasonable hope compiler recognize exit ends call throw invokes standard continuation 
+rewrite exit slightly fun dequeue queue dequeue fun exit throw dequeue cps translation exit exit dequeue syntactically obvious exit standard continuation smart compiler optimize translation fork inlining exit disappears fork enqueue dequeue simply replacing exit exit arbitrary small continuation 
+case system release extraneous pointer parent continuation avoid space leak 
+surprisingly sml nj appear optimize throws fashion 
+picture turn second space leak child thread retains parent exception handling continuation 
+eliminate consider version exit inlined 
+dequeue happen know forbidden main thread calling exit queue ready threads empty child thread executing dequeue raise exception 
+safe replace dummy continuation unreasonable expect compiler run time system able prove fact 
+extremely sophisticated analysis tools better tools communicating kinds system invariants compiler realistic hope compiler eliminate thread may retain context ancestors space leaks noticeable deeply nested threads 
+example imagine server architecture request processed thread 
+thread receives request immediately forks new thread wait request 
+architecture dth request processed thread depth obviously server afford space leak grows new thread 
+exactly kind architecture appears system 
+safe space threads implementations far problems arise child thread hangs parent context 
+avoid problems arranging thread executed top level context parent context 
+class continuations capture thread activating context top level 
+version val unit 
+unit cont callcc fn return 
+val callcc fn fc 
+throw return fc handle 
+exit fork start new thread context 
+fun fork callcc fn parent 
+enqueue parent throw looking cps translation fork enqueue see child discards parent context 
+avoid space leak fact slightly better small change 
+child thread creates exception handler 
+exception handlers prefer children share handler 
+accomplished capturing thread activating context inside exception handler checks uncaught exceptions 
+val unit 
+unit cont callcc fn return 
+val callcc fn fc 
+throw return fc handle 
+exit child retains extra context captured 
+includes handler inside handlers active created 
+careful default handler catches uncaught exceptions top level 
+addition compiler smart realize exit return may accidentally retain exit continuation return large 
+hope optimized away provide hints compiler continuation deallocated 
+example add superfluous raise exit perfectly clear child thread return 
+val unit 
+unit cont callcc fn return 
+val callcc fn fc 
+throw return fc handle 
+exit raise raise executed just convince current versions sml nj release unnecessary continuation 
+course recommend ugly hack general may appropriate library code expected efficient possible 
+measurements determine severity space leaks naive implementation threads conducted experiments 
+results shown table 
+compared implementations fork versions test loop 
+implementations fork variations naive implementation section 
+fun fork callcc fn parent 
+enqueue parent exit versions fork labeled handler add exception handler child thread discussed section 
+handle 
+versions labeled raise add spurious raise exit trick compiler releasing continuation 
+note sml nj optimizes raise release continuation optimize throw 
+version test loop handler handler version fork cont cont cont cont handler raise raise handler raise raise top level activator table bytes leaked fork tests run dec alphastation mb memory sml nj version 
+measured amount live data iterations 
+reported sizes average increase iteration iterations 
+unexplained variations kb 
+bytes iteration runs iterations assume due vagaries garbage collection 
+exit raise final version fork uses top level thread activator section 
+test loop recursively forks new threads depth 
+fun loop yield parent finish fork fn 
+loop iteration loop begins yielding back parent immediately exits threads active time 
+versions test loop labeled handler add new exception handler fork 
+fork fn 
+loop handle 
+versions test loop labeled cont add extra action fork fork continuation contain extra integer 
+continuation save inspecting table see space leaks range bytes fork bytes fork 
+numbers arbitrarily large user code adds exception handlers fork performs non trivial actions fork 
+bottom row confirms final implementation threads fact safe space 
+interestingly version fork exception handler spurious raise safe space provided user installs exception handlers 
+version suffers space leak sorts bizarre behavior described section user exceptions 
+control operators researchers studied control operators callcc throw 
+section briefly summarize difficulties encounters trying implement safe space threads alternative control operators 
+consider felleisen control prompt danvy filinski shift reset 
+natural choices implementing safe space threads essentially allow run thread top level context continuation 
+user access operators difficult give reasonable implementation threads safe space 
+problem prompt set user mask prompt set threads package vice versa 
+gunter emy riecke set solve problem allowing name prompts 
+prevent user interfering prompt simply hiding name 
+fact gunter emy riecke example implementation threads similar spirit described 
+unfortunately implementation threads suffers space leaks 
+leak stems exception handlers 
+fixing leak complicated fact implementation set buggy respect exceptions 
+assuming correct implementation set possible avoid leak careful programming 
+second serious leak involves stack control points maintained control operators 
+time thread yields resumes pushes extra control point stack thread yielded resumed times control stack depth unclear leak inherent implementation control operators artifact particular implementation set 
+reppy proposed variants callcc throw called capture escape save restore exception handler stack page 
+surface operators sound help prevent retention unnecessary exception handlers 
+fact just opposite true 
+suppose replace callcc throw threads package capture escape consider program fragment fork fn 
+exit raise handle 
+install handler fork child thread installs new universal handler 
+child thread exits parent thread resumes handlers active 
+raise caught universal handler thread 
+lead faster space leaks retaining exception handlers causes kinds bizarre behavior complained section worse 
+thread exceptions may caught thread specifically attempt handle exception current thread 
+motivated space leak discovered server 
+experimentally observed leaks different implementations threads 
+leaks small bytes fork example server expected run months time shows slow leaks intolerable 
+modeled space leaks semantics combining exceptions class continuations 
+threads important structuring tool real world systems ability implement light weight threads cited major benefits class continuations 
+shown implementations threads safe space predictable presence exceptions quite subtle somewhat complicated 
+suggests possibly threads ought primitive notion language constructed continuations 
+functional languages standard ml incorporate threads primitive features build techniques shown build threads fast behave long running programs 
+grew tutorial second international summer school advanced functional programming techniques washington 
+benefitted greatly discussions comments olin shivers olivier danvy bob harper participants summer school participants referees workshop continuations 
+appel macqueen standard ml compiler 
+proceedings conference functional programming languages computer architecture lecture notes computer science vol 
+springer verlag pp 
+
+harper lee signatures protocol stack systems application standard ml 
+proceedings acm conference lisp functional programming orlando june pp 
+
+cooper morrisett adding threads standard ml 
+tech 
+rep technical report cmu cs school computer science carnegie mellon university december 
+danvy filinski abstracting control 
+proceedings acm conference lisp functional programming june pp 
+
+felleisen theory practice class prompts 
+proceedings th acm symposium principles programming languages jan pp 
+
+gunter emy riecke generalization exceptions control ml languages 
+proceedings conference functional programming languages computer architecture june pp 
+
+haynes friedman wand obtaining coroutines continuations 
+computer languages 
+lee implementing threads standard ml 
+advanced functional programming aug vol 
+lncs pp 
+
+milner tofte harper definition standard ml 
+mit press cambridge massachusetts 
+nelson ed 
+systems programming modula 
+prentice hall englewood cliffs new jersey 
+reppy cml higher order concurrent language 
+acm sigplan conference programming language design implementation toronto june pp 
+
+reppy higher order concurrency 
+phd thesis department computer science cornell university ithaca new york january 
+wand continuation multiprocessing 
+proceedings lisp conference aug pp 
+
+final implementation signature coroutine sig exception exception val fork unit 
+unit 
+unit val yield unit 
+unit val exit unit 
+val sync unit 
+unit sync yields threads completed structure coroutine coroutine struct exception exception val callcc callcc val throw throw datatype main child type thread unit cont val thread queue queue queue val thread option ref ref val ref main fun enqueue thread queue enqueue thread fun dispatch val typ queue dequeue handle queue dequeue 
+case main 
+main typ throw fun exit case main 
+raise child 
+dispatch fun sync case main 
+callcc fn 
+main dispatch child 
+raise fun yield callcc fn thread 
+enqueue thread dispatch val unit 
+unit cont callcc fn return 
+val callcc fn fc 
+throw return fc handle 
+exit raise dummy exception hint compiler raise fun fork callcc fn parent 
+enqueue parent child throw 

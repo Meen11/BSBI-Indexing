@@ -1,0 +1,298 @@
+fault tolerant distributed theorem proving jason hickey cornell university 
+higher order logics expressive tools tasks ranging formalizing foundations mathematics large scale software veri cation synthesis 
+complexity proofs higher order logics combination interactive proving computationally intensive tactic applications perform proof automation 
+problems proof automation sophisticated proofs represent substantial investments interactive step may represent hours design time 
+implementation distributed proving architecture address problems speed availability reliability tactic provers 
+architecture implemented module metaprl logical framework 
+implementation supports arbitrary process joins process failures time proof 
+proof distribution completely transparent existing tactic base unmodi ed 
+example signi cant formalization orts higher order logics including nipkow formalization java howe veri cation sci cache coherency protocol miller srivas veri cation avionics processor pvs veri cation automated optimization ensemble protocols 
+higher order logics chosen endeavors formalize meta principles retain conciseness intuition original design 
+proofs higher order logic computationally complex 
+easy proof areas intractability systems hol coq isabelle nuprl combine interactive guidance automated proving tactics programs de ne domain speci proof procedures heuristics 
+model successful expensive 
+examples mentioned represent years processing time human ort 
+expense especially human part major obstacle preventing widespread adoption practices 
+support research provided darpa 
+address jason hickey department computer science upson hall cornell university ithaca ny usa 
+tel email cs cornell edu 
+ease burden proof 
+aim increasing power proof automation exploiting widely available computational resources 
+implemented metaprl logical framework distributing tactic proving large groups processors ensemble group communication system 
+counteract problems reliability distributed environments ensemble fault recovery support allow arbitrary recon gurations time proof process remains running time 
+preserve large existing tactic base replace existing tactic implementation functionally equivalent distributed tactic scheduler 
+extra knowledge required distributed proving measurements show signi cant speedup medium sized groups 
+remainder introduce distributed architecture steps section overview tactic proving section generalize tactic model multi threaded proving section communication model distributed proving architecture 
+section performance results logical domains metaprl including rst order logic nuprl type theory 
+summarize results section nish discussion related section 
+re nement architecture tactics foundational lcf style tactic provers coq nuprl metaprl logical framework perform proofs backward chaining goal directed style 
+goal sentence sequent user selects tactic apply sentence attempt prove reduce set simpler subgoals 
+tactic applied reduces proof set primitive inferences de ned logic 
+example proof sequent isgiven 
+dt tactic generic tactic applying elimination rules tactic applies trivial rules rule propositional logic 
+proof proof refine dt refine refine proof compose fol proof proof proof fig 
+
+example propositional proof proving architecture implemented parts shown 
+logic module de ning primitive rules logic 
+logic engine called re ner applying primitive rule goal reduce possibly empty set subgoals primitive tactic module de nes basic tactic operations 
+proof automation implemented tactic library 
+proofs tactic library tactic primitives refiner logic definitions fig 
+
+tactic prover architecture primitive rule re ner de nes primitive object apply rule 
+addition re ner exports operations 
+module refiner sig type term rule logic proof exception val refine logic rule term proof val compose proof proof list proof val goal proof proof term val subgoals proof proof term list term type represent logical sentences 
+rule logic types represent primitive rules logics omit construction logics detail hickey 
+proof type represents partial proof trees constructed re nement refine function applies rule goal produce partial proof 
+compose function compose partial proof trees 
+error subgoals proof goals subproofs 
+error occurs time exception raised 
+tactic primitives module simpli es application re ner rules supporting proof search composition tacticals 
+tactic interface de ned follows module refiner sig type prim tactic proof type tactic term prim tactic val tactic rule refiner rule tactic val proof goal logic term proof val refine proof tactic proof val tactic tactic tactic val tactic tactic tactic tactic primitives module re implements proof single node proof trees 
+contains constructor building tactics rules implements refine function works tactics 
+tactic type implemented function returns primitive reasoning operation goal tactic applied 
+tactic module implements tacticals tac tac tactic applies tac goal applies tac subgoals 
+tac tac tactic applies tac goal 
+succeeds proof returned tac applied 
+embedded meta language ocaml primitives encode proof search 
+example tactic prove propositional sentences implication shown 
+axiom 
+imp elim imp intro tactics constructed rules re ner 
+tactical searches hypothesis goal sequent successful application imp elim axiom rules 
+refiner declarations val imp elim int tactic val imp intro tactic val axiom int tactic rec imp elim axiom imp intro tac hyp count raise tac tac fig 
+
+proof procedure propositional logic implementation tactic primitives straightforward 
+prim tactic type implemented re ner type proof rule function calls re ner goal argument refine function just identity 
+tac tac tactical performs re nements speci ed tactics tac tac composes result 
+tac tac tactical applies tac catches exception applies tac tac failed 
+module tactics refiner struct type prim tactic logic proof tactic rule rule logic refiner refine logic tac tac logic tac logic tl refiner subgoals proof pl list map fun tac logic tl compose pl tac tac logic try tac logic tac logic simple implementation su cient single threaded proving section generalize model multi threaded proving 
+multithreaded re nement multithreaded re nement useful tool allows user run tasks making possible continue interactive development un nished proof nodes nodes searched re ner 
+implementation multithreading prerequisite distributed re nement 
+section cover main issues multithreading implementation proof tree data type supports concurrent operations policy thread scheduling 
+proof tree data type concurrent processes tactic proof constructs primitive proof tree node tree labeled goal sentence tactic applied goal frontier produce children 
+proof performed frontier tree contains pending subgoals 
+diagram right shows partial proof tree 
+root bottom nodes labeled tacticals noted arc root branching 
+left root node explored rst branching leftmost child failed second child branching 
+tactics design functional order frontier nodes explored unimportant assign threads multiple nodes frontier 
+implement proof tree data type label nodes proof tree kinds labels andthen andthen orelse tac tac orelse expand expand orelse success andthen andthen success orelse 
+success success success orelse success success success failure 
+andthen success compose success orelse failure orelse orelse failure 
+failure 
+andthen failure andthen failure failure failure fig 
+
+proof tree operations andthen goal tac tac andthen tac andthen orelse goal tac tac orelse success failure andthen orelse labels correspond applications tacticals leaf nodes tree 
+andthen andthen labels label interior nodes proof tree expanded 
+success labels leaf node successfully completed proof failure label marks frontier nodes raised exception 
+complete set operations proof trees shown graphically 
+operations de ne expansion andthen orelse nodes de ne propagate success failure labels 
+tree complete root node labeled success proof 
+note operations failure andthen success orelse cause pruning sibling nodes proof tree 
+threaded re nement implement threaded re nement need agree policy expansion frontier nodes threads tree 
+implementation metaprl schedules expansion components shown diagram right 
+centralized scheduler scheduler manages root proof tree multiple threads schedule subtrees chosen scheduler 
+scheduler perform node expansion directly passes unexpanded frontier nodes idle threads handles responses completed threads 
+scheduling policy scheduler metaprl random 
+reason design ciency 
+commu scheduler nication threads costly proof nodes near root tree proof editor large subtrees 
+scheduler uses general scheduling algorithm policy individual threads cient left right depth rst search 
+operations communication scheduler threads shown 
+scheduler submits frontier node idle thread submit operation receives result completed thread done operation 
+branch tree pruned thread may terminated cancel operation 
+idle threads available frontier nodes scheduled scheduler request thread return root part tree scheduler request operation 
+assumption thread expansion left right thread retains single root node request 
+communication threads done event module dened interface 
+module event sig type event val create unit event val post event unit val select event list val wrap event 
+event event communication channel messages type function sends message channel select function suspends calling thread message arrives events list message returned 
+thread interface scheduler just functions submit node expanded request root node running idle idle submit failure failure failure fl success failure idle success failure success failure request fig 
+
+scheduling operations thread cancel subtree expansion 
+result expansion returned event produced submit function cancel function causes failure returned immediately 
+module type sig val submit node node event val request unit unit val cancel unit unit scheduler implements tactic interface follows 
+tactic produces unexpanded proof node 
+tactic rule function provides base case returning success primitive re nement proof failure 
+tacticals perform immediate computation produce proof nodes scheduled expanded refine function 
+module scheduler refiner struct type node success refiner proof failure andthen term tactic tactic andthen node tactic andthen refiner proof node list orelse term tactic tactic orelse node node prim tactic node tactic term prim tactic tactic rule rule logic try success refiner refine logic rule failure tac tac andthen tac tac tac tac orelse tac tac refine tac logic match schedule tac success failure raise distributed re nement distributed re nement tactic evaluation occurs multiple processors communication re nement processes message passing 
+implementation distributed re nement symmetric re ner process add additional thread called distribution service requests frontier proof nodes scheduler passes remote re 
+parts implementation communication model distribution service 
+distributed memory architecture communication model implement uses ensemble group communication system processes form groups 
+ensemble provides failure detection processes longer communicate group supports broadcast communication group additional guarantee process group receive messages order provided total ordering protocol 
+ensemble implements upcall interface ensemble application receives communication events interface 
+module type sig type process message val new view process list message list val heartbeat unit message list val install trigger unit unit unit val receive message list message list upcalls implemented application passed ensemble initialization 
+upcalls return message list ensemble broadcasts group 
+messages received receive upcall 
+messages sent heartbeat upcall triggered function provided install trigger upcall called application initialized 
+new view upcall provides information group membership 
+status group changes new view function called new list processes belonging group 
+implement shared memory model ensemble 
+memory entries initially correspond frontier proof nodes 
+entries may unlocked 
+locks exclusive entry locked locked exactly process 
+entries created unlocked state process created entry called owner 
+re ner process un nished frontier nodes may request intention expanding returning result value owner 
+module dma sig type handle val store 
+handle val lock handle unit handle val delete handle unit val return handle 
+unit val event handle handle event val get value handle process group keeps local version shared memory entries containing process created entry store function process locked entry lock function value entry 
+rst argument lock function cancellation function called entry deleted delete function 
+owner entry allowed delete ensemble determines owner failed copies entry deleted 
+handle entry obtained value associated entry obtained get value function 
+computation nishes process returns avalue owner return function deletes entry memory 
+memory implemented ensemble broadcast mechanism 
+entry created store function entry broadcast processes group 
+lock requested unlocked entry selected local version memory broadcast group 
+lock request successful rst lock request received entry 
+locks granted rst requester total ordering property ensemble guarantees processes group agree message ordering 
+lock request fails unlocked entry shared memory request issued new entry 
+lock postponed new 
+new view initiated ensemble means group membership may changed failures creation new re ner processes 
+new view function delivers new set processes compose group 
+process fails entries created deleted outstanding locks removed 
+process joins group groups merge di erent process may erent local versions shared store 
+new view group coordinator elected oldest surviving process group 
+process sends local store coordinator merges copies deletes entries owner failed broadcasts result 
+distributed re nement shared memory refinement threads distribution service ensemble group ds scheduler proof editor fig 
+
+distributed re ner block diagram distributed re nement implemented augmenting threaded re ner distribution service ds 
+block diagram distributed re ner shown 
+scheduler ds acts thread implements interface 
+scheduler submits ds ds stores node shared memory 
+cancels node ds deletes entry shared memory 
+scheduler treats request event specially 
+scheduler request new node ds attempts lock entry shared memory 
+lock successful subgoal associated entry passed scheduler new frontier node 
+scheduler completes evaluation passes result back ds returns result owner 
+proof editor optional may process group proof editor 
+idle process joins group synchronizes shared memory may pass new nodes scheduler re nement 
+scheduler runs new subgoals passed back ds performed remotely 
+large proof developed complex dependency graph established proof nodes di erent process 
+process fails large portion proof tree may pruned 
+performance measurements include performance measurements domains pigeon domain proof propositional pigeonhole principle 
+pigeon problem shows pigeons holes pigeon problem shows pigeons holes 
+gen domain proof large database rst order logic 
+term domain proof correctness term operations nuprl type theory 
+domain proof derivation aczel set theory nuprl type theory 
+pigeon gen domains fully automated proof search 
+term set domains automated replays proof transcripts interactively generated proofs 
+transcripts contain full search problem posed user term domain contains interactive proof nodes domain contains proof steps signi cantly simpler term 
+domains represent weeks interactive development 
+runtimes problems shown processors ensemble group running linux mhz pentium machines 
+include data points original tactic primitives comparison 
+distributed prover usually incurs penalty prover 
+speedup problems fairly consistent averaging processor case 
+gen problem exception superlinear speedup 
+problem random scheduling algorithm performs better default depth rst search 
+reviewers numbers re ect times interpreted ocaml bytecode 
+currently modifying ocaml marshal native code functions update numbers nal version 
+expect speedup decrease somewhat relative cost communication increases 
+problem proc proc proc proc proc failure messages bytes pigeon pigeon gen term fig 
+
+performance domains performance numbers failure measure computation group size failure approximately half way computation 
+part extra time devoted failure detection ensemble default second timeout part due computation lost failed process part due smaller group size failure 
+communication cost problems high largest gen problem generates mb sec communication 
+proof nodes sent machines contain tactics proof trees grow kb problem runs 
+unnecessary proof trees copied discarded 
+total memory requirements increase cost communication ocaml deep copy value sent network 
+communication cost tends major bottleneck 
+problems network latency greater problem lock contention 
+addition larger problems undergo false failures 
+generic technique addressing problems message compression goals passed sequentially network share common subterms 
+caching preserve sharing common subterms multiple message addressing problem message size memory usage 
+summary implementation notes distributed architecture wehave owes simplicity modular design metaprl ensemble 
+distributed tactic module metaprl transparently replaces tactic interface tactic library logic engine making unnecessary modify tactic library 
+ensemble provides concise interface internal mechanism ensuring consistency quite complex 
+interesting problems arose implementation 
+problem ensemble designed multithreaded environment initially provided poor performance 
+ort augment ensemble achieved modest gains separated metaprl ensemble processes 
+communication metaprl physical shared memory 
+ocaml provided essential communication support communicating tactics functions 
+ocaml provides native support marshaling arbitrary ocaml values including functions byte streams 
+pitfalls 
+programming perspective di cult know part function closure metaprl implementation initially attempted marshal entire ensemble data structure message 
+solution careful coding avoid spurious bound variables tactic functions 
+communication bottleneck group sizes increase sophisticated reduce message sizes caching recurring values 
+speedups parallelism proofs 
+ciency greatly increased domain domain speci scheduling policies 
+issue proof caching commonly occurring subgoals identi ed 
+issues 
+related examples rst order proving limited higher order distributed theorem provers 
+orts di er respects focus general purpose provers mixture interactive automated proof require fault tolerance 
+scheduling problem common issue implementations insight gained rst order provers may lead general scheduling policy mechanism framework 
+communication model dma quite similar leiserson cilk system parallel distributed programs written annotated code 
+program distribution shares describe ensemble shared memory 
+nuprl proof development system includes logic mechanism reasoning 
+early version system described constable descriptions jackson thesis 
+account ensemble hayden 
+
+maria paola william mccune 
+distributed theorem proving peers 
+conference deduction cade pages 
+
+cook 
+adaptive parallel iterative deepening search 
+journal arti cial intelligence research 
+appear 
+
+judy crow sam owre john rushby natarajan shankar srivas 
+tutorial pvs 
+workshop industrial strength formal speci cation techniques april 
+www csl sri com sri csl fm html 
+
+fuchs 
+cooperation theorem proving heuristics 
+technical report sr university kaiserslautern 
+
+gilles dowek amy felty hugo herbelin gerard huet chet murthy catherine parent christine paulin mohring benjamin werner 
+coq proof assistant user guide 
+technical report rapport techniques inria rocquencourt france 
+version 
+constable implementing mathematics nuprl proof development system 
+prentice hall 
+
+felty howe 
+protocol veri cation nuprl 
+cav lecture notes computer science 
+springer 
+
+charles leiserson keith randall 
+implementation cilk multithreaded language 
+acm sigplan conference programming language design implementation pldi 
+
+gordon melham 
+hol 
+cambridge university press 
+
+mark hayden 
+ensemble system 
+technical report tr cornell university 
+
+jason hickey nancy lynch robbert van renesse 
+speci cations proofs ensemble layers 
+tacas march 
+
+jason hickey 
+nuprl light implementation framework higher order logics 
+th international conference deduction 
+springer 
+
+paul bernard jackson 
+enhancing nuprl proof development system applying computational algebra 
+phd thesis cornell university january 
+
+steven miller srivas 
+formal veri cation microprocessor case study industrial formal methods 
+workshop industrial strength formal speci cation techniques pages boca raton fl 
+
+tobias nipkow von oheimb 
+java ight type safe de nitely 
+inproc 
+th acm symp 
+principles programming languages pages 
+acm press new york 
+
+lawrence paulson 
+isabelle generic theorem prover 
+springer lncs 
+
+
+heterogeneous parallel deduction system 
+proceedings workshop automated deduction fgcs 
+

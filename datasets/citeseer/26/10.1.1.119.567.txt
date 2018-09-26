@@ -1,0 +1,629 @@
+usenix association proceedings th symposium operating systems design implementation boston massachusetts usa december advanced computing systems association usenix association rights reserved information usenix association phone fax email office usenix org www www usenix org rights individual papers remain author author employer 
+permission granted noncommercial reproduction educational research purposes 
+copyright notice included reproduced 
+usenix acknowledges trademarks 
+ivy read write peer peer file system muthitacharoen robert morris gil chen rtm lcs mit edu mit laboratory computer science technology square cambridge ma 
+ivy multi user read write peer peer file system 
+ivy centralized dedicated components provides useful integrity properties requiring users fully trust underlying peer peer storage system users file system 
+ivy file system consists solely set logs log participant 
+ivy stores logs dhash distributed hash table 
+participant finds data consulting logs performs modifications appending log 
+arrangement allows ivy maintain meta data consistency locking 
+ivy users choose logs trust appropriate arrangement semi open peer peer system 
+ivy presents applications conventional file system interface 
+underlying network fully connected ivy provides nfs semantics close open consistency 
+ivy detects conflicting modifications partition provides relevant version information application specific conflict resolvers 
+performance measurements wide area network show ivy times slower nfs 
+describes ivy distributed read write network file system 
+ivy presents single file system image appears nfs file system 
+contrast nfs ivy require dedicated server stores data meta data dhash peer peer block storage system :10.1.1.159.9358
+dhash distribute replicate blocks giving ivy potential highly available 
+possible application ivy support distributed projects loosely affiliated participants 
+building shared read write peer peer file system poses number challenges 
+multiple distributed writers maintenance consistent file system metadata difficult 
+second unreliable participants locking unattractive approach achieving meta data consistency 
+third participants may fully trust may trust participants machines compromised outsiders way ignore un modifications participant revealed untrustworthy 
+distributing file system data hosts means system may cope operation partitioned may help applications repair conflicting updates partition 
+ivy uses logs solve problems described 
+participant write access file system maintains log changes file system 
+participants scan logs record look file data meta data 
+participant maintains private snapshot avoid scanning log entries 
+participant logs shared mutable data structures allows ivy avoid locks protect meta data 
+ivy stores logs dhash participant logs available participant 
+ivy resists attacks non participants corrupt dhash servers cryptographically verifying data retrieves dhash 
+ivy user cope attacks ivy users choosing logs read looking data users trust 
+ignoring log trusted discard useful information critical meta data ivy provides tools selectively ignore logs fix broken meta data 
+ivy provides nfs file system semantics underlying network fully connected 
+example ivy provides close open consistency 
+case network partition dhash replication may allow participants modify files multiple partitions 
+ivy logs contain version vectors allow detect conflicting updates partitions merge provide version information application specific conflict resolvers 
+ivy implementation uses local nfs loop back server provide ordinary file system interface 
+performance factor nfs 
+main performance bottlenecks network latency cost generating digital signatures data stored dhash 
+contributions 
+describes read write peer peer storage system previous peerto peer systems supported read data data writeable single publisher 
+describes design distributed file system useful integrity properties collection untrusted components 
+explores distributed hash tables building block sophisticated systems 
+section describes ivy design 
+section discusses consistency semantics ivy presents applications 
+section presents tools dealing malicious participants 
+sections describe ivy implementation performance 
+section discusses related section concludes 
+design ivy file system consists set logs log participant 
+log contains participant changes file system data meta data 
+participant appends log reads logs 
+participants store log records dhash distributed hash system provides record replication authentication 
+participant maintains mutable dhash record called log head points participant log record 
+ivy uses version vectors impose total order log records reading multiple logs 
+avoid expense repeatedly reading log participant maintains private snapshot summarizing file system state point time 
+ivy implementation acts local loop back nfs server cooperation host kernel nfs client support 
+consequently ivy presents file system semantics nfs file server 
+dhash ivy stores data dhash :10.1.1.159.9358
+dhash distributed peer peer hash table mapping keys arbitrary values 
+dhash stores key value pair set internet hosts determined hashing key 
+refers dhash key value pair dhash block 
+dhash replicates blocks avoid losing nodes crash 
+dhash ensures integrity block methods 
+content hash block requires block key sha cryptographic hash block value allows fetching block verify value ensuring sha hash matches key 
+public key block requires block key public key value signed corresponding private key 
+dhash refuses store value match key 
+ivy checks authenticity data retrieves dhash 
+checks prevent malicious buggy dhash node forging data limiting view block log head log head log records example ivy view logs 
+white boxes dhash content hash blocks gray boxes public key blocks 
+denying existence block producing stale copy public key block 
+ivy participants communicate dhash storage don communicate directly setting new file system 
+ivy uses dhash content hash blocks store log records 
+ivy stores dhash key participant log record dhash block called log head log head public key block participant update value changing key 
+ivy participant caches content hash blocks locally fear stale data content hash blocks immutable 
+ivy participant cache participants blocks may change 
+ivy uses dhash simple interface put key value get key 
+ivy assumes network partition dhash provides write read consistency put completes subsequent get yield current dhash implementation guarantee write read consistency techniques known provide guarantee high probability 
+techniques require dhash replicate data update carefully significantly decrease performance 
+ivy operates best fully connected network support conflict detection operating partitioned network see section 
+ivy principle distributed hash tables past tapestry kademlia 
+log data structure ivy log consists linked list immutable log records 
+log record dhash content hash block 
+table describes fields common log records 
+prev field contains previous record dhash key 
+participant stores dhash key log record log head block 
+log head publickey block fixed dhash key easy field prev dhash key oldest log record head dhash key log head seq log sequence number timestamp time record created version version vector table fields ivy log records 
+participants find 
+log record contains information single file system modification corresponds roughly nfs operation 
+table describes types log records type specific fields contains 
+log records contain minimum possible information avoid unnecessary conflicts concurrent updates different participants 
+example write log record contains newly written data file new length modification time 
+attributes computed correctly time write record created true state file known concurrent updates known 
+ivy computes information incrementally traversing logs storing explicitly done unix nodes :10.1.1.100.7314
+ivy records file owners permission modes attributes enforce permissions 
+user wishes file unreadable encrypt file contents 
+user ignore logs people allowed write user data 
+ivy identifies files directories bit 
+log records contain number files directories affect 
+ivy chooses numbers randomly minimize probability multiple participants allocating number different files 
+ivy uses bit number nfs file handle 
+ivy keeps log records indefinitely may needed help recover malicious participant network partition 
+log moment consider ivy file system log 
+ivy handles non updating nfs requests single pass log 
+requests cause modification passes append records log 
+ivy scans log starting appended record pointed 
+ivy stops scanning log gathered data handle request 
+ivy appends record log follows 
+creates log record containing description update typically derived arguments nfs request 
+new record prev field dhash key log record 
+inserts new record dhash signs new log head points new log record updates log head dhash 
+text describes ivy uses log perform selected operations 
+file system creation 
+ivy builds new file system creating new log record record random number root directory 
+user mounts local ivy server nfs file system root number nfs root file handle 
+file creation 
+application creates new file kernel nfs client code sends local ivy server nfs create request 
+request contains directory number file name 
+ivy appends inode log record new random number link record contains number file name directory number 
+ivy returns new file number file handle nfs client 
+application writes file nfs client send write request containing file number written data file offset ivy append log record containing information 
+file name lookup 
+system calls refer file names typically generate nfs lookup requests 
+lookup request contains file name directory number 
+ivy scans log find record desired directory number file name returns file number 
+ivy encounters unlink record mentions directory number name returns nfs error indicating file exist 
+file read 
+nfs read request contains file offset file number bytes read 
+ivy scans log accumulating data records ranges overlap range data read ignoring data hidden setattr records indicate file truncation 
+file attributes 
+nfs requests including getattr require ivy include file attributes reply 
+ivy fully supports file length file modification time attribute modification time ctime link count attributes 
+ivy computes attributes incrementally scans log 
+file length determined write highest offset truncation truncation 
+determined relevant log record ivy return correct time attributes nfs client cache consistency depends 
+ivy computes number links file counting number relevant link records canceled unlink records 
+type fields meaning inode type file directory symlink number mode owner create new inode write number offset data write data file link number number directory name create directory entry unlink number directory name remove file rename number directory name number new directory new file name rename file prepare number directory file name exclusive operations cancel number directory file name exclusive operations number changed attributes change file attributes log directory listings 
+ivy handles readdir requests accumulating file names relevant link log records unlink rename log records account 
+user cooperation views multiple users write single ivy file system source potentially concurrent updates log refers sources participants 
+user uses ivy file system multiple hosts concurrently log host 
+participants ivy file system agree view set logs comprise file system 
+ivy management shared views convenient providing view block dhash content hash block containing pointers log heads view 
+view block contains number root directory 
+view block immutable set users wants form file system different set logs create new view block 
+user names ivy file system content hash key view block essentially self certifying pathname 
+users creating new file system exchange public keys advance band means 
+know public keys creates view block tells users view block dhash key 
+ivy uses view block key verify view block contents contents public keys name verify participants log heads 
+log head contains content hash key names verifies log record 
+reasoning allows ivy verify retrieved correct log records untrusted dhash storage system 
+approach requires users exercise care initially file system name name come trusted source user inspect view block verify public keys trusted users 
+similarly file systems users decide accept new participant conscious decision trust new user table summary ivy log record types 
+adopt new view block newly named file system 
+ivy lack support automatically adding new users view intentional 
+combining logs ivy file system multiple logs participant ivy server consults logs find relevant information 
+means ivy decide order records different logs 
+order obey causality participants view choose order 
+ivy orders records version vector contained log record 
+ivy participant generates new log record includes pieces information order record 
+seq field contains numerically increasing sequence number log separately numbers records zero 
+version vector field contains tuple log view including participant log summarizing participant knowledge log 
+dhash key log head log described dhash key log record 
+discussion numeric value refers sequence number contained record pointed tuple 
+ivy orders log records comparing records version vectors 
+example ivy considers log record version vector earlier time record version vector vector implies creator seen record 
+version vectors comparable concurrent 
+example concurrent 
+simultaneous operations different participants result equal concurrent version vectors 
+ivy orders equal concurrent vectors comparing public keys logs 
+updates affect file due partition application may need take special action restore consistency section ex file map snapshot block meta data number number directory inode file inode directory inode block name number data block data block snapshot data structure 
+dhash ivy support application specific conflict resolution 
+ivy simpler method ordering log records lamport clock 
+version vectors contain precise information lamport clocks causality ivy uses information help fix conflicting updates partition 
+version vectors help prevent malicious participant retroactively changing log pointing log head newly constructed log participants version vectors point old log records 
+version vectors log help repair log damaged 
+snapshots ivy participant periodically constructs private snapshot file system order avoid traversing entire log 
+snapshot contains entire state file system 
+participants store snapshots dhash persistent 
+participant logically private snapshot fact different snapshots largely identical contents means dhash automatically shares storage 
+snapshot format snapshot consists file map set nodes data blocks 
+node stored dhash block 
+node contains file attributes list dhash keys blocks holding file contents case directory content blocks hold list name number pairs 
+file map records dhash key node associated number 
+blocks snapshot content hash blocks 
+illustrates snapshot data structure 
+building snapshots ordinary operation ivy builds new snapshot incrementally 
+starts fetching log records logs view newer previous snapshot 
+traverses new records temporal order 
+number occurs new log records ivy maintains node copy file contents 
+ivy reads initial copy node file contents previous snapshot performs operation indicated log record data 
+processing new log records ivy writes accumulated nodes file contents dhash 
+computes new file map changing entries corresponding changed nodes appending new entries 
+ivy creates snapshot block contains file map meta data pointer view snapshot pointer previous snapshot version vector referring record log snapshot incorporates 
+ivy stores snapshot block dhash updates participant log head refer new snapshot 
+new user build snapshot scratch starting earliest record log copy trusted user snapshot 
+snapshots handling nfs request ivy traverses log records newer snapshot accumulate information fulfill request ivy finds missing information participant latest snapshot 
+ivy finds information snapshot number 
+application semantics section describes file system semantics ivy provides applications focusing primarily ways ivy semantics differ ordinary nfs server 
+sections describe ivy semantics network provides full connectivity 
+sections describe happens network partitions merges 
+cache consistency general update operation ivy participant completed immediately visible operations participants subsequently start 
+exceptions ivy enforce notion consistency network partitions see section ivy provides close open consistency file data see 
+ivy updates immediately visible ivy server performing update waits dhash acknowledged receipt new log records new log head replying nfs request ivy asks dhash latest log heads start nfs operation 
+ivy caches log records cache needs invalidated records immutable 
+file reads writes ivy provides modified form close open consistency application writes data file closes file close completed application opens file reads see data written 
+ivy may written data visible close 
+nfs clients servers provide form consistency 
+close open consistency allows ivy avoid fetching log head nfs read operation 
+ivy caches file blocks version vector time block cached 
+application opens file causes nfs send access request ivy fetches log heads dhash 
+changed ivy cached blocks file ivy satisfy subsequent read requests cached blocks re fetching log heads 
+nfs client file data cache satisfies reads ivy sees ivy cache helps application written file re reads nfs client decide satisfy reads cached writes doesn know client concurrently written file ivy decide case checking log heads 
+ivy defers writing file data dhash nfs tells application closing file 
+allowing close system call complete ivy appends written data log updates log head 
+ivy writes data log records dhash parallel reduce latency 
+arrangement allows ivy sign insert new log head file close file write 
+added new close rpc nfs client 
+ivy flushes cached writes receives synchronous write commit 
+concurrent updates ordinary file systems simple semantics respect concurrent updates results updates occurred time order 
+semantics natural relatively easy implement single file server difficult decentralized file system 
+result ivy semantics differ slightly ordinary file server 
+simplest case updates don affect data meta data 
+example participants may created new files different names directory written different bytes file 
+cases ivy ensures updates take effect 
+different participants simultaneously write bytes file writes equal concurrent version vectors 
+recall ivy orders incomparable version vector comparing participants public keys 
+concurrent writes completed participants agree order case ivy provides semantics ordinary file system 
+may case applications intend generate conflicting writes ivy provides tools help applications avoid conflicts section tools help detect resolve unavoidable conflicts section 
+serial semantics operations affect directory entries harder implement 
+believe applications rely file system provide serial semantics directory operations order implement locking 
+ivy supports type locking exclusive creation directory entries name section 
+applications exclusive directory creation locking ivy 
+paragraphs discuss specific cases ivy differs centralized file system due lack serialization directory operations 
+ivy serialize combinations creation deletion directory entry 
+example suppose participant calls unlink second participant 
+operations succeed 
+hand ivy provides expected semantics sense participants subsequently look file system agree order concurrent log records agree operation succeeded 
+hand ivy return success status systems calls takes effect happen ordinary file system 
+cases ivy participant may read logs actively updated initially see subset set concurrent updates 
+short time remaining concurrent updates appear ordered subset 
+updates affect meta data observers see file system states occured serial execution 
+example suppose application executes create link application different ivy host concurrently executes remove 
+third application see just log records see files ivy orders create link observe disappeared 
+applications compare notes realize system behave serial server 
+dir file file append dir file log record file exists append dir file record return exists un dir file exists append dir file record backoff return dir file file dir file file log record return ok ivy exclusive directory entry creation algorithm 
+exclusive create ordinary file system semantics require operations create directory entries exclusive 
+example trying create directory exists fail creating file exists return existing file 
+ivy implements exclusive creation directory entries applications semantics implement locks 
+ivy guarantees exclusion network provides full connectivity 
+ivy append log record ensures exclusion variant phase commit shown 
+ivy appends prepare record announcing intention create directory entry 
+intention canceled cancel record record timeout 
+ivy checks see participant appended prepare mentions directory number file name 
+ivy appends link record 
+ivy sees different participant prepare appends cancel record waits random amount time retries 
+ivy sees different participant record appends record indicates failure 
+partitioned updates ivy provide semantics outlined network partitioned 
+case partition ivy design maximizes availability expense consistency letting updates proceed partitions 
+approach similar ficus 
+ivy directly aware partitions directly ensure partition complete copy logs 
+ivy depends dhash replicate data times distinct locations partition complete set data 
+succeeds practice depends sizes partitions degree dhash replication total number dhash blocks involved file system 
+particular case user intentionally disconnecting laptop network handled instructing laptop dhash server keep replicas log heads user current snapshot currently way ask dhash 
+partition heals fact log head updated just host prevents conflicts individual logs sufficient system newest version log head 
+participants different partitions may updated file system ways conflict result concurrent version vectors 
+ivy orders version vectors scheme section participants agree file system contents partition heals 
+file system meta data internally correct partition heals 
+means piece data accessible partition directory leading deleted partition data accessible partition 
+concurrent applications rely file system techniques atomic directory creation mutual exclusion applications different partitions update files ways cause application data inconsistent 
+example mails appended mailbox file partitions partitions heal appear concurrent writes offset mailbox file 
+ivy knows writes conflict automatically orders log entries participants see file contents partition heals 
+masks fact file updates visible user application may take special steps restore 
+ivy currently automatic mechanism signaling conflicts user user run tool described section discover conflicts 
+better approach borrow coda technique making file inaccessible user fixes conflict 
+conflict resolution ivy provides tool lc detects conflicting application updates files may arise concurrent writes file applications different partitions perform appropriate locking 
+lc scans ivy file system log records concurrent version vectors affect file directory entry 
+lc determines point logs partition occurred determines participants partition lc uses ivy views construct multiple historic views file system time partition partition application nfs client ivy agent private key system calls nfs dhash server ivy server kernel ivy software structure 
+just partition 
+example lc ivy tx ur snp partition partition cat ivy file original content file cat ivy file original content file changed append partition cat ivy file original content file append second partition dhash server dhash server dhash server simple cases user simply examine versions file merge hand text editor 
+application specific resolvers coda complex cases 
+security integrity ivy intended support distributed users arms length trust relationships able recover malicious participants 
+situation envision participant bad behavior discovered fact 
+malicious behavior assumed consist participant ordinary file system operations modify delete data 
+form outsider breaks legitimate user computer modifies files stored ivy 
+cope user turning bad participants form new view excludes bad participant log form view includes log records certain point time 
+case resulting file system may missing important meta data 
+user request ivy tool detect fix certain meta data inconsistencies 
+inspects existing file system finds missing link inode meta data creates plausible replacements new fix log 
+optionally look excluded log order find hints missing meta data look 
+implementation ivy written runs freebsd 
+uses sfs tool kit event driven programming nfs loop back server support 
+ivy implemented cooperating parts illustrated 
+participating host runs ivy server exposes ivy file systems locally mounted nfs file systems 
+file system name encodes dhash key file system view block example ivy lg 
+ivy server hold private keys participant runs agent hold private key ivy server asks participant local agent program sign log heads 
+ivy server acts client local dhash server consults dhash servers scattered network 
+ivy server keeps lru cache content hash blocks log records snapshot blocks log heads modified 
+evaluation section evaluates ivy performance purely local configuration wan function number participants function number dhash nodes function number concurrent writers function snapshot interval 
+main goal evaluation understand costs ivy design terms network latency cryptographic operations 
+ivy configured construct snapshot new log records seconds elapsed construction snapshot 
+stated ivy block cache size blocks 
+dhash nodes planetlab nodes running linux ghz pentium iii cpus ron nodes running freebsd mhz pentium iii cpus :10.1.1.161.2760
+dhash configured replication turned replication implementation complete replication probably decrease performance significantly 
+stated section reports results averaged runs 
+workload evaluate ivy modified andrew benchmark mab consists phases create directory hierarchy copy files directories walk directory hierarchy reading attributes file read files compile files program 
+stated mab ivy server run ghz amd athlon computer running freebsd mit 
+single user mab table shows ivy performance phases mab file system just log 
+soft phase ivy nfs mkdir create write stat read compile total table real time seconds run mab single ivy log software running single machine 
+nfs column shows mab run time nfs lan 
+phase ivy nfs mkdir create write stat read compile total table mab run time dhash servers wan 
+file system contains logs 
+ware mab ivy single dhash server ran computer 
+put ivy performance perspective table shows mab performance nfs client nfs server connected mbit lan 
+note comparison unfair nfs nfs involved network communication ivy benchmark 
+analysis explains ivy seconds run time 
+mab produces nfs rpcs modify ivy log 
+mkdir cre ate require log head writes achieve atomicity 
+rpcs commits closes require ivy flush written data log 
+rpcs synchronous writes generated linker 
+rpcs caused ivy update log head times 
+computing public key signature uses milliseconds ms cpu time total seconds cpu time 
+remaining time spent ivy server seconds dhash server seconds processes mab invokes seconds 
+profiling indicates expensive operations ivy dhash servers sha hashes memory copies 
+mab creates total mbytes file data 
+ivy response inserts total mbytes log snapshot data dhash 
+performance wan table shows time single mab instance dhash servers wan 
+dhash server runs computer running mab 
+average network round trip times dhash servers ms file system contains logs 
+benchmark writes logs log heads consulted sure operations see date data 
+log heads stored dhash servers 
+written stored dhash server round trip time ms local machine 
+log head stored server roundtrip time ms local machine 
+dhash servers node ids chosen responsible roughly number blocks 
+typical nfs request requires ivy fetch log heads dhash involves just dhash network rpc log head 
+ivy issues rpcs parallel time log head check governed largest round trip time ms mab causes ivy retrieve log heads times total seconds 
+latency dominates ivy wan performance 
+remaining seconds mab run time ways 
+running mab lan takes seconds form cpu time 
+ivy writes dhash times write takes ms network latency total seconds 
+ivy inserts log records concurrently 
+average insertion takes ms ms chord lookup ms dhash node acknowledge receipt 
+accounts roughly seconds 
+local computer sends receives mbytes data mab run 
+accounts remaining run time 
+experiment ivy inserts dhash blocks updating snapshot ivy doesn wait inserts contribute little total run time 
+table shows mab performance wide area nfs 
+round trip time nfs client server ms roughly time takes ivy fetch log heads 
+nfs udp faster benchmark freebsd nfs tcp implementation 
+ivy slower nfs ivy operations require network round trips example nfs requests require ivy fetch update log heads requiring round trips 
+logs writer shows ivy performance changes number logs increases 
+number logs experiment identical previous sec mab run time seconds number logs active log mab run time function number logs 
+participant active 
+mab run time seconds number dhash servers average mab run time number dhash servers increases 
+error bars indicate standard deviation different choices planetlab hosts different mappings blocks dhash servers 
+tion 
+number logs ranges participant executes mab logs change 
+reports results averaged runs 
+number logs relatively little impact runtime ivy fetches log heads parallel 
+slight increase caused fact version vector log record byte entry participant 
+dhash servers shows averages standard deviations ivy mab performance number dhash servers increases 
+number servers perform experimental runs 
+run dhash servers placed randomly chosen planetlab hosts pool hosts new log head mab run time seconds number concurrent mabs average run time mab mabs running concurrently different hosts internet 
+error bars indicate standard deviation mab runs 
+public keys ensure log heads placed random dhash servers 
+dhash server ivy server mab execute host mit 
+round trip times host mit planetlab hosts average ms minimum ms maximum ms standard deviation ms logs total changes 
+run time grows chord messages required find log record block dhash 
+average rpcs required dhash servers respectively 
+numbers include final dhash rpc chord lookup rpcs 
+high standard deviation due fact run time dominated round trip times particular dhash servers store log heads 
+means adding dhash servers doesn reduce variation 
+writers shows effect multiple active writers 
+perform experiments number participants experiment involves mab running concurrently different ivy hosts internet file system logs new log head public keys dhash servers 
+mab run uses directory ivy file system 
+data point shows average standard deviation mab run time mab executions 
+run time increases number active participants fetch newly appended log records dhash 
+run time increases relatively slowly ivy fetches records different logs parallel 
+deviation run times mab run time seconds snapshot interval number log records mab run time function interval snapshots 
+experiments size ivy block cache blocks 
+phase ivy nfs ssh commit update table run times cvs experiment phases 
+dhash running nodes wide area network 
+due participant having different network roundtrip latencies dhash servers 
+snapshot interval shows effect mab run time interval snapshots 
+experiments involve mab instance logs dhash servers 
+xaxis represents number new log records inserted ivy builds new snapshot 
+experiments size ivy block cache blocks 
+reason run time increases interval greater records needed build snapshot fit cache 
+wide area cvs ivy evaluate ivy performance source code document repository show run time operations cvs repository stored ivy :10.1.1.55.24
+ivy file system logs stored wide area dhash servers 
+round trip times ivy host dhash servers storing log heads ms cvs repository contains files mbytes 
+experiment starts ivy participants check copy repository local disks create ivy snapshot file system 
+participant reboots host en sure data cached 
+experiment consists phases 
+commits changes files total lines 
+second updates local copy reflect changes 
+table shows run times phases 
+comparison table shows time perform cvs operations nfs ssh cases client server round trip latency ms ivy performance cvs disappointing 
+commit update cvs looks file repository file access ivy checks participant changed file 
+cvs locked repository changes possible ivy doesn know 
+cvs commit ivy waits dhash insert new log records updated file modified cvs locked repository ivy written log records parallel just single updated log head cvs commit 
+transactional interface application file system help performance situation 
+related ivy motivated peer peer storage particularly freenet past cfs :10.1.1.159.9358
+data authentication mechanisms systems limit read single publisher data sense original publisher piece data modify 
+cfs builds file system top peer peer storage ideas file system read 
+ivy primary contribution relative systems uses peer topeer storage build read write file system multiple users share 
+log structured file system sprite lfs represents file system log operations snapshot number node location mappings :10.1.1.117.5365
+lfs uses single log managed single server order speed small write performance 
+ivy uses multiple logs multiple participants update file system central file server lock server ivy gain performance logs 
+distributed storage systems zebra maintains client log file contents striped multiple network nodes 
+zebra serializes meta data operations single meta data server 
+ivy borrows idea client logs extends meta data file contents 
+allows ivy avoid zebra single meta data server potentially achieve higher availability 
+xfs serverless network file system distributes data meta data participating hosts :10.1.1.110.7161
+piece meta data node host responsible serializing updates meta data maintain consistency 
+ivy avoids meta data centralization suitable wide area participants trusted run reliable servers 
+ivy lower performance xfs adheres strictly serial semantics 
+frangipani distributed file system layers distributed storage service acts virtual disk set symmetric file servers 
+frangipani maintains fairly conventional disk file system structures small server meta data logs improve performance recoverability 
+frangipani servers locks serialize updates meta data 
+approach requires reliable trustworthy servers 
+harp uses primary copy scheme maintain identical replicas entire file system 
+clients send nfs requests current primary server serializes 
+harp system consists small cluster managed servers probably physically colocated 
+ivy central cluster dedicated servers expense strict serial consistency 
+reclaiming storage elephant file system allows file system operations undone period defined user change permanent 
+ivy currently reclaim log storage adopt elephant version retention policies main obstacle discarding log entries hurt ivy ability recover malicious participants 
+experience venti suggests retaining old versions files indefinitely may expensive :10.1.1.18.8085
+consistency conflict resolution coda allows disconnected client modify local copy file system merged main replica client re connects 
+coda client keeps replay log records modifications client local copies client disconnected mode 
+client reconnects server coda propagates client changes server replaying log server 
+coda detects changes conflict changes users presents details changes application specific conflict resolvers 
+ivy behavior partition heals similar coda conflict resolution ivy automatically merges non conflicting updates logs lets applicationspecific tools handle conflicts 
+ficus distributed file system replica updated 
+ficus automatically merges nonconflicting updates different replicas uses version vectors detect conflicting updates signal user 
+ivy faces problem conflicting updates performed different network partitions uses similar techniques handle 
+ivy main focus connected operation mode provides close open consistency ficus cooperation dhash better job automatically distributing storage wide area system 
+bayou represents changes database log updates 
+update includes application specific merge procedure resolve conflicts 
+node maintains local log updates knows nodes 
+nodes operate primarily disconnected mode merge logs pairwise talk 
+log merge procedures allow bayou node re build database adding updates past nodes 
+updates reach special primary node primary node decides final permanent order log entries 
+ivy differs bayou number ways 
+ivy client logs allow nodes trust bayou 
+ivy uses distributed algorithm order logs avoids bayou potentially unreliable primary node 
+ivy implements single coherent data structure file system database independent entries ivy ensure updates leave file system consistent bayou shifts burden application supplied merge procedures 
+ivy design focuses providing serial semantics connected clients bayou focuses managing conflicts caused updates disconnected clients 
+storing data untrusted servers bfs oceanstore farsite store data untrusted servers castro liskov practical byzantine agreement algorithm :10.1.1.115.4299:10.1.1.127.6130
+multiple clients allowed modify data item sending update operations small group servers holding replicas data 
+servers agree operations apply order byzantine agreement 
+reason byzantine agreement needed clients directly validate data fetch servers data may result incremental operations client aware 
+contrast ivy exposes operation history client 
+ivy client signs head merkle hash tree log 
+allows clients verify log correct retrieve dhash ivy clients need trust dhash servers maintain correctness order logs 
+ivy vulnerable dhash returning stale copies signed log heads ivy detect stale data techniques introduced 
+ivy logs slow inefficiency partially offset snapshot mechanism 
+tdb pfs logging tdb pfs collision resistant hashes allow modifications malicious users corrupted storage devices detected undone ivy uses similar techniques distributed file system context 
+spreitzer suggest ways cryptographically signed log entries prevent servers tampering client updates producing inconsistent log orderings context bayou systems 
+ivy logs simpler bayou client writes log 
+allows ivy protect log integrity despite untrusted dhash servers relatively simple client cryptographic hashes public key signatures 
+presents ivy multi user read write peer topeer file system 
+ivy suitable small groups cooperating participants want single central server 
+ivy operate relatively open peer peer environment require participants trust 
+ivy file system consists solely set logs log participant 
+arrangement avoids need locking maintain integrity ivy meta data 
+participants periodically take snapshots file system minimize time spent reading logs 
+logs allows ivy users choose participants trust 
+due decentralized design ivy provides slightly non traditional file system semantics concurrent updates generate conflicting log records 
+ivy provides tools automate conflict resolution 
+way improve 
+experimental results show ivy prototype times slower nfs 
+ivy available www pdos lcs mit edu ivy 
+acknowledgments satyanarayanan carnegie mellon university making modified andrew benchmark available 
+grateful planetlab ron testbeds letting run wide area experiments 
+sameer trevor blackwell miguel castro josh cates russ cox peter druschel frans kaashoek alex lewin david mazi res rodrigo rodrigues gave helpful feedback design description ivy 
+research sponsored defense advanced research projects agency darpa space naval warfare systems center san diego contract ntt ntt mit collaboration 
+planet lab 
+www planet lab org 
+andersen balakrishnan frans kaashoek robert morris :10.1.1.161.2760
+resilient overlay networks 
+proc 
+acm symposium operating system principles october 
+anderson dahlin neefe patterson roselli wang :10.1.1.110.7161
+serverless network file systems 
+proc 
+acm symposium operating system principles pages december 
+berliner :10.1.1.55.24
+cvs ii parallelizing software development 
+proc 
+winter usenix technical conference 
+bolosky douceur ely theimer 
+feasibility serverless distributed file system deployed existing set desktop pcs 
+acm sigmetrics conference june 
+callaghan pawlowski 
+nfs version protocol specification 
+rfc network working group june 
+castro liskov :10.1.1.127.6130
+practical byzantine fault tolerance 
+proc 
+usenix symposium operating systems design implementation february 
+clarke sandberg wiley hong 
+freenet distributed anonymous information storage retrieval system 
+proc 
+workshop design issues anonymity unobservability pages july 
+dabek frans kaashoek karger morris stoica :10.1.1.159.9358
+wide area cooperative storage cfs 
+proc 
+acm symposium operating system principles october 
+fips 
+secure hash standard 
+department commerce national technical information service april 
+fu frans kaashoek mazi res 
+fast secure distributed read file system 
+proc 
+usenix symposium operating systems design implementation pages october 
+hartman ousterhout 
+zebra striped network file system 
+acm transactions computer systems 
+howard kazar menees nichols satyanarayanan sidebotham west 
+scale performance distributed file system 
+acm transactions computer systems february 
+kistler satyanarayanan 
+disconnected operation coda file system 
+proc 
+acm symposium operating system principles pages 
+kubiatowicz bindel chen czerwinski eaton geels gummadi rhea weatherspoon weimer wells zhao :10.1.1.115.4299
+oceanstore architecture global scale persistent storage 
+proc 
+acm asplos pages november 
+kumar satyanarayanan 
+log directory resolution coda file system 
+proc 
+second international conference parallel distributed information systems pages january 
+lamport 
+time clocks ordering events distributed system 
+communications acm july 
+liskov ghemawat gruber johnson shrira williams 
+replication harp file system 
+proc 
+acm symposium operating system principles pages 
+lynch malkhi 
+atomic data access content addressable networks 
+proc 
+international workshop peer peer systems march 
+maheshwari shapiro 
+build trusted database system untrusted storage 
+proc 
+usenix symposium operating systems design implementation pages october 
+maymounkov mazi res 
+kademlia peer topeer information system xor metric 
+proc 
+international workshop peer peer systems march 
+mazi res 
+toolkit user level file systems 
+proc 
+usenix technical conference pages june 
+mazi res kaminsky frans kaashoek witchel 
+separating key management file system security 
+proc 
+acm symposium operating system principles december 
+mazi res shasha 
+building secure file systems byzantine storage 
+proc 
+acm symposium principles distributed computing podc 
+merkle 
+digital signature conventional encryption function 
+advances cryptology crypto volume lecture notes computer science pages 
+springer verlag 
+page guy popek heidemann 
+architecture ficus scalable replicated file system 
+technical report ucla csd 
+parker popek stoughton walker walton chow edwards kline 
+detection mutual inconsistency distributed systems 
+ieee transactions software engineering volume pages 
+quinlan dorward :10.1.1.18.8085
+venti new approach archival storage 
+proc 
+conference file storage technologies fast january 
+ratnasamy francis handley karp shenker 
+scalable content addressable network 
+proc 
+acm sigcomm pages august 
+ritchie thompson :10.1.1.100.7314
+unix time sharing system 
+communications acm july 
+rosenblum ousterhout :10.1.1.117.5365
+design implementation log structured file system 
+acm transactions computer systems 
+rowstron druschel 
+storage management caching past large scale persistent peer peer storage utility 
+proc 
+acm symposium operating system principles october 
+sandberg goldberg kleiman walsh lyon 
+design implementation sun network file system 
+proc 
+usenix summer conference pages june 
+feeley hutchinson veitch 
+deciding forget elephant file system 
+proc 
+acm symposium operating system principles pages 
+spreitzer theimer petersen demers terry 
+dealing server corruption weakly consistent replicated data systems 
+proc 
+acm ieee mobicom conference september 
+stein howard seltzer 
+unifying file system protection 
+proc 
+usenix technical conference pages 
+stoica morris karger frans kaashoek balakrishnan 
+chord scalable peer peer lookup service internet applications 
+proc 
+acm sig comm august 
+strunk goodson soules 
+self securing storage protecting data compromised systems 
+proc 
+usenix symposium operating systems design implementation pages october 
+terry theimer petersen demers spreitzer hauser 
+managing update conflicts bayou weakly connected replicated storage system 
+proc 
+acm symposium operating system principles pages december 
+thekkath mann lee 
+frangipani scalable distributed file system 
+proc 
+acm symposium operating system principles pages 
+zhao kubiatowicz joseph 
+tapestry infrastructure fault tolerant wide area location routing 
+technical report ucb csd computer science division berkeley april 

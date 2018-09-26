@@ -1,0 +1,510 @@
+building scalable geo spatial dbms technology implementation evaluation patel yu kabra kristin tufte nag josef burger nancy hall roger jim guo johan larson david dewitt jeffrey naughton presents number new techniques parallelizing geo spatial database systems discusses implementation paradise object relational database system 
+effectiveness techniques demonstrated variety complex geo spatial queries gb global geo spatial data set 
+
+motivation past years seen great deal research devoted extending relational database systems handle geo spatial workloads fact handling workloads driving forces object relational database technology 
+researchers acknowledged existence large data sets geo spatial domain vast majority research date focused language issues uniprocessor query evaluation indexing techniques 
+unfortunate large data set problems lurking beneath surface surface 
+describe new techniques building parallel geospatial dbms discuss implementation techniques paradise parallel object relational database system results variety queries gb global geo spatial data set 
+currently verge dramatic change quantity complexity geo spatial data sets 
+best known example large geo spatial data set data set generated nasa project 
+data generated application primarily huge collection raster images arriving rate mbytes second years 
+typical queries data set involve selecting set images interest scientist images portions images specified scalar attributes date instrument interestingly portions images retrieved clipping rasters polygon political geographical spatial feature 
+class queries data set select images portions images content 
+example ask images northern wisconsin lakes covered ice 
+sequoia benchmark ston captures types queries expected project 
+applications computer sciences department university wisconsin madison match terms sheer data size applications large data sets today standards significantly applications data sets far complex data set 
+factor decision government relax restrictions level resolution allowable publicly available satellite image 
+illegal distribute satellite image resolution meters 
+satellite images meter resolution legal 
+rise number commercial ventures launch satellites download images meter resolution images support far commercially viable applications meter resolution images 
+key piece applications identifying storing objects polygons polylines derived images running queries combination objects images 
+example take meter resolution image city 
+pre processing application identify store objects corresponding structure building roads trees cars larger meter diameter 
+applications enabled data set just invented clear involve complex queries spatial relationships objects 
+moving meter resolution profound implications geo spatial applications 
+number applications storing processing querying geo spatial data grow tremendously 
+
+size raster data grow factor 
+
+number polygons polylines associated data grow orders magnitude 
+database developer researcher challenge implicit clear techniques needed provide scalable performance complex queries geo spatial data sets 
+wonder new really needed 
+parallel relational database systems successful applying parallelism complex queries large data sets 
+techniques parallel relational database systems useful geo spatial workloads 
+example generalization parallel select operator applies complex function image large set images natural way speed large class geo spatial queries 
+informix universal server includes capability 
+unfortunately parallel function apply plus traditional parallel database techniques sufficient fully support scalable geo spatial query processing 
+important differences 
+geo spatial database systems allow spatial objects attributes 
+applying parallelism queries objects requires spatial partitioning 
+unfortunately interesting queries spatial types involve proximity exact matching query processing time operations rarely localized single spatial partition data 
+queries evaluated combination replication data operations introduce tradeoffs exist typical parallel relational applications 
+
+large objects raster images reasonable consider applying parallelism individual objects 
+example megabyte object large satellite may sense decluster object multiple nodes 
+turn means query time need decide query satisfied fragment object need assemble object order execute query 
+raises set issues relational systems 
+dramatically assembling large objects naturally done pulling fragments multiple nodes pushing data node 
+requires communication paradigm pulling generally parallel relational database systems 
+
+operations closest answered considering just pair objects 
+example objects know closest object verify objects circle radius distance implies operators similar spirit traditional aggregates operate sets tuples important difference single object may member multiple groups 
+example want find closest toxic waste dump city dump probably considered respect multiple cities 
+turn necessitates multi step operators complex parallel relational systems 
+designed implemented techniques handle new aspects parallel geo spatial databases 
+resulting system paradise runs single processor multiprocessor systems 
+describe results running paradise multiprocessor built commodity pentium processors linked high speed interconnect 
+order validate techniques sought large geospatial database experiment 
+answer acquire years world wide avhrr satellite images dma polygonal map data entire globe 
+size data set gb times larger regional sequoia benchmark 
+produced gb gb versions data set test system 
+data sets ran set queries closely patterned sequoia benchmark 
+furthermore state art advanced considerably sequoia benchmark defined included number complex queries stress optimizer query evaluation subsystems dbms far sequoia benchmark 
+results show techniques designed implemented paradise object relational database system provide speedup scale performance geospatial workloads 
+
+techniques geo spatial section describe basic software techniques paradise 
+overview data model especially spatial image adts 
+section describes basic software architecture system 
+describing basic parallelization query processing mechanisms paradise sections respectively final sections describe mechanisms extended achieve geo spatial scalability storage processing spatial image data types 
+substantial growing body related performance geo spatial workloads section discuss relevant related applicable 
+general terms system stated goal similar monet system explicitly names parallelism project goal 
+paradise data model query language paradise provides loosely interpreted object relational data model 
+addition standard attribute types integers floats strings time paradise provides set spatial data types including point polygon polyline swiss cheese polygon circle 
+spatial data types provide rich set spatial operators accessed extended version sql 
+paradise provides additional data types designed facilitate storage retrieval image data including sensor data satellite images 
+types raster images supported bit bit bit 
+ndimensional array data type provided dimensions varied 
+example dimensional data form latitude longitude measured precipitation function time stored array 
+paradise provides support mpeg encoded video objects 
+extended set types arbitrary combinations defining new table types 
+example table mix terrain map data area latest reconnaissance photo 
+geo spatial metaphor simplifies task fusing disparate forms data multiple data sources including text sensor image map video data sets 
+types including base types implemented data types adts 
+currently types defined 
+paradise architectural overview process structure paradise shown 
+types clients currently exist 
+graphical front ends browsing querying updating spatial data sets exist windows nt unix 
+application development class library available 
+addition providing support dynamic sql library includes paradise data types allowing applications manipulate instances types returned interface 
+schema data cache server application process data server query result tuples query coordinator data server scheduler data server paradise process structure 
+paradise database system consists query coordinator qc process data server ds processes 
+qc ds processes communicate communication infrastructure automatically selects efficient transport mechanism 
+message processes share common memory system transport protocol tcp mpi 
+communication processors smp memory transport vehicle 
+clients applications guis connect qc process 
+parsing optimization qc controls parallel execution query ds processes 
+results sets collected qc delivery back client 
+special attention efficient delivery result tuples containing large objects images 
+particular attributes returned application program typically invoking method attribute 
+addition portion object needed client retrieved relevant ds 
+attribute large multidimensional array client needs small subarray middle array subarray fetched 
+client needs large portion entire attribute qc establishes data pipeline ds qc application data transferred efficiently minimal delay 
+qc ds implemented multithreaded processes top shore storage manager care 
+shore storage manager provides storage volumes files untyped objects trees trees beck 
+objects arbitrarily large size storage volume 
+allocation space inside storage volume performed terms fixed size extents 
+aries shore recovery mechanism 
+locking done multiple granularities object page file optional lock escalation 
+unix blocking shore uses separate process mounted storage volume 
+processes main shore server process share shore buffer pool kept shared memory 
+yu describes extension shore paradise handle tape storage volumes 
+basic parallelism mechanisms paradise uses basic parallelism mechanisms developed part gamma project dewi dewi 
+tables fully partitioned disks system round robin hash spatial declustering discussed 
+scan selection query executed separate thread started fragment table 
+paradise uses push model parallelism implement partitioned execution dewi tuples pushed leaves operator tree upward 
+paradise operator join sort select 
+takes input input stream places result tuples output stream 
+streams similar concept volcano exchange operator active entities 
+streams objects specialized form file streams network streams 
+file streams read write tuples disk 
+network streams move data operators shared memory communications network transport protocol tcp ip mpi 
+addition providing transparent communication operators different processors network streams provide flow control mechanism regulate execution rates different operators pipeline 
+network streams specialized split streams demultiplex output stream multiple output streams function applied tuple 
+split streams key mechanisms parallelize queries dewi 
+types streams derived base stream class interfaces identical implementation operator totally isolated type stream reads writes 
+runtime scheduler thread running qc process control parallel execution query instantiates correct type stream objects connect operators 
+relational algorithms part paradise uses relatively standard algorithms basic relational operators 
+indexed selections provided non spatial spatial selections 
+join operations optimizer choose nested loops indexed nested loops dynamic memory grace hash join kits 
+paradise query optimizer written opt consider replicating small outer tables index exists join column inner table 
+parallel database systems phase approach parallel execution aggregate operations 
+example consider query involving average operator group clause 
+phase participating thread processes fragment input table producing running sum count group 
+second phase single processor typically combines results phase produce average value group 
+standard sql defined set aggregate operators operator functions performed second phases known system built hard coded system 
+case object relational system supports type extensibility set aggregate operators known advance new type added system may introduce new operators 
+example point adt contain closest method finds spatially closest polyline 
+min aggregate closest examine number possible large polylines finding correct result 
+solution problem define aggregate operators terms local global functions 
+local function executed phase global function second phase 
+function signature terms input output types 
+system extended adding new adts new aggregate operators aggregate name local global functions registered system catalogs 
+permits new aggregates added modifying scheduler execution engine 
+similar approach illustra informix 
+paradise algorithms executing spatial join operations 
+tree exists join attribute relations joined indexed nested loops algorithm generally 
+algorithm 
+dealing large satellite images key focus paradise dbms project development techniques dealing large satellite images arrays scientific data 
+section describe techniques developed storing processing instances attribute types 
+systems paradise stores attributes inside database system files file system 
+storage issues paradise array adt provides support dimensional arrays dimensions optionally unlimited size 
+array adt type geo located raster adt derived store satellite images 
+array adt automatically handles small large arrays efficiently 
+small arrays inlined directly inside tuple normal attribute 
+arrays larger certain fraction shore page currently set separate objects 
+case metadata array number dimensions size dimension left inlined oid object containing actual array 
+approach number advantages 
+shore object containing array automatically migrated secondary tertiary storage 
+second tuples relation remain physically clustered significantly reducing cost sequential scan 
+third queries requiring access array pay cost reading array disk buffer pool 
+large arrays array adt code chunks array subarrays called tiles size tile approximately kbytes 
+tile stored separate shore object mapping table keeps track objects store subarrays 
+subarray dimensionality original array size dimension proportional size dimension original array proposed 
+illustrates process array 
+decomposition array allows paradise fetch portions required execute operation 
+example clipping satellite image polygons relevant tiles read disk tape 
+final performance enhancement tile written disk compressed lossless compression algorithm lzw wel 
+handle unpredictability compression algorithm array adt examines size reduction achieved compression 
+compression reduce size tile significantly tile stored uncompressed form flag mapping table indicate particular tile compressed 
+tiles array compressed may 
+original raster break tiles add map table compress tiles temporary tables large objects arrays large attributes special challenges processing queries object relational dbms 
+challenges involve insertion attributes intermediate relations produced process executing query creation new instances attributes course executing query 
+relational dbms intermediate relation produced process executing query copies necessary attributes underlying base table 
+process repeated multiple times course executing complex query 
+attributes happens mb satellite image approach performance 
+paradise tuples temporary tables produced course executing query share original copy large attributes 
+copies large attributes tuple inserted permanent relation 
+copy avoided sql sql notion attribute copy ensures raster data located node rest tuple 
+advantage preventing unnecessary network traffic execution subsequent queries 
+large attributes may created part intermediate result example query clip array attribute projection list predicate evaluation example query clip array attribute clause 
+paradise uses mechanisms dealing storage large attributes 
+large attributes belonging tuples base table stored shore file deleted base table deleted 
+large attributes intermediate table stored shore file associated temporary intermediate table deleted intermediate table deleted 
+large attributes produced part predicate evaluation stored shore file associated operator performing predicate evaluation deleted operator completed execution 
+copy insert mechanism described copy large attributes created query execution permanent tables necessary 
+need pull discussed section paradise push model parallelism 
+unfortunately push model parallelism breaks dealing large attributes satellite images 
+particular process executing query involving redistribution intermediate tuples processors want unnecessarily copy large attributes 
+paradise uses tactics deal problem 
+possible optimizer avoids declustering tuples containing large attributes 
+possible paradise turns pull model parallelism 
+consider query involving clip set raster images set polygons corresponding selected areas interest 
+assume relations spatially partitioned grid tuples relations order process query 
+assume optimizer decides expensive tuples containing raster images 
+approach push tuples associated images 
+approach produce correct result data needed process query moved processors 
+paradise uses pull model situation 
+particular clip method invoked instance array adt array stored node node clip performed array adt starts operator node array stored fetch tiles containing portions array covered clip 
+pull redistributed tuple inserted permanent result relation 
+discussed previous section copy large attributes case 
+pull insures required data moved processors 
+general pull expensive operation pull requires separate operator started remote node 
+addition pull operator results extra random disk seeks 
+aware costs able architect solution totally avoided pull concluded overhead pull acceptable relative size objects pulled 
+declustering arrays bad 
+fundamental question respect parallelization operations paradise tiles single large image declustered multiple disks 
+relatively easy paradise 
+paradise array adt decomposes large arrays multiple tiles 
+second discussed previous section array adt knows pull pieces array residing disk attached different processor 
+just partitioning tuples table facilitates parallelization relational operations partitioning large image multiple disks facilitates parallel application function entire image searching image missile clipping image set polygons 
+partitioning table beneficial small tables true arrays 
+example clipping images polygons searching large collection photos ones contain red sunsets provides benefit long number images processed larger number processors 
+computing pixel average arrays benefit declustering arrays 
+right answer 
+may best store tiles image disks processor repartition fly query involves computationally intensive operation images 
+approach added benefit simplifying task migrating images secondary tertiary storage 
+section experimentally explore tradeoffs associated partitioning images 
+spatial query parallelization spatial declustering addition hash round robin partitioning paradise spatially decluster tuples table 
+basic idea spatial declustering divide spatial domain multiple partitions turn mapped storage units hashing round robin fashion 
+spatially declustered table loaded spatial attribute tuple determine partition tuple belongs 
+spatial partitioning scheme multiple tables order maximize amount local processing queries involving spatial join operations tables 
+addition point polyline polygon data spatially decluster geo located image data satellite images oil field seismic data 
+spatial declustering attractive performance viewpoint factors complicate 
+illustrated spatial partitioning non point data polylines polygons impossible map polyline polygon single partition partition 
+particular polylines polygons spanning multiple partitions replicated order insure queries spatial attribute produce correct result 
+replicate entire tuple complicates updates simply replicate bounding box spatial feature complicates query processing 
+partition partition partition partition second problem spatial partitioning skew 
+divides spatial domain small number partitions equal number storage partitions skew major problem 
+consider example relation road data state wisconsin 
+spatially divides state say partitions partitions containing data madison milwaukee green bay contain tuples partition corresponding area north central wisconsin 
+likewise partitions containing large areas lake michigan lake superior relatively tuples mapped 
+proposed hua dewi way reduce effects partition skew walt significantly increase number partitions 
+unfortunately increasing number partitions increases number tuples spanning multiple partitions percentage tuples replicated 
+preliminary tests showed needs thousands partitions smooth skew significant extent 
+alternative approach dealing skew decluster distribution data set 
+koudas describe interesting approach declustering leaves tree 
+difficulty approach parallelization queries multiple data sets efficient multiple data sets declustered boundaries 
+parallel spatial join processing normal join operation execution spatial join query parallel phase process 
+phase tuples relations joined join attributes order bring candidate tuples 
+nonspatial attributes normally done hashing join attribute values map attribute value processor 
+second phase participating processors joins partitions tuples receives phase 
+single processor spatial join algorithm second phase 
+input tables declustered joining attributes phase algorithm eliminated table 
+joins spatial attributes process slightly complicated 
+partitioning function spatial partitioning function mapping tuples partitions space see section 
+second order minimize effects spatial skew second phase algorithm partitions processors 
+third spatial attributes tuples span multiple spatial partitions replication repartitioning phase insure correct result produced 
+replicating tuples introduces possibility duplicate tuples produced 
+consider example tables river road data wisconsin query determine wisconsin river cross 
+wisconsin river span multiple spatial partitions turns cross places 
+process river road data phase objects get replicated partition overlap 
+partitions cross get mapped different processors result query contain identical result tuples 
+designed implemented parallel spatial join algorithms involving replication bounding box information full tuples 
+description analysis performance algorithms 
+spatial aggregation processing geo spatial database system opens entire new spectrum operations handled efficiently normal relational query processing techniques 
+consider example query find river closest particular point 
+process operation iteratively expand circle point circle overlaps polyline corresponding river 
+expansion step may find candidate river closest eliminated 
+consider type operation form spatial aggregate query totally dissimilar task executing sql min operation 
+type operation extended include term spatial join aggregation query 
+consider query find closest river cities populations greater 
+selection predicate applied cities table filter cities populations 
+remaining cities joined rivers table 
+notion join case overlap spatial aggregate function defines join satisfiability spatially closest 
+illustrates problems encountered trying parallelize spatial join aggregate queries 
+grids correspond boundaries spatial partitions 
+consider madison 
+note closest river madison map different spatial partition 
+processor expands circle madison looking overlapping river eventually encounter northern boundary spatial partition containing madison having river 
+closest river may may tile north paradise sends copy madison tuple processors contain river data surrounding tiles 
+assume processor finds candidate river implementation works correctly case solution complex explain confines 
+processors spatial split table forward matches operator combines results find closest river 
+evaluation type query contained section 
+madison 
+benchmark description performance evaluation benchmark description generating meaningful test suite parallel geo spatial database system turned non trivial project 
+sequoia benchmark ston wanted problems 
+national size benchmark available data set state level benchmark approximately gb far small testing scaleup speedup 
+second spatial queries benchmark relatively simple 
+third original sequoia benchmark provided mechanism scaling database 
+address issues turn 
+global sequoia data set sequoia lead real data benchmark years km 
+resolution avhrr satellite images obtained nasa raster images 
+raster composite image covering entire world 
+polygon data global data set containing variety information things roads cities land drainage properties 
+data sets geo registered coordinate system 
+definition tables 
+raster date date channel integer recording channel data raster raster image id string unique feature identifier containing face string feature id containing polygon type integer category populated place values location point spatial coordinates place name string name place id string unique feature identifier type integer type water body categories shape polygon boundary water body roads id string unique feature identifier type integer type road possible categories shape polyline shape road drainage id string unique feature identifier type integer drainage feature type categories shape polyline shape drainage feature query descriptions benchmark contains fourteen queries 
+correspond directly queries original sequoia benchmark new queries test geo spatial functionality covered sequoia benchmark 
+query load benchmark database build indices 
+query select raster images corresponding particular satellite channel clip image fixed polygon sort results date 
+polygon rectangular region roughly corresponding continental united states approximately raster image 
+select raster date raster data clip polygon raster raster channel order date query select raster images particular date clipping image constant polygon 
+average pixel values clipped images produce single result image 
+constant polygon queries refers polygon 
+select average raster data clip polygon raster raster date date query select raster image particular date satellite channel clip image fixed polygon perform lower resolution clipped portion insert result permanent relation 
+select raster date raster channel raster data clip polygon lower res raster raster channel raster date date query select city city name 
+select name phoenix query locate polygons overlap particular geographical region insert result permanent relation 
+query requires spatial selection 
+select shape overlaps polygon query select polygons lie fixed radius specified point maximum area 
+query requires combination spatial non spatial selection 
+select shape area shape circle point radius shape area constant query find polygons nearby city named 
+polygon nearby city specified square centered city location 
+query requires spatial join 
+select shape name shape overlaps location length query select raster data particular date channel lies oil field 
+query involves join raster set polygons 
+select shape raster data clip shape raster oil field raster channel raster date date query select rasters average pixel value particular geographical region polygon greater fixed constant 
+query interesting requires creation new large attribute clipped raster predicate evaluation selects rasters calculated property raster data 
+select raster date raster channel raster data clip polygon raster raster data clip polygon average constant query find closest road type point 
+query requires evaluation spatial aggregate closest 
+geo spatial systems need able handle spatial aggregates traditional relation aggregates 
+select closest shape point type roads group type query find closest drainage feature lake river large city 
+query requires evaluation spatial aggregate cross product relations 
+query efficiently parallel system spatial declustering support spatial semi join 
+select closest drainage shape location location drainage location overlaps drainage shape type large city group location query demonstrates novel techniques paradise uses handling geo spatial data 
+described approach digress moment describe approach 
+query executed follows 
+declustering drainage relation spatial region drainage features lie universe shape attribute broken tiles 
+tiles numbered row major order starting corner 
+tile mapped nodes hashing tile number 
+drainage relation spatially declustered sending tuple node corresponding tile shape attribute located 
+drainage features span tiles mapped multiple nodes replicated corresponding nodes 
+
+declustering points relation points spatially declustered declustering policy previous step 
+
+spatial index shape attribute declustered drainage relation built fly 
+index local node built fragment drainage relation node 
+
+operator tree executed 
+select scan city spatial semi join global aggregate join aggregate index scan drainage index scan drainage tuples cross node boundary tuples transferred operators node spatial semi join looks city tuple forms largest circle completely contained tile corresponding node 
+uses circle probe index drainage feature 
+tuple falls circle closest drainage feature features universe relation spatial attribute rectangular box completely encloses spatial attribute tuple relation 
+case city tuple sent join aggregate operator node 
+index probe return tuples closest feature node system city tuple replicated sent nodes system 
+operator pipeline join aggregate operator takes incoming city tuple probes index drainage small circle currently system starts circle area roughly area entire universe 
+index probe returns tuples operator finds feature closest point sends tuple operator global aggregate operator pipeline 
+index probe return tuples join aggregate operator forms new circle twice area previous circle probes index 
+expansion probing circle continues circle expands boundary universe index scan changed file scan drainage relation 
+final operator pipeline global aggregate operator collects closest drainage feature point nodes produces final result 
+currently global aggregate operator entire system 
+operator represents sequential portion query execution hurts speedup scaleup somewhat 
+approach problem modifications tree search algorithms suggested kim 
+explore approach 
+query find drainage features lakes rivers cross road 
+query joins large spatial relations tests efficiency system spatial join algorithms 
+select drainage roads drainage shape overlaps roads shape query select rasters particular year channel clip rasters oil fields 
+query requires join large number rasters large number polygons 
+select shape raster data clip shape raster oil field raster channel raster date date raster date date spatial data set scaleup fundamental goal paradise project test scalability various geo spatial query processing techniques 
+requires data set instantiated various different sizes 
+finding way scale benchmark data set difficult partially data spatial partially data real world 
+fundamentally scale data set attempting model larger instance data set 
+orthogonal ways spatial data set grow larger 
+domain spatial data set expanded 
+example double data set size northern hemisphere base data set hemispheres scaled data set 
+call kind scaleup boundary expansion scaleup 
+second way scale geo spatial data set keep region consideration constant view higher resolution 
+call kind scaleup resolution scaleup 
+clearly boundary expansion resolution scaleup cause data set grow interest 
+experiments chose resolution scaleup 
+considered number approaches simulating resolution scaleup real world data set settled 
+primary idea user moves data set higher resolution existing spatial features detailed time number smaller satellite features hover existing feature visible 
+example consider scaling river 
+higher resolution shape river described detail time number small initially visible visible 
+diagrams resolution scaleup scheme details scheme described 
+polygon scaleup polyline scaleup original polygon new polygon original polyline new polyline new point added existing object polygons consider polygon having points needs scaled factor 
+increase number points polygon generate new satellite polygon points 
+satellite regularly shaped polygon inscribed bounding box sides tenth size corresponding sides original polygon bounding box 
+satellite randomly placed near original polygon 
+increasing number points original polygon done randomly picking edges original polygon breaking edges 
+note process doubles number polygons doubles total number points data set 
+general scale polygon times increase number points polygon add new satellites having points 
+shows point polygon scaled times 
+example new points added original polygon new satellite polygons points created 
+polylines polylines scaled similarly polygons 
+shows point polyline scaled factor 
+points scaling point data times achieved adding points randomly distributed near original point 
+raster scale raster data resolution image increased times new images added 
+increase resolution pixel raster sampled times 
+perturb pixel values sampled pixels slightly prevent artificially high compression ratios 
+testbed description dbms configuration tests conducted cluster intel express pcs configured dual mhz pentium processors mbytes memory dual fast wide scsi adapters seagate gbyte disk drives st wc 
+solaris operating system 
+processors connected mbit second ethernet cisco catalyst switch internal bandwidth second 
+disks configured raw disk drives unix file system 
+holding database fifth holding log 
+sixth disk initialized unix file system 
+disk holding system software swap space 
+disk drives hold database distributed scsi chains 
+paradise configured mbyte buffer pool 
+small buffer pool relative mbyte physical memory available paradise query processing outside buffer pool dynamically allocated memory 
+maximum process size observed benchmark execution mbyte 
+swapping occurred 
+test configurations relations partitioned disk drives database storage 
+buffer pool flushed queries 
+command query insure query sees cold buffer pool 
+scaleup experiments set scaleup experiments conducted nodes disks respectively 
+table specifies data set sizes scaleup configuration 
+results obtained query contained table 
+nodes raster pop 
+places roads tuples size gb mb mb tuples size gb mb mb tuples size gb mb mb nodes drainage tuples size mb mb tuples size mb mb tuples size mb mb table 
+scaleup data set sizes nodes nodes nodes query query query query query query query query query query query query query table scaleup execution times seconds discussion scaleup results query substantial portion done load process outside paradise system load numbers 
+query query touches data rasters 
+rasters uniformly distributed configuration result see close perfect scaleup 
+small fluctuations numbers paradise uses compression raster tiles tuples uniformly distributed node slowest operator content tiles node compression decompression expensive 
+query queries look data raster images respectively 
+node configuration operators nodes doing twice done node case 
+time quite double costs moving disk arm tile raster examined remain 
+query queries perform index lookups query nested index join shows linear scaleup 
+spatial index better packed new satellite features smaller easier pack bulk loading index dewi 
+benefits mainly query scans substantial portion index 
+query query selects oil field polygons sends nodes 
+polygons joined raster 
+double size database node having selected raster twice 
+newer satellite polygons added scaleup smaller original polygons result clip increases rate slower scaleup 
+accounts fact query execution time double 
+query query scales perfectly cost evaluating clause remains node 
+query query somewhat successful scaling particularly bad nodes 
+sure exact cause behavior speculate due method scaling data set 
+cpu time accounts large portion execution time query order check distances shapes points 
+database scaled shapes get points distance computation shape expensive 
+query number nodes increase number points find local drainage feature spatial semi join increase 
+points replicated see sub linear scaleup 
+query scaleup super linear size result double double database size 
+particular scaled database add small polylines smaller probability joining 
+query comments query apply query shows better scaleup involves rasters just 
+speedup experiments speedup experiments conducted nodes disks respectively database size specified table speedup results contained table 
+speedup data size tuples size raster gb populated places mb roads mb drainage mb mb table nodes nodes nodes query query query query query query query query query query query query query table speedup execution times seconds discussion speedup results query query shows super linear speedup disks results fewer tiles disk 
+turn results shorter disk seeks reading raster tiles 
+query queries look data raster images respectively 
+individual raster images reside single disks queries exhibit speedup 
+query queries involve index lookups query index nested loops spatial join 
+data spread nodes indices smaller node 
+speedup linear index size decreases logarithmic rate 
+query parallelism query involves single raster processing query done node holds selected raster 
+query involved query lies evaluating predicate clause 
+evenly distributed see speedup 
+query local aggregation node benefits increasing degree parallelism 
+discussed scaleup section global aggregate evaluation remains sequential reducing speedup slightly linear 
+query spatial join algorithm just relational hash join algorithms forms partitions joined 
+increasing nodes partitions fit memory resulting super linear speedup query performance query similar query see better speedup rasters selected 
+decluster rasters experiments mentioned section interesting design issue decluster tiles individual raster images 
+shed light issue ran series tests raster images tiles declustered multiple nodes 
+chose queries tests 
+query selects clips large number rasters 
+touches rasters advantage declustering individual rasters order benefit parallelism 
+query hand examines just rasters 
+candidate illustrating potential benefits declustering 
+understand query candidate consider execution declustering 
+query computes average clipped region rasters 
+average operator started node say 
+operator contacts processors rasters reside say order pull tiles image overlap clipped region 
+relevant tiles pulled average computed 
+process clearly sequential 
+suppose tiles raster image spatially declustered 
+case processor compute average tiles image stored locally 
+note clipped region small effective processors tiles clipped region 
+reason experimented variant query query identical query clipped region entire raster just image results table see query response time increases declustering 
+query slightly better performance 
+query larger clip region benefits significantly declustering 
+confirms intuition declustering rasters worth added complexity entails needs speed computations large portions rasters 
+declustering declustering query query query table seconds 
+described design parallel version paradise database system 
+paradise employs parallel database techniques developed part gamma project incorporates number new techniques parallelizing geo spatial database queries evaluates effectiveness comprehensive set queries gb geo spatial data set 
+examine performance results critical eye appears somewhat successful achieving scaleup speedup geo spatial workloads 
+closer look reveals encouraging story 
+queries sub optimal speedup scaleup performance precisely ran efficiently small number nodes ran slowly nodes uniformly showed speedup scaleup 
+particular queries running times seconds nodes exhibited speedup scaleup sixteen nodes 
+suggests addition new features described historical success parallel database systems traditional relational environment duplicated new challenging world large complex geo spatial workloads 
+
+acknowledgments intel ibm generous hardware donations paradise project 
+funding paradise project provided nasa contracts arpa arpa order number monitored army research laboratory contract 
+especially ms lola olsen nasa goddard assistance helping acquire avhrr data sets benchmark 
+
+beck beckmann tree efficient robust access method points rectangles proceedings acm sigmod conference june 
+peter martin kersten monet geographic extensions novel approach high performance gis processing 
+edbt care persistent applications carey dewitt naughton solomon proceedings sigmod conference minneapolis mn may 
+users manual digital chart world defense mapping agency july 
+dew dewitt gamma database machine project ieee transactions knowledge data engineering march 
+dewi dewitt gray parallel database systems database processing passing fad communications acm june 
+dewi dewitt naughton schneider seshadri practical skew handling parallel joins proceedings large data base conference vancouver ca august 
+dewi dewitt kabra luo patel yu client server paradise 
+proceedings th vldb conference september 
+eos see eos nasa gov graefe encapsulation parallelism volcano query processing system proceedings acm sigmod international conference management data may 
+gutman trees dynamic index structure spatial searching proceedings acm sigmod conference boston mass june 
+hua hua lee handling data skew multiprocessor database computers partition tuning proceedings th vldb conference spain september 
+info see www informix com see www illustra com mohan aries transaction recovery methods supporting fine granularity locking partial rollbacks write ahead logging acm tods march 
+kabra dewitt opt object oriented implementation extensible database query optimization submitted publication 
+see www cs wisc edu research opt ps kits kitsuregawa nakayama takagi effect bucket size tuning dynamic hybrid grace hash join method proceedings vldb conference amsterdam august 
+nick koudas christos faloutsos ibrahim declustering spatial databases multi computer architecture edbt kim min soo kim ki li 
+spatial query processing method nearest object search trees 
+submitted publication 
+patel dewitt partition spatial merge join 
+proceedings acm sigmod conference june 
+patel dewitt study alternative parallel spatial join algorithms 
+submitted vldb conference august 
+prep preparata shamos editors computation geometry springer 
+nick steve kelly vincent 
+nearest neighbor queries 
+proc 
+acm sigmod pages may 
+naughton aggregate processing parallel rdbms proceedings acm sigmod conference san jose california may 
+interaction software hardware architecture parallel relational database query processing phd thesis computer science department uw madison 
+ston stonebraker meredith sequoia storage benchmark proceedings sigmod conference washington may 
+sql iso iec sql revision 
+iso ansi working draft database language sql sql jim melton editor document iso sc american national standards institute ny july 
+sarawagi 
+efficient processing multidimensional arrays proceedings ieee data engineering conference february 
+tera teradata dbc database computer system manual release document 
+teradata nov 
+yu yu dewitt 
+query pre execution batching pronged approach efficient processing tape resident data sets submitted publication september 
+walt walton dale taxonomy performance model data skew effects parallel joins proceedings conference spain september 
+welch technique high performance data compression ieee computer vol 

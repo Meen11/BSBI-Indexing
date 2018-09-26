@@ -1,0 +1,556 @@
+design implementation log structured file system mendel rosenblum john ousterhout electrical engineering computer sciences computer science division university california berkeley ca mendel sprite berkeley edu sprite berkeley edu presents new technique disk storage management called log structured file system 
+logstructured file system writes modifications disk sequentially log structure speeding file writing crash recovery 
+log structure disk contains indexing information files read back log efficiently 
+order maintain large free areas disk fast writing divide log segments segment cleaner compress live information heavily fragmented segments 
+series simulations demonstrate efficiency simple cleaning policy cost benefit 
+implemented prototype logstructured file system called sprite lfs outperforms current unix file systems order magnitude small file writes matching exceeding unix performance reads large writes 
+overhead cleaning included sprite lfs disk bandwidth writing unix file systems typically 
+
+decade cpu speeds increased dramatically disk access times improved slowly 
+trend continue cause applications 
+lessen impact problem devised new disk storage management technique called log structured file system uses disks order described supported part national science foundation ccr part national aeronautics space administration defense advanced research projects agency contract nag 
+appear proceedings th acm symposium operating systems principles february acm transactions computer systems 
+july magnitude efficiently current file systems 
+log structured file systems assumption files cached main memory increasing memory sizes caches effective satisfying read requests 
+result disk traffic dominated writes 
+log structured file system writes new information disk sequential structure called log 
+approach increases write performance dramatically eliminating seeks 
+sequential nature log permits faster crash recovery current unix file systems typically scan entire disk restore consistency crash log structured file system need examine portion log 
+notion logging new number file systems incorporated log auxiliary structure speed writes crash recovery :10.1.1.14.8906
+systems log temporary storage permanent home information traditional random access storage structure disk 
+contrast log structured file system stores data permanently log structure disk 
+log contains indexing information files read back efficiency comparable current file systems 
+log structured file system operate efficiently ensure large extents free space available writing new data 
+difficult challenge design log structured file system 
+solution large extents called segments segment cleaner process continually empty segments compressing live data heavily fragmented segments 
+simulator explore different cleaning policies discovered simple effective algorithm cost benefit older slowly changing data young rapidly changing data treats differently cleaning 
+constructed prototype log structured file system called sprite lfs production part sprite network operating system 
+benchmark programs demonstrate raw writing speed sprite lfs order magnitude greater unix small files 
+workloads including reads large file accesses sprite lfs fast unix cases files read sequentially written randomly 
+measured long term overhead cleaning production system 
+sprite lfs permits disk raw bandwidth writing new data rest cleaning 
+comparison unix systems utilize disk raw bandwidth writing new data rest time spent seeking 
+remainder organized sections 
+section reviews issues designing file systems computers section discusses design alternatives log structured file system derives structure sprite lfs particular focus cleaning mechanism 
+section describes crash recovery system sprite lfs 
+section evaluates sprite lfs benchmark programs long term measurements cleaning overhead 
+section compares sprite lfs file systems section concludes 
+
+design file systems file system design governed general forces technology provides set basic building blocks workload determines set operations carried efficiently 
+section summarizes technology changes underway describes impact file system design 
+describes workloads influenced design sprite lfs shows current file systems ill equipped deal workloads technology changes 
+
+technology components technology particularly significant file system design processors disks main memory 
+processors significant speed increasing nearly exponential rate improvements continue puts pressure elements computer system speed system doesn unbalanced 
+disk technology improving rapidly improvements primarily areas cost capacity performance 
+components disk performance transfer bandwidth access time 
+factors improving rate improvement slower cpu speed 
+disk transfer bandwidth improved substantially disk arrays parallel head disks major improvements access time determined mechanical motions hard improve :10.1.1.114.9535
+application causes sequence small disk transfers separated seeks application experience speedup years faster processors 
+third component technology main memory increasing size exponential rate 
+modern file systems cache file data main memory july larger main memories larger file caches possible 
+effects file system behavior 
+larger file caches alter workload disk absorbing greater fraction read requests 
+write requests eventually reflected disk safety disk traffic disk performance dominated writes 
+second impact large file caches serve write buffers large numbers modified blocks collected writing disk 
+buffering may possible write blocks efficiently example writing single sequential transfer seek 
+course disadvantage increasing amount data lost crash 
+assume crashes infrequent acceptable lose seconds minutes crash applications require better crash recovery non volatile ram may write buffer 
+
+workloads different file system workloads common computer applications 
+difficult workloads file system designs handle efficiently office engineering environments 
+office engineering applications tend dominated accesses small files studies measured mean file sizes kilobytes 
+small files usually result small random disk os creation deletion times files dominated updates file system metadata data structures locate attributes blocks file 
+workloads dominated sequential accesses large files supercomputing environments pose interesting problems file system software 
+number techniques exist ensuring files laid sequentially disk performance tends limited bandwidth memory subsystems file allocation policies 
+designing log structured file system decided focus efficiency small file accesses leave hardware designers improve bandwidth large file accesses 
+fortunately techniques sprite lfs large files small ones 
+
+problems existing file systems current file systems suffer general problems hard cope technologies workloads spread information disk way causes small accesses 
+example berkeley unix fast file system unix ffs quite effective laying file sequentially disk physically separates different files :10.1.1.114.9535:10.1.1.114.9535
+furthermore attributes inode file separate file contents directory entry containing file name 
+takes separate disk os preceded seek create new file unix ffs different accesses file attributes plus access file data directory data directory attributes 
+writing small files system disk potential bandwidth new data rest time spent seeking 
+second problem current file systems tend write synchronously application wait write complete continuing write handled background 
+example unix ffs writes file data blocks asynchronously file system metadata structures directories inodes written synchronously 
+workloads small files disk traffic dominated synchronous metadata writes 
+synchronous writes couple application performance disk hard application benefit faster cpus 
+defeat potential file cache write buffer 
+unfortunately network file systems nfs introduced additional synchronous behavior didn exist 
+simplified crash recovery reduced write performance 
+berkeley unix fast file system unix ffs example current file system design compare log structured file systems 
+unix ffs design documented literature popular unix operating systems 
+problems section unique unix ffs file systems 
+
+log structured file systems fundamental idea log structured file system improve write performance buffering sequence file system changes file cache writing changes disk sequentially single disk write operation 
+information written disk write operation includes file data blocks attributes index blocks directories information manage file system 
+workloads contain small files log structured file system converts small synchronous random writes traditional file systems large asynchronous sequential transfers utilize nearly raw disk bandwidth 
+basic idea log structured file system simple key issues resolved achieve potential benefits logging approach 
+issue retrieve information log subject section 
+second issue manage free space disk large extents free space available writing new data 
+difficult issue topic sections 
+table contains summary disk data structures sprite lfs solve problems data structures discussed detail sections 
+
+file location reading term log structured suggest sequential scans required retrieve information log case sprite lfs 
+goal match exceed read performance unix ffs 
+accomplish goal sprite lfs outputs index structures log permit random access retrievals 
+basic structures sprite lfs identical unix ffs file exists data structure called inode contains file attributes type owner permissions plus disk addresses blocks file files larger blocks inode contains disk addresses indirect blocks contains addresses data indirect blocks 
+file inode number disk os required read file identical sprite lfs unix ffs 
+unix ffs inode fixed location disk identifying number file simple calculation data structure purpose location section inode locates blocks file holds protection bits modify time log inode map locates position inode log holds time access plus version number 
+log indirect block locates blocks large files 
+log segment summary identifies contents segment file number offset block 
+log segment usage table counts live bytes left segments stores write time data segments 
+log superblock holds static configuration information number segments segment size 
+fixed checkpoint region locates blocks inode map segment usage table identifies checkpoint log 
+fixed directory change log records directory operations maintain consistency counts inodes 
+log table summary major data structures stored disk sprite lfs 
+data structure table indicates purpose served data structure sprite lfs 
+table indicates data structure stored log fixed position disk data structure discussed detail 
+inodes indirect blocks superblocks similar unix ffs data structures names 
+note sprite lfs contains bitmap free list 
+july yields disk address file inode 
+contrast sprite lfs doesn place inodes fixed positions written log 
+sprite lfs uses data structure called inode map maintain current location inode 
+identifying number file inode map indexed determine disk address inode 
+inode map divided blocks written log fixed checkpoint region disk identifies locations inode map blocks 
+fortunately inode maps compact keep active portions cached main memory inode map lookups rarely require disk accesses 
+shows disk layouts occur sprite lfs unix ffs creating new files different directories 
+layouts logical structure log structured file system produces compact arrangement 
+result write performance sprite lfs better unix ffs read performance just 
+
+free space management segments difficult design issue log structured file systems management free space 
+goal maintain large free extents writing new data 
+initially free space single extent disk time log reaches disk free space fragmented small extents corresponding files deleted overwritten 
+point file system choices threading copying 
+illustrated 
+alternative leave live data place thread log free extents 
+unfortunately threading cause free space severely fragmented large contiguous writes won possible log structured file system faster file dir file dir log disk sprite lfs block key inode directory data traditional file systems 
+second alternative copy live data log order leave large free extents writing 
+assume live data written back compacted form head log moved log structured file system form hierarchy logs moved totally different file system archive 
+disadvantage copying cost particularly long lived files simplest case log works circularly disk live data copied back log longlived files copied pass log disk 
+sprite lfs uses combination threading copying 
+disk divided large fixed size extents called segments 
+segment written sequentially live data copied segment segment rewritten 
+log threaded segment basis system collect long lived data segments segments skipped data doesn copied repeatedly 
+segment size chosen large transfer time read write segment greater cost seek segment 
+allows segment operations run nearly full bandwidth disk regardless order segments accessed 
+sprite lfs currently uses segment sizes kilobytes megabyte 
+
+segment cleaning mechanism process copying live data segment called segment cleaning 
+sprite lfs simple step process read number segments memory identify live data write live data back smaller number clean segments 
+file dir inode map file dir disk unix ffs comparison sprite lfs unix ffs 
+example shows modified disk blocks written sprite lfs unix ffs creating single block files named dir file dir file 
+system write new data blocks inodes file file plus new data blocks inodes containing directories 
+unix ffs requires non sequential writes new information inodes new files written twice ease recovery crashes sprite lfs performs operations single large write 
+number disk accesses required read files systems 
+sprite lfs writes new inode map blocks record new inode locations 
+july operation complete segments read marked clean new data additional cleaning 
+part segment cleaning possible identify blocks segment live written 
+possible identify file block belongs position block file information needed order update file inode point new location block 
+sprite lfs solves problems writing segment summary block part segment 
+summary block identifies piece information written segment example file data block summary block contains file number block number block 
+segments contain multiple segment summary blocks log write needed fill segment 
+partial segment writes occur number dirty blocks buffered file cache insufficient fill segment 
+segment summary blocks impose little overhead writing useful crash recovery see section cleaning 
+sprite lfs uses segment summary information distinguish live blocks overwritten deleted 
+block identity known liveness determined checking file inode indirect block see appropriate block pointer refers block 
+block live doesn block dead 
+sprite lfs optimizes check slightly keeping version number inode map entry file version number incremented file deleted truncated length zero 
+version number combined inode number form unique identifier uid contents file 
+segment summary block records uid block block key old data block new data block previously deleted old log threaded log new log segment uid block match uid currently stored inode map segment cleaned block discarded immediately examining file inode 
+approach cleaning means free block list bitmap sprite 
+addition saving memory disk space elimination data structures simplifies crash recovery 
+data structures existed additional code needed log changes structures restore consistency crashes 
+
+segment cleaning policies basic mechanism described policy issues addressed segment cleaner execute 
+possible choices run continuously background low priority night disk space nearly exhausted 
+segments clean time 
+segment cleaning offers opportunity reorganize data disk segments cleaned opportunities rearrange 
+segments cleaned 
+obvious choice ones fragmented turns best choice 
+live blocks grouped written 
+possibility try enhance locality reads example grouping files directory single output segment 
+possibility sort blocks time modified group blocks similar age new segments call approach age sort 
+copy compact old log new log possible free space management solutions log structured file systems 
+log structured file system free space log generated copying old blocks threading log old blocks 
+left side shows threaded log approach log skips active blocks overwrites blocks files deleted overwritten 
+pointers blocks log maintained log followed crash recovery 
+right side shows copying scheme log space generated reading section disk log rewriting active blocks section new data newly generated space 
+july far methodically addressed policies 
+sprite lfs starts cleaning segments number clean segments drops threshold value typically tens segments 
+cleans tens segments time number clean segments surpasses threshold value typically clean segments 
+performance sprite lfs sensitive exact choice threshold values 
+contrast third fourth policy decisions critically important experience primary factors determine performance log structured file system 
+remainder section discusses analysis segments clean group live data 
+term called write cost compare cleaning policies 
+write cost average amount time disk busy byte new data written including cleaning overheads 
+write cost expressed multiple time required cleaning overhead data written full bandwidth seek time rotational latency 
+write cost perfect mean new data written full disk bandwidth cleaning overhead 
+write cost means tenth disk maximum bandwidth writing new data rest disk time spent seeks rotational latency cleaning 
+log structured file system large segments seeks rotational latency negligible writing cleaning write cost total number bytes moved disk divided number bytes represent new data 
+cost determined utilization fraction data live segments cleaned 
+steady state cleaner generate clean segment segment new data written 
+reads segments entirety writes segments live data utilization segments 
+creates segments contiguous free space new data 
+write cost total bytes read written new data written read write live write new new data written formula conservative assumption segment read entirety recover live blocks practice may faster read just live blocks particularly utilization low haven tried sprite lfs 
+segment cleaned live blocks need read write cost 
+july graphs write cost function unix ffs small file workloads utilizes disk bandwidth write cost see section specific measurements :10.1.1.131.2105
+logging delayed writes disk request sorting probably improved bandwidth write cost :10.1.1.152.5459
+suggests segments cleaned utilization order log structured file system outperform current unix ffs utilization outperform improved unix ffs 
+important note utilization discussed fraction disk containing live data just fraction live blocks segments cleaned 
+variations file usage cause segments utilized cleaner choose utilized segments clean lower utilization average disk 
+performance log structured file system improved reducing utilization disk space 
+disk segments cleaned fewer live blocks resulting lower write cost 
+log structured file systems provide cost performance tradeoff disk space underutilized higher performance achieved high cost usable byte disk capacity utilization increased storage costs reduced performance 
+tradeoff write cost fraction alive segment cleaned log structured ffs today ffs improved write cost function small files 
+log structured file system write cost depends strongly utilization segments cleaned 
+live data segments cleaned disk bandwidth needed cleaning available writing new data 
+shows points ffs today represents unix ffs today ffs improved estimate best performance possible improved unix ffs 
+write cost unix ffs sensitive amount disk space 
+performance space utilization unique log structured file systems 
+example unix ffs allows disk space occupied files 
+remaining kept free allow space allocation algorithm operate efficiently 
+key achieving high performance low cost log structured file system force disk bimodal segment distribution segments nearly full empty nearly empty cleaner empty segments 
+allows high disk capacity utilization provides low write cost 
+section describes achieve bimodal distribution sprite lfs 
+
+simulation results built simple file system simulator analyze different cleaning policies controlled conditions 
+simulator model reflect actual file system usage patterns model reality helped understand effects random access patterns locality exploited reduce cost cleaning 
+simulator models file system fixed number kbyte files number chosen produce particular disk capacity utilization 
+step simulator overwrites files new data pseudorandom access patterns uniform file equal likelihood selected step 
+hot cold files divided groups 
+group contains files called hot files selected time 
+group called cold contains files selected time 
+groups file equally selected 
+access pattern models simple form locality 
+approach disk capacity utilization constant read traffic modeled 
+simulator runs clean segments exhausted simulates actions cleaner threshold number clean segments available 
+run simulator allowed run write cost stabilized variance removed 
+results sets simulations curves 
+lfs uniform simulations uniform access pattern 
+cleaner simple greedy policy chose utilized segments clean 
+writing live data cleaner attempt re organize data live blocks written order appeared segments cleaned uniform access pattern reason expect improvement re organization 
+july write cost disk capacity utilization variance lfs hot cold ffs today lfs uniform ffs improved initial simulation results 
+curves labeled ffs today ffs improved reproduced comparison 
+curve labeled variance shows write cost occur segments exactly utilization 
+lfs uniform curve represents log structured file system uniform access pattern greedy cleaning policy cleaner chooses utilized segments 
+lfs hot cold curve represents log structured file system locality file access 
+uses greedy cleaning policy cleaner sorts live data age writing 
+axis disk capacity utilization necessarily utilization segments cleaned 
+uniform random access patterns variance segment utilization allows substantially lower write cost predicted disk capacity utilization formula 
+example disk capacity utilization segments cleaned average utilization 
+disk capacity utilizations write cost drops means cleaned segments live blocks don need read 
+lfs hot cold curve shows write cost locality access patterns described 
+cleaning policy curve lfs uniform live blocks sorted age writing 
+means long lived cold data tends segregated different segments short lived hot data thought approach lead desired bimodal distribution segment utilizations 
+shows surprising result locality better grouping result worse performance system locality 
+tried varying degree locality accesses data performance got worse worse locality increased 
+shows reason non intuitive result 
+greedy policy segment doesn get cleaned utilized segments 
+segment utilization eventually drops cleaning threshold including cold segments 
+unfortunately fraction segments segment utilization hot cold uniform segment utilization distributions greedy cleaner 
+figures show distributions segment utilizations disk simulation 
+distribution computed measuring utilizations segments disk points simulation segment cleaning initiated 
+distribution shows utilizations segments available cleaning algorithm 
+distributions corresponds disk capacity utilization 
+uniform curve corresponds lfs uniform hot cold corresponds lfs hot cold 
+locality causes distribution skewed utilization cleaning occurs result segments cleaned higher average utilization 
+utilization drops slowly cold segments segments tend linger just cleaning point long time 
+shows segments clustered cleaning point simulations locality simulations locality 
+result cold segments tend tie large numbers free blocks long periods time 
+studying figures realized hot cold segments treated differently cleaner 
+free space cold segment valuable free space hot segment cold segment cleaned take long time unusable free space 
+said way system reclaims free blocks segment cold data get keep long time cold data fragmented takes back contrast beneficial clean hot segment data die quickly free space rapidly re accumulate system delay cleaning blocks die current segment 
+value segment free space stability data segment 
+unfortunately stability predicted knowing access patterns 
+assumption older data segment longer july remain unchanged stability estimated age data 
+test theory simulated new policy selecting segments clean 
+policy rates segment benefit cleaning segment cost cleaning segment chooses segments highest ratio benefit cost 
+benefit components amount free space reclaimed amount time space stay free 
+amount free space just utilization segment 
+modified time block segment 
+age youngest block estimate long space stay free 
+benefit cleaning space time product formed multiplying components 
+cost cleaning segment unit cost read segment write back live data 
+combining factors get benefit cost free space generated age data cost age call policy cost benefit policy allows cold segments cleaned higher utilization hot segments 
+re ran simulations hot cold access pattern cost benefit policy age sorting fraction segments segment utilization lfs cost benefit lfs greedy segment utilization distribution cost benefit policy 
+shows distribution segment utilizations simulation hot cold access pattern disk capacity utilization 
+lfs cost benefit curve shows segment distribution occurring cost benefit policy select segments clean live blocks grouped age re written 
+bimodal segment distribution segments cleaned utilizations 
+comparison distribution produced greedy method selection policy shown lfs greedy curve reproduced 
+live data 
+seen policy produced bimodal distribution segments hoped 
+cleaning policy cleans cold segments utilization waits hot segments reach utilization cleaning 
+writes hot files segments cleaned hot 
+shows policy reduces write cost greedy policy log structured file system performs best possible unix ffs relatively high disk capacity utilizations 
+simulated number degrees kinds locality policy gets better locality increases 
+simulation experiments convinced implement cost benefit approach sprite lfs 
+seen section behavior actual file systems sprite lfs better predicted 
+
+segment usage table order support cost benefit cleaning policy sprite lfs maintains data structure called segment usage table 
+segment table records number live bytes segment modified time block segment 
+values segment cleaner choosing segments clean 
+values initially set segment written count live bytes decremented files deleted blocks overwritten 
+count falls zero segment reused cleaning 
+blocks segment usage table written log addresses blocks stored write cost disk capacity utilization variance lfs greedy ffs today lfs cost benefit ffs improved write cost including cost benefit policy 
+graph compares write cost greedy policy cost benefit policy hot cold access pattern 
+cost benefit policy substantially better greedy policy particularly disk capacity utilizations 
+july checkpoint regions see section details 
+order sort live blocks age segment summary information records age youngest block written segment 
+sprite lfs keep modified times block file keeps single modified time entire file 
+estimate incorrect files modified entirety 
+plan modify segment summary information include modified times block 
+
+crash recovery system crash occurs operations performed disk may left inconsistent state example new file may written writing directory containing file reboot operating system review operations order correct inconsistencies 
+traditional unix file systems logs system determine changes scan metadata structures disk restore consistency 
+cost scans high tens minutes typical configurations getting higher storage systems expand 
+log structured file system locations disk operations easy determine log 
+possible recover quickly crashes 
+benefit logs known advantage database systems file systems :10.1.1.14.8906
+logging systems sprite lfs uses pronged approach recovery checkpoints define consistent states file system roll forward recover information written checkpoint 
+
+checkpoints checkpoint position log file system structures consistent complete 
+sprite lfs uses phase process create checkpoint 
+writes modified information log including file data blocks indirect blocks inodes blocks inode map segment usage table 
+second writes checkpoint region special fixed position disk 
+checkpoint region contains addresses blocks inode map segment usage table plus current time pointer segment written 
+reboot sprite lfs reads checkpoint region uses information initialize mainmemory data structures 
+order handle crash checkpoint operation checkpoint regions checkpoint operations alternate 
+checkpoint time block checkpoint region checkpoint fails time updated 
+reboot system reads checkpoint regions uses time 
+sprite lfs performs checkpoints periodic intervals file system system shut 
+long interval checkpoints reduces overhead writing checkpoints increases time needed roll forward recovery short checkpoint interval improves recovery time increases cost normal operation 
+sprite lfs currently uses checkpoint interval seconds probably short 
+alternative periodic checkpointing perform checkpoints amount new data written log set limit recovery time reducing checkpoint overhead file system operating maximum throughput 
+
+roll forward principle safe restart crashes simply reading latest checkpoint region discarding data log checkpoint 
+result instantaneous recovery data written checkpoint lost 
+order recover information possible sprite lfs scans log segments written checkpoint 
+operation called roll forward 
+roll forward sprite lfs uses information segment summary blocks recover written file data 
+summary block indicates presence new inode sprite lfs updates inode map read checkpoint inode map refers new copy inode 
+automatically incorporates file new data blocks recovered file system 
+data blocks discovered file new copy file inode roll forward code assumes new version file disk incomplete ignores new data blocks 
+roll forward code adjusts utilizations segment usage table read checkpoint 
+utilizations segments written checkpoint zero adjusted reflect live data left roll forward 
+utilizations older segments adjusted reflect file deletions overwrites identified presence new inodes log 
+final issue roll forward restore consistency directory entries inodes 
+inode contains count number directory entries referring inode count drops zero file deleted 
+unfortunately possible crash occur inode written log new count block containing corresponding directory entry written vice versa 
+restore consistency directories inodes sprite lfs outputs special record log directory change 
+record includes operation code create link rename unlink location directory entry number directory position directory contents directory entry name number new count inode named entry 
+records collectively july called directory operation log sprite lfs guarantees directory operation log entry appears log corresponding directory block inode 
+roll forward directory operation log ensure consistency directory entries inodes log entry appears inode directory block written roll forward updates directory inode complete operation 
+roll forward operations cause entries added removed directories counts inodes updated 
+recovery program appends changed directories inodes inode map segment usage table blocks log writes new checkpoint region include 
+operation completed creation new file inode written case directory entry removed 
+addition functions directory log easy provide atomic rename operation 
+interaction directory operation log checkpoints introduced additional synchronization issues sprite lfs 
+particular checkpoint represent state directory operation log consistent inode directory blocks log 
+required additional synchronization prevent directory modifications checkpoints written 
+
+experience sprite lfs began implementation sprite lfs late mid operational part sprite network operating system 
+fall manage different disk partitions users day day computing 
+features described implemented sprite lfs roll forward installed production system 
+production disks short checkpoint interval seconds discard information checkpoint reboot 
+began project concerned log structured file system substantially complicated implement traditional file system 
+reality sprite lfs turns complicated unix ffs sprite lfs additional complexity segment cleaner compensated elimination bitmap layout policies required unix ffs addition checkpointing code sprite lfs complicated fsck code scans unix ffs disks restore consistency :10.1.1.114.9535
+logging file systems episode cedar somewhat complicated unix ffs sprite lfs include logging layout code 
+everyday sprite lfs feel different users unix ffs file system sprite 
+reason machines fast disk bound current workloads 
+example modified andrew benchmark files sec measured key create read delete file access sprite lfs sunos files sec predicted sun sun sun file create small file performance sprite lfs sunos :10.1.1.131.2105
+measures benchmark created kilobyte files read back order created deleted 
+speed measured number files second operation file systems 
+logging approach sprite lfs provides order magnitude speedup creation deletion 
+estimates performance system creating files faster computers disk 
+sunos disk saturated faster processors improve performance 
+sprite lfs disk saturated cpu utilized consequence performance scale cpu speed 
+sprite lfs faster sunos configuration section 
+speedup attributable removal synchronous writes sprite lfs 
+synchronous writes unix ffs benchmark cpu utilization limiting speedup possible changes disk storage management 
+
+micro benchmarks collection small benchmark programs measure best case performance sprite lfs compare sunos file system unix ffs 
+benchmarks synthetic represent realistic workloads illustrate strengths weaknesses file systems 
+machine systems sun integer megabytes memory sun scsi wren iv disk mbytes sec maximum transfer bandwidth milliseconds average seek time 
+lfs sunos disk formatted file system having megabytes usable storage 
+kilobyte block size sunos sprite lfs kilobyte block size megabyte segment size 
+case system july running multiuser quiescent test 
+sprite lfs cleaning occurred benchmark runs measurements represent best case performance see section measurements cleaning overhead 
+shows results benchmark creates reads deletes large number small files 
+sprite lfs times fast sunos create delete phases benchmark 
+sprite lfs faster reading files back files read order created logstructured file system packs files densely log 
+furthermore sprite lfs kept disk busy create phase saturating cpu 
+contrast sunos kept disk busy time create phase disk potential bandwidth new data 
+means performance sprite lfs improve factor cpus get faster see 
+improvement expected sunos 
+sprite designed efficiency workloads small file accesses shows provides competitive performance large files 
+sprite lfs higher write bandwidth sunos cases 
+substantially faster random writes turns sequential writes log faster sequential writes groups blocks single large sunos performs kilobytes sec sprite lfs sunos write read write read reread sequential random sequential large file performance sprite lfs sunos 
+shows speed benchmark creates mbyte file sequential writes reads file back sequentially writes mbytes randomly existing file reads mbytes randomly file reads file sequentially 
+bandwidth phases shown separately 
+sprite lfs higher write bandwidth read bandwidth sunos exception sequential reading file written randomly 
+individual disk operations block newer version sunos groups writes performance equivalent sprite lfs 
+read performance similar systems case reading file sequentially written randomly case reads require seeks sprite lfs performance substantially lower sunos 
+illustrates fact log structured file system produces different form locality disk traditional file systems 
+traditional file system achieves logical locality assuming certain access patterns sequential reading files tendency multiple files directory pays extra writes necessary organize information optimally disk assumed read patterns 
+contrast log structured file system achieves temporal locality information created modified time grouped closely disk 
+temporal locality matches logical locality file written sequentially read sequentially log structured file system performance large files traditional file system 
+temporal locality differs logical locality systems perform differently 
+sprite lfs handles random writes efficiently writes sequentially disk 
+sunos pays random writes order achieve logical locality handles sequential re reads efficiently 
+random reads performance systems blocks laid differently 
+nonsequential reads occurred order nonsequential writes sprite faster 
+
+cleaning overheads micro benchmark results previous section give optimistic view performance sprite lfs include cleaning overheads write cost sprite lfs file systems disk avg file avg write segments write file system size size traffic cleaned empty avg cost user mb kb mb hour pcs mb kb mb hour src kernel mb kb mb hour tmp mb kb mb hour swap mb kb mb hour table segment cleaning statistics write costs production file systems 
+sprite lfs file system table lists disk size average file size average daily write traffic rate average disk capacity utilization total number segments cleaned month period fraction segments empty cleaned average utilization non empty segments cleaned write cost period measurements 
+write cost figures imply cleaning overhead limits long term write performance maximum sequential write bandwidth 
+july write cost benchmark runs 
+order assess cost cleaning effectiveness cost benefit cleaning policy recorded statistics production log structured file systems period months 
+systems measured user home directories sprite developers 
+workload consists program development text processing electronic communication simulations 
+pcs home directories project area research parallel processing vlsi circuit design 
+src kernel sources binaries sprite kernel 
+swap sprite client workstation swap files 
+workload consists virtual memory backing store diskless sprite workstations 
+files tend large sparse accessed 
+tmp temporary file storage area sprite workstations 
+table shows statistics gathered cleaning month period 
+order eliminate start effects waited months putting file systems measurements 
+behavior production file systems substantially better predicted simulations section 
+disk capacity utilizations ranged half segments cleaned totally empty 
+non empty segments utilizations far average disk utilizations 
+write costs ranged comparison write costs corresponding simulations 
+shows distribution segment utilizations gathered snapshot user disk 
+believe reasons cleaning costs lower sprite lfs simulations 
+files simulations just single block long 
+practice substantial number longer files tend written deleted 
+results greater locality individual segments 
+best case file longer segment deleting file produce totally empty segments 
+second difference simulation reality simulated patterns evenly distributed hot cold file groups 
+practice large numbers files written cold segments reality cold segments simulations 
+log structured file system isolate cold files segments clean 
+simulations segment eventually received modifications cleaned 
+measurements sprite lfs section bit optimistic measurements section pessimistic 
+practice may possible perform cleaning night idle periods clean segments available bursts activity 
+experience sprite lfs know done 
+addition expect performance sprite lfs improve gain experience tune algorithms 
+example carefully analyzed policy issue segments clean time think may impact system ability segregate hot data cold data 
+fraction segments segment utilization segment utilization user file system shows distribution segment utilizations snapshot user disk 
+distribution shows large numbers fully utilized segments totally empty segments 
+july 
+crash recovery crash recovery code installed production system code works time recovery various crash scenarios 
+time recover depends checkpoint interval rate type operations performed 
+table shows recovery time different file sizes amounts file data recovered 
+different crash configurations generated running program created megabytes fixed size files system crashed 
+special version sprite lfs infinite checkpoint interval wrote directory changes disk 
+recovery roll forward created files added inode map directory entries created segment usage table updated 
+table shows recovery time varies number size files written checkpoint crash 
+recovery times bounded limiting amount data written checkpoints 
+average file sizes daily write traffic table checkpoint interval large hour result average recovery times second 
+maximum write rate megabytes hour maximum recovery time grow second seconds checkpoint interval length 
+
+overheads sprite lfs table shows relative importance various kinds data written disk terms live blocks occupy disk terms data written log represent 
+live data disk consists file data blocks indirect blocks 
+information written log consists inodes inode map blocks segment map blocks tend overwritten quickly 
+inode map accounts data written log 
+suspect short checkpoint interval currently sprite lfs forces metadata disk sprite lfs recovery time seconds file file data recovered size mb mb mb kb kb kb table recovery time various crash configurations table shows speed recovery megabytes fixed size files 
+system measured section 
+recovery time dominated number files recovered 
+necessary 
+expect log bandwidth overhead metadata drop substantially install roll forward recovery increase checkpoint interval 
+
+related log structured file system concept sprite lfs design borrow ideas different storage management systems 
+file systems log structures appeared proposals building file systems write media 
+writing changes append fashion systems maintain indexing information sprite lfs inode map inodes quickly locating reading files 
+differ sprite lfs write nature media unnecessary file systems reclaim log space 
+segment cleaning approach sprite lfs acts scavenging garbage collectors developed programming languages 
+cost benefit segment selection age sorting blocks segment cleaned sprite lfs separates files generations generational garbage collection schemes 
+significant difference garbage collection schemes sprite lfs efficient random access possible generational garbage collectors sequential accesses necessary achieve high performance file system 
+sprite lfs exploit fact blocks belong file time simpler algorithms identifying garbage systems programming languages 
+logging scheme sprite lfs similar schemes pioneered database systems 
+database systems write ahead logging crash recovery high performance differ sprite lfs log 
+sprite lfs database sprite lfs user file system contents block type live data log bandwidth data blocks indirect blocks inode blocks inode map seg usage map summary blocks dir op log table disk space log bandwidth usage user block type table lists percentage disk space disk live data percentage log bandwidth consumed writing block type log bandwidth 
+block types marked equivalent data structures unix ffs 
+july systems view log date truth state data disk 
+main difference database systems log final repository data separate data area reserved purpose 
+separate data area database systems means need segment cleaning mechanisms sprite lfs reclaim log space 
+space occupied log database system reclaimed logged changes written final locations 
+read requests processed data area log greatly compacted hurting read performance 
+typically changed bytes written database logs entire blocks sprite lfs 
+sprite lfs crash recovery mechanism checkpoints roll forward redo log similar techniques database systems object repositories 
+implementation sprite lfs simplified log final home data 
+redoing operation separate data copy sprite lfs recovery insures indexes point newest copy data log 
+collecting data file cache writing disk large writes similar concept group commit database systems techniques mainmemory database systems 
+
+basic principle log structured file system simple collect large amounts new data file cache main memory write data disk single large disk bandwidth 
+implementing idea complicated need maintain large free areas disk simulation analysis experience sprite lfs suggest low cleaning overheads achieved simple policy cost benefit 
+developed log structured file system support workloads small files approach works large file accesses 
+particular essentially cleaning overhead large files created deleted entirety 
+bottom line log structured file system disks order magnitude efficiently existing file systems 
+possible take advantage generations faster processors limitations threaten scalability computer systems 
+
+acknowledgments diane greene mary baker john hartman mike kupfer ken shirriff jim smith provided helpful comments drafts 
+
+john ousterhout da costa david harrison john kunze mike kupfer james thompson trace driven analysis unix bsd file system proceedings th symposium operating systems principles pp 
+acm 
+
+michael kazar bruce owen anderson beth craig anthony mason shu tsui tu edward file system architectural overview proceedings usenix summer conference pp 
+jun 
+
+robert hagmann reimplementing cedar file system logging group commit proceedings th symposium operating systems principles pp 
+nov 
+
+john ousterhout andrew frederick douglis michael nelson brent welch sprite network operating system ieee computer pp 
+
+
+david patterson garth gibson randy katz case redundant arrays inexpensive disks raid acm sigmod pp 
+jun 
+
+mary baker john hartman michael kupfer ken shirriff john ousterhout measurements distributed file system proceedings th symposium operating systems principles acm oct 
+
+satyanarayanan study file sizes functional lifetimes proceedings th symposium operating systems principles pp 
+acm 
+
+edward lazowska john zahorjan david cheriton willy zwaenepoel file access performance diskless workstations transactions computer systems pp 
+aug 
+
+marshall mckusick fast file system unix transactions computer systems pp 
+acm 
+
+sandberg design implementation sun network filesystem proceedings usenix summer conference pp 
+jun 
+
+john ousterhout aren operating systems getting faster fast hardware proceedings usenix summer conference pp 
+jun 
+
+margo seltzer peter chen john ousterhout disk scheduling revisited proceedings winter usenix technical conference january 
+
+jim gray notes data base operating systems operating systems advanced course springer verlag 
+july 
+chang mergen roberts porter evolution storage facilities aix version risc system processors ibm journal research development pp 
+jan 
+
+marshall kirk mckusick joy samuel leffler robert fabry fsck unix file system check program unix system manager manual bsd virtual vax version usenix apr 
+
+larry mcvoy steve kleiman extent performance unix file system proceedings usenix winter conference jan 
+
+reed swallow distributed data storage system local network local networks computer communications pp 
+north holland 
+
+ross finlayson david cheriton log files extended file service exploiting write storage proceedings th symposium operating systems principles pp 
+acm nov 
+
+baker list processing real time serial computer working mit ai lab boston ma april 
+
+henry lieberman carl hewitt real time garbage collector lifetimes objects communications acm pp 
+
+
+brian oki barbara liskov robert scheifler reliable object storage support atomic actions proceedings th symposium operating systems principles pp 
+acm 
+
+david dewitt randy katz frank olken shapiro mike stonebraker david wood implementation techniques main memory database systems proceedings sigmod pp 
+jun 
+
+kenneth salem hector garcia molina crash recovery mechanisms main storage database systems cs tr princeton university princeton nj 
+
+robert hagmann crash recovery scheme memory resident database system ieee transactions computers sep 

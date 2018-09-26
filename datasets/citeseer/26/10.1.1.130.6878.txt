@@ -1,0 +1,691 @@
+flashback lightweight extension rollback deterministic replay software debugging lambda sudarshan srinivasan srikanth christopher andrews zhou cs uiuc edu department computer science university illinois urbana champaign urbana il software robustness significant impact system availability 
+unfortunately finding software bugs challenging task bugs hard reproduce 
+debugging program useful rollback crashed program previous execution point deterministically re execute buggy code region 
+previous rollback replay support designed survive hardware operating system failures heavyweight fine grained rollback replay needed software debugging 
+presents flashback lightweight os extension provides fine grained rollback replay help debug software 
+flashback uses shadow processes efficiently roll back memory state process logs process interactions system support deterministic replay 
+shadow processes logging system calls implemented lightweight fashion specifically designed purpose software debugging 
+implemented prototype flashback linux operating system 
+experimental results micro benchmarks real applications show flashback adds little overhead quickly roll back debugged program previous execution point deterministically replay point 
+rapid advances computing hardware led dramatic improvements computer performance issues reliability maintainability cost ownership increasingly important 
+unfortunately software bugs frequent accounting computer system failures 
+software lambda supported part nsf ccr eia che darpa ibm sur additional gifts ibm intel 
+bugs may crash production system making services unavailable 
+silent bugs run undetected may corrupt valuable information 
+national institute standards technology software bugs cost economy estimated annually approximately gross domestic product 
+magnitude problem development effective debugging tools imperative 
+software debugging focus research 
+popular avenues research include detection analysis data races static compiler techniques detect potential bugs possibly aided static checking user directed rules run time checking data types detect classes bugs extensive run time checks detect complex program errors :10.1.1.152.1345:10.1.1.161.222
+studies proposed effective solutions statically dynamically detect certain types software bugs 
+previous solutions shown promising results software bugs rely programmers interactively debug tools gdb 
+interactive debugging challenging task bugs occur hours days execution 
+occur particular combination user input hardware configurations 
+bugs data races particularly hard find occur particular interleaved sequence timing related events 
+problems motivate need low overhead debugging support allows programmers rollback previous execution point re execute buggy code region 
+deterministic replay precise conditions lead bug helps understand causes bug 
+debugging tools today error occurs program needs restarted may take hours days reach buggy state 
+bug time related bug may occur re execution 
+useful interactive debugger gdb periodically checkpoint process state debugged program dynamic execution 
+error occurs programmer request gdb rollback previ ous state deterministically replay program state programmer see bug manifests order catch root cause 
+system support rollback replay studied past previous approaches heavy weight support software debugging 
+main reason approaches geared surviving hardware operating system failures 
+systems checkpoint program state secondary storage disk remote memory non volatile memory 
+correspondingly systems incur far higher overhead necessary permissible support software debugging 
+hardware os failures need rollback replay program crashes due software bugs 
+previous systems afford frequent checkpointing high overheads involved approaches 
+result applications may roll back point distant past hours ago 
+checkpointing systems rollback support transaction support mainmemory data structures system recovery logging replay system events problems similar previous checkpointing systems require applications rollback aware 
+limitations hinder effectiveness solutions software debugging general programs 
+lightweight os extension called flashback provides rollback deterministic replay support software debugging 
+order efficiently capture memory state executing process flashback uses shadow processes replicate program execution state 
+flashback captures interactions program rest system system calls signals memory mapped regions allow subsequent deterministic re execution 
+developed prototype proposed solution linux operating system implements subset features 
+experimental results micro benchmarks real applications show system adds little overhead quickly roll back previous execution point 
+example deterministic replay support debugging explore necessary extensions gdb order provide user support checkpointing rollback deterministic replay 
+extensions allow programmers roll back program previous state gone interactively replay buggy code region 
+support programmer need restart execution program worry reproducibility bug 
+organized follows 
+section describes motivation background 
+section presents overview flashback sections describe greater detail approach rollback state deterministic replay 
+section presents experimental results 
+section discusses modifications gdb order control logging rollback recovery debugger 
+section concludes brief discussion experience plans 
+background related builds groups research system support debugging system support rollback 
+section discuss closely related done directions 
+system support debugging software debugging subject substantial research development 
+existing approaches mainly include compile time static checking run time dynamic checking hardware support debugging 
+representative compile time static checkers proposed wagner evans engler 
+examples run time dynamic checkers include rational purify kai assure lam 
+hardware architecture techniques proposed detect bugs 
+compile time run time hardware techniques useful catching certain types bugs bugs cause programmer rely interactive debuggers gdb 
+characterize bugs race conditions simply rerunning program input may reproduce bug 
+bugs may appear running program hours making debugging process formidable task 
+understand find root causes bugs useful provide system support reproducing occurring bug may appear particular combination user inputs configurations particular interleaved sequence time related events 
+effective method reproduce bug roll back previous execution state vicinity buggy code deterministically replay execution interactively inside debugger automatically heavy instrumentation 
+requires efficient rollback deterministic replay mechanism 
+system support rollback rollback capability provided systems including checkpointing systems main memory transaction systems software rejuvenation 
+checkpointing studied extensively past 
+checkpointing enables storing previous exe cution state system failure independent location 
+system fails program restart checkpoint different machine machine fixing cause failure 
+checkpointing systems assume entire system may fail checkpoint data stored disks remote memory non volatile persistent memory 
+result checkpoint systems incur high overhead afford take frequent checkpoints 
+heavy weight support rollback software debugging 
+systems provide transaction support mainmemory data structures allow applications rollback previous execution point 
+example lowell chen developed system provides transaction support rio vista recoverable virtual memory system 
+approaches require applications written transaction programming model consequently conveniently debugging general program 
+borg developed system provides fault tolerance maintaining inactive backup process 
+event system failure backup process take execution process crashes 
+backup process kept date making available messages active process received 
+implementation assumption processes starting initial state perform identically receiving input 
+assumption holds recovery systems case general software state rest system may changed 
+deterministic replay process requires receive non deterministic events replays original run 
+events include responses system calls shared memory accesses signals network messages recovery oriented computing research initiative adopts approach errors inevitable support recovering errors essential developing validating highly available software 
+interesting approach software availability studies software rejuvenation far focused restarting application fine grained rollback 
+crash software approach software development improves availability software component building blocks crash restart quickly aiming fault tolerance 
+studies focus minimizing mean time recovery mttr software debugging 
+feldman brown developed system program debugging periodically checkpoints memory state process keeping track pages touched process 
+propose system program restart comprehensive execution path logging 
+mechanism involves changes compiler loader standard library kernel 
+tracks memory accesses code instrumentation approach heavy weight 
+provide deterministic replay errors may manifest subsequent re execution 
+russinovich suggests lightweight approach log nondeterministic accesses shared memory merely replaying interleaved order processes sharing memory deterministically 
+application instrumented obtain fine grained software instruction counters os record location context switches 
+technique potentially flashback support replay shared memory multi processed program 
+revirt novel approach intrusion analysis encapsulates applications virtual os runs process guest os 
+technique decreases size trusted computing base tcb allows precise logs maintained guest os 
+flashback significantly different revirt 
+debugging support needs checkpoint application state timescales minutes orders magnitude smaller revirt days 
+second revirt contend malicious intruders logging flashback need log changes application debugged external events affect operation 
+constraints existing system support rollback motivate need new lightweight finegrained rollback deterministic replay solution specifically designed software debugging 
+overview flashback flashback provides basic primitives debugging checkpoint discard replay 
+ffl checkpoint call system captures execution state current point 
+state handle returned program rollback 
+ffl discard call captured execution state specified discarded 
+program longer roll back state 
+ffl replay call process rolled back previous execution state specified execution deterministically replayed reaches point replay called 
+provide primitives flashback uses shadow processes efficiently capture memory execution state process specified execution point 
+main idea shadow process fork new process specified execution point new process maintains copy process execution state main memory 
+shadow process created suspended immediately 
+rollback requested system kills current active process creates new active process shadow process captured specified execution state 
+flashback attempt recover system crashes hardware failure need store shadow process disk persistent storage 
+reduces overhead checkpoint process significantly 
+copy write reduce overhead 
+method checkpointing allows inmemory state process reinstated process may see set open file descriptors network connections re execution 
+state file descriptors reproduced cumbersome task restore contents file original state ensure network connections respond exactly original execution 
+similarly replay may undesirable process affect external environment say deleting files modifying content 
+order support deterministic replay rolled back process adopt approach record interactions executing process environment 
+replay logged information ensure re execution appears identical original run 
+checkpoint initiated checkpoint primitive addition capturing memory execution state system records interactions process environment 
+replay previously collected information give process impression external environment responding exactly original execution affecting environment way 
+shadow processes conjunction deterministic replay mechanism debugging environment gdb explicit calls program debugged ffl interactive debugging possible usage scenario debugging platform periodically capture state executing process invoking checkpoint similar insertion breakpoints gdb instance 
+error occurs programmer instruct debugger roll back execution previously captured state specifying time earlier checkpoint 
+ffl explicit checkpointing rollback alternate usage scenario programmer takes control checkpoints taken code 
+shows example program programmer inserted explicit invocations checkpoint replay discard primitives 
+automatic checkpoint rollback support inside interactive debugger convenient requires changes program source code 
+code process augmented primitives hand giving programmer explicit control checkpoints rollbacks enables intelligent meaningful checkpoint generation 
+shows program programmer calls checkpoint line 
+read operation line fails programmer roll back execution state captured line 
+help characterize bug execution line line replayed deterministically attaching interactive debugger switching profiling mode extensive instrumentation 
+line succeeds checkpoint discarded 
+rollback shadow processes main idea flashback creates checkpoints process replicating memory representation process operating system 
+snapshot process known shadow process suspended immediately creation stored process structure 
+shadow process represents passive state executing process previous point unwind execution process replacing new execution state shadow state commencing execution normal fashion 
+shadow state needed anymore process discard 
+creation shadow process running process event refer state capture achieved creating new shadow process structure kernel initializing structure contents original process structure 
+state information captured includes process memory stack heap registers file descriptor tables signal handlers memory state associated process 
+pointer shadow structure stored original active state shadow state active state active state shadow state checkpoint discard replay shadow state effect primitives state executing process 
+checkpoint invoked process clone execution state 
+discard shadow removed rollback occurs original execution state discarded 
+process structure 
+new representation process shadow process shown 
+checkpoint discard replay calls automatically generated debugging infrastructure specific intervals inserted programmer source code shown example previous section 
+case discard system discards specified shadow state 
+checkpoint requested system creates new shadow current state stores 
+case rollback process rolls back execution state previously generated shadow process 
+illustrates effect primitives state process 
+possible maintain shadow processes executing process 
+multiple shadow processes useful progressive rollback debugging 
+cases error occurs rolling back execution point replay may catch root bug happened execution point 
+necessary roll back deterministically restart earlier execution point 
+possible roll back shadow multiple times cause additional checkpoints taken replay 
+reduce overhead shadow process state maintained copy write 
+words state capture proceeds creation memory copy write map current state 
+shadow process created virtual memory process marked read 
+write page active process trigger creation copy old data 
+optimization couple benefits 
+time create shadow significantly reduced eliminating need copy possibly large amounts memory state 
+second shadow process occupies little space memory 
+third multiple shadows created different execution points need maintain duplicate copies state 
+significant overlap memory pages shadow process active process minimizes impact paging behavior process due discard replay state 
+writes copy write protected memory execution main process incur overhead 
+fortunately experimental results section show overheads significant 
+rolling back multi threaded processes rollback multi threaded process requires special attention 
+multi threaded environment components process state implicitly shared threads belong process 
+example threads implemented pthread package linux share memory file descriptors signal handlers 
+states user space kernel stacks 
+implicit sharing vastly complicates rollback longer possible thread revert versions shadow state impacting execution threads 
+approaches support fine grained rollback multi threaded programs 
+capture process state entire process roll back threads previous execution point 
+second approach track thread dependencies memory read write file read write dependencies roll back threads depend erroneous thread 
+flashback uses approach support rollback multi threaded programs 
+words underlying system captures execution state threads process checkpoint 
+likewise rollback occurs flashback re execution state threads reverting back copy shared state 
+enables maintenance consistent state threads 
+thread synchronization primitives acquiring releasing locks semaphore operations implicitly rolled back 
+approach advantages alternative software debugging rolling back threads process encounters error may inefficient 
+approach simpler require complicated logic keep track thread dependencies 
+tracking thread dependencies difficult concurrent accesses shared memory handled software specialized cache coherence controller 
+tracking dependencies requires hardware support instrumentation application binary code notify operating system data sharing 
+logic track dependencies adds overheads error free execution error prone 
+second characterize thread synchronization data races informative roll back threads deterministically re execute threads step step interactively 
+furthermore inefficiency rolling back threads encountered faults occur common case dependency tracking done dynamically lead overhead common case 
+implementation linux modified linux kernel adding new system calls checkpoint discard replay support rollback replay 
+kernel handles functions described earlier 
+overhead system calls normal process execution important consideration implementation 
+capture shadow state create new process control block task struct linux terminology initialize copy calling process structure 
+copy involves creation copy write maps entire process memory creation new mm struct file struct signal struct 
+register contents current execution context user space copied new control block kernel stack new control block initialized hand shadow process executed continues execution returning checkpoint system call different return value 
+state capture procedure different fork operation ways 
+primary difference fork operation newly created process visible rest system 
+instance module count incremented reflect fact child process sharing modules 
+newly created process added scheduler run lists ready scheduled 
+contrast shadow process created maintaining state 
+visible rest system participate scheduling 
+capturing shadow state calling process returns system call continues execution normal shadow image tow 
+changes state checkpoint leave shadow image state 
+call discard system call deletes process shadow image releases resources held 
+replay system call hand drops resources current image overwrites process control block previously captured shadow image 
+memory map current process changes call page tables corresponding new mm struct loaded call switch mm 
+subtle result shadow image replay system call returns caller 
+soon shadow active caller return address replay call lost part speculative state replaced return address checkpoint call corresponds state process rolling back 
+implemented rollback support multithreaded programs linux encountered challenges design linux thread package implementation pthreads 
+thread package mapping user space kernel space threads user space thread executable process counterpart inside kernel 
+state sharing achieved clone system call create lightweight processes share access memory file descriptors signal handlers things 
+posix compliance respect delivery signals requisites ensured creating lwp thread manager parent threads lwp associated process 
+mapping allows thread library completely ignore issue scheduling threads user space presents complications rollback 
+recall thread attempts process checkpoint event need capture state threads process 
+user space thread mapped kernel thread threads may executing system calls blocked inside kernel waiting asynchronous events disk io 
+capturing transient state threads easily lead state inconsistency rollbacks rolling back sleeping state corresponding kernel timer expired 
+difficult capture state execution context different execution context 
+currently exploring solution problem explicitly identifying troublesome scenarios manipulating user space kernel stacks ensure interrupted system call re executed rollback 
+specifically threads blocked system calls checkpointed execution interrupted system call 
+notice apparently simple solutions circumvent problem inter process communication explicit barrier synchronization prior state capture applicable 
+case ipc mechanisms signals pipes increase latency state capture event processing usually deferred deterministic 
+barrier synchronization hand cause processing state capture event delayed event generated threads process unrealistic certain applications 
+replay record sandbox main idea order deterministically replay execution process previous execution state need ensure re execution process perceives difference interaction environment 
+instance process read file received particular array bytes replay process receive array bytes return value file contents may changed 
+sleep linux implemented swaps process adding timer kernel timer list flashback ensure exactly execution replay original run 
+flashback provides impression debugged process execution interaction environment appears identical original run 
+difficult provide exact execution external environment network connections device states control operating system 
+long flashback interacts debugged process way high probability bug reproduced replay 
+process flashback operate modes log replay 
+log mode system logs interactions process environment 
+interactions happen system call invocations memory mapping shared memory multi threaded processes signals 
+process enters log mode checkpoint primitive invoked 
+replay mode kernel handles system interactions process calling functions simulate effect original system call invocation 
+replay mode selected replay primitive invoked 
+mode flashback ensures interaction replayed process os logged original run 
+system calls logging replay different different types system calls ffl filesystem related calls open close read write seek ffl virtual memory related memory allocation mmap ffl network related socket creation polling send recv ffl process control exec fork exit wait ffl interprocess communication related creation manipulation message queues named pipes ffl utility functions getting time day simulating effect system call flashback ensure values returned system call identical returned original execution 
+addition original system call may return hidden values modifying memory regions pointed pointer arguments 
+example read system call loads data file system buffer specified parameters 
+side effects need captured flashback 
+faithful replay system call requires flashback log return values side effects 
+somewhat tedious special attention required system call handling specific arguments support easily provided large body system calls 
+flashback intercept system calls invoked process execution 
+order replace default handler system call function actual logging replay shown 
+logging mode function invokes original call logs return values side effects 
+replay mode function checks confirm call side effects returns logged return value 
+gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma gamma delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta delta user level process call log hijacking system calls logging replay flashback notable exception bypassing actual system calls replay calls related memory management memory mapping heap management 
+situation fake memory allocation process accesses memory location faked allocation result segmentation fault 
+problem arises memory allocated deallocated brk system call may accessed direct variable assignments 
+changes memory locations permanent changes system state captured process checkpoint exclusively 
+discuss shortly may case files mapped memory 
+system calls handled process original execution replayed 
+instance process replayed read data files files may modified may exist system anymore 
+similarly receive network packets originally remote machines 
+far process concerned believes events happening terms actual data exchanged relative timing asynchronous events 
+memory mapped files shared memory linux supports different flavors shared memory interprocess communication system ipc bsd mmap 
+implementations allow processes share single chunk memory mapping shared memory respective memory spaces 
+bsd mmap allows processes map previously opened file region memory access file simple memory assignment instructions 
+shared segment requested kernel forces memory management unit mmu generate page fault time previously unused section memory region accessed 
+response page fault kernel loads page data file reads process memory 
+file may mapped private shared 
+changes privately mapped files visible process result changes file 
+hand files mapped shared may modified process writes memory area 
+shared files changes file processes immediately visible processes mapped region file 
+providing replay shared memory poses problems process access shared memory making system calls making harder track changes shared memory fake 
+simple solution handling memory mapped files copies pages returned page fault memory region mapped file 
+replay requests create memory maps memory areas mapped dummy files page faults handled returning saved copies pages 
+due lazy demand paging approach linux pages accessed execution need copied drastically reducing overhead 
+approach region file mapped shared region multiple processes changes region 
+approach works files mapped private shared mappings changes file process debugged 
+handling shared file mappings multiple processes writing file complicated problem requires kernel force page fault access shared region process replayed just access earlier case 
+possible enhancement logging solution set access rights page process access fault process accessed page 
+way successive reads updates suffer costly exception 
+replay required fault access processes changes 
+flashback currently implemented simple solution described earlier 
+spite enhancement proposed shared file maps multiple writers believe efficient solution address challenge require support underlying architecture 
+shared memory dealt similar mechanisms 
+multithreaded applications techniques outlined applications single thread control replaying multithreaded applications poses additional challenges 
+logging changes multithreaded application involves logging changes thread debugged process 
+replay interleaving shared memory accesses events consistent original sequence 
+ensuring multiple threads scheduled relative order replay issue 
+multi threaded applications running single processor system propose adopting approach described deterministic replay 
+basic idea record information scheduling threads original execution information replay force interleaving thread executions 
+implementation kernel physical thread schedule transparent lieu logical thread schedule information proposed 
+implement tool possibly support architecture level mechanisms described 
+signals signals notify process specific event force process execute special handling code event detected execution 
+signals may sent process process kernel 
+signals asynchronous delivered proactively process kernel 
+may delivered time process 
+signals challenge deterministic replay signals asynchronous events affect execution process 
+replaying mechanism ensure signals delivered exactly points re execution original execution 
+deterministic reproduction signals may handled approach proposed elnozahy flashback currently support signal replay 
+mechanism outlined instruction counter record time asynchronous events 
+instruction counter included modern processor systems today 
+signal occurs system creates log entry includes value instruction counter system call invocation 
+replay flashback checks see log entry corresponds signal 
+initializes instruction counter time current system call till signal 
+trap generated timeout kernel delivers signal process 
+implementation linux implemented prototype flashback replay mechanism linux 
+prototype handles replay system calls memory mapped files limited extent 
+linux user space process invokes system call loading system call number eax register optional arguments registers raising programmed exception vector 
+handler exception system call handler checks runs function indexed sys call table array system call number 
+returns results got action user process 
+open source tool allows system calls intercepted various purposes logging blocking 
+core tool implemented kernel module system call table replacing default handlers system calls special functions 
+system call invocations filtered criteria process id invoking process values specific arguments 
+system calls need logged handled number ways 
+extreme special function may log invocation system call call go original handler may block system call invocation return failure user process 
+actual behavior special function controlled rules may loaded kernel 
+implementation added new action type special function perform replay action replaying 
+action verifies system call invocation matches call process originally sets return value logged invocation side effects arguments 
+doing bypasses actual system call handler system calls overrides behavior simulating function 
+system calls brk call flashback allows system calls handled original system call handler memory allocations need replay 
+evaluation evaluate prototype implementation flashback microbenchmarks real applications 
+timing data obtained ghz pentium iv machine kb cache mb ram 
+overhead state capture perform basic performance evaluation rollback capabilities instrumented checkpoint discard replay system calls 
+ran small program repeatedly invokes checkpoint simple updates discards checkpoint calling discard rolling back calling replay 
+presents time basic operations checkpoint discard replay 
+checkpoint takes amount state updates consecutive checkpoints varied kb mb 
+creation shadow process involves creation copy write map cost proportional size memory occupied process 
+similarly cost discard replay shadow proportional size memory modified process 
+costs discard replay directly proportional number pages corresponding checkpointed state current state 
+discard replay involve deletion write map 
+results show discard replay take entire memory read entire data memory written 
+higher costs case kernel return large number page frames free memory list shadow state dropped reinstated 
+typical applications course modify pages address space checkpoints costs discard replay operations closer lower range shown 
+important objective rollback infrastructure minimal impact normal application performance 
+consider data checkpoint discard important replay 
+invoked errors occur part common case behavior 
+regardless overhead imposed rollback call low shadow state release 
+promising indicates restore execution state fast common case checkpoint discard 
+overhead due logging order evaluate logging overhead wrote simple test program employs threads order isolate impact logging overhead 
+program parent thread forks creates child 
+loads rules logging framework notifies child invoking system calls 
+rules allow kernel filter system call invocations process id child 
+logging system calls side effects memory regions read stat flashback needs record contents buffer time microseconds checkpoint discard replay minmax average time microseconds data size bytes variation system call latency size process data memory replay read replay data size mb completely written data sizes ranging kb mb microbenchmark results shadow process creation different sizes process data memory response time microseconds number system calls logging response time microseconds number system calls logging buffer copying bc copying nc response time overhead microseconds varying number system call invocations structure 
+regard logging overhead groups system calls cause side effects memory regions simply return value performing intended action 
+refer class system calls bc second group copying nc 
+nc system calls need record contents buffers just system call id return values suffice 
+study overhead system call due hijacking logging invoked read write system calls times gradually increasing number invocations 
+invocation number bytes read written kb 
+run start clean file cache order effect caching system call overheads consistent 
+figures shows overhead imposed sandbox mechanism 
+overhead due sandboxing occurs extra indirection system calls imposed flashback 
+handled directly system call handlers system call requests need pass filters logging mechanism 
+increase overhead linear number system calls system calls 
+difference slope lines graphs represents extra system call overhead imposed due logging 
+microseconds average 
+evaluate effect copying buffers logging overheads invoked read write system calls repeatedly gradually increasing number bytes read written kb mb 
+actual number system calls small case 
+shows overhead varying amount data read written 
+overhead bc nc system calls comparable extra copying buffers appear impose extra overhead 
+contents log buffered written disk asynchronously 
+experiments disk cache data files prefetched actual execution 
+values reflect reads writes entirely involving cache 
+log file size kb number system calls size log file kb varying number system call invocations shows space overhead logging response time microseconds amount data read kb logging response time microseconds amount data written kb logging buffer copying bc copying nc response time overhead microseconds varying sizes memory logging bc nc calls 
+expected growth size log file linear terms number system calls slope greater bc data written time 
+application results order test implementation state capture realistic environment measure performance known apache web server 
+evaluate system overhead multiprocess version version apache 
+evaluation serves demonstrate things fine grained rollback support possible applied real applications second performance impact common case execution minimal 
+experiments reported web server bottle network serving data full network throughput mbps 
+experiments show shelf machines mhz mb ram spare cpu cycles provide fine grained rollback affecting client perceived performance 
+server checkpointed multiple times typically processing request 
+essentially create checkpoint just reading request newly accepted socket processing valid request existing connection writing response socket 
+point time flashback maintains shadow images total number requests processed server 
+data points section averaged runs 
+apache server configured run multiprocess mode 
+apache maintains pool worker processes service requests 
+worker process single thread number workers pool adapted dynamically load estimates 
+apache uses smaller pool worker processes worker process consisting multiple threads implemented pthread package 
+performance figures configurations apache server 
+experiment web server checkpoints state arrival request page processes request discards checkpoint 
+results reflect overhead capturing state 
+flashback currently support replay multithreaded execution shared memory disabled logging replay experiments 
+exercise web server client application webstone sends back back requests single web server 
+request constitutes fetch single file randomly selected pre defined working set 
+working set comprised files sizes varying kb mb majority requests constituted fetch kb 
+request generating application forks pre defined number client processes submits series random requests web server 
+server run shelf ghz pentium iv machine connected client mbps lan 
+performance measured terms throughput aggregate response time load server cpu 
+experiments reported server operating full network throughput mbps 
+compare apache web server prototype system baseline system running original version linux 
+shows throughput response time flashback baseline system apache running multiprocess mode 
+clear graphs significant difference client perceived throughput response time 
+number clients small flashback lower throughput average response time baseline system 
+number clients increases difference baseline flashback disappears 
+cases flashback performs better baseline system 
+consider small differences expected experimental variance conclude impact rollback support apache performance negligible 
+shows results version apache 
+expected overheads imposed flashback multithreaded execution slightly lower multiprocess version evidenced throughput figures closely match cases 
+lower overhead direct result fewer effective system calls throughput bps number clients rollback support response time seconds number clients rollback support throughput response time throughput response time multiprocess apache web server 
+baseline corresponds case running default linux system rollback support rollback support corresponds linux kernel modified include rollback support 
+results shown figures indicate throughput response time affected flashback 
+times reflect state capture overhead throughput bps number clients rollback support response time seconds number clients rollback support throughput response time throughput response time apache web server 
+results shown figures indicate throughput response time affected flashback 
+times reflect state capture overhead cpu minute load average number clients rollback support cpu minute load average number clients rollback support multiprocess minute cpu load averages host apache web server running 
+curves demonstrate extra performed kernel checkpointing enabled 
+thread undergoes capture event state threads automatically captured 
+subsequent capture events threads process treated nops lifetime shadow process 
+number capture events necessary fewer 
+client perceived system performance remains unaffected kernel perform extra time checkpoint initiated 
+course come free 
+quantify cost monitored cpu load average machine hosting webserver 
+metric measures average number processes waiting run queue minute estimate system load statistically captures amount time process spends run queue 
+plots results multiprocess versions 
+graphs expose overhead capturing shadow state evaluation occurs frequently request received server 
+note cpu utilization server increases times client perceived performance data bytes delivered time respond remains unchanged 
+assert experimental setup realistic modern web servers constrained network bandwidth spare cpu cycles 
+multiprocess configurations cpu load increases significantly 
+single threaded case extra load quite high 
+multiprocess apache webserver uses collection separate unix processes handle web requests captures shadow state handling request 
+multithreaded version state capture event occurs threads execution capture state threads en masse time checkpoint taken 
+smaller number system calls smaller size state captured worker thread contribute configuration exhibiting better cpu load multiprocess configuration 
+flashback gdb flashback fairly straightforward incorporate support checkpointing rollback deterministic replay debugging utility gdb 
+modified gdb support new commands checkpoint rollback discard creating checkpoints support rollback deterministic replay debugged programs 
+programmers set breakpoints places want create checkpoints 
+breakpoints seeing state program choose create new checkpoint checkpoint command 
+discard earlier checkpoints freeing system resources associated checkpoints discard command 
+find system state inconsistent roll back earlier checkpoint rollback command 
+flashback gdb automatically take periodic checkpoints state process executing 
+new commands added debugger user interface allow programmers enable disable automatic checkpointing execution debugged program 
+programmers control frequency checkpointing 
+frees programmer having insert breakpoints appropriate locations code explicitly checkpoints 
+order incorporate checkpoints gdb changes target system handling component user interface components 
+target system handling component handles basic operations dealing actual execution control program stack frame analysis physical target manipulation 
+component handles software breakpoint requests replacing program execution trap 
+execution trap causes exception gives control gdb 
+user choose take checkpoint time 
+gdb making checkpoint system call passing process id process debugged 
+similarly rollback replay gdb uses rollback replay system calls respectively 
+automatic checkpointing addition changes gdb maintains timer keeps track time checkpoint 
+timeout timer set user 
+timeout occurs gdb checkpoints process 
+lightweight os extension called flashback support fine grained rollback deterministic replay purpose software debugging 
+flashback uses shadow process efficiently capture inmemory states process different execution points 
+support deterministic reply flashback logs interactions debugged program execution environment 
+results prototype implementation real systems show approach small overheads roll back programs quickly 
+software debugging system improve software availability progressively rolling back re executing avoid transient errors 
+addition approach extended provide lightweight transaction models require atomicity persistence 
+process combining flashback hardware architecture support rollback deterministic replay reduce overhead 
+evaluating flashback applications 
+flashback currently works programs run single machine 
+exploring ways extend support distributed client server applications combining techniques surveyed elnozahy 
+flashback including patches linux gdb released open source community researchers developers take advantage flashback interactive debugging 
+acknowledgments dr srinivasan seshan shepard useful suggestions comments 
+anonymous reviewers useful feedback opera group useful discussions jagadeesan sundaresan pierre ghosh contribution project 
+adve hill miller netzer 
+detecting data races weak memory systems 
+proceedings th annual international symposium computer architecture pages 
+alvisi marzullo 
+trade offs implementing causal message logging protocols 
+podc th acm symposium principles distributed computing 
+cox zwaenepoel 
+data replication strategies fault tolerance availability commodity clusters 
+proc 
+international conference dependable systems networks 
+
+fine grained software rejuvenation models 
+ieee international computer performance dependability symposium 
+borg 
+message system supporting fault tolerance 
+proceedings th acm symposium operating systems principles sosp volume pages 
+borg blau herrmann oberle 
+fault tolerance unix 
+acm transactions computer systems feb 
+boyapati lee rinard 
+ownership types safe programming preventing data races deadlocks 
+object oriented programming systems languages applications oopsla november 
+candea fox 
+software 
+proceedings th workshop hot topics operating systems may 
+castro liskov 
+proactive recovery tolerant system 
+osdi 
+chen lowell dunlap 
+discount checking transparent low overhead recovery general applications 
+technical report university michigan department electrical engineering computer science july 
+chen ng chandra aycock rajamani lowell 
+rio file cache surviving operating systems crashes 
+seventh international conference architectural support programming languages operating systems pages cambridge massachusetts oct 
+acm press 
+chen plank li 
+clip checkpointing tool message passing parallel programs 
+proceedings acm ieee conference supercomputing cdrom pages 
+acm press 
+choi srinivasan 
+deterministic replay java multithreaded applications 
+proceedings sigmetrics symposium parallel distributed tools pages aug 
+
+choi min 
+race frontier reproducing data races parallel program debugging 
+proceedings third acm sigplan symposium principles practice parallel programming pages 
+cooper hall hood kennedy mckinley mellor crummey torczon warren 
+parallel programming environment 
+proceedings ieee 
+garg 
+recover efficiently asynchronously optimism fails 
+international conference distributed computing systems pages 
+dunlap kind chen 
+revirt enabling intrusion analysis logging replay 
+acm sigops operating systems review si 
+elnozahy alvisi wang johnson 
+survey rollback recovery protocols message passing systems 
+acm computing surveys 
+engler chen chou 
+bugs inconsistent behavior general approach inferring errors systems code 
+symposium operating systems principles pages 
+evans guttag horning tan 
+lclint tool specifications check code 
+symposium foundations software engineering december 
+evans 
+improving security extensible lightweight static analysis 
+ieee software 
+feldman brown 
+igor system program debugging reversible execution 
+acm sigplan notices workshop parallel distributed debugging jan 
+flanagan freund 
+type race detection java 
+acm sigplan notices 
+flanagan leino lillibridge nelson saxe stata 
+extended static checking java 
+pldi 
+candea reducing recovery time small recursively restartable system 
+dsn 
+gharachorloo gibbons 
+detecting violations sequential consistency 
+proceedings third annual acm symposium parallel algorithms architectures pages 
+hallem chelf xie engler 
+system language building system specific static analyses 
+proceeding acm sigplan conference programming language design implementation pldi 
+lam 
+tracking software bugs automatic anomaly detection 
+proc 
+int 
+conf 
+software engineering pages orlando fl may 
+chan 
+recovery management quicksilver 
+acm transactions computer systems tocs 
+hastings joyce 
+purify fast detection memory leaks access errors 
+winter usenix 
+havelund 
+model checking java programs java pathfinder 
+huang fulton 
+software rejuvenation analysis module applications 
+ftcs 
+huang wang 
+optimistic message logging telecommunication systems 
+proceedings international symposium fault tolerant computing ftcs pages june 
+johnson zwaenepoel 
+recovery distributed systems optimistic message logging checkpointing 
+proceedings seventh annual acm symposium principles distributed computing pages aug 
+kai intel 
+assure 
+url developer intel com software products assure 
+kumar li 
+model checking debug network interface firmware 
+fifth symposium operating systems design implementation osdi 
+li naughton plank 
+concurrent real time checkpoint parallel programs 
+second acm sigplan symposium principles practice parallel programming pages seattle washington mar 
+li naughton plank 
+efficient checkpointing method multicomputers wormhole routing 
+international journal parallel programming june 
+li naughton plank 
+low latency concurrent checkpoint parallel programs 
+ieee transactions parallel distributed computing 
+liskov 
+distributed programming argus 
+communications acm march 
+yong horwitz reps debugging run time type checking 
+fundamental approaches software engineering pages 
+lowell chandra chen 
+exploring failure transparency limits generic recovery 
+osdi 
+lowell chen 
+free transactions rio vista 
+proceedings th symposium operating systems principles sosp volume operating systems review pages new york oct 
+acm press 
+freeman miguel 
+elimination java array bounds checks presence indirection 
+proceedings joint acm java grande conference pages 
+marcus stern 
+blueprints high 
+john sons 
+mellor crummey scott 
+synchronization contention 
+proceedings th international conference architectural support programming languages operating systems pages apr 
+min 
+choi 
+efficient cache access anomaly detection scheme 
+proceedings fourth international conference architectural support programming languages operating systems pages 
+national institute standards nist department commerce 
+software errors cost economy annually 
+nist news release 
+necula weimer 
+ccured typesafe retrofitting legacy code 
+symposium principles programming languages pages 
+netzer 
+optimal tracing replay debugging shared memory parallel programs 
+
+lam 
+enhancing software reliability speculative threads october 
+patterson recovery oriented computing roc motivation definition techniques case studies 
+uc berkeley cs tech 
+report ucb csd 
+keleher 
+protocol centric approach fly race detection 
+ieee transactions parallel distributed systems 
+plank li 
+diskless checkpointing 
+ieee transactions parallel distributed systems 
+torrellas 
+thread level speculation mechanisms debug data races multithreaded codes 
+proceedings th annual symposium computer architecture 
+torrellas 
+speculation debug software application data races multithreaded codes 
+proceedings th annual international symposium computer architecture isca june 
+rodrigues castro liskov 
+base abstraction improve fault tolerance 
+proceedings th acm symposium operating system principles pages banff canada oct 
+
+fully integrated practical record replay system 
+acm transactions computer systems 
+russinovich 
+replay concurrent nondeterministic shared memory applications 
+proceedings acm sigplan conference programming language design implementation pages jerusalem israel 
+acm press 
+saito bershad 
+transactional memory service extensible operating system 
+usenix annual technical conference 
+salem garcia molina 
+checkpointing databases 
+technical report cs tr department computer science princeton university 
+satyanarayanan kumar steere kistler 
+lightweight recoverable virtual memory 
+sosp 
+savage burrows nelson sobalvarro anderson 
+eraser dynamic data race detector multithreaded programs 
+acm transactions computer systems 
+schonberg 
+fly detection access anomalies 
+acm sigplan conference programming language design implementation pldi june 
+seltzer endo small 
+dealing disaster surviving misbehaved kernel extensions 
+osdi 
+elnozahy 
+supporting nondeterministic execution fault tolerant systems 
+proceedings sixth international symposium fault tolerant computing pages washington june 
+ieee 
+smith johnson tygar 
+completely asynchronous optimistic recovery minimal rollbacks 
+ftcs th international symposium fault tolerant computing digest papers pages pasadena california 
+sterling 
+static data race analysis tool 
+usenix winter technical conference 
+stone 
+debugging concurrent processes case study 
+acm sigplan conference programming language design implementation pldi june 
+strom yemini 
+optimistic recovery distributed systems 
+acm transactions computer systems aug 
+software home page sourceforge net html 
+thekkath levy 
+hardware software support efficient exception handling 
+asplos 
+trent sake 
+webstone generation server benchmarking 
+feb 
+praun gross 
+object race detection 
+th annual conference object oriented programming systems languages applications oopsla tampa bay fl october 
+wagner dean 
+intrusion detection static analysis 
+ieee symposium security privacy pages 
+wagner foster brewer aiken 
+step automated detection buffer overrun vulnerabilities 
+network distributed system security symposium pages san diego ca february 
+wang chung huang elnozahy 
+integrating checkpointing transaction processing 
+ftcs 
+wang huang fuchs suri 
+progressive retry software failure recovery messagepassing applications 
+ieee transactions computers oct 
+wang huang 
+vo 
+chung 
+checkpointing applications 
+ftcs 
+wu zwaenepoel 
+envy non volatile main memory storage system 
+proceedings sixth international conference architectural support programming languages operating systems pages san jose california oct 
+acm sigarch sigops sigplan ieee computer society 
+xie engler 
+redundancies find errors 
+proceedings tenth acm sigsoft symposium foundations software engineering pages 
+zhou chen li 
+fast cluster failover virtual memory mapped communication 
+th acm international conference supercomputing june 

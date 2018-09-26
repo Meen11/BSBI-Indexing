@@ -1,0 +1,492 @@
+dynamo transparent dynamic optimization system bala vas hpl hp com describe design implementation dynamo software dynamic optimization system capable transparently improving performance native instruction stream executes processor 
+input native instruction stream dynamo dynamically generated jit example come execution statically compiled native binary 
+evaluates dynamo system challenging situation order emphasize limits potential system 
+experiments demonstrate statically optimized native binaries accelerated dynamo significant degree 
+example average performance optimized specint benchmark binaries created hp product compiler improved level comparable optimized version running dynamo 
+dynamo achieves focusing efforts optimization opportunities tend manifest runtime opportunities difficult static compiler exploit 
+dynamo operation transparent sense depend user annotations binary instrumentation require multiple runs special compiler operating system hardware support 
+dynamo prototype realistic implementation running hp pa workstation operating system 
+
+trends software hardware technologies appear moving directions making traditional performance delivery mechanisms effective 
+object oriented languages techniques modern software development resulted greater degree delayed binding limiting size scope available static compiler analysis 
+shrink wrapped software shipped collection dlls single monolithic executable making program optimization static compile time virtually impossible 
+cases powerful static compiler optimizations applied computer system vendors rely independent software vendor enable 
+puts computer system vendors uncomfortable position able control keys unlock performance potential machines 
+author presently cambridge ma 
+permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+pldi vancouver british columbia canada 
+copyright acm 
+evelyn duesterwald hpl hp com hewlett packard labs main street cambridge ma www hpl hp com cambridge projects dynamo sanjeev banerjia com dynamic code generation environments java jits dynamic binary translators applicability heavyweight static compiler optimization techniques impractical 
+hardware side technology moving offloading complexity hardware logic software compiler evidenced cisc risc vliw progression 
+problem trend static compiler increasingly greater performance burden obstacles traditional static compiler analysis continuing increase 
+inevitably lead complex compiler software provides modest performance gains generalpurpose applications highly customized compilers tailored narrow classes applications 
+dynamo project started investigate technology complement static compiler traditional strength static performance improvement tool novel dynamic performance improvement capability 
+contrast static compiler dynamo offers client side performance delivery mechanism allows computer system vendors provide degree machine specific performance involvement 
+dynamo dynamic optimization system input executing native instruction stream implemented entirely software 
+operation transparent preparatory compiler phase programmer assistance required legacy native binaries dynamically optimized dynamo 
+dynamo operates runtime focus optimization effort carefully 
+optimizations improve executing native program overhead dynamo operation 
+input native instruction stream dynamo come statically prepared binary created traditional optimizing compiler dynamically generated application jit 
+clearly runtime performance opportunities available dynamo vary significantly depending source input native instruction stream 
+experiments reported discuss operation dynamo challenging situation accelerating execution statically optimized native binary 
+performance data serve indicator limits dynamo system potential 
+data demonstrates extreme test case dynamo manages speedup applications comes close breaking worst case 
+section gives overview dynamo works 
+sections highlight key innovations dynamo system 
+section describes dynamo startup mechanism section gives overview hot code selection optimization code generation process section describes different optimized code snippets linked section describes storage containing dynamically optimized native instruction stream interpret taken branch lookup branch target cache fragment cache code managed section describes signal handling 
+section summarizes experimental data evaluate dynamo performance 
+dynamo complex system took years engineer 
+provides overview system 
+details available dynamo project website www hpl hp com cambridge projects dynamo 
+
+overview user perspective dynamo looks pa software interpreter runs pa processor hardware interpreter 
+interpretation allows dynamo observe execution behavior having instrument application binary 
+software interpretation slower direct execution processor dynamo interprets instruction stream hot instruction sequence trace identified 
+point dynamo generates optimized version trace called fragment software code cache called fragment cache 
+subsequent encounters hot trace entry address interpretation cause control jump top corresponding cached fragment 
+effectively suspends interpreter allows cached code execute directly processor incurring interpretive overhead 
+control eventually exits fragment cache dynamo resumes interpreting instruction stream process repeats 
+illustrates flow control detail 
+dynamo starts interpreting input native instruction stream taken branch encountered 
+branch target address corresponds entry point fragment fragment cache control jumps top fragment effectively suspending dynamo causing execution cached fragments occur directly underlying processor 
+branch target satisfies start trace condition counter associated target address incremented 
+signal handler signal hit jump top fragment cache context switch emit cache link fragments recycle associated counter start trace condition 
+increment counter associated branch target addr create new fragment optimize 
+dynamo works counter value exceeds hot threshold interpret codegen taken branch trace condition 
+current prototype defines start trace targets branches loop headers fragment cache exit branches exits previously identified hot traces 
+counter value exceeds preset hot threshold interpreter toggles state goes code generation mode 
+interpreting mode native instruction sequence interpreted recorded hot trace buffer trace condition reached 
+point hot trace buffer processed fast lightweight optimizer create optimized single entry multi exit contiguous sequence instructions called fragment current prototype defines trace backward taken branches taken branches targets correspond fragment entry points fragment cache fragment cache hits 
+trace may truncated length exceeds certain number instructions 
+fragment generated optimizer emitted fragment cache linker connects fragment exit branches fragments fragment cache possible 
+connecting fragments manner minimizes expensive fragment cache exits dynamo interpretive loop 
+new fragment tagged application binary address start trace instruction 
+execution proceeds application working set gradually materializes fragment cache dynamo overhead time spent dynamo interpretive loop time spent executing fragment cache begins drop 
+assuming majority application execution time typically spent small portion code performance benefits repeated reuse optimized fragments sufficient offset overhead dynamo operation 
+specint benchmarks fragment similar superblock fact dynamic instruction sequence cross static program boundaries procedure calls returns 
+app runs natively app runs dynamo application crt code 
+push stack frame spill caller save regs call dynamo exec restore caller save regs pop stack frame 
+average dynamo overhead execution time 
+dynamo interpreter hot trace selection process dominates overhead optimizer linker components contributing relatively insignificant amount 
+
+startup initialization dynamo provided user mode dynamically linked library shared library 
+entry point library routine dynamo exec 
+dynamo exec invoked application remainder application code return dynamo exec call execute dynamo control 
+outlined dynamo exec saves snapshot application context machine registers stack environment internal app context data structure 
+swaps stack environment dynamo code uses custom runtime stack allocated separately 
+dynamo operation interfere runtime stack application running 
+interpreter box eventually invoked return pc corresponding application dynamo exec call 
+interpreter starts interpreting application code return pc context saved app context 
+interpreter returns dynamo exec special condition occurs discussed dynamo gained control application 
+point onwards application instruction interpreted copy executed fragment cache 
+original instruction executed place way application running directly processor 
+provide custom version execution startup code crt checks see dynamo library installed system invokes dynamo start prior jump start application main entry point 
+application binaries linked version crt transparently invoke dynamo dynamo installed system execute normally 
+application binary remains unchanged run dynamo 
+strategy allows dynamo preserve original mapping application text segment key requirement transparent operation 
+part initialization done dynamo exec prior invoking interpreter dynamo separate area memory manages 
+dynamically allocated objects dynamo code created area memory 
+access area protected prevent application inadvertently maliciously corrupting dynamo state 
+dynamo library code dynamo exec save callee save regs app context copy caller save regs stack frame app context save app context return pc value link reg swap dynamo application stack points dynamo stack initialize internal data structures call interpreter return pc app context control return 
+
+dynamo gains control application 
+fragment formation due significant overheads operating runtime dynamo maximize impact optimization performs 
+furthermore objective complement compete compiler generated instruction stream dynamo primarily looks performance opportunities tend manifest runtime context application 
+generally redundancies cross static program boundaries procedure calls returns virtual function calls indirect branches dynamically linked function calls 
+performance opportunity instruction cache utilization dynamically contiguous sequence frequently executing instructions may statically non contiguous application binary 
+dynamo unit runtime optimization trace defined dynamic sequence consecutively executed instructions 
+trace starts address satisfies start trace condition ends address satisfies trace condition 
+traces may extend statically dynamically linked procedure calls returns indirect branches virtual function calls 
+dynamo selects hot trace optimizes emits relocatable code fragment cache 
+emitted relocatable code contiguous fragment cache memory branches exit code jump corresponding exit stubs bottom code 
+code referred fragment 
+trace unit application dynamic instruction stream sequence application instructions addresses application binary addresses fragment dynamo internal unit addressed fragment cache addresses 
+subsections outline trace selection trace optimization fragment code generation mechanisms dynamo 
+trace selection dynamo operates runtime afford elaborate profiling mechanisms identify hot traces 
+profiling techniques today designed offline gathered profile data collated analyzed post mortem 
+objective accuracy predictability 
+particular trace hot short period time contribution execution time small may important trace identify 
+concern dynamo amount counter updates counter storage required identifying hot traces adds overhead memory footprint system 
+discussed section dynamo uses software interpretation instruction stream observe runtime execution behavior 
+interpretation expensive prevents need instrument application binary perturb way 
+interpretation preferable statistical pc sampling interfere applications timer interrupts 
+elaborate shortly interpretation allows dynamo select hot regions directly having collate analyze point statistics kind produced pc sampling techniques 
+important advantage interpretation deterministic trace selection scheme task engineering dynamo system easier 
+worth noting interpreter native instruction interpreter underlying cpu fast native instruction interpreter implemented hardware 
+fact exploited machines provide fast breakpoint traps user mode accessible breakpoint window registers implement dynamo interpreter efficiently 
+pa breakpoint traps expensive efficient implement interpreter emulation 
+higher interpretive overhead earlier dynamo predict hot trace order keep overheads low 
+general speculative trace prediction scheme larger need size fragment cache compensate larger number traces picked result 
+interpretive overhead ripple effect rest dynamo system 
+dynamo uses speculative scheme refer executed tail pick hot traces doing path branch profiling 
+strategy works follows 
+dynamo associates counter certain selected start trace points target addresses backward taken branches 
+target backward taken branch loop header head hot traces loop body 
+counter associated certain start trace address exceeds preset threshold value dynamo switches interpreter mode sequence interpreted instructions recorded interpreted 
+eventually trace condition reached recorded sequence instructions executed tail starting hot start trace selected hot trace 
+insight instruction return call return hot statistically sequence executed instructions follow hot 
+profiling branches rest sequence simply record tail instructions hot start trace optimistically pick sequence hot trace 
+simplicity ease engineering advantage requiring smaller counter storage traditional branch path profiling techniques 
+counters maintained potential loop headers 
+furthermore hot trace selected emitted fragment cache counter associated start trace address recycled 
+possible occurrences address cause cached version code executed profiling required 
+subsequent hot traces start start trace address selected control exits selected trace start trace address 
+exits previously selected hot traces treated start trace points dynamo see 
+allows subsequent hot tails follow earlier hot start selected scheme usual manner 
+profiling done code generated dynamo fragment cache 
+allows cached code run directly processor full native speed dynamo introduced overheads 
+flip side biases branches change hot trace selected dynamo unable detect 
+order allow dynamo adapt changing branch biases fragment cache designed tolerate periodic flushes 
+periodically flushing traces fragment cache helps remove unused traces forces re selection active traces 
+discussed detail section 
+trace optimization selected hot trace prepared optimization converting low level intermediate representation ir close underlying machine instruction set 
+task trace optimization transform branches trace fall direction remains trace 
+loops allowed loop back branch targets start trace 
+loop back branch treated trace exit 
+unconditional direct branches redundant trace call trap dynamo fragment body 
+control flow snippet application binary layout snippet application program memory layout trace snippet dynamo fragment cache 
+exit stubs removed 
+case branches side effects branch link branches side effect preserved branch removed 
+trace optimization branch type branches remain trace 
+indirect branches may redundant 
+example return branch preceded corresponding call trace redundant removed 
+indirect branches optimistically transformed direct conditional branches 
+transformed conditional branch compares dynamic branch target target contained trace time trace selected referred predicted indirect branch target 
+comparison succeeds control goes predicted trace target 
+comparison fails control directed special dynamo routine looks dynamo maintained switch table 
+switch table hash table indexed indirect branch target addresses application binary addresses 
+table entries contain fragment cache address corresponding target 
+entry dynamic indirect branch target control directed corresponding fragment cache address 
+control exits fragment cache dynamo interpreter 
+interpreter selects new hot trace starting dynamic indirect branch target dynamo add new entry switch table corresponding mapping start trace application address fragment cache address 
+assuming execution follows selected hot trace time transformation replaces potentially expensive indirect branch expensive direct conditional branch 
+outlines transformed code indirect branch instruction assuming indirect branch dynamic target rx spill app context free fixed register set address predicted trace target rx goto predicted target copy rx goto switch table lookup actual register contains original indirect branch dynamic target different different indirect branch instructions 
+purpose copying dynamic target register ensure control enters switch table lookup routine execution time fixed register contain dynamic target looked 
+unconditional trace exit branch appended bottom trace control reaching trace exit taken branch 
+fixing branches trace result single entry multi exit sequence instructions internal control join points 
+illustrates branch adjustments occur trace selected application binary 
+traces free internal join points new opportunities optimization may exposed unsafe original program code 
+simplicity control flow allowed trace means traces analyzed optimized rapidly 
+fact dynamo trace optimizer non iterative optimizes trace passes forward pass backward pass 
+pass necessary data flow information collected proceeds fragment 
+optimizations performed involve redundancy removal redundant branch elimination redundant load removal redundant assignment elimination 
+opportunities typically result partial redundancies original application binary full redundancies join free trace 
+trace optimizer sinks partially redundant instructions trace redundancies special trace compensation blocks creates bottom trace 
+ensures partially redundant instructions get executed control exits trace specific path registers defined instructions downward exposed 
+fragment illustrates case 
+assignment register shown compensation block thick border originally trace block 
+sinking code motion ensures overhead executing assignment incurred control exits fragment path assignment downwards exposed 
+conventional optimizations performed copy propagation constant propagation strength reduction loop invariant code motion loop unrolling 
+dynamo performs runtime disambiguated conditional load removal inserting instruction guards conditionally potentially redundant load 
+note load removal safe known respective memory location volatile 
+information volatile variables may communicated dynamo symbol table 
+absence information volatile variables load removal transformations conservatively suppressed 
+fragment code generation fragment code generator emits code trace ir fragment cache 
+emitted code referred fragment 
+fragment cache manager discussed section allocates sufficient room fragment cache generate code 
+trace ir may split multiple fragments emitted fragment cache 
+case example direct conditional branch encountered trace converted application original indirect branch instruction trace optimizer see section 
+branch splits trace fragments 
+predicted trace target original indirect branch instruction immediately branch trace starts separate fragment 
+virtual registers may ir trace optimizer retains original machine register mappings 
+register allocator attempts preserve original machine register mappings extent possible code emitted 
+allocator register hold address data structure see control fragment 
+app context dynamo internal data structure keep application machine state interpretation record snapshot application machine state point fragment cache exit dynamo 
+trace optimizer uses app context spill area create temporary scratch registers necessary optimizations 
+application runtime stack spill area interfere stack operations generated static compiler created application binary 
+generation fragment code trace ir involves steps emitting fragment body emitting fragment exit stubs 
+emitting fragment body involves straightforward generation code corresponding trace ir 
+unique exit stub emitted fragment exit branch fragment loop back branch 
+exit stub piece code transfers control fragment cache dynamo interpreter canonical way outlined spill app context branch link interpreter sets pc ptr linkage info exit branch stub entered fragment exit branch 
+stub code saves link register 
+branch link entry point dynamo interpreter sets register fragment cache address branch 
+dynamo interpreter take snapshot application machine state application original value taken app context data structure prior starting interpretation 
+exit stub branch link instruction contains pointer linkage information fragment exit branch associated stub 
+control exits fragment dynamo interpreter interpreter consults linkage information application address start interpretation 
+value register contains address location containing pointer linkage information current fragment exit 
+
+fragment linking fragment code emitted fragment cache new fragment linked fragments fragment cache 
+linking involves patching fragment exit branch taken target entry point fragment exit stub 
+example suppose trace hot valid start trace definition entered exit earlier hot trace 
+illustrates linking occurs fragment corresponding trace emitted fragment cache 
+linked branches shown dark arrows original unlinked versions indicated dashed light arrows 
+fragment linking essential performance prevents expensive exits fragment cache back dynamo interpreter 
+prototype implementation pa example disabling fragment linking results order magnitude slowdown average factor specint benchmarks 
+fragment linking provides opportunity removing redundant compensation code source fragment involved fragment 
+fragment 
+
+example fragment linking 
+example link time optimization link 
+recall trace optimizer sinks trace redundancies compensation blocks instructions executed control exits fragment particular path see section 
+fragment illustrates case assignment shown compensation block thick border originally block sunk compensation block 
+part linkage information kept fragment exit stub shaded boxes mask trace redundant register assignments particular fragment exit maintained 
+mask kept exit stub corresponding compensation block bit mask set 
+similar mask killed register assignments top fragment maintained part dynamo internal data structure keeps fragment related information 
+link time register appears masks instruction defined source fragment compensation block dead removed 
+illustrated assignment fragment compensation block deleted defined entry fragment advantages linking clear disadvantages impact parts dynamo system 
+instance linking removal individual fragments fragment cache expensive incoming branches fragment unlinked 
+linking difficult relocate fragments fragment cache memory emitted 
+useful instance periodic de fragmentation fragment cache memory 
+
+fragment cache management dynamo afford complicated management fragment cache storage overheads incur 
+avoid storage management altogether simply expanding size fragment cache needed 
+undesirable effects 
+example advantages collecting hot traces separate fragment cache improved instruction cache locality tlb utilization result keeping working set close memory 
+advantage go away time hot traces current working set spread large area fragment cache memory 
+clearly ideal situation fragment cache contains traces current working set difficult traces selected previous working set formation completed new working set formed flush time 
+dynamic trace selection rate ksim showing sharp change working set sec execution achieve 
+overhead implementing lru type scheme identify cold fragments expensive 
+pointed earlier policy removes fragments incur expense having unlink incoming branch fragments 
+dynamo employs novel pre emptive flushing heuristic periodically remove cold traces fragment cache incurring high penalty 
+complete fragment cache flush triggered dynamo recognizes sharp increase fragment creation rate hot trace selection rate 
+rationale sharp rise new fragment creation indicative significant change working set program currently fragment cache 
+control predominantly spent dynamo stage fragment cache flush essentially free 
+illustrates scenario specint ksim benchmark 
+fragments removed fragment cache flush unlinking branches needs done 
+pre emptive flushing mechanism useful side effects 
+fragment related data structures maintained internal bookkeeping dynamo tied flush causing memory pools reset side effect pre emptive flush 
+pre emptive flush serves efficient garbage collection mechanism free dynamic objects associated fragments dropped current working set 
+fragments belonging new working set inadvertently flushed result regenerated dynamo program addresses encountered execution 
+regeneration fragments allows dynamo adapt changes application branch biases 
+trace re created dynamo may select different tail instructions start trace point 
+automatic re biasing fragments useful side effect pre emptive cache flushing strategy 
+
+signal handling optimizations involve code reordering removal dead code elimination loop unrolling create problem signal arrives executing optimized fragment making difficult impossible dynamo recreate original signal context prior optimization 
+create complications precise signal delivery 
+example application arm signal handler examines modifies machine context instant signal 
+signal arrives point dead register assignment removed signal context incomplete 
+dynamo intercepts signals executes program signal handler code control manner executes rest application code box 
+gives dynamo opportunity rectify signal context passed directly application handler operating system 
+asynchronous signals keyboard interrupts signal address irrelevant treated differently synchronous signals segment faults signal address critical 
+asynchronous signal arrives executing fragment dynamo signal handler queue return control back fragment cache 
+queued asynchronous signals processed normal fragment cache exit occurs 
+allows dynamo provide proper signal context application handler control middle optimized fragment time signal context constructed 
+order bound asynchronous signal handling latency dynamo signal handler linked branches current fragment prior resuming execution fragment 
+disconnect self loops similar manner fragment generator emits exit stub self loop branch addition exit stubs fragment exit branches 
+unlinking current fragment forces fragment exit branch exit fragment cache exit stub preventing possibility control spinning fragment cache arbitrarily long period time queued signals processed 
+feature allows dynamo operate environments soft real time constraints met 
+synchronous signals hand problematic postponed 
+drastic solution suppress code removing reordering transformations altogether 
+acceptable alternative techniques similar developed debugging optimized code de optimize fragment code attempting construct synchronous signal context 
+compress fortunately problem de optimizing simpler dynamo straight line fragments considered optimization 
+optimization logs stored fragment describes compensation actions performed signal delivery execution previously deleted instruction 
+presently ongoing effort dynamo project 
+prototype currently implements ambitious solution problem dividing trace optimizations categories conservative aggressive 
+conservative optimizations allow precise signal context constructed synchronous fault occurs executing fragment 
+aggressive optimizations hand guarantee 
+examples conservative optimizations include constant propagation constant folding strength reduction copy propagation redundant branch removal 
+aggressive category includes conservative optimizations plus dead code removal code sinking loop invariant code motion 
+certain aggressive optimizations redundant load removal incorrect load volatile memory location 
+dynamo trace optimizer capable starting aggressive mode optimization switching conservative mode followed fragment cache flush suspicious instruction sequence encountered 
+unfortunately pa risc binary provide information volatile memory operations information program installed signal handlers 
+capability currently unused dynamo 
+version dynamo plan investigate ways allow generator dynamo input native instruction stream provide hints dynamo 
+dynamo hints available rely operation 
+
+performance data performance evaluation experiments integer benchmarks 
+dynamo incurs fixed startup overhead allocating initializing internal data structures fragment cache 
+startup overhead probably improved careful engineering 
+purposes study benchmarks long allow startup initialization overhead 
+section go ijpeg li ksim perl aggressive optimization conservative optimization trace selection 
+speedup optimized pa binaries running dynamo relative identical binaries running standalone 
+contributions dynamic inlining due trace selection conservative trace optimization aggressive trace optimization shown 
+dynamo direct native execution go vortex 
+vortex deltablue presents data comparing performance running integer benchmarks dynamo identical binary executing directly processor 
+benchmark set includes specint benchmarks commercial code called deltablue incremental constraint solver 
+programs compiled optimization level equivalent default option product hp compiler 
+optimization level includes global intraprocedural optimization 
+performance measurements wall clock time lightly loaded single processor hp pa workstation running hp ux operating system 
+shows speedup dynamo achieves optimized native program binaries running dynamo 
+runs dynamo configured fixed size kbyte fragment cache flushed sharp changes occur trace selection rate room generate new fragments 
+details performance impact varying fragment cache size outside scope 
+indicates dynamo achieves considerable speedup cases li skim perl compress 
+programs relatively stable working sets fact dynamic optimization exploit 
+average speedup 
+significant portion performance gains come act selecting trace forming fragment implied partial procedure inlining improved experiments include specint gcc benchmark 
+benchmark consists repeated runs gcc number input files individual runs short running qualify performance study seconds pa 
+understand performance characteristics gcc modified gcc program internally loop input files resulting single long invocation gcc 
+show data modified gcc represent original benchmark performance characteristics comparable go data shown 
+average overhead time spent dynamo time sec 
+illustration bail 
+dynamo go sec execution go runs directly processor incurring dynamo overhead 
+ksim shown comparison case dynamo bail 
+code layout fragment cache 
+fragment optimization accounts approximately total gains average third due conservative signal volatile memory safe optimizations 
+note ignore inputs dynamo discussed shortly average contribution due trace optimization 
+dynamo achieve performance improvements programs go ijpeg vortex 
+dynamo startup time nonnegligible fraction total runtime ijpeg ijpeg run long dynamo startup overhead starting provide performance benefit 
+case go vortex run long time problem lack stable working set 
+relatively high number distinct dynamic execution paths executed benchmarks 
+frequently changing dynamic execution paths result unstable working set dynamo spends time selecting traces traces reused sufficiently cache offset overhead operation 
+fortunately dynamo native native optimizer original input program binary fallback overhead starts get high 
+dynamo constantly monitors ratio time spent dynamo time spent fragment cache 
+ratio stays tolerable threshold prolonged period time dynamo assumes application profitably optimized runtime 
+point dynamo loading application app context machine registers jumping application binary address 
+point application runs directly processor dynamic optimization 
+bail allows dynamo come close break performance ill behaved programs unstable working sets 
+illustrated graph benchmark go 
+dynamo overhead relatively wellbehaved application ksim shown comparison 
+shows dynamo performance binaries compiled higher optimization levels 
+shows program go go bail ksim runtimes dynamo optimization levels profile prior profile collection run 
+level hp compiler performs global interprocedural link time optimization 
+level compiler performs optimizations profile information gathered prior run 
+compile time increases significantly ability debug binary lost 
+software vendors reluctant enable higher optimization levels spite performance advantages offer 
+data shows dynamo finds performance improvement opportunities highly optimized binaries 
+fact set benchmarks dynamo able raise average performance compiled binaries level slightly exceeds performance compiled versions running dynamo 
+performance boost comes transparent fashion creator binary having special 
+fact dynamo finds performance improvement opportunities optimized binaries surprising dynamo primarily focuses runtime performance opportunities static compiler find difficult exploit 
+programs li perl dynamo able boost performance profile feedback compiled binaries 
+average benefits dynamo disappear static optimization enhanced profile information 
+expected beneficial inlining optimizations compile time 
+pointed goal study establish limits dynamo capabilities extreme setting quality input program code 
+compiling benchmarks static compiler program sources available dynamically linked libraries 
+quality compiled code input forced development compress native native native dynamo dynamo dynamo effort focus fine tuning engineering dynamo system 
+emphasized performance data shown specific quality code produced pa compiler pa processor implementation 
+hot trace selection dynamic optimization expected provide benefits general actual impact terms wallclock performance improvement vary target target 
+deeply pipelined pa example branch misprediction penalty cycles indirect branches including returns mispredicted 
+indirect branch removal big contribution dynamo performance gains pa 
+hand pa large instruction cache mbyte gains improved cache locality software fragment cache code significant 
+processor unified instruction data tlb entries reduction tlb pressure due better locality working set fragment cache contribute performance boost 
+
+related focusing native native runtime optimization dynamo fundamentally different approach past dynamic compilation 
+just time compilers delay compilation runtime 
+selective dynamic compilation staged form compilation restricts dynamic compilation selected portions code identified user annotations source language extensions 
+cases static compiler prepares dynamic compilation process possible generating templates instantiated run time specialized dynamic compiler 
+contrast just time selective dynamic compilation dynamo separates task compilation occurs prior execution dynamic optimization occurs entirely runtime requiring user assistance 
+dynamo input compiled native instruction stream re optimized exploit performance opportunities manifest runtime 
+go ijpeg li 
+dynamo performance native binaries compiled higher optimization levels bars program correspond native runs dynamo bars correspond runs dynamo ksim perl vortex lot done dynamic translation technique non native system emulation 
+idea lower emulation overhead caching native code translations frequently interpreted regions 
+binary translators dynamo concerned translation 
+dynamo approach allow couple fast lightweight translator emits native code dynamo backend optimizer 
+implementations offline binary translators perform native code optimization 
+generate profile data initial run emulation perform background translation optimization hot spots profile data 
+benefit profile optimization available subsequent runs program initial profile collecting run may suffer worsened performance 
+hardware solutions limited form runtime code optimization commonplace modern superscalar microprocessors 
+optimization unit fixed size instruction window optimization logic operating critical execution path 
+trace cache hardware alternative extended superscalar optimization critical path 
+dynamo offers potential purely software alternative allow tailored specific application domains cooperate compiler jit ways hardware dynamic optimizers 
+
+dynamo novel performance delivery mechanism 
+complements compiler traditional strength static performance improvement tool providing dynamic optimization capability 
+contrast approaches dynamic optimization dynamo works transparently requiring user intervention 
+fact allows dynamo bundled computer system shipped client side performance delivery mechanism activation depend independent software vendors way traditional compiler optimizations 
+deltablue average demonstrates possible engineer practical software dynamic optimizer provides significant performance benefit highly optimized executables produced static compiler 
+key focus optimization effort opportunities manifest runtime static compiler currently investigating applications dynamo dynamic optimization technology different areas 
+directions exploring export api application program dynamo aware application underlying system interesting ways 
+useful example implement low overhead profiler jit compiler 
+dynamo perspective user compiler hints provided api allow perform comprehensive optimizations go scope individual traces 
+looking problem transparent de optimization runtime 
+
+inception dynamo project people influenced thinking 
+particularly bill wei hsu shah giuseppe paolo geoffrey brown stefan freudenberger numerous technical discussions 
+grateful josh fisher dick encouragement support project 
+
+auslander philipose chambers eggers bershad 
+fast effective dynamic compilation 
+proceedings sigplan conference programming language design implementation pldi 
+bala duesterwald banerjia 
+transparent dynamic optimization design implementation dynamo 
+hewlett packard laboratories technical report hpl 
+june 
+bala freudenberger 
+dynamic optimization dynamo project hp labs cambridge project proposal 
+hp labs internal memo feb 
+ball larus 
+efficient path profiling 
+proceedings th annual international symposium microarchitecture micro paris 
+
+
+fast accurate multicomputer simulation 
+proceedings acm sigmetrics conference measurement modeling computer systems 
+chambers ungar 
+customization optimizing compiler technology self dynamically typed object programming language 
+proceedings sigplan conference programming language design implementation 
+
+chernoff reeve rubin yates 
+fx profile directed binary translator 
+ieee micro vol march april 
+cmelik keppel 
+shade fast instruction set simulator execution profiling 
+technical report dept computer science engineering university washington 
+consel noel 
+general approach runtime specialization application proceedings th annual symposium principles programming languages 
+
+cramer friedman miller wilson wolczko 
+compiling java just time 
+ieee micro may jun 
+deutsch schiffman 
+efficient implementation smalltalk system 
+proceedings th annual acm symposium principles programming languages 
+
+ebcioglu altman 
+daisy dynamic compilation architectural compatibility 
+proceedings th annual international symposium computer architecture 
+
+engler 
+vcode retargetable extensible fast dynamic code generation system 
+proceedings sigplan conference programming language design implementation pldi 
+fisher freudenberger 
+predicting conditional branch directions previous runs program 
+proceedings th international conference architectural support programming languages operating systems asplos 
+oct 
+
+friendly patel patt 
+putting fill unit optimizations trace cache microprocessors 
+proceedings st annual internation symposium microarchitecture micro dallas 
+
+philipose mock chambers eggers evaluation staged run time optimizations 
+proceedings sigplan conference programming language design implementation 
+
+
+complete machine simulation understand computer system behavior 
+ph thesis dept computer science stanford university 
+hwu mahlke chen chang warter hank holm superblock effective structure vliw superscalar compilation 
+journal supercomputing jan 
+
+keller 
+superscalar alpha processor order execution 
+th annual microprocessor forum san jose ca 
+kelly cmelik wing 
+memory controller microprocessor detecting failure speculation physical nature component addressed 
+patent nov 
+kumar 
+hp pa risc cpu high performance order processor 
+proceedings hot chips viii palo alto ca 
+leone dybvig 
+dynamo staged compiler architecture dynamic program optimization 
+technical report dept computer science indiana university 
+leone lee 
+optimizing ml run time code generation 
+proceedings sigplan conference programming language design implementation 
+
+marlet consel efficient incremental run time specialization free 
+proceedings sigplan conference programming language design implementation 
+
+
+tuning pentium pro microarchitecture 
+ieee micro apr 
+
+engler kaashoek 
+tcc system fast flexible high level dynamic code generation 
+proceedings sigplan conference programming language design implementation 
+
+rotenberg bennett smith 
+trace cache low latency approach high bandwidth instruction fetching 
+proceedings th annual international symposium microarchitecture micro paris 
+
+sannella maloney freeman benson borning 
+multi way versus way constraints user interfaces experiences deltablue algorithm 
+software practice experience may 
+
+sites chernoff kirk marks robinson binary translation 
+digital technical journal vol special issue 
+
+emulating dos windows risc environments 
+proceedings microprocessor forum san jose ca 
+witchel rosenblum 
+embra fast flexible machine simulation 
+proceedings sigmetrics conference measurement modeling computer systems 
+

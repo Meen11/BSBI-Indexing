@@ -1,0 +1,620 @@
+cilk efficient multithreaded runtime system robert blumofe christopher joerg bradley charles leiserson keith randall zhou mit laboratory computer science technology square cambridge ma december cilk pronounced silk runtime system multithreaded parallel programming 
+document efficiency cilk stealing scheduler empirically analytically 
+show real synthetic applications critical path length cilk computation model performance accurately 
+consequently cilk programmer focus reducing computation critical path length insulated load balancing runtime scheduling issues 
+prove class fully strict structured programs cilk scheduler achieves space time communication bounds constant factor optimal 
+cilk runtime system currently runs connection machine cm mpp intel paragon mpp sun sparcstation smp cilk network workstations 
+applications written cilk include protein folding graphic rendering backtrack search socrates chess program won second prize world computer chess championship 
+multithreading increasingly popular way implement dynamic highly asynchronous concurrent programs :10.1.1.13.9310
+multithreaded system provides programmer means create synchronize schedule threads 
+schedulers runtime systems perform research supported part advanced research projects agency 
+robert blumofe supported part arpa high performance computing graduate fellowship 
+keith randall supported part department defense fellowship 
+robert blumofe current address university texas austin department computer sciences taylor hall austin tx 
+bradley current address yale university department computer science prospect street new haven ct 
+zhou current address bell laboratories mountain avenue murray hill nj 
+portions previously reported proceedings fifth acm sigplan symposium principles practice parallel programming ppopp santa barbara ca july pp 
+
+submitted journal publication 
+level level level level cilk model multithreaded computation 
+threads shown circles grouped procedures 
+downward edge corresponds spawn child horizontal edge corresponds spawn successor upward curved edge corresponds data dependency 
+levels procedures spawn tree indicated left 
+practice provide users guarantee application performance 
+cilk runtime system stealing scheduler efficient theory practice 
+gives user algorithmic model application performance measures critical path length predict runtime cilk program accurately 
+cilk multithreaded computation viewed directed acyclic graph dag unfolds dynamically shown schematically 
+cilk program consists collection cilk procedures broken sequence threads form vertices dag 
+thread nonblocking function means run completion waiting suspending invoked 
+threads cilk procedure runs spawn child thread begins new child procedure 
+downward edges connect threads procedures children spawned 
+spawn subroutine call calling thread may execute concurrently child possibly spawning additional children 
+threads block cilk model thread spawn children wait values returned 
+thread additionally spawn successor thread receive children return values produced 
+thread successors considered parts cilk procedure 
+sequences successor threads form cilk procedures connected horizontal edges 
+return values values sent thread induce data dependencies threads thread receiving value thread sends value 
+data dependencies shown upward curved edges 
+cilk computation unfolds spawn tree composed procedures spawn edges connect children execution constrained follow precedence relation determined dag threads 
+execution time cilk program parallel computer processors constrained parameters computation critical path length 
+denoted time processor execution program corresponds sum execution times threads 
+critical path length denoted total amount time required ideal infinite processor execution corresponds largest sum thread execution times path 
+processors execution time 
+cilk scheduler uses stealing achieve execution time near sum measures 
+line techniques computing efficient schedules known long time efficiency difficult achieve line distributed environment simultaneously small amounts space communication 
+demonstrate efficiency cilk scheduler empirically analytically 
+empirically able document cilk works dynamic asynchronous tree mimd style computations 
+date applications programmed include protein folding graphic rendering backtrack search socrates chess program won second prize world computer chess championship running sandia national laboratories node intel paragon mpp 
+applications pose problems traditional parallel environments message passing data parallel unpredictability dynamic workloads processors :10.1.1.141.5884:10.1.1.141.5884
+analytically prove fully strict structured programs cilk stealing scheduler achieves execution space time communication bounds constant factor optimal 
+date applications coded fully strict 
+cilk language extends primitives express parallelism cilk runtime system maps expressed parallelism parallel execution 
+cilk program preprocessed type checking preprocessor 
+code compiled linked runtime library run target platform 
+currently supported targets include connection machine cm mpp intel paragon mpp sun sparcstation smp cilk network workstations 
+focus connection machine cm implementation cilk 
+cilk scheduler cm written pages performs communication processors strata active message library 
+description cilk environment corresponds version march 
+remainder organized follows 
+section describes cilk runtime data structures language extensions programming 
+section describes stealing scheduler 
+section documents performance cilk applications 
+section shows critical path length cilk computation model performance 
+section shows analytically scheduler works 
+section offers concluding remarks describes plans 
+cilk programming environment implementation section describe language extension developed ease task coding cilk programs 
+explain basic runtime data structures cilk uses 
+cilk procedure broken sequence threads 
+procedure explicitly specified language 
+defined implicitly terms constituent threads 
+thread defined manner similar function definition thread arg decls 
+stmts type checking preprocessor translates function argument void return type 
+argument pointer closure data structure illustrated holds arguments closure consists pointer function slot specified arguments join counter indicating number missing arguments need supplied ready run 
+closure ready obtained arguments waiting arguments missing 
+run ready closure cilk join counters waiting closure ready closure arguments closure data structure 
+scheduler invokes thread function closure sole argument 
+code thread arguments copied closure data structure local variables 
+closure allocated simple runtime heap created returned heap thread terminates 
+cilk language supports data type called continuation specified type modifier keyword cont 
+continuation essentially global empty argument slot closure implemented compound data structure containing pointer closure offset designates closure argument slots 
+continuations created passed threads enables threads communicate synchronize 
+continuations typed data type slot closure 
+runtime thread spawn child thread child procedure creating closure child 
+spawning specified cilk language follows spawn args 
+statement creates child closure fills available arguments initializes join counter number missing arguments 
+available arguments specified ordinary syntax 
+specify missing argument user specifies continuation variable preceded question mark 
+example second argument cilk sets continuation refers second argument slot created closure 
+closure ready missing arguments spawn causes closure immediately posted scheduler execution 
+typical applications child closures created missing arguments 
+string sequence threads cilk procedure thread procedure responsible creating successor 
+create successor thread thread executes statement spawn args 
+statement semantically identical informs scheduler new closure treated successor opposed child 
+successor closures usually created missing arguments filled values produced children 
+code thread fib cont int int send argument cont int spawn sum spawn fib spawn fib thread sum cont int int int send argument cilk procedure consisting threads compute nth fibonacci number 
+cilk procedure return values normal way parent procedure 
+programmer code parent procedure threads 
+thread spawns child procedure passing continuation pointing successor thread closure 
+child sends return value explicitly argument waiting successor 
+strategy communicating threads called explicit continuation passing 
+cilk provides primitives form send values closure send argument value statement sends value value argument slot waiting closure specified continuation types continuation value compatible 
+join counter waiting closure decremented zero closure ready posted scheduler 
+shows familiar recursive fibonacci procedure written cilk 
+consists threads fib successor sum 
+reflecting explicit continuation passing style cilk supports argument thread continuation specifying return value placed 
+function invoked checks see boundary case reached case argument return value slot specified 
+spawns successor thread sum children compute subcases 
+children continuation specifying argument thread send result 
+thread simply adds arguments arrive sends result slot designated 
+writing explicit continuation passing style somewhat onerous programmer decision break procedures separate nonblocking threads simplifies cilk runtime system 
+cilk thread leaves runtime stack empty completes 
+cilk run top vanilla runtime system 
+common alternative support programming style thread suspends discovers required values computed resuming values available :10.1.1.17.101
+thread suspends may leave temporary values runtime stack saved thread runtime stack 
+consequently alternative strategy requires runtime system employs multiple stacks mechanism save temporaries heap allocated storage 
+advantage cilk strategy allows multiple children spawned single nonblocking thread saves context switching 
+cilk children spawned executed context switches alternative suspending thread spawned causes context switches 
+primary interest understanding build efficient multithreaded runtime systems redesigning basic runtime system chose alternative burdening programmer requirement elegant linguistically yields simple portable runtime implementation 
+cilk supports variety features give programmer greater control runtime performance 
+example action thread spawn ready thread programmer keyword tail call spawn produces tail call run new thread immediately invoking scheduler 
+cilk allows arrays subarrays passed arguments closures 
+features include various abilities override scheduler decisions including processor thread placed pack unpack data closure migrated processor 
+cilk stealing scheduler cilk scheduler uses technique stealing processor thief runs selects processor victim steal steals ready thread victim spawn tree 
+cilk strategy thieves choose victims random 
+shall implementation cilk stealing scheduler 
+runtime processor maintains local ready pool hold ready closures 
+closure associated level corresponds thread depth spawn tree 
+closures threads root procedure level closures threads root child procedures level 
+ready pool array illustrated lth element contains linked list ready closures having level cilk begins executing user program initializing ready pools empty placing initial root thread level list processor pool starting scheduling loop processor 
+iteration scheduling loop processor checks see ready pool empty 
+processor commences stealing described shortly 
+processor performs steps 
+remove closure head list deepest nonempty level ready pool 
+
+extract thread closure invoke 
+thread executes may spawn send arguments threads 
+thread dies control returns scheduling loop advances iteration 
+thread level performs spawn child thread processor executes operations 
+allocate initialize closure fort 
+level level level level level level level level closure steal closure execute processor ready pool 
+iteration scheduling loop processor executes closure head deepest nonempty level ready pool 
+ready pool empty processor thief steals closure head nonempty level ready pool victim processor chosen uniformly random 
+
+copy available arguments closure initialize continuations point missing arguments initialize join counter number missing arguments 
+
+label closure level 
+missing arguments post closure ready pool inserting head level list 
+execution similar closure labeled level ready posted level list 
+thread performs argument value processor executes operations 
+find closure argument slot referenced 
+
+argument slot decrement join counter closure 
+
+join counter goes zero post closure ready pool appropriate level 
+refers closure remote processor network communication ensues 
+processor initiated argument function sends message remote processor perform operations 
+subtlety occurs step 
+closure posted posted ready pool initiating processor remote processor 
+policy necessary scheduler provably efficient practical matter success posting closure remote processor pool 
+processor begins iteration scheduling loop finds ready pool empty processor thief commences stealing follows 
+select victim processor uniformly random 
+
+victim ready pool empty go back step 
+victim ready pool nonempty extract closure head list nonempty level ready pool execute 
+stealing implemented simple request reply communication protocol thief victim 
+steal level ready pool 
+reason fold heuristic algorithmic 
+lower communication costs steal large amounts tree structured computation shallow threads spawn deep ones 
+heuristic notion justification cited earlier researchers proposed stealing shallow spawn tree :10.1.1.17.101
+prove shallow threads spawn deep ones 
+prove section algorithmic property 
+threads critical path dag level processor ready pool 
+consequently processors idle steal progress critical path 
+performance cilk applications cilk runtime system executes cilk applications efficiently predictable performance 
+specifically dynamic asynchronous tree applications cilk stealing scheduler produces near optimal parallel speedup small amounts space communication 
+furthermore cilk application performance modeled accurately simple function critical path length 
+section empirically demonstrate facts experimenting applications 
+section begins look applications proceeds look performance applications 
+section look application performance modeling 
+empirical results section confirm analytical results section 
+cilk applications experimented cilk runtime system applications synthetic real 
+applications described fib section second recursive spawn replaced call avoids scheduler 
+program measure cilk overhead thread length small 
+queens backtrack search program solves problem placing queens chessboard queens attack 
+cilk program serial code sargent mit media laboratory 
+thread length enhanced serializing bottom levels search tree 
+protein folding program finds hamiltonian paths dimensional grid size backtrack search 
+written chris joerg mit laboratory computer science pande mit center material sciences engineering program enumerate hamiltonian paths grid 
+experiments timed enumeration paths starting certain sequence 
+ray parallel program graphics rendering ray program uses ray tracing algorithm 
+ray system contains lines code core ray simple doubly nested loop iterates pixel dimensional image size converted nested loops ary divide conquer control structure spawns 
+measurements include approximately seconds startup time required read process scene description file 
+synthetic benchmark parameters set produce variety values critical path length 
+generates tree depth branching level executed serially remainder executed parallel 
+node tree program runs empty loop iterations 
+socrates parallel chess program uses search algorithm parallelize minmax tree search 
+algorithm varies number processors speculative may aborted runtime 
+socrates won second prize world computer chess championship running node intel paragon sandia national laboratories 
+initially cilk ray program percent faster serial pov ray program running processor 
+reason divide conquer decomposition performed cilk code provides better locality doubly nested loop serial code 
+modifying serial code imitate cilk decomposition improved performance 
+timings improved version 
+ray traced image 
+pixel 
+image rendered program 
+image shows amount time ray took compute pixel value 
+pixel worked compute corresponding pixel value 
+applications place heavy demands runtime system due dynamic irregular nature 
+example case size shape backtrack search tree determined performing search shape tree turns highly irregular 
+speculative may aborted socrates minmax tree carries dynamic irregular structure extreme 
+case ray amount time takes compute color pixel image hard predict may vary widely pixel pixel illustrated 
+cases high performance demands efficient dynamic load balancing runtime 
+experiments run cm supercomputer 
+cm massively parallel computer mhz sparc processors fat tree interconnection network 
+cilk runtime system cm performs communication processors strata active message library 
+application performance running applications measuring suite performance parameters empirically answer questions effectiveness cilk runtime system 
+focus questions 
+efficiently runtime system implement language primitives 
+add processors faster program run 
+space require 
+communication perform 
+show dynamic asynchronous tree programs cilk runtime system efficiently implements language primitives simultaneously efficient respect time space communication 
+section reach analytic means section focus empirical data execution cilk programs 
+execution cilk program set inputs grows cilk computation consists tree procedures dag threads 
+structures introduced section 
+benchmark applications respect critical path length 
+recall denoted time execute cilk computation processor corresponds sum execution times threads dag 
+method measure depends program deterministic 
+deterministic programs computation depends program inputs independent number processors runtime scheduling decisions 
+applications socrates deterministic 
+deterministic applications performed processor run program equal performed processor run input values measure directly timing processor run 
+socrates program hand uses speculative execution computation depends number processors scheduling decisions runtime 
+case timing processor run reasonable way measure performed run processors 
+realize execution processors defined time takes processor execute computation program inputs 
+socrates estimate processor run performing processor run timing execution thread summing 
+method yields underestimate include scheduling costs 
+case processor execution cilk computation take time processor execution takes time equal lower bound said achieve perfect linear speedup 
+recall critical path length denoted time execute cilk computation infinitely processors corresponds largest sum thread execution times path dag 
+cilk measure critical path length timestamping thread dag earliest time executed 
+specifically timestamp maximum earliest time thread spawned argument earliest time argument sent 
+values turn computed timestamp thread performed spawn sent argument 
+particular thread performs spawn earliest time spawn occur equal earliest time thread executed timestamp plus amount time thread ran performed spawn 
+property holds earliest time argument sent 
+initial thread computation timestamped zero critical path length computed maximum threads timestamp plus amount time executes 
+measured critical path length include scheduling communication costs 
+processor execution cilk computation take long computation critical path length 
+exceeds perfect linear speedup achieved 
+table showing typical performance measures cilk applications 
+column presents data single run benchmark application 
+adopt notations table 
+application efficient serial implementation compiled gcc measured runtime denoted 
+cilk computation randomized programs viewed deterministic consider sequence values generated source randomness inputs program 
+practice beat lower bound 
+superlinear speedup consequence fact add processors add physical resources registers cache main memory 
+fib queens ray socrates socrates depth depth proc 
+proc computation parameters serial serial threads thread length processor experiments space proc 
+requests proc 
+steals proc 
+processor experiments space proc 
+requests proc 
+steals proc 
+performance cilk various applications 
+times seconds noted 
+critical path length measured cm described 
+measured execution time cilk program running processors cm row labeled threads indicates number threads executed thread length average thread length divided number threads 
+certain derived parameters displayed table 
+ratio efficiency cilk program relative program 
+ratio average parallelism 
+value simple model runtime discussed 
+speedup parallel efficiency 
+row labeled space proc indicates maximum number closures allocated time processor 
+row labeled requests proc indicates average number steal requests processor execution steals proc gives average number closures stolen 
+data shows important relationships efficiency thread length speedup average parallelism 
+considering relationship efficiency thread length see programs moderately long threads cilk runtime system induces little overhead 
+queens ray programs threads average length greater microseconds efficiency greater percent 
+hand fib program low efficiency threads short fib send argument 
+despite long threads socrates program low efficiency parallel search algorithm speculatively searching subtrees searched serial algorithm 
+consequently increase number processors program executes threads 
+example processor execution seconds processor execution seconds 
+executions considerably serial program seconds 
+observe low efficiency due parallel algorithm cilk overhead 
+looking speedup measured processors see average parallelism large compared number processors cilk programs achieve nearly perfect linear speedup average parallelism small speedup 
+queens programs example excess fold parallelism achieve percent perfect linear speedup processors percent perfect linear speedup processors 
+socrates program exhibits somewhat parallelism somewhat speedup 
+processors socrates program fold parallelism yielding percent perfect linear speedup processors fold parallelism yielding percent perfect linear speedup 
+parallelism exhibited benchmarks speedup obtained 
+example benchmark exhibits fold parallelism realizes barely fold speedup processors percent perfect linear speedup 
+fold parallelism achieves fold speedup processors percent perfect linear speedup fold speedup processors percent perfect linear speedup 
+speedup measures reflect cilk scheduler ability exploit parallelism obtain application speedup factor efficiency cilk program compared fact program achieves superlinear speedup comparing efficient serial implementation 
+suspect cache effects cause phenomenon 
+serial program 
+specifically application speedup product efficiency speedup example applications fib socrates low efficiency generate correspondingly low application speedup 
+socrates program efficiency speedup processors exhibits application speedup 
+purpose understanding scheduler performance decoupled efficiency application efficiency scheduler 
+looking carefully cost cilk find takes fixed overhead cycles allocate initialize closure plus cycles word argument 
+comparison function call cm sparc processor takes cycles fixed overhead assuming register window overflow plus cycle word argument assuming arguments transferred registers 
+cilk roughly order magnitude expensive function call 
+cilk overhead quite apparent program argument 
+measured efficiency conclude aggregate average cost send argument cilk times cost function call return efficient execution programs short threads requires low overhead spawn operation 
+observed vast majority threads execute processor spawned 
+example program executed threads migrated processor run processors 
+advantage property researchers developed techniques implementing spawns child thread executes processor parent cost spawn operation roughly equal cost function call :10.1.1.17.101
+hope incorporate techniques implementations cilk 
+observations space communication measures 
+looking space proc rows observe space processor generally quite small grow number processors 
+example socrates processors executes threads processor contains allocated closures 
+processors number executed threads nearly doubles space processor barely changes 
+section show formally important class cilk programs space processor grow add processors 
+looking requests proc steals proc rows observe amount communication grows critical path length grow 
+example fib queens critical path lengths tenth second long perform fewer requests steals processor socrates critical path lengths seconds long perform requests steals processor 
+table show clear correlation requests steals 
+example ray twice performs orders magnitude fewer requests 
+section show class cilk programs communication processor grows linearly critical path length grow function 
+modeling performance document effectiveness cilk scheduler showing empirically cilk application performance modeled accurately simple function length 
+specifically synthetic benchmark show runtime application processors modeled wherec small constant determined curve fitting 
+result shows obtain nearly perfect linear speedup critical path short compared average amount processor 
+show model kind accurate socrates complex application programmed date 
+scheduler execute cilk computation time processors 
+perfect linear speedup obtained computation length exceeds generally max ft 
+critical path length stronger lower bound exceeds average parallelism andt stronger bound 
+scheduler meet bounds closely possible 
+order investigate cilk scheduler meets lower bounds benchmark grow computations exhibit range values critical path length 
+shows outcome experiments running various input values andr various numbers processors 
+plots measured speedup run machine size run 
+order compare outcomes runs different input values normalized plotted value run follows 
+addition speedup measure run critical path length previously described 
+normalize machine size speedup dividing values average parallelism 
+run horizontal position plotted datum vertical position plotted datum consequently horizontal axis normalized machine size number processors equal average parallelism 
+vertical axis normalized speedup runtime equals critical path length 
+draw lower bounds time upper bounds speedup 
+horizontal line upper bound speedup obtained critical path length degree line linear speedup bound seen runs average parallelism exceeds number processors normalized machine size cilk scheduler obtains nearly perfect linear speedup 
+region number processors large compared average parallelism normalized machine size greater data scattered speedup factor critical path length upper bound 
+theoretical results section show expected running time cilk computation processors 
+sense try fit data curve form 
+squares fit data minimize relative error yields percent confidence 
+correlation coefficient fit mean relative error percent 
+curve fit shown plots simpler curves comparison 
+seen little lost linear speedup range curve assuming coefficient term equals 
+normalized speedup critical path bound linear speedup bound measured value model model curve fit normalized machine size normalized speedups synthetic benchmark processors 
+horizontal axis number processors vertical axis speedup data point normalized dividing 
+normalized speedup critical path bound linear speedup bound measured value model model curve fit normalized machine size normalized speedups socrates chess program 
+yields mean relative error percent ways better fit includes term 
+measure little worse mean relative error better 
+sense data points scattered close exceeds average parallelism 
+range amount time spent stealing significant fraction execution time 
+real measure quality scheduler larger average parallelism shows substantial influence critical path length 
+see average parallelism exceeds factor critical path length impact running time 
+confirm simple model cilk scheduler performance real application ran socrates variety chess positions various numbers processors 
+shows results study confirm results synthetic benchmark 
+best fit yields percent confidence 
+correlation coefficient fit mean relative error percent 
+developing tuning heuristics increase performance socrates critical path length measures progress 
+methodology avoid trapped interesting anomaly 
+improvement sped program processors 
+measurements discovered faster saved expense longer critical path 
+simple model concluded processor connection machine cm mpp national center supercomputer applications university illinois urbana champaign platform early tournaments improvement yield loss performance fact verified 
+measuring critical path length enabled experiments processor machine improve program processor machine processor machine computer time scarce 
+theoretical analysis cilk scheduler section algorithmic analysis techniques prove class fully strict cilk programs cilk stealing scheduling algorithm efficient respect space time communication 
+fully strict program thread sends arguments parent successor threads 
+analysis bounds section assume thread spawns successor thread 
+programs socrates violate assumption section explain analysis bounds generalized handle programs 
+fully strict programs prove bounds space time communication space space processor execution bounded sp wheres denotes space serial execution cilk program 
+bound existentially optimal constant factor 
+time processors expected execution time including scheduling overhead bounded 
+lower bounds processor execution bound constant factor optimal 
+communication expected number bytes communicated processor execution pt smax size largest closure computation 
+bound existentially optimal constant factor 
+expected time bound expected communication bound converted bounds cost small additive term cases 
+full proofs bounds generalizations techniques developed 
+space bound obtained busy leaves property characterizes allocated closures times execution 
+order state property simply 
+spawned parent successors spawn closures spawned parent 
+sibling closures ordered age child spawned older second 
+time execution say closure leaf allocated children say leaf closure primary leaf addition younger siblings allocated 
+busy leaves property states primary leaf closure processor working 
+lemma cilk scheduler maintains busy leaves property 
+proof consider possible ways primary leaf closure created 
+thread spawns children youngest children primary leaf 
+second thread completes closure freed closure older sibling sibling children older sibling closure primary leaf 
+thread completes closure freed closure allocated siblings youngest closure parent successor threads primary leaf 
+induction follows observing cases cilk scheduler guarantees processor works new primary leaf 
+third case important fact newly activated closure posted processor activated processor residing 
+theorem fully strict cilk program space execute program processor number processors cilk stealing scheduler uses space 
+proof shall obtain space bound assigning allocated closure primary leaf total space closures assigned primary leaf 
+lemma guarantees primary leaves busy primary leaf closures allocated total amount space assignment allocated closures primary leaves follows 
+closure primary leaf assigned 
+closure allocated children assigned primary leaf youngest child 
+closure leaf younger siblings closure assigned primary leaf youngest sibling 
+recursive fashion assign allocated closure primary leaf 
+consider set closures assigned primary leaf 
+total space closures set closures subset closures allocated processor execution processor executing primary leaf completes proof 
+ready analyze execution time 
+strategy mimic theorems restricted model multithreaded computation 
+bounds assume communication model messages delayed contention destination processors assumptions order contending messages delivered 
+technical reasons analysis execution time critical path calculated assuming threads spawned parent thread spawned parent thread 
+analysis execution time accounting argument 
+time step processors places dollar buckets actions step 
+processor executes instruction thread step places dollar bucket 
+processor initiates steal attempt places dollar steal bucket 
+processor merely waits steal request delayed contention places dollar wait bucket 
+shall derive running time bound upper bounding dollars bucket computation summing values dividing total number dollars put buckets step 
+lemma execution fully strict cilk computation ends bucket contains dollars 
+proof computation contains total instructions 
+lemma execution fully strict cilk computation ends expected number dollars wait bucket number dollars steal bucket 
+proof lemma shows processors random steal requests course computation requests destination serially queued destination expected total delay lemma processor execution fully strict cilk computation critical path length thread successor ends expected number dollars steal bucket pt 
+proof sketch proof follows delay sequence argument differences shall point 
+full details generalizes situation thread successor 
+time execution say thread critical executed predecessors dag executed 
+argument dag augmented ghost threads additional edges represent implicit dependencies imposed cilk scheduler 
+define delay sequence pair path threads augmented dag positive integer 
+say delay sequence occurs execution steal attempts initiated thread critical 
+step proof show steal attempts occur execution sufficiently large delay sequence occur 
+path dag steal attempts occurs thread critical 
+give construction refer reader directly analogous arguments 
+step proof show delay sequence pt occur 
+key step lemma describes structure threads processors ready pools 
+structural lemma implies thread critical thread stolen pool resides 
+intuitively steal attempts expect attempts targeted processor critical thread interest resides 
+case critical thread stolen executed course executed local processor 
+pt steal attempts expect threads executed 
+delay sequence argument formalizes intuition 
+expected number dollars steal bucket pt 
+theorem consider fully strict cilk computation critical path length thread spawns successor 
+number processors cilk stealing scheduler runs computation expected time 
+proof sum dollars buckets divide lemma bucket contains dollars 
+lemma wait bucket contains constant times number dollars steal bucket lemma implies total number dollars buckets pt 
+sum dollars pt bound execution time obtained dividing fact shown techniques probability execution time processors lgp lg 
+theorem consider fully strict cilk computation critical path length thread spawns successor 
+number processors total number bytes communicated cilk stealing scheduler expectation pt smax smax size bytes largest closure computation 
+proof proof follows directly lemma 
+communication costs associated steals steal requests smax bytes communicated successful steal 
+fact probability total communication incurred lg smax 
+analysis bounds derived apply fully strict programs case thread spawns successor 
+programs socrates contain threads spawn successors 
+theorems generalized handle situation follows 
+denote maximum number threads belonging procedure threads simultaneously living execution 
+denote maximum number dependency edges pair threads 
+thread spawn successor theorems proved hold 
+exceeds arguments modified 
+specifically exceeds analysis number dollars steal bucket modified 
+critical thread may longer thread stolen processor ready pool 
+noncritical threads procedure may stolen advance critical thread 
+extra dependency edges may cause steal attempts occur critical thread gets stolen 
+accounting extra steals argument obtain bounds time communication 
+number processors expected execution time lt expected number bytes communicated lpt smax 
+theo bound space unchanged 
+analogous high probability bounds time communication 
+produce high performance parallel applications programmers focus communication costs execution time quantities dependent specific machine configurations 
+argue programmer think critical path length abstractions characterize performance algorithm independent machine configuration 
+cilk provides programming model critical path length observable quantities delivers guaranteed performance function quantities 
+critical path length theory community years analyze parallel algorithms 
+blelloch developed performance model data parallel computations measures :10.1.1.141.5884
+cites advantages model models 
+cilk provides similar performance model domain asynchronous multithreaded computation 
+cilk offers performance guarantees current capabilities limited programmers find explicit continuation passing style onerous 
+cilk expressing executing dynamic asynchronous tree mimd computations ideal traditional parallel applications programmed effectively example message passing data parallel single thread processor shared memory style 
+currently working extending cilk capabilities broaden applicability 
+major constraint want new features destroy cilk guarantees performance 
+current research focuses implementing dag consistent shared memory allows programs operate shared memory costly communication hardware support providing linguistic interface produces continuation passing code runtime system traditional call return specification spawns incorporating persistent threads strict semantics ways destroy guaranteed performance scheduler 
+information cilk maintained world wide web theory lcs mit edu cilk 
+acknowledgments gratefully acknowledge inspiration michael boston consulting group zurich switzerland 
+mike pcm runtime system developed mit precursor cilk design decisions cilk owed 
+aditya toledo mit larry rudolph hebrew university helpful discussions 
+tian mcgill university provided helpful suggestions improving 
+don international master larry kaufman heuristic software part socrates development team 
+rolf sandia national laboratories ported cilk intel paragon mpp running operating system john mike ported cilk paragon running osf andy shaw mit ported cilk smp platforms 
+rob miller mit contributions cilk system 
+scout project mit national center supercomputing applications university illinois urbana champaign access cm supercomputers running experiments 
+acknowledge influence arvind dataflow research group mit 
+pioneering attracted path vision continues challenge 
+anderson bershad lazowska levy scheduler activations effective kernel support user level management parallelism 
+proceedings thirteenth acm symposium operating systems principles pp 
+pacific grove california oct 
+blelloch programming parallel algorithms :10.1.1.141.5884
+proceedings dartmouth institute advanced graduate studies dags symposium parallel computation pp 
+hanover new hampshire jun 
+blumofe executing multithreaded programs efficiently 
+ph thesis department electrical engineering computer science massachusetts institute technology sep 
+blumofe leiserson scheduling multithreaded computations stealing 
+proceedings th annual symposium foundations computer science pp 
+santa fe new mexico nov 
+blumofe park scheduling large scale parallel computations networks workstations 
+proceedings third international symposium high performance distributed computing pp 
+san francisco california aug 
+brent parallel evaluation general arithmetic expressions 
+journal acm apr 
+brewer blumofe strata multi layer communications library 
+technical report appear mit laboratory computer science 
+available ftp ftp lcs mit edu pub strata strata tar burton sleep executing functional programs virtual tree processors 
+proceedings conference functional programming languages computer architecture pp 
+new hampshire oct 
+carlisle rogers reppy hendren early experiences olden 
+proceedings sixth annual workshop languages compilers parallel computing portland oregon aug 
+chandra gupta hennessy cool object language parallel programming 
+ieee computer aug 
+chase lazowska levy amber system parallel programming network multiprocessors 
+proceedings twelfth acm symposium operating systems principles pp 
+park arizona dec 
+cooper draves threads 
+tech 
+rep cmu cs school computer science carnegie mellon university jun 
+culler sah schauser von eicken wawrzynek fine grain parallelism minimal hardware support compiler controlled threaded machine 
+proceedings fourth international conference architectural support programming languages operating systems pp 
+santa clara california apr 
+feldmann monien studying overheads massively parallel min max tree evaluation 
+proceedings sixth annual acm symposium parallel algorithms architectures pp 
+cape may new jersey jun 
+finkel manber distributed implementation backtracking 
+acm transactions programming languages systems apr 
+andrews distributed filaments efficient finegrain parallelism cluster workstations 
+proceedings symposium operating systems design implementation pp 
+monterey california nov 
+goldstein schauser culler enabling primitives compiling parallel languages 
+third workshop languages compilers run time systems scalable computers troy new york may 
+graham bounds certain multiprocessing anomalies 
+bell system technical journal nov 
+graham bounds multiprocessing timing anomalies 
+siam journal applied mathematics mar 
+zhou joerg mimd style parallel programming continuation passing threads 
+proceedings nd international workshop massive parallelism hardware software applications capri italy sep 
+halstead jr multilisp language concurrent symbolic computation 
+acm transactions programming languages systems oct 
+hillis steele data parallel algorithms 
+communications acm dec 
+hsieh wang weihl computation migration enhancing locality distributed memory parallel systems 
+proceedings fourth acm sigplan symposium principles practice parallel programming ppopp pp 
+san diego california may 
+jagannathan philbin customizable substrate concurrent languages 
+proceedings acm sigplan conference programming language design implementation pp 
+san francisco california jun 
+joerg massively parallel chess 
+proceedings third dimacs parallel implementation challenge rutgers university new jersey oct 
+available ftp theory lcs mit edu pub cilk dimacs ps kal kernel parallel programming system 
+proceedings international conference parallel processing volume ii software pp 
+aug 
+karamcheti chien concert efficient runtime support concurrent objectoriented programming languages stock hardware 
+supercomputing pp 
+portland oregon nov 
+karp ramachandran parallel algorithms shared memory machines 
+van leeuwen ed handbook theoretical computer science volume algorithms complexity chapter pp 
+
+mit press cambridge massachusetts 
+karp zhang randomized parallel algorithms backtrack search branchand bound computation 
+journal acm jul 
+kranz halstead jr mohr mul high performance parallel lisp 
+proceedings sigplan conference programming language design implementation pp 
+portland oregon jun 
+synchronized mimd computing 
+ph thesis department electrical engineering computer science massachusetts institute technology may 
+available mit laboratory computer science technical report mit lcs tr ftp theory lcs mit edu pub bradley phd ps leiserson douglas feynman hill hillis pierre wells wong yang zak network architecture connection machine cm 
+proceedings fourth annual acm symposium parallel algorithms architectures pp 
+san diego california jun 
+liu aiello bhatt atomic model message passing 
+proceedings fifth annual acm symposium parallel algorithms architectures pp 
+germany jun 
+miller type checking preprocessor cilk multithreaded language 
+master thesis department electrical engineering computer science massachusetts institute technology may 
+mohr kranz halstead jr lazy task creation technique increasing granularity parallel programs 
+ieee transactions parallel distributed systems jul 
+nikhil multithreaded implementation id risc graphs 
+proceedings sixth annual workshop languages compilers parallel computing number lecture notes computer science pp 
+portland oregon aug 
+springer verlag 
+nikhil cid parallel shared memory distributed memory machines 
+proceedings seventh annual workshop languages compilers parallel computing aug 
+pande joerg tanaka enumerations hamiltonian walks cubic sublattice 
+journal physics 
+rinard scales lam jade high level machine independent language parallel programming 
+computer jun 
+rudolph upfal simple load balancing scheme task allocation parallel machines 
+proceedings third annual acm symposium parallel algorithms architectures pp 
+hilton head south carolina jul 
+sunderam pvm framework parallel distributed computing 
+concurrency practice experience dec 
+tanenbaum bal kaashoek programming distributed system shared objects 
+proceedings second international symposium high performance distributed computing pp 
+washington jul 
+vandevoorde roberts abstraction controlling parallelism 
+international journal parallel programming aug 
+wu 
+kung communication complexity parallel divide conquer 
+proceedings nd annual symposium foundations computer science pp 
+san juan puerto rico oct 
+short biographies authors robert bobby blumofe received bachelor degree brown university ph mit 
+started research career working computer graphics andy van dam brown ph algorithms systems parallel multithreaded computing charles leiserson mit 
+part dissertation bobby developed adaptive fault tolerant version cilk called cilk runs networks workstations 
+bobby assistant professor university texas austin continuing cilk cilk 
+christopher joerg received degrees computer engineering mit respectively 
+expects receive ph mit january 
+research interests areas parallel systems computer networks 
+bradley received degrees degree ph degree mit 
+midway ph program took year mit serve principal architects connection machine cm thinking machines 
+joined departments computer science electrical engineering yale university assistant professor 
+prof solve systems problems high performance computing spans wide range technology including vlsi chips interconnection networks operating systems compilers interpreters algorithms applications 
+charles leiserson received degree computer science mathematics yale university new haven connecticut ph degree computer science carnegie mellon university pittsburgh pennsylvania 
+joined faculty massachusetts institute technology cambridge massachusetts 
+professor computer science engineering mit department electrical engineering computer science head supercomputing technologies group mit laboratory computer science 
+prof leiserson research centers theory parallel computing especially relates engineering reality 
+prof leiserson pioneered development vlsi theory written papers vlsi algorithms graph layout computer aided design 
+contributions include divide conquer method graph layout retiming method optimizing digital circuitry 
+prof leiserson leader development parallel computing 
+graduate student carnegie mellon wrote systolic architectures advisor kung 
+corporate fellow thinking machines designed led implementation network architecture connection machine model cm supercomputer incorporates fat tree interconnection network developed mit 
+designed engineered parallel algorithms including ones matrix linear algebra graph algorithms optimization sorting 
+prof leiserson focused dynamic asynchronous parallel computing 
+prof leiserson won numerous awards 
+ph dissertation area efficient vlsi computation deals design systolic systems problem determining vlsi area graph won acm doctoral dissertation award fannie john hertz foundation doctoral thesis award 
+received presidential young investigator award national science foundation 
+papers received awards ieee international conference parallel processing 
+textbook algorithms coauthored ronald rivest thomas cormen named best professional scholarly book computer science data processing association american publishers 
+prof leiserson member acm ieee siam 
+currently serves general chair acm symposium parallel algorithms architectures 
+prof leiserson professional accomplishments students doctoral theses privilege supervise 
+keith randall received degrees computer science engineering mit respectively 
+expects receive ph mit 
+research interests include routing parallel algorithms scheduling 
+zhou received electric engineering university science technology china ph computer science graduate school arts sciences harvard university 
+worked mit laboratory computer science research associate compilers parallel programming languages computation structures group 
+currently member technical staff bell laboratories 
+main research interests programming languages parallel distributed computing 
+

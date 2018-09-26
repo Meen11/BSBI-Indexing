@@ -1,0 +1,478 @@
+implementation performance evaluation safe runtime system cyclone matthew cornell university department computer science upson hall ithaca ny cs cornell edu outline implementation simple scheme interpreter copying garbage collector manages memory allocated interpreter 
+entire system including garbage collector implemented cyclone safe dialect supports safe explicit memory management 
+describe high level design system report preliminary benchmarks compare approach scheme systems 
+preliminary benchmarks demonstrate build system reasonable performance compared approaches guarantee safety 
+importantly significantly reduce amount unsafe code needed implement system 
+benchmarks identify key algorithmic bottlenecks related approach hope address 
+theoretical ideas novel interesting variations combinations existing literature discuss 
+primary motivation goal build realistic working system puts existing theory test existing systems rely larger amounts unsafe code implementation 
+
+network servers written unsafe languages significant source known security exploits 
+fortunately new web applications written high level safe languages java perl php python tcl 
+web applications written safe languages immune common buffer overflow research supported part arda contract necessarily reflect opinion policy federal government official endorsement inferred 
+permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+space venice italy copyright acm xxxxx xx xx xx 
+daniel wang princeton university department computer science olden street princeton nj cs princeton edu related security problems applications written addition ensuring safety high level languages convenient preferable low level system languages building web applications 
+major convenience improves security automatic memory management 
+majority web applications written safe languages applications typically hosted servers web application platforms implemented unsafe languages example perl web applications hosted apache web server dynamically loading native code module implements perl interpreter 
+interpreter written concerned bug module may introduce security hole 
+fact apache written concerned immunity buffer overruns 
+web application platforms written completely java 
+situation trust implementation java virtual machine free bugs 
+implementation jvm contains significant amount code written unsafe languages 
+reducing eliminating code written unsafe languages implementation web application server increases confidence server immune common security bugs 
+great deal demonstrating build dynamically extensible web servers safe programming languages 
+addressed implement interpreter executes actual web application 
+implementing core interpreter safe language significant challenge 
+challenging implementing runtime system interpreter provides automatic memory management 
+currently systems rely trusted runtime system provide sort storage management 
+significant advances type proof systems possible implement runtime system provides garbage collection services programming languages guarantee safety 
+outline implementation simple scheme interpreter copying garbage collector manages memory allocated interpreter 
+entire system including garbage collector implemented cyclone safe dialect supports safe explicit management memory 
+section motivate describe high level design system 
+section report preliminary benchmarks compare approach scheme systems 
+section compare amount unsafe code needed implement system 
+preliminary benchmarks demonstrate build system reasonable performance compared approaches guarantee safety 
+importantly significantly reduce amount unsafe code needed implement system 
+benchmarks identify key algorithmic bottlenecks related approach hope address order build realistic production system 
+
+writing scheme interpreter cyclone scheme chosen scheme test bed language primarily relative ease implementation existence known benchmarks 
+implementation small rely existing scheme front expand majority full scheme language core scheme subset 
+existing front handles parsing macro expansion full scheme 
+take resulting output emit cyclone source code builds syntax tree compile link interpreter runtime system 
+scheme studied compact language features desirable web programming 
+particular class continuations allows natural structuring web applications 
+scheme developing large useful set tools manipulating xml 
+ieee scheme original processing language sgml xml html derived see great scheme web programming language 
+key features cyclone cyclone safe dialect cyclone attempts give programmers significant control data representation memory management performance preventing buffer overflows format string attacks dangling pointer dereferences 
+cyclone ensures safety programs combination compiletime run time checks 
+cyclone combination performance control safety language writing low level software runtime systems 
+section briefly introduce key features cyclone implementation scheme interpreter described sections 
+pointers programs cyclone programs extensive pointers 
+improper pointers lead core dumps buffer overflows 
+prevent errors cyclone introduces different kinds pointers various tradeoffs expressiveness run time checks 
+type traditional nullable pointer written part pointers behavior counterparts restrictions nullable pointers cyclone 
+core interpreter loop lines code 
+cast integer pointer 
+cyclone accepts legal pointer value null cyclone keyword preferred 
+second perform arbitrary pointer arithmetic pointer allow programmer overwrite arbitrary memory locations 
+cyclone inserts null check program dereferences pointer 
+may appear drastic restrictions patterns pointer usage unaffected 
+example interpreter scheme values naturally represented nullable pointers data structures null corresponds scheme value nil 
+variation nullable pointer non null pointer written notnull 
+pointer guaranteed null eliminates need null checks dereferences 
+addition performance benefit non null pointers capture useful programming invariant statically checked 
+example interpreter machine state represented non null pointer data structure side effected transition machine 
+third kind pointer available cyclone fat pointer written fat 
+fat pointer comes bounds information traditional pointer 
+time fat pointer dereferenced contents assigned cyclone inserts null check bounds check 
+bounds information run time checks ensure safety pointer arithmetic array indexing 
+addition fat pointer allows size queried run time 
+interpreter scheme vector represented fat pointer array values 
+regions description pointers demonstrated ways cyclone prevents programs accessing arbitrary memory 
+violation dereference dangling pointer pointer storage deallocated 
+prevent violations cyclone adopts type system region memory management tofte talpin described detail previous 
+discuss aspects crucial implementation 
+cyclone pointer types form type pointed object region name describing object lifetime 
+cyclone type system tracks set live regions program point dereferencing pointer type requires region set 
+set compile time error signals possible dangling pointer dereference 
+region polymorphism lets functions data structures region arguments fields 
+region parameters cyclone indicated annotations form functions types distinguishes region parameters kinds parameters 
+cyclone provides number different kinds regions suitable different allocation deallocation patterns 
+stack regions correspond local declaration blocks entering block creates region allocates objects exiting block deallocates region objects 
+stack region lexical scope number sizes cases cyclone flow analysis determines checks superfluous removes 
+stack allocated objects fixed compile time 
+lexical regions created deallocated program scoping region handle allows objects allocated region region lifetime 
+lexical region lexical scope number sizes region allocated objects fixed compile time 
+cyclone heap special region name data allocated heap managed boehm demers weiser bdw conservative garbage collector 
+conceptually cyclone heap just lexical region global scope global variable heap region handle 
+order understand cost safe garbage collector cyclone heap implement version scheme interpreter interpreter data managed trusted conservative garbage collector 
+lifetimes stack lexical regions follow block structure program lifo discipline 
+clearly discipline restrictive accommodate objects overlapping non nested lifetimes 
+added unique pointers dynamic regions cyclone 
+unique pointers linear type systems provide fine grained memory management individual objects 
+particular unique pointer object deallocated program point 
+hand unique pointers freely copied restrictions cyclone programs 
+unique pointer written conceptually pointer special unique region name said concerning cyclone unique pointers purposes suffices reiterate unique pointers treated linear objects type system conventional flow analysis ensures program point usable copy value assigned unique pointer type 
+unique pointers manage garbage collector frontier data structures implement dynamic region sequences 
+dynamic region resembles lexical region ways crucial difference dynamic region created freed point program 
+accessing allocating data dynamic region region opened 
+opening dynamic region adds region set live regions prevents region freed open 
+interface creating freeing dynamic regions typedef struct notnull key struct key key struct new void free key dynamic region represented unique non null pointer struct parameterized region internally contains handle region 
+unique pointer called key serves run time capability granting access region 
+new function creates fresh dynamic region returns unique key region 
+annotation struct type indicates symbols booleans true false numbers characters constants const nil undefined unspecified debruijn indices ij expressions exp ij 
+en lambda set 
+ij core scheme syntax expressions region variable existentially bound 
+unpacking existential type yields region variable conflict region name 
+precisely behavior require function creates fresh region 
+free function reclaims key region storage key 
+key unique linear manner free function consumes key 
+access allocate data dynamic region key special open primitive region open 
+remainder current scope region handle access region furthermore temporarily consumed scope preventing deallocation accessible control leaves scope 
+core scheme interpreter section introduce core scheme language semantics implementation cyclone 
+components relatively straightforward useful concrete implementation preparation description garbage collector 
+formalism reader familiar scheme interpreters may feel free proceed directly section referring back formalism necessary 
+describes syntax core scheme expressions 
+literal constants various types provided 
+variables debruijn indices 
+procedures elide variable names annotated number arguments required application 
+case procedure variable number arguments annotation indicates minimum number required arguments 
+likewise assignment indicates location updated debruijn index 
+procedure calls conditionals standard 
+core scheme expression language corresponds closely primitive expression forms appear scheme standard 
+described standard locations loc values val const prim throw closure pair vector primitives heap stack env loc state stacks stack env frame frames frame 
+li ei en set 
+ij environments env loc results res heaps heap loc val states state heap stack env res core scheme syntax runtime objects ciently expressive encode various derived expression forms appear realistic scheme programs 
+expect external scheme program derived expression forms expanded primitive expression forms symbolic variables converted debruijn indices yielding core scheme expression executed 
+explained section external scheme front producing cyclone function builds syntax tree 
+describes syntax run time objects appear evaluation core scheme expression describes operational semantics language 
+operational semantics define small step rewriting relation states states 
+state form heap stack environment result expression value current active position 
+heap partial map infinite set locations loc values 
+stack finite sequence environments stack frames 
+stack frame partially evaluated expression hole corresponding wright felleisen style semantics 
+conditional assignments exactly hole applications enforce left evaluation order requiring locations corresponding heap allocated values left hole expressions right hole 
+environment sequence locations location expected corresponds heap allocated vector 
+de bruijn index ij denotes th element vector pointed th location environment 
+struct value typedef struct value value datatype valued const const throw stack env rho closure unsigned int env rho exp unsigned int env rho exp pair value value vector value fat ls struct value datatype valued value cyclone implementation values sume initial heap initial environment primitive operations bound 
+primitive operation partial map heap stack environment location sequence state 
+location sequence corresponds arguments primitive operation 
+components state provided primitive operations perform heap allocation require access stack environment 
+values correspond heap allocated data 
+addition primitive operations procedure forms 
+throw carries stack environment form escape procedure passed argument argument primitive operation call current continuation 
+closure forms correspond evaluation lambda expression types closure forms capture current environment extended point application 
+final value forms pair vector combine locations larger data structures 
+describes operational semantics language 
+main judgment defines small step rewriting relation states states 
+rules result expression immediately return location possibly having performed allocation push frame stack start evaluating sub expression 
+rules result location pop frame fill hole continue appropriate 
+auxiliary judgments ij get ij set concerned getting setting debruijn indexed variables judgment 
+ln listify allocates arguments scheme list 
+implementation turn implementation core scheme interpreter cyclone 
+cyclone language values represented allocated data structures pointers see 
+recall section region polymorphism lets data structures region fields 
+struct value forward declaration structure type polymorphic region typedef defines value nullable pointer struct value object region essentially value corresponds locations op ij get ij set vector 
+ln get lj vector 
+ln set vector 
+lj lj 
+ln 
+ln listify dom listify const nil const dom const ij get ij set set 
+ln listify dom 
+ln listify pair var apply 
+en 
+en lambda dom lambda closure dom set 
+ij get ij set 
+ij set 
+ij apply arg eval 
+li ei 
+en 
+li ei 
+en ei apply closure eval apply eval true eval apply prim eval apply throw eval prim 
+ln ln 
+ln throw closure dom 
+ln ln vector 
+ln lm 
+ln listify dom 
+ln ln vector 
+lm const false set eval false eval ij set dom set 
+ij const unspecified core scheme operational semantics const false void scheme exp prog region load program cyclone heap exp prog heap region load initial environment env env initial env heap region construct initial state empty stack initial environment expression evaluated state state state null env expr take unbounded number steps bool done heap region state heap allocated interpreter semantics null corresponds const nil 
+concrete representation expression datatype valued declaration 
+cyclone provides datatypes safe alternative unions supporting heterogenous values 
+furthermore unions require space proportional largest member datatype requires space member efficient memory 
+note fat pointer vector variant valued datatype ensures array accesses supports querying vector length 
+time struct value declaration serves little purpose simply embeds datatype valued member structure 
+section see garbage collector extends structure forwarding pointer 
+expressions immutable change execution program 
+cyclone language expression represented allocated data structures pointers manner similar values 
+stacks environments represented linked list structures null corresponds empty stack empty environment 
+conclude section examining simple core scheme interpreter see data allocated cyclone heap managed conservative garbage collector 
+function scheme takes argument pointer function takes region handle argument returns expression allocated region 
+note annotation universally quantifies region variable 
+remainder code straightforward 
+function pointer executed yield initial expression 
+initial environment allocated 
+initial expression environment combined empty stack create initial state 
+interpreter repeatedly transitions corresponding termination 
+note region parameters expression environment state types instantiated heap region functions performing allocations take heap region handle heap region parameter 
+operational semantics state implicitly side effected state returned function 
+garbage collector section describe safe copying garbage collector core scheme language described 
+proceeding point novelties comparison type preserving garbage collectors 
+demon space space nil nil root objects object pointer forwarding pointer copying gc example previous section choose write interpreter trampoline style continuation passing style 
+gives rise simpler implementation keeping byte code interpreter 
+previous requires continuation passing style continuation polymorphic heap region complicating garbage collector interface 
+explained dynamic region sequences rgn type constructor gives rise natural typing forwarding pointers 
+remainder section proceeds manner 
+briefly review copying algorithm 
+consider intuitive implementation cyclone 
+refine implementation sequence abstraction achieve complete implementation cyclone 
+illustrates simple copy collector 
+collector stops user program begins live dead cells space empty space 
+collector traverses data structure space copying live cell space cell visited 
+collector preserves sharing leaving forwarding pointer space cell copied 
+forwarding pointer points copied cell space 
+cell space visited copying function examines forwarding pointer 
+non null copy function returns forwarding address 
+space cell reserved space forwarding pointer set address reserved space fields cell copied 
+live cells space copied depicted collector free memory space program continue execution allocating new cells space 
+copying algorithm separation managed memory space space suggests natural correspondence cyclone regions 
+clearly lifo discipline cyclone lexical regions insufficient copying garbage collector lifetime space space lifetime 
+turn attention cyclone dynamic regions appears sufficient expressiveness write simple copying garbage collector 
+create space key key new state state open space key region open key open space key region open key state copy state state free space free key 
+captures spirit garbage collector number details remain 
+described section struct value declaration intended extended forwarding pointer 
+question type forwarding pointer answer lines pointer struct value space forwarding pointer pointer struct value space space forwarding pointer 
+need name infinite sequence pointers 
+provide name form type constructor maps region names region names generates infinite supply region names typedef rgn give garbage collected value forwarding pointer manner typedef struct value value struct value value rgn forward datatype valued value note region names rgn related lifetimes corresponding regions 
+similar manner value rgn wellformed type scope region handle corresponding rgn created 
+original inspiration rgn type constructor comes hawblitzel type sequences mappings integers types index regions region number epoch yielding connection successive regions copying collector 
+operationally expect dynamic region sequences behave dynamic regions access mediated key 
+particular expect operations create open free dynamic region sequence keys 
+addition need operation produce key rgn 
+operation yields infinite supply dynamic region sequence keys quite 
+need ensure supply linear exactly way generate key rgn cyclone unique pointers provide exactly linearity 
+declare struct typedef struct notnull gen struct 
+gen unique pointer serves capability particular serve capability produce key rgn generator 
+taken key generator form dynamic region sequence struct key key gen gen typedef struct interface dynamic region sequences struct struct struct new struct rgn gen gen new function creates fresh dynamic region sequence returns key region generator element sequence 
+note new function returns structure existentially quantifies region variable 
+unpacking existential yields region variable conflict region name 
+function returns key rgn new generator 
+generator unique function consumes follows create key rgn sequence regions linear 
+furthermore key region handle rgn need created called keys handles need pre allocated 
+opening freeing key accomplished dynamic region operations open primitive free function 
+figures cyclone code implementing central functions core scheme garbage collector interpreter 
+struct existentially binds current region core scheme heap time interpreter garbage collector needs access allocate data region state unpacked region opened 
+function directly implements example code modified pack unpack state generate space dynamic region sequence 
+scheme function similar modified create dynamic region sequence allocate initial program environment initial dynamic region 
+termination check uses goto order transfer control scope current region opened scope current region freed 
+ensures final heap reclaimed terminating core scheme interpreter 
+gc state encapsulates current region existentially bound dynamic region sequence containing key generator state containing roots typedef struct key gen state state gcs unpack gc state naming existentially bound region key gen state gcs generate space rgn key gen gen state rgn state open space key region open key open space key region open key copy state reachable data state copy state state pack new gc state gcs key gen state free space return new gc state free key return gcs garbage collector void scheme exp prog region construct initial heap key gen new load program initial environment initial heap exp env env region open key prog env initial env construct initial state state state state null env expr construct initial gc state dynamic region sequence initial state struct gcs key gen state true unpack current gc state naming existentially bound region key gen state gcs open current heap region open key take fixed number steps bool done max steps state check termination done goto finished pack new gc state allow gc gcs key gen state gcs gcs finished unpack final gc state free final region key gen state gcs free key dynamic region sequence allocated interpreter static frontier value rgn copy value frontier frontier region rgn value obj switch obj case null return frontier null case value obj forwarding pointer installed return unmodified frontier 
+null return frontier switch obj case closure env exp allocate new closure space extracting addresses child pointers obj value closure rnew value null closure null null install forwarding pointer obj add children frontier frontier add front frontier copy env env frontier add front frontier copy exp exp return new frontier pointer return frontier obj case pair obj obj allocate new pair space extracting addresses child pointers obj value pair obj obj rnew value null pair null null install forwarding pointer obj add children frontier frontier add front frontier copy value obj obj frontier add front frontier copy value obj obj return new frontier pointer return frontier obj 
+copy function values far said little actual copying core scheme objects 
+careful inspection code reveals expressions environments stacks allocated scheme heap addition values 
+objects kind garbage collected 
+copying algorithm needs space manage traversal live data 
+recursive algorithm uses run time stack maintain state runs risk stack overflow 
+maintain explicit frontier objects forwarded 
+solution unique pointer allocated data structures freed garbage collection 
+unique pointers order immediately free data structure resized accommodate larger frontier 
+garbage collection regions space space rgn unique region 
+presents cyclone code copying core cheney style copying collector accommodated framework iterate objects allocated region 
+scheme value 
+value obj label cyclone pattern matching facilities provide efficient method binding parts large objects new local variables 
+particular pattern binds address forwarding pointer component value structure obj address datatype valued component 
+comparison null checks installed forwarding pointer exists returned unmodified frontier 
+forwarding pointer installed value variant determined new object allocated tospace rnew forwarding pointer installed obj child pointers extracted added frontier add front 
+said little triggering garbage collection 
+currently cyclone region interface allows programmer query current size allocated data region 
+simple live ratio method set heap limit checked fixed number interpreter steps 
+straightforward extend cyclone region interface establish upper bound region size causing exception raised allocation exceed limit 
+complication resume computation exception occurred 
+structure parts interpreter primitives guarantee correctly resumed case region exhaustion exception 
+
+performance evaluation outlined design implementation safe scheme interpreter runtime system wish evaluate performance system compared various alternatives 
+constrained programming safe language standard implementation techniques applicable unsafe implementations unavailable 
+want understand performance penalty causes 
+comparison compare system safe garbage collector different scheme implementations 
+scheme implementations benchmark programs summarize systems study 
+cyclone safe gc implementation core scheme interpreter safe gc written cyclone essentially 
+cyclone bdw gc implementation core scheme interpreter demers weiser conservative collector essentially 
+sisc sun jvm freely available high performance implementation scheme written java 
+supports class continuations fully 
+relies native java vm runtime memory management 
+mzscheme bdw gc widely implementation scheme written 
+uses demers weiser conservative collector storage management 
+table summarizes safety guarantees provided system 
+interpreter runtime system cyclone safe gc safe safe cyclone bdw gc safe unsafe sisc sun jvm safe unsafe mzscheme bdw gc unsafe unsafe comparing performance cyclone safe gc cyclone bdw gc hope understand performance cost safe garbage collector independent core interpreter 
+comparing sisc cyclone versions gives idea efficient core interpreter compared realistic safe implementation 
+comparing mzscheme systems give idea performance forgo safety entirely 
+report execution times memory consumption systems subset gabriel benchmarks translated scheme 
+important caveats highlight important differences various systems order properly interpret meaning benchmarks 
+caveat systems implement subset scheme 
+cyclone systems implement bare minimum set primitives order properly execute benchmark applications 
+cyclone systems space leak associated storage symbols created string symbol 
+leak occurs support weak pointers properly collect useless entries symbol table 
+straightforward extend system 
+cyclone system implement full numeric tower multiple return values 
+doing straightforward 
+expect lack features significantly skew results 
+implementations cyclone implementations fully tail recursive support class continuations 
+mzscheme stack allocates activations frames uses setjmp longjmp implement class continuations implementations heap allocate activation frames 
+difference apparent benchmark heavily relies class continuations 
+safe gc uses copying gc bdw collector uses mark sweep gc 
+best knowledge jvm uses hybrid generation scheme generation copying gc second generation uses marksweep algorithm 
+algorithmic difference fair comparisons tricky best 
+performing benchmarks artificially limit heap usage program 
+program uses different amount heap space space traded time fair simply examine execution times consideration memory usage 
+tricky difficult limit memory usage create fair playing field simply report time space metrics box configurations 
+caveats come sound qualitative 
+note corrected version original boyer benchmark fixes correctness bugs original benchmark 
+total execution time experiment simply measures execution time benchmark 
+execution times measured terms absolute wall clock time include start overheads preprocessing compilation 
+table summarizes absolute execution times various systems benchmark programs 
+times reported milliseconds lightly loaded mhz dual processor kb cache gb physical memory running linux kernel 
+cost safety exception clear mzscheme significantly faster systems 
+performance difference due fact mzscheme bias implementation order support cheap class continuations 
+preliminary experiments stack allocation activation frames cyclone implementation suggest performance difference systems simply accounted stack allocation 
+unsafe mzscheme able compact efficient data representations lower order bits pointer encode type tags 
+systems implemented safe languages forced heavyweight representations 
+comparison safe interpreters examine ratio execution times respect cyclone safe gc parentheses table see relative costs safety 
+looking normalized execution times clear safe systems roughly comparable 
+cyclone implementation faster cases compared sisc slower cases 
+great deal effort placed optimizing sisc java vm runs happy performance core interpreter 
+hope gap cyclone interpreter meet exceed performance sisc benchmarks 
+doing probably require changing straightforward implementation scheme operational semantics optimized code 
+applied key algorithmic optimizations sisc interpreter believe room optimization core implementation library procedures 
+believe having flexible memory management primitives cyclone offers may provide significant boost performance web application servers 
+discuss detail section 
+comparison safe vs unsafe gc examining execution times cyclone safe gc cyclone bdw gc see safe collector add significant run time penalty 
+fact cases slightly faster 
+may misleading underlying gc algorithms different 
+safe gc uses space copying gc comparable bdw gc mark sweep algorithm 
+difference obvious look memory footprint various implementations 
+provide metrics help understand memory consumption 
+garbage collector view cyclone cyclone sisc mzscheme safe gc bdw gc sun jvm bdw gc deriv destruct div iter div rec fft puzzle tak traverse table total execution time milliseconds ratio execution times normalized cyclone safe gc parentheses current heap size 
+real memory reported underlying operating system 
+unfortunately easy portable way measure actual heap usage system including startup costs associated system 
+numbers report include overhead start compilation parsing benchmark programs 
+sisc mzscheme look artificially worse measuring overhead entire system including infrastructure need support interactive repl 
+provide numbers completeness focus comparisons different cyclone versions 
+systems comparably small startup costs 
+collect information heap size enable debugging information printed invocation gc 
+cyclone safe gc collector simply instrumented collector appropriately 
+bdw collector set internal variable gc print stats causes bdw collector report heap size gc 
+jvm simply enabled option collect information heap sizes 
+table summarizes maximum heap size reported various collectors 
+note report numbers programs running mzscheme programs cause garbage collection occur 
+look heap sizes cyclone systems see small programs heap sizes comparable see systematic difference larger programs traverse 
+heap resizing policy safe copying collector heap amount reachable data remains heap collection tunable live ratio parameter 
+experiments set live ratio 
+larger live ratio amortizes cost gc program execution consuming space 
+heap sizes useful metric system virtual memory important metric amount physical memory needed hold program working set 
+table summarizes size maximum resident set virtual memory pages measured repeated polling proc file system benchmark execu tion 
+numbers give insight algorithmic consumption space numbers allow understand numbers may translate real system performance 
+clear measurements cyclone implementation safe gc significantly larger footprint compared equivalent implementation uses bdw collector 
+difference accounted copying gc compared mark sweep gc 
+show resident set size function time various systems execution benchmark 
+graphs clearly show difference algorithms show actual working set size particular point time significantly smaller maximum set 
+regardless fact extra copying negative effect performance consider costs servicing page faults 
+current experiments memory scare resource page faults serviced going disk 
+realistic server environment things equal copying gc perform worse 
+server typically large amounts memory available memory shared different instances application 
+application limited amount memory 
+unrealistic assume memory cheap free 
+explore implement techniques marksweep generational collection algorithms approach competitive unsafe approaches 
+approach system level benefits may recover ameliorate costs web application server 
+touch benefits section 
+size unsafe code primary goal approach produce faster system produce system believe safer 
+important compare amount unsafe code system 
+table summarizes approximate amount unsafe code implementation system 
+line counts ignore comments whitespace 
+amount unsafe code need implement ba cyclone cyclone sisc mzscheme safe gc bdw gc sun jvm bdw gc deriv destruct div iter div rec fft puzzle tak traverse table maximum heap size kilobytes observed gc points ratio sizes normalized cyclone safe gc parentheses 
+cyclone cyclone sisc mzscheme safe gc bdw gc sun jvm bdw gc deriv destruct div iter div rec fft puzzle tak traverse table maximum working set virtual pages ratio sizes normalized cyclone safe gc parentheses 
+max 
+working set max 
+working set cyclone safe gc time sisc sun jvm time interpreter runtime system cyclone safe gc cyclone bdw gc sisc sun jvm mzscheme bdw gc table approximate number lines unsafe code 
+sic region primitives needed safe gc small comparison systems 
+vast majority code lines associated fast implementation malloc region primitives built 
+theory build region primitives simpler underlying storage system 
+bdw system roughly lines code 
+despite wide usage relatively small size known bugs cause collector fail unsafe way compiler optimizations unsafe pointer manipulations 
+simple verification core line code guarantee safety system line count misleadingly low side 
+arguably verify entire system linked verify client violate invariants needed safe operation collector 
+appel wang analyze size safety tcb java vms 
+quote number hotspot jit compiler standard java vm shipped sun 
+lines code majority actual optimizing compiler 
+web application framework needs facility dynamically extend functionality running server halting working set size working set size max 
+working set max 
+working set cyclone bdw gc time mzscheme bdw gc time working set time system running java servers include jit bytecode verifier order perform dynamic loading 
+including optimizing jit compiler part unsafe code system reasonable 
+approaches dynamically load native optimized code manner require heavy weight jit 
+mzscheme relatively compact implementation total size system core order lines code 
+
+compared systems clear approach significantly reduce amount unsafe code needed implement system 
+increases confidence safety security entire system 
+unfortunately copying collection technique may incur performance penalty extra degree safety 
+hopefully reduce performance penalty extra safety comes little cost 
+cyclone vs java safe vms emphasize approach potentially significant system level performance advantages compared pure java web application framework safe virtual machine approach 
+typically web application allocated separate thread control handle web request 
+threads created frequently short lifetimes 
+pure java environment way bound allocation java thread cheaply reclaim storage associated thread dies 
+rely system wide gc efficiently reclaim storage threads 
+alternative spawn heavy weight sys working set size working set size tem process 
+pure cyclone system allocate unique scheme interpreter garbage collector private heap thread basis 
+tune initial maximum heap sizes heap resizing policy thread basis account knowledge particular application servicing request 
+importantly immediately reclaim storage associated terminated thread requiring system wide gc 
+thread policies simply possible relies system wide gc 
+exploiting large scale systemlevel benefits area explore 
+general application benefit customized runtime system pure cyclone approach allows developer customize deploy runtime system compromising safety system 
+level customization typically available systems java 
+benefited discussions greg morrisett contributed development scheme interpreter garbage collector 
+
+appel wang 
+jvm tcb measurements trusted computing base java virtual machines 
+technical report cs tr princeton university apr 
+
+boehm 
+simple garbage collector safety 
+proceedings sigplan conference programming languages design implementation acm sigplan notices pages 
+acm press 
+
+boehm weiser 
+garbage collection uncooperative environment 
+software practice experience 
+chicken scheme compiler 
+www call current continuation org chicken html 
+cyclone user manual 
+technical report department computer science cornell university nov 
+current version www cs cornell edu projects cyclone 
+grossman morrisett jim hicks wang cheney 
+region memory management cyclone 
+proceedings acm sigplan conference programming language design implementation pages berlin germany june 
+hawblitzel huang wei 
+low level linear memory management 
+www cs dartmouth edu publish draft ps dec 
+hicks moore nettles 
+dynamic software updating 
+proceedings acm sigplan conference programming language design implementation pldi june 
+hicks morrisett grossman jim 
+safe flexible memory management cyclone 
+technical report cs tr university maryland department computer science july 
+web server servlet container 
+org 
+jim morrisett grossman hicks cheney wang 
+cyclone safe dialect usenix annual technical conference pages monterey ca june 
+kelsey clinger 
+eds 
+revised report algorithmic language scheme 
+higher order symbolic computation august 
+lea 
+memory allocator 
+gee cs edu dl html malloc html 
+miller 
+sisc complete scheme interpreter java 
+sisc sourceforge net sisc pdf 
+saha shao 
+principled scavenging 
+proceedings acm sigplan conference programming language design implementation pages 
+mzscheme 
+www plt scheme org software mzscheme 
+queinnec 
+influence browsers evaluators continuations program web servers 
+proceedings fifth acm sigplan international conference functional programming pages 
+acm press 
+tofte 
+talpin 
+region memory management 
+information computation feb 
+wagner foster brewer aiken 
+step automated detection buffer overrun vulnerabilities 
+network distributed system security symposium pages san diego ca february 
+wang appel 
+type preserving garbage collectors 
+conference record eigth annual acm symposium principles programming languages pages 
+wright felleisen 
+syntactic approach type soundness 
+information computation 

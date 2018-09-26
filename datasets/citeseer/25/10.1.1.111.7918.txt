@@ -1,0 +1,405 @@
+machine independent virtual memory management paged uniprocessor multiprocessor architectures richard rashid tevanian michael young david golub robert baron david black william bolosky jonathan chew department computer science carnegie mellon university pittsburgh pennsylvania describes design implementation virtual memory management cmu mach operating system experiences gained mach kernel group porting system variety architectures 
+writing mach runs half dozen uniprocessors multiprocessors including vax family uniprocessors multiprocessors ibm rt pc sun encore multimax sequent balance experimental computers 
+systems vary considerably kind hardware support memory management provide machine dependent portion mach virtual memory consists single code module related header file 
+separation software memory management hardware support accomplished sacrificing system performance 
+addition improving portability possible relatively unbiased examination pros cons various hardware memory management schemes especially apply support multiprocessors 
+research sponsored defense advanced research projects agency dod arpa order monitored space naval warfare systems command contract 
+nd symposium architectural support programming languages operating systems acm october 
+permission copy fee part material granted provided copies distributed direct commercial advantage acm copyright notice title publication date appear notice copying permission association computing machinery 
+copy republish requires fee specific permission 
+
+software designers increasingly able cope variations instruction set architectures operating system portability continues suffer proliferation memory structures 
+unix systems traditionally addressed problem vm portability restricting facilities provided basing implementations new memory management architectures versions done previous systems 
+result existing versions unix berkeley bsd offer little way virtual memory management simple paging support 
+versions berkeley unix non vax hardware sunos sun acis ibm rt pc simulate internally vax memory mapping architecture effect treating machine independent memory management specification 
+years cmu engaged development portable multiprocessor operating system called mach 
+goals mach explore relationship hardware software memory architectures design memory management system readily portable multiprocessor computing engines traditional uniprocessors 
+mach provides complete unix bsd compatibility significantly extending unix notions virtual memory management interprocess communication 
+mach supports large sparse virtual address spaces copy write virtual copy operations copy write read write memory sharing tasks memory mapped files user provided backing store objects pagers 
+accomplished patterning mach internal memory representation specific architecture 
+fact mach relatively assumptions available memory management hardware 
+primary requirement ability handle recover page faults arbitrary page size 
+writing mach runs half dozen uniprocessors multiprocessors including entire vax family uniprocessors multiprocessors ibm rt pc sun encore multimax sequent balance 
+implementations progress experimental computers 
+despite differences supported architectures machine dependent portion mach virtual memory subsystem consists single code module related header file 
+information important management mach virtual memory maintained machine independent data structures machine dependent data structures contain mappings necessary running current mix programs 
+mach separation software memory management hardware support accomplished sacrificing system performance 
+cases system performance measurably improved existing unix implementations 
+approach possible relatively unbiased examination pros cons various hardware memory management schemes especially apply support multiprocessors 
+describes design implementation virtual memory management cmu mach operating system experiences gained mach kernel group porting system variety architectures 
+
+mach design basic mach abstractions 
+task execution environment threads may run 
+basic unit resource allocation 
+task includes paged virtual address space protected access system resources processors port capabilities virtual memory 
+task address space consists ordered collection mappings memory objects see 
+unix notion process mach represented task single thread control 
+
+thread basic unit cpu utilization 
+roughly equivalent independent program counter operating task 
+threads task share access task resources 
+
+port communication channel logically queue messages protected kernel 
+ports objects mach design 
+way object object oriented system 
+send receive fundamental primitive operations ports 
+
+message typed collection data objects communication threads 
+messages may size may contain pointers typed capabilities ports 
+
+memory object collection data provided managed server mapped address space task 
+operations objects messages performed sending messages ports 
+way mach permits system services resources managed user state tasks 
+example mach kernel considered task multiple threads control 
+kernel task acts server turn implements tasks threads memory objects 
+act creating task thread memory object returns access rights port represents new object manipulate 
+incoming messages port results operation performed object represents 
+indirection provided message passing allows objects arbitrarily placed network multiprocessor workstation regard programming details 
+example thread suspend thread sending suspend message thread thread port requesting thread node network 
+possible run varying system configurations different classes machines providing consistent interface resources 
+actual system running particular machine function servers kernel 
+traditionally message systems sort operated distinct performance disadvantage conventionally implemented operating systems 
+key efficiency mach notion virtual memory management integrated message oriented communication facility 
+integration allows large amounts data including files address spaces sent single message efficiency simple memory remapping 
+
+basic vm operations mach task possesses large address space consists series mappings ranges memory task memory objects 
+size mach address space limited addressing restrictions underlying hardware 
+rt pc task example address full gigabytes memory mach vax architecture allows gigabytes user address space 
+task modify address space ways including allocate region virtual memory page boundary feature actively cmu cmu rt implementation 
+deallocate region virtual memory set protection status region virtual memory specify inheritance region virtual memory create manage memory object mapped address space task 
+restriction imposed mach nature regions may specified virtual memory operations aligned system page boundaries 
+definition page size boot time system parameter power multiple hardware page size 
+table lists set virtual memory operations performed task 
+virtual memory operations vm allocate target task address size allocate fill zeros new virtual memory specified address 
+vm copy target task source address count dest address virtually copy range memory address 
+vm deallocate target task address size deallocate range addresses longer valid 
+vm inherit target task address size new inheritance set inheritance attribute address range 
+vm protect target task address size set maximum new protection set protection attribute address range 
+vm read target task address size data data count read contents region task address space 
+vm regions target task address size elements elements count return description specified region task address space 
+vm statistics target task vm stats return statistics memory target task 
+vm write target task address count data data count write contents region task address space 
+table vm operations apply target task represented port vm statistics specify address size bytes 
+boolean indicates vm allocate allocates memory location specified address 
+copy write read write sharing memory permitted mach tasks 
+copy write sharing unrelated tasks typically result large message transfers 
+entire address space may sent single message actual data copy operations performed 
+read write shared memory created allocating memory region setting inheritance attribute 
+subsequently created child tasks share memory parent inheritance value 
+inheritance may specified shared copy may specified page basis 
+pages specified shared shared read write 
+pages marked copy logically copied value efficiency copy write techniques employed 
+inheritance specification signifies page passed child 
+case child corresponding address left unallocated 
+inheritance protection specified page basis 
+group pages exist protection values current maximum protection 
+current protection controls actual hardware permissions 
+maximum protection specifies maximum value current protection may take 
+maximum protection raised may lowered 
+maximum protection lowered level current protection current protection lowered level 
+protection implemented combination read write execute permissions 
+enforcement access permissions depends hardware support 
+example machines allow explicit execute permissions protection properly enforced 
+mach implementation unix fork example virtual memory operations 
+fork operation invoked newly created child task address map created parent inheritance values 
+default inheritance values address space set copy 
+child address space default copy write copy parent unix address space copy semantics preserved 
+unusual features mach fact virtual memory related functions performed directly user state tasks memory objects create 
+section describes aspect system 
+
+implementation mach virtual memory basic memory management data structures mach 
+resident page table table keep track information machine independent pages 
+address map doubly linked list map entries describes mapping range addresses region memory object 
+memory object unit backing storage managed kernel user task 
+pmap machine dependent memory mapping data structure hardware defined physical address map 
+implementation split machine independent machine dependent sections 
+machine dependent code implements operations necessary create update manage hardware required mapping data structures 
+important virtual memory information maintained machine independent code 
+general machine dependent part mach maintains mappings crucial system execution kernel map mappings frequently referenced task addresses may garbage collect non important mapping information save space time 
+knowledge machine independent data structures required maintain full knowledge valid mappings virtual addresses hardware pages 
+
+managing resident memory physical memory mach treated primarily cache contents virtual memory objects 
+information physical pages modified bits maintained page entries table indexed physical page number 
+page entry may simultaneously linked lists memory object list memory allocation queue object offset hash bucket 
+page entries associated object linked memory object list speed object deallocation virtual copy operations 
+memory object semantics permit page belong memory object 
+allocation queues maintained free allocated pages mach paging daemon 
+fast lookup physical page associated object offset time page fault performed bucket hash table keyed memory object byte offset 
+byte offsets memory objects system avoid linking implementation particular notion physical page size 
+mach physical page fact correspond page defined memory mapping hardware particular computer 
+size mach page boot time system parameter 
+relates physical page size power multiple machine dependent size 
+example mach page sizes vax bytes bytes bytes bytes mach page sizes sun limited bytes bytes physical page size mach independent page size memory object handlers see section 
+
+address maps just kernel keeps track physical address space manage virtual address space task 
+addresses task address space mapped byte offsets memory objects data structure called address map 
+address map doubly linked list address map entries maps contiguous range virtual addresses contiguous area memory object 
+linked list sorted order ascending virtual address different entries may map overlapping regions memory 
+address map entry carries information inheritance protection attributes region memory defines 
+reason addresses range mapped entry attributes 
+force system allocate address map entries map adjacent memory regions memory object simply properties regions different 
+address map data structure chosen alternatives simplest efficiently implement frequent operations performed task address space page fault lookups copy protection operations address ranges allocation deallocation address ranges 
+sorted linked list allows operations ranges addresses copy write copy operations done simply quickly penalize large sparse address spaces 
+fast lookup faults achieved keeping fault hints 
+hints allow address map list searched entry fault particular type 
+entry may map large region virtual addresses address map typically small 
+typical vax unix process mapping entries creation unix area code stack initialized uninitialized data 
+
+memory objects mach address map need keep track backing storage backing store implemented mach memory objects 
+logically virtual memory object repository data indexed byte various operations read write performed 
+respects resembles unix file 
+counter maintained memory object 
+counter allows object garbage collected mapped removed 
+cases example unix text segments frequently files desirable kernel retain information object mapping disappears 
+retaining physical page mappings objects subsequent reuse inexpensive 
+mach maintains cache frequently memory objects 
+pager may domain specific knowledge request object kept cache longer referenced 
+important feature mach virtual memory ability handle page faults page requests outside kernel 
+accomplished associating memory object managing task called pager 
+example implement memory mapped file virtual memory created pager specified file system 
+page fault occurs kernel translate fault request data file system 
+access pager represented port called paging object port kernel send messages requesting data notifying pager change object primary memory cache 
+addition pager port kernel maintains memory object unique identifier called paging name represented port 
+kernel maintains status information list physical pages currently cached primary memory 
+pages currently primary memory managed kernel operation kernel paging daemon 
+pages primary memory stored fetched pager 
+third port paging object request port pager send messages kernel manage object physical page cache 
+tables list calls messages kernel external pager external pager kernel 
+interface external pager task manage virtually aspects memory object including physical memory caching permanent temporary secondary storage 
+simple pagers implemented largely ignoring sophisticated interface calls implementing trivial read write object mechanism 
+pager may internal mach kernel external user state task 
+mach currently provides basic paging services inside kernel 
+memory pager automatically zero filled page done default inode pager 
+current inode pager utilizes bsd unix file systems eliminates traditional berkeley unix need separate paging partitions 
+kernel external pager interface pager server message routine called task process message kernel 
+pager init paging object pager request port pager name initialize paging object memory object 
+pager create old paging object new paging object new request port new name accept ownership memory object 
+pager data request paging object pager request port offset length desired access requests data external pager 
+pager data unlock paging object pager request port offset length desired access requests unlock object 
+pager data write paging object offset data data count writes data back memory object 
+table calls mach kernel task providing external paging service memory object 
+
+sharing memory sharing maps shadow objects copy write copy performed address maps contain copies point memory object 
+tasks read data mapping necessary 
+tasks writes data copied way new page accessible writing task allocated modifications placed 
+copy write memory management requires kernel maintain information pages memory object modified 
+mach manages information creating memory objects specifically purpose holding modified pages originally belonged object 
+memory objects created purpose referred shadow objects 
+external pager kernel interface vm allocate pager target task address size paging object offset allocate region memory specified address backed memory object 
+pager data provided paging object request offset data data count lock value supplies kernel data contents region memory object 
+pager data unavailable paging object request offset size notifies kernel data available region memory object 
+pager data lock paging object request offset length lock value prevents access specified data unlock specifies unlock event 
+pager clean request paging object request offset length forces modified physically cached data written back memory object 
+pager flush request paging object request offset length forces physically cached data destroyed 
+pager readonly paging object request forces kernel allocate new memory object write attempt paging object 
+pager cache paging object request cache object notifies kernel retain knowledge memory object removed 
+table calls task kernel allocate manage memory object 
+shadow object collects remembers modified pages result copy write faults 
+shadow object created result copy write fault taken task 
+initially empty object pager pointer shadowed object 
+shadow object need typically contain pages region defines 
+relies original object shadows unmodified data 
+shadow object may shadowed result subsequent copy write copy 
+system tries find page shadow object fails find proceeds follow list objects 
+eventually system find page object list copy necessary 
+memory objects way implementing copy write memory object data structure appropriate managing read write sharing 
+operations shared regions memory may involve mapping remapping existing memory objects 
+addition tasks may share region memory read write simultaneously share data copy write task 
+implies need provide level indirection accessing shared object 
+operations shared memory regions logically address map operations read write memory sharing requires map data structure referenced address maps 
+solve problems address map entries allowed point sharing map memory object 
+sharing map identical address map points shared memory objects 
+map operations apply maps sharing data simply applied sharing map 
+sharing maps split merged sharing maps need sharing maps full range task task address space sharing permitted 
+simplifies map operations obviates need sharing map garbage collection 
+
+managing object tree complexity mach memory management arises need prevent potentially large chains shadow objects arise repeated copy write remapping memory object address space 
+remapping causes shadow chains created mapped data repeatedly modified causing shadow object created 
+trivial example kind shadow chaining caused simple unix process repeatedly forks address space causing shadow objects built long chain ultimately points memory object backs unix stack 
+fork example cases excessive object shadow chaining prevented recognizing new shadows completely overlap objects shadowing 
+mach automatically garbage collects shadow objects recognizes intermediate shadow longer needed 
+code principle straightforward complex fact unnecessary chains occur periods heavy paging detected basis memory data structures 
+need allow paging daemon access memory object structures perform garbage collection allow virtual memory operations operate parallel multiple cpus resulted complex object locking rules 
+
+machine independent machine dependent interface purpose mach machine dependent code management physical address maps called 
+vax pmap corresponds vax page table 
+ibm rt pc pmap set allocated segment registers 
+machine dependent part mach responsible implementing page level operations ensuring appropriate hardware map operational state machine needs change kernel user state user kernel state 
+machine dependent mapping performed single module system called pmap unusual characteristics mach dependent independent interface pmap module need keep track currently valid mappings 
+virtual physical mappings may thrown away time improve space speed efficiency new mappings need immediately lazy evaluated 
+order cope hardware architectures virtual physical map invalidates expensive pmap may delay operations invalidate reduce protection ranges addresses time necessary 
+accomplished virtual memory information reconstructed fault time mach machine independent data structures 
+major exceptions rule pmap maintains cache available mappings kernel mappings 
+kept complete accurate 
+full information processors currently maps physical maps correct provided pmap machine independent code 
+cases machine independent memory management driving force mach vm operations 
+interface machine independent machine dependent modules kept relatively small implementor pmap needs know little way mach functions 
+tables list pmap routines currently mach independent dependent interface 
+
+porting mach vm mach virtual memory code described originally implemented vax architecture machines including microvax ii processor vax system called vax 
+relatively stable vax version available cmu february 
+month port mach ibm rt pc initiated newly hired programmer previously worked exported required pmap routines pmap init start initialize specified range physical addresses 
+pmap pmap create create new physical map 
+pmap pmap add physical map 
+pmap destroy pmap physical map destroy remain pmap remove pmap start remove specified range virtual address map 
+memory deallocation pmap remove phys remove physical page maps 
+pmap copy write phys remove write access page maps 
+virtual copy shared pages pmap enter pmap prot wired enter mapping 
+page fault pmap protect map start prot set protection specified range addresses 
+vm offset pmap extract pmap va convert virtual physical 
+boolean pmap access pmap va report virtual address mapped 
+pmap update sync pmap system 
+pmap activate pmap thread cpu setup map thread run cpu 
+pmap deactivate pmap th cpu map thread done cpu 
+pmap zero page phys zero fill physical page 
+pmap copy page src dest copy physical page 
+modify bit maintenance table routines implemented may necessarily perform operation pmap data structure required hardware machine 
+pmap copy dest pmap src pmap dst addr len src addr copy specified virtual mapping 
+pmap pmap start specify region 
+exported optional pmap routines table routines need perform hardware function 
+operating system programmed early may rt pc version self hosting available small group users 
+currently approximately rt pc running mach cmu department computer science 
+majority time required rt pc port spent debugging compilers device drivers 
+estimate time spent implementing pmap module approximately weeks time spent understanding code requirements 
+far difficult part pmap module get right precise points code validation invalidation hardware address translation buffers required 
+implementations mach sun sequent balance encore multimax contributed similar experiences 
+sequent port done expert systems programmer 
+result system weeks start programming 
+case mach ported systems possessed bsd system unix 
+aided porting effort significantly reducing effort required build device drivers 
+
+assessing various memory management architectures mach virtual memory system portable assumptions underlying hardware base implemented variety architectures 
+possible relatively unbiased examination pros cons various hardware memory management schemes 
+principle mach needs memory hardware defined data structure manage virtual memory 
+machines provide easily manipulated tlb accommodated mach need little code written pmap module 
+practice primary purpose pmap module manipulate hardware defined memory structures turn control state internal mmu tlb 
+date hardware architecture demonstrated shortcomings uniprocessor bundled multiprocessor 
+
+uniprocessor issues mach initially implemented vax architecture 
+theory full gigabyte address space allocated user state vax process practical large amount linear page table space required megabytes 
+unix systems traditionally kept page tables physical memory simply limited total process manageable megabytes 
+vax vms handles problem making page tables kernel virtual address space 
+solution chosen mach keep page tables physical memory construct parts table needed map virtual real addresses pages currently 
+vax page tables mach may created destroyed necessary conserve space improve runtime 
+necessity manage page tables fashion large size vax page table partially result small vax page size bytes machine dependent portion system complex architectures 
+ibm rt pc task page tables 
+uses single inverted page table describes virtual address mapped physical address 
+perform virtual address translation hashing function query inverted page table 
+allows full gigabyte address space additional overhead due address space size 
+mach benefited rt pc inverted page table significantly reduced memory requirements large programs due reduced map size simplified page table management 
+drawback rt allows valid mapping physical page making impossible share pages triggering faults 
+rationale restriction lies fact designers rt targeted operating system allow virtual address aliasing 
+result mach physical pages shared multiple tasks cause extra page faults page mapped remapped task referenced 
+effect mach treats inverted page table kind large memory cache rt translation lookaside buffer tlb 
+surprising result date extra faults rare normal application programs mach able outperform version unix ibm acis rt avoids aliasing altogether shared segments shared pages 
+case sun combination segments page tables create manage task address maps megabytes 
+segments page tables possible reasonably implement sparse addressing contexts may exist time 
+active tasks compete contexts introducing additional page faults rt 
+fact version mach run simulator ibm rp assumed tlb hardware support 
+main problem introduced sun fact physical address space machine potentially large holes due presence display memory high physical memory 
+complicate management resident page table sparse data structure 
+sun version mach possible deal problem completely machine dependent code 
+encore multimax sequent balance national mmu 
+mmu posed problems unrelated multiprocessing megabytes virtual memory may addressed page table 
+requirement restrictive large systems especially kernel address space 
+megabytes physical memory may addressed 
+requirement restrictive large systems 
+chip bug apparently causes read modify write faults reported read faults 
+mach depends ability detect write faults proper copy write fault handling 
+unsurprising problems addressed successor ns ns 
+
+multiprocessor issues building shared memory multiprocessor care usually taken guarantee automatic cache consistency provide mechanisms controlling cache consistency 
+hardware manufacturers typically treat translation lookaside buffer memory management unit type cache kept consistent 
+multiprocessors running mach support tlb consistency 
+order guarantee consistency changing virtual mappings kernel determine processors old mapping tlb cause flushed 
+unfortunately impossible modify tlb remote cpu multiprocessors run mach 
+possible solutions problem employed mach different settings 
+forcibly interrupt cpus may shared portion address map address translation buffers may flushed 
+postpone changed mapping cpus taken timer interrupt chance flush 
+allow temporary inconsistency 
+case applies change time critical costs 
+case paging system system needs remove mappings hardware address maps preparation 
+system removes mapping primary memory mapping data structures initiates referencing tlbs flushed 
+case acceptable semantics operation performed require allow simultaneity 
+example acceptable page protection changed task 
+
+integrating loosely coupled tightly coupled systems multiprocessor systems adds difficulty building universal model virtual memory 
+addition differences address translation hardware existing multiprocessors differ kinds shared memory access available individual cpus 
+examples strategies fully shared memory uniform access times encore multimax sequent balance multimax added special hardware allow full gigabytes addressed shared memory non uniform access bbn butterfly ibm rp message non shared memory systems intel hypercube 
+mach unix ported multiprocessors uniform shared memory 
+mach possess mechanisms unavailable unix integrating loosely coupled computing systems 
+important way mach differs previous systems integrated memory management communication 
+tightly coupled multiprocessor mach implements efficient message passing memory management tricks allow lazy evaluation value data transmission 
+likewise possible implement shared copy read write data network loosely coupled multiprocessor 
+tasks may map address spaces memory objects implemented pagers network multiprocessor 
+experimentation approach offers possibility integrating loosely tightly coupled multiprocessor computing underway 
+complete description currently written 
+implementations mach loosely coupled multiprocessors progress 
+
+measuring vm performance tables demonstrate logical advantages mach approach machine independent memory management achieved little effect performance compared traditional unix system 
+fact performance measures favor mach bsd 
+performance mach vm operations operation mach unix zero fill rt pc zero fill ii zero fill sun ms ms ms ms ms ms fork rt pc fork ii fork sun ms ms ms ms ms ms read file vax time second time system elapsed sec sec sec sec sec read file vax time second time system elapsed sec sec sec sec sec table cost various measures virtual memory performance mach acis sunos bsd unix 
+
+relation previous mach provides relatively rich set virtual memory management functions compared system bsd unix system features derive earlier operating systems 
+accent multics example provided ability create segments virtual address space corresponded files permanent data 
+accent provided ability efficiently transfer large regions virtual memory memory protected address spaces 
+obvious parallels mach systems apollo aegis ibm system cmu hydra deal primarily memory mapped objects 
+sequent encore umax multiprocessor unix systems provided form shared virtual memory 
+compilation mach vs bsd vax buffers operation mach bsd programs mach kernel sec min sec min vax generic configuration operation mach bsd programs mach kernel sec min sec min sun operation mach sunos compile fork test program sec sec table cost compiling entire mach kernel set programs vax megabytes memory mach bsd unix 
+generic configuration reflects normal allocation bsd buffers 
+buffer times reflect specific limits set disk buffers systems 
+included cost compiling fork test program sun mach sunos 
+mach differs previous systems provides sophisticated virtual memory features tied specific hardware base 
+mach virtual memory mechanisms multiprocessor extended transparently distributed environment 
+
+intimate relationship memory architecture software sense hardware box expected run manufacturer proprietary operating system 
+computer science community moves unix style portable software environments sophisticated virtual memory mechanisms mapping appears appropriate 
+date mach demonstrated possible implement sophisticated virtual memory management making minimal assumptions underlying hardware support 
+addition mach shown separation machine independent dependent memory management code need result increased runtime costs fact improve performance unix style systems 
+mach currently runs virtually vax architecture machines ibm rt pc sun including virtual address cached sun encore multimax sequent balance 
+implementations built set kernel sources 
+machine dependent code modified result support new architecture 
+kernel binary image vax version runs uniprocessor multiprocessor 
+size machine dependent mapping module approximately bytes vax size device driver 
+
+implementors designers mach alphabetical order mike accetta bob baron bob beck sequent david black bill bolosky jonathan chew david golub glenn fred encore rick rashid tevanian jim van encore mike young 
+transaction processing database management ai knowledge representation mike accetta robert baron william bolosky david golub richard rashid tevanian michael young 
+mach new kernel foundation unix development 
+proceedings summer usenix 
+july 
+forin lerner 
+agora distributed system architecture speech recognition 
+international conference acoustics speech signal processing 
+ieee april 
+forin architectural support multilanguage parallel programming heterogeneous systems 
+nd international conference architectural support programming languages operating systems 
+ieee palo alto october 
+sequent computer systems programmer manual sequent computer systems 
+french collins 
+system machine storage management 
+ibm system technical developments ibm general systems division 
+leach levine hamilton nelson 
+architecture integrated local network 
+ieee journal selected areas communications sac november 
+organick multics system examination structure 
+mit press cambridge mass 
+rashid robertson accent communication oriented network operating system kernel 
+proc 
+th symposium operating systems principles pages 
+december 
+alfred spector jacob butcher dean daniels daniel duchamp jeffrey charles peter schwarz 
+support distributed transactions tabs prototype 
+proceedings th symposium reliability distributed software database systems 
+october 
+available carnegie mellon report cmu cs july 
+encore computing 
+umax programmer manual encore computing 
+wulf levin harbison 
+hydra mmp experimental computer system 
+mcgraw hill 
+young duality memory communication mach 
+proc 
+th symposium operating systems principles pages acm november 
+edward 
+process migration 
+phd thesis department computer science carnegie mellon university january 

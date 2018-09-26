@@ -1,0 +1,380 @@
+kqueue generic scalable event notification facility applications running unix platform need notified activity occurs socket descriptor traditionally done select poll system calls 
+shown performance calls scale increasing number descriptors 
+interfaces limited respect unable handle potentially interesting activities application interested include signals file system changes aio completions 
+presents generic event delivery mechanism allows application select wide range event sources notified activity sources scalable efficient manner 
+mechanism may extended cover event sources changing application interface 
+applications event driven perform response events activity external application subsequently delivered fashion 
+performance application comes depend efficiently able detect respond events 
+freebsd provides system calls detecting activity file descriptors poll select 
+calls scale number descriptors monitored events large 
+high volume server intends handle descriptors quickly finds calls bottleneck leading poor performance 
+set events application may interested limited activity open file descriptor 
+application may want know asynchronous aio request completes signal jonathan lemon freebsd org freebsd project delivered application file filesystem changes fashion process exits 
+handled efficiently moment signal delivery limited expensive events listed require inefficient polling model 
+addition poll select collect events leading increased code complexity due multiple notification interfaces 
+presents new mechanism allows application register interest specific event efficiently collect notification event time 
+set events mechanism covers shown include described may extended unforeseen event sources modification api 
+rest structured follows section examines central bottleneck poll select section explains design goals section presents api new mechanism 
+section details new api provides programming examples kernel implementation discussed section 
+performance measurements applications section 
+section discusses related concludes summary section 
+problem poll select interfaces suffer deficiency application pass entire list descriptors monitored call 
+immediate consequence forcing system perform memory copies user kernel boundary reducing amount memory bandwidth available activities 
+large lists containing thousands descriptors practical experience shown typically activity making copies unnecessary 
+return application walk entire list find descriptors kernel marked having activity 
+kernel knew descriptors active results duplication application recalculate information system aware 
+appear efficient kernel simply pass back list descriptors knows active 
+walking list activity scale gets large 
+kernel situation ideal 
+space hold descriptor list large lists done calling malloc area turn freed returning 
+copy performed kernel examine entry determine pending activity descriptor 
+kernel active descriptors current scan update descriptor entry information perform wakeup process event calls waiting activity descriptor 
+process woken scans list looking descriptors active 
+leads passes descriptor list case poll select sleep walk list order look pending events record select information second time find descriptors activity caused wakeup third time user space user walks list find descriptors marked active kernel 
+problems stem fact poll select stateless design kernel keep record application interested system calls recalculate time 
+design decision keep state kernel leads main inefficiency current implementation 
+kernel able keep track exactly descriptors application interested return subset activated descriptors overhead eliminated 
+design goals designing replacement facility primary goal create system efficient scalable large number descriptors order 
+secondary goal system flexible 
+unix machines traditionally lacked robust facility event notification 
+poll select interfaces limited socket pipe descriptors user unable wait types events file creation deletion 
+events require user different interface notably family obtain notification signal events calls needed discover aio call completed 
+goal keep interface simple easily understood possible convert poll select applications new api minimum changes 
+recognized new interface radically different essentially preclude modification legacy applications take advantage new api 
+expanding amount information returned application just fact event occurred considered desirable 
+readable sockets user may want know bytes pending socket buffer order avoid multiple read calls 
+listening sockets application check size listen backlog order adapt offered load 
+goal providing information kept mind designing new facility 
+mechanism reliable silently fail return inconsistent state user 
+goal implies fixed size lists overflow memory allocation done time system call activity occurs avoid losing events due low memory conditions 
+example consider case network packets arrive socket 
+consider incoming packet discrete event recording event packet 
+number incoming packets essentially unbounded amount memory system finite unable provide guarantee events lost 
+result scenario multiple packets coalesced single event 
+events delivered application may correspond multiple occurrences activity event source monitored 
+addition suppose packet arrives containing bytes application receiving notification event reads bytes socket time event api called notification bytes pending socket buffer events defined terms arriving packets 
+forces application perform extra bookkeeping order insure mistakenly lose data 
+additional burden imposed application conflicts goal providing simple interface leads design decision 
+events normally considered opposed edge triggered 
+way putting say event reported long specified condition holds activity detected event source 
+condition simple unread data buffer complex 
+approach handles scenario described allows application perform partial read buffer notified event time calls api 
+corresponds existing semantics provided poll select 
+final design criteria api correct events reported applicable 
+consider case packet arrives socket turn generating event 
+application notified pending event performs close socket 
+socket longer open event delivered application longer relevant 
+furthermore event happens identified file descriptor descriptor created identity event removed preclude possibility false notification wrong descriptor 
+correctness requirement extend preexisting conditions event source generates event prior application registering interest api 
+eliminates race condition data pending socket buffer time application registers interest socket 
+mechanism recognize pending data satisfies level trigger requirement create event information 
+design goal api possible library mechanism fear conflicts main program 
+allows party code uses api linked application conflict 
+surface appears obvious counter examples exist 
+process signal may single signal handler registered library code typically signals 
+window applications allow single event loop 
+existing select poll calls problem stateless new api moves state kernel able multiple event notification channels process 
+kqueue api kqueue api introduces new system calls outlined 
+creates new kqueue notification channel queue application registers events interested retrieves events kernel 
+returned value kqueue treated ordinary descriptor turn passed poll select registered kqueue 
+second call application register new events kqueue retrieve pending events 
+combining registration re int kqueue void int kevent int kq const struct kevent int struct kevent int const struct timeout struct kevent ident identifier event short filter filter event short flags action flags kq int fflags filter flag value data filter data value void opaque identifier ev set kev ident filter flags fflags data kqueue api trieval process number system calls needed reduced 
+changes applied kqueue returned events placed maximum size allowed 
+number entries placed returned kevent call 
+timeout parameter behaves way poll zero valued structure check pending events sleeping null value block woken event ready 
+application may choose separate registration retrieval calls passing value zero appropriate 
+events registered system application struct kevent event uniquely identified system tuple 
+practical terms means pair kqueue 
+filter parameter identifier small piece kernel code executed activity event source responsible determining event returned application 
+interpretation ident fflags data fields depend filter express event 
+current list filters arguments kqueue filter section 
+flags field express action taken kevent registered system return filter independent status information return 
+valid flag bits 
+field passed kernel unchanged way 
+usage field entirely application dependent provided way efficiently implement function dispatch routine add application identifier input flags ev add adds event kqueue ev enable permit kevent return event triggered 
+ev disable disable event kevent return 
+filter disabled 
+ev delete removes event kqueue 
+events attached file descriptors automatically deleted descriptor closed 
+ev clear event retrieved user state reset 
+useful filters report state transitions current state 
+note filters may automatically set flag internally 
+ev causes event return occurrence filter triggered 
+user retrieves event kqueue deleted 
+output flags ev eof filters may set flag indicate filter specific eof conditions 
+ev error error occurs processing flag set 
+kevent structure 
+flag values struct kevent kqueue filters design kqueue system notion filters responsible determining event occurred may record extra information passed back user 
+interpretation certain fields kevent structure depends filter 
+current implementation comes general purpose event filters suitable purposes 
+filters include read write aio vnode proc signal read write filters intended file descriptor ident field contains descriptor number 
+filters closely mirror behavior poll select intended return data ready read application write blocking 
+kernel function corresponding filter depends descriptor type implementation tailored requirements type descriptor 
+general amount data ready read able written returned data field kevent structure application free information manner desires 
+underlying descriptor supports concept eof ev eof flag set flags word structure soon detected regardless data left application read 
+example read filter socket descriptors triggered long data socket buffer greater mark socket shutdown unable receive data 
+filter return number bytes pending socket buffer set eof flag shutdown case 
+provides information application processing event 
+eof explicitly returned socket shutdown application longer needs additional call read order discover eof condition 
+non kqueue aware application asynchronous aio facility starts request issuing aio read aio write request proceeds independently application call aio error repeatedly check request completed eventually call aio return collect completion status request 
+aio filter replaces polling model allowing user register aio request specified kqueue time request issued event returned conditions aio error successfully return 
+allows application issue aio read call proceed main event loop call aio return kevent corresponding aio returned kqueue saving system calls process 
+signal filter intended alongside normal signal handling machinery providing alternate method signal delivery 
+ident field interpreted signal number return data field contains count signal sent application 
+filter ev clear flag internally clearing state count signal occurrence application receives event notification 
+vnode filter intended allow user register interest changes happen filesystem 
+accordingly ident field contain de input output flags note exit process exited 
+note fork process called fork note exec process executed new process execve similar call 
+note track follow process fork calls 
+parent process return note track set flags field child process return note child set fflags parent pid data 
+output flags note child child process tracked process called fork 
+note flag returned system unable attach event child process usually due resource limitations 
+flags proc corresponding open file directory 
+fflags field specify actions descriptor application interested registration return actions occurred 
+possible actions note delete note write note extend note attrib note link note rename correspond actions filesystem performs file explained 
+notes may returned kevent multiple actions occurred 
+file written renamed 
+final general purpose filter proc filter detects process changes 
+filter ident field interpreted process identifier 
+filter watch types events fflags control filter outlined 
+usage examples kqueue designed reduce overhead incurred poll select efficiently notifying user event needs attention providing information event possible 
+kqueue designed drop replacement poll order get greatest benefits system existing applications need rewritten take advantage unique interface kqueue provides 
+traditional application built poll single structure containing active descriptors passed kernel time applications goes central event loop 
+kqueue aware application need notify kernel changes list active descriptors passing entire list 
+done calling kevent update active descriptor list building list descriptor changes passing list kernel time event loop called 
+approach offers better performance reduces number system calls 
+previous api section kqueue may appear complex complexity stems fact multiple event sources multiple filters 
+program wants read write events fairly simple 
+examples pages illustrate program poll easily converted kqueue presents code fragments illustrating filters 
+code illustrates typical usage poll system call code line conversion code kqueue 
+admittedly simplified example mapping calls fairly straightforward 
+main stumbling block conversion may lack function equivalent update fd changes array containing kevent structures 
+field initialized correct function prior registering new kevent possible simplify dispatch loop shown 
+contains fragment code illustrates signal event delivered application 
+note call signal establishes null signal handler 
+prior call default action signal terminate process 
+ignoring signal simply means signal handler called signal delivered process 
+presents code monitors descriptor corresponding file ufs filesystem specified changes 
+note ev clear resets event returned flag event repeatedly returned 
+behavior proc filter best illustrated example 
+proc filter may attached process system application see limited descendants 
+filter may attach privileged process security implications handle events int timeout timeout poll timeout goto error timeout continue error readable fd fd writeable fd fd update fd int fd int action int events action add fd fd events events fd original poll code information obtained ps 
+term see specific freebsd jail code isolates certain groups processes 
+single notification fork fork flag set process filter 
+track flag set filter creates registers new knote turn attached new process 
+new knote immediately activated child flag set 
+fork functionality added order trace process execution 
+example suppose proc filter flags fork track exec exit registered process forks children processes process immediately forks process calls exec run program turn exits 
+application call kevent point find waiting ident fflags fork ident fflags child data ident fflags child fork data ident fflags child exec exit data knote attached child responsible re handle events int struct timeout sec nsec kevent kq ch ev timeout goto error timeout evi flags ev error error evi filter read readable fd evi ident evi filter write writeable fd evi ident update fd int fd int action int filter ev set fd filter action add ev add ev delete direct conversion kevent turning mapping parent child process ids 
+implementation focus activity kqueue system centers data structure called knote directly corresponds kevent structure seen application 
+knote ties data structure monitored filter evaluate activity kqueue links 
+main data structure kqueue serves twofold purpose provide queue containing ready deliver application keep track correspond application registered interest 
+goals accomplished sub data structures attached kqueue 
+list queue containing previously marked active 
+
+small hash table look ident field correspond descriptor 
+int struct timeout sec nsec void fcn struct kevent kevent kq ch ev timeout goto error timeout evi flags ev error error fcn evi fcn evi direct function dispatch struct kevent ev struct ev set ev signal ev add ev enable kevent kq ev null signal sig ign kevent kq null ev null printf signal delivered ev ident ev data kevent signal delivery struct kevent ev struct ev set ev fd vnode ev add ev enable ev clear note rename note write note delete note attrib kevent kq ev null kevent kq null ev null printf file ev fflags note rename printf renamed ev fflags note write printf written ev fflags note delete printf deleted ev fflags note attrib printf chmod printf kevent watch file changes 
+linear array singly linked lists indexed descriptor allocated exactly fashion process open file table 
+hash table array lazily allocated array expands needed largest file descriptor seen 
+kqueue record registered order destroy kq closed application 
+addition descriptor array application closes specific file descriptor order delete corresponding descriptor 
+example links data structures show 
+registration initially application calls kqueue allocate new kqueue henceforth referred kq 
+involves allocation new descriptor struct kqueue entry structure open file table 
+space array hash tables initialized time 
+application calls kevent passing pointer applied 
+copied kernel chunks passed kqueue register entry kq 
+kqueue register function uses pair lookup matching knote attached kq 
+knote new may allocated ev add flag set 
+knote initialized kevent structure passed filter attach routine detailed called attach knote event source 
+new knote linked array hash table kq 
+error occurs processing kevent caused error copied return application 
+entire processed kqueue scan called order dequeue events application 
+operation routine detailed delivery section 
+filters filter provides vector consisting functions attach routine responsible attaching knote linked list structure receives events monitored detach routine remove knote list 
+routines needed locking requirements location attachment point different data structure 
+filter routine called activity event source responsible deciding activity satisfies condition cause event reported application 
+specifics kq socket vnode knote knote knote knote descriptor arrays active lists 
+note kq queued active list kq 
+socket shown may belong different 
+condition encoded filter dependent filter normally correspond specific states data buffer error observed 
+filter return boolean value indicating event delivered application 
+may perform side effects chooses manipulating data values knote 
+side effects may range merely recording number times filter routine called having filter copy extra information user space 
+routines completely encapsulate information required manipulate event source 
+code kqueue system aware activity comes event represents asking filter knote activated 
+simple encapsulation allows system extended event sources simply adding new filters 
+activity event source activity occurs packet arrives file modified process exits data structure typically modified response 
+code path happens hook placed kqueue system takes form knote call 
+function takes singly linked list referred argument optional hint filter 
+knote function walks making calls filter routine knote 
+knote contains data structure attached filter may choose examine data structure deciding kq event reported 
+hint pass additional information may data structure filter examines 
+filter decides event returned returns truth value knote routine links knote tail active list corresponding kqueue application retrieve 
+knote active list action taken call filter occurs order provide opportunity filter record activity 
+delivery kqueue scan called appends special knote marker active list bounds amount done marker dequeued walking list indicates scan complete 
+knote removed active list flags field checked ev flag 
+set filter called query hint gives filter chance confirm event valid insures correctness 
+rationale case data arrives socket causes knote queued application happens call read empty socket buffer calling kevent 
+knote queued event returned telling application read empty buffer 
+checking filter time event dequeued assures information date 
+may worth noting pending event deactivated ev disable removal active queue delayed point 
+information knote copied kevent structure event list return application 
+ev set knote deleted removed kq 
+filter indicates event active ev clear set knote placed back tail active list 
+knote examined scan marker terminate scan 
+operation continues marker dequeued space time marker forcibly dequeued routine returns 
+miscellaneous notes ordinary file descriptor kqueue take part operations normally performed descriptor 
+application may select poll close create kevent referencing kqueue cases event delivered knote queued active list 
+ability monitor kqueue kqueue allows application implement priority hierarchy choosing kqueue service 
+current implementation pass kqueue descriptors children new child share file table parent 
+may viewed implementation detail fixing involves making copy knote structures fork time marking copy write 
+attached data structure monitoring linked list contrasting behavior poll select record single pid structure 
+may natural outcome way implemented means kqueue system susceptible select collisions 
+knote queued active list processes sleeping kqueue woken 
+hints passed filters regardless type single contains multiple event types care taken insure hint uniquely identifies activity filters 
+example may seen proc signal filters 
+share hung process structure hint value determine activity signal process related 
+kevent submitted system copied kernel space events dequeued copied back user space 
+adding slightly copy overhead approach preferred aio style solution kernel directly updates status control block kept user space 
+rationale easier user find resolve bugs application kernel allowed write directly lo cations user space user possibly freed reused accident 
+turned additional benefit applications may choose fire forget submitting event kernel keeping additional state 
+performance measurements performance numbers section taken dell equipped intel pentium iii mhz cpu mb memory running freebsd rc 
+experiment determine costs associated kqueue system 
+program similar lmbench 
+command test executed loop timing measurements taken outside loop averaged number loops 
+times measured clock clock realtime facility provided freebsd platform test resolution nanoseconds 
+time required execute loop system calls clock measured reported values final times adjusted eliminate overhead 
+test run times test included measurements order eliminate adverse cold cache effects 
+mean value tests taken cases difference mean median standard deviation 
+experiment varying number sockets files created passed kevent poll 
+time required call complete recorded activity pending descriptors 
+system calls measures overhead needed copy descriptor sets query descriptor activity 
+kevent system call reflects overhead needed establish internal knote data structure 
+shown takes twice long add new knote kqueue opposed calling poll 
+implies applications poll descriptor exactly kevent provide performance gain due amount overhead required set knote linkages 
+differing results socket file descriptors reflects different code paths check activity different file types system 
+initial ev add call add descriptors kqueue time required check descriptors recorded shown kq descriptor line graph 
+case difference file types 
+cases time constant activity registered descriptors 
+provides lower bound time required kevent call regardless number descriptors time milliseconds kq register sockets kq register files poll sockets poll files kq descriptors number descriptors time needed initial kqueue call 
+note origin shifted order better see kqueue results 
+monitored 
+main cost associated kevent call process registering new knote system done negligible cost monitoring descriptor inactive 
+contrasts poll incurs cost regardless descriptor active inactive 
+upper bound time needed kevent call descriptors registered single descriptor active 
+case kernel maximum amount checking descriptor filter validity returning kevent kqueue user 
+results test shown poll values reproduced comparision 
+graph lines kqueue worst case times single descriptor active 
+best case time near zero earlier kq descriptor line 
+actual workload actual time inbetween case total time taken poll 
+evidenced graphs amount time saved kqueue poll depends number times descriptor monitored event amount activity descriptor 
+shows accumulated time required check single descriptor kqueue poll 
+poll line constant kqueue lines give best worst case scenarios descriptor 
+times averaged file descriptor case previous graphs 
+graph shows despite higher startup time kqueue descriptor polled times kqueue lower cost poll 
+time milliseconds poll sockets kq active sockets poll files kq active files number descriptors time required descriptors active 
+accumulated time microseconds poll costs kq costs active kq costs inactive number system calls accumulated time kqueue vs poll individual operations state kqueue maintained action field kevent alter state 
+actions takes different amount amount time perform illustrated 
+operations performed socket descriptors graphs file descriptors similar 
+enable disable lower cost add delete recall affects returning kevent user filter associated knote executed 
+application level benchmarks web proxy cache real world applications modified kqueue system call commercial web caching proxy server thttpd web server 
+applications run platform described earlier 
+client machine running network tests alpha dp single ev mhz pro time milliseconds cpu time kq add kq delete kq enable kq disable number descriptors time required kqueue operation 
+select time vs cold conn kevent time vs cold conn number cold connections kernel cpu time consumed system call 
+cessor mb memory running freebsd rc 
+machines equipped ga gigabit ethernet card connected cisco catalyst xl gigabit switch 
+traffic switch time tests 
+web cache files loaded cache web server starting test 
+order generate workload web proxy server equipment available load tool 
+configured request urls set kb mb cached documents proxy maintaining parallel connections 
+program keep varying number idle connections open server 
+approach follows earlier research shows web servers small set active connections larger number inactive connections 
+performance data tests collected server system running kernel profiler cache load 
+shows amount cpu time system call direct descendants num cpu idle time select idle time kq idle time number cold connections amount idle time remaining 
+ber active connections held number cold connections varies 
+observing graph see kqueue times constant regardless number inactive connections expected microbenchmarks 
+select approach starts nearing saturation point amount idle cpu time decreases 
+shows graph idle cpu time measured seen system essentially resources time connections 
+thttpd web server thttpd web server modified add kqueue support descriptor management code performance resulting server compared original code 
+benchmarking server httperf measurement package 
+size fd array increased order support open descriptors 
+value net inet tcp msl client server machines seconds seconds order recycle network port space higher rate 
+server wes started measurements taken single dry run done maximum number idle server 
+doing allows kernel portion webserver process space open file descriptor kqueue descriptor tables allowing user portion process allocate space needed data structures 
+done response rate observed client varies process attempts allocate memory 
+offered load client httperf kept constant requests second test number idle connections opened varied 
+result test reply time reported httperf 
+reply rate tests equal request rate number errors negligible response time milliseconds poll kqueue number idle connections response time httperf cases 
+idle time server machine monitored test 
+unmodified thttpd server runs cpu number idle connections modified server approximately idle time idle connections 
+related section presents done area 
+posix signal queues posix signal queues part single unix specification allow signals queued delivery application additional information 
+event delivered application signal typically generated structure containing file descriptor allocated placed queue signal handler retrieve 
+attempt event aggregation performed fixed bound queue length returned events 
+implementations silently bound queue length fixed size dropping events queue large 
+structure allocation performed event delivered opening possibility losing events resource shortage 
+signal queues stateless application handle bookkeeping required determine residual information left initial event 
+application prepared handle stale events 
+example consider happens packet arrives causing event placed signal queue dequeued signal handler 
+additional processing happen second packet arrives second event turn placed signal queue 
+application may course processing event close descriptor corresponding network channel packets associated 
+second event retrieved signal queue stale sense longer corresponds open file descriptor 
+worse descriptor may reused open file resulting false reporting activity new descriptor 
+drawback signal queue approach signals notification mechanism precludes having multiple event handlers making unsuitable library code 
+get event proposed api banga mogul druschel motivated author implement system freebsd worked similar fashion concept hinting 
+practical experience gained real world usage application utilizing approach inspired concept kqueue 
+original system described banga performs event coalescing suffers stale events fashion posix signal queues 
+implementation restricted socket descriptors uses list fixed size hold hints falling back behavior normal select list overflow 
+sgi dev dev inode monitor events filesystem sent back user space 
+interface author aware capable performing similar operations vn ode filter 
+single process read device node sgi handles creating daemon process called application may contact request information 
+sun dev poll system appears come closest design outlined limitations compared kqueue 
+applications able open dev poll obtain behaves similarly kq descriptor 
+events passed kernel performing write descriptor read back ioctl call 
+returned information limited field similarly poll interface restricted sockets handle fifo descriptors event sources signals filesystem events 
+interface automatically handle case descriptor closed application keeps returning descriptor removed interest set reused application 
+descriptor obtained opening dev poll turn selected precluding construction hierarchical prioritized queues 
+equivalent kqueue filters extending behavior system support direct function dispatch kqueue 
+applications handling large number events dependent efficiency event notification delivery 
+design criteria generic scalable event notification facility alternate api 
+api implemented freebsd committed main cvs tree april 
+system performs expectations applications previously select poll bottleneck seen performance gains kqueue 
+author aware system major applications web proxy servers irc daemons netnews transports mail servers name 
+implementation described adopted openbsd process brought netbsd api limited single operating system 
+measurements concentrated primarily socket descriptors filters provide performance gains 
+tail command freebsd historically implemented stat ing file second order see file changed 
+replacing polling approach kq vnode filter provides functionality overhead underlying filesystems support kqueue event notification 
+aio filter notify application aio request completed enabling main dispatch loop simplified single kevent call combination poll aio error aio suspend calls 
+dns resolver library routines res select internally order wait response nameserver 
+freebsd project heavily loaded mail uses postfix mail delivery system seeing extremely high number select collisions causes process select woken 
+changing resolver library kqueue successful example private kqueue library routine resulted performance gain eliminating select collisions 
+author aware unix system capable handling multiple event sources trivially extended handle additional sources 
+original implementation released system extended device layer capable handling device specific events 
+device manager application planned capability user notified change devices system 
+filter process added timer filter provides application periodic timers needed 
+additionally high performance kernel audit trail facility may implemented kqueue having user kqueue filter selectively choose auditing events recorded 
+banga mogul scalable kernel performance internet servers realistic loads 
+proceedings usenix annual technical conference new orleans la 
+banga mogul druschel scalable explicit event delivery mechanism unix 
+usenix annual technical conference pp 
+
+dev 
+sgi com library tpl cgi bin cgi 
+coll db man fname usr share man cat dev poll 
+docs sun com ab coll ab pageview 
+group single unix specification 
+www org online pubs doc 
+mcvoy staelin lmbench portable tools performance analysis 
+usenix annual technical conference pp 
+
+mosberger jin httperf tool measuring web server performance 
+workshop internet server performance june acm pp 
+
+load 
+www 
+acme com software load 
+thttpd 
+www acme 
+com software thttpd 
+lever scalable network linux 

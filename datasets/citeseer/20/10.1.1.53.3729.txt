@@ -1,0 +1,1602 @@
+implementing lazy functional languages stock hardware spineless tagless machine version simon peyton jones department computing science university glasgow qq simonpj dcs glasgow ac uk july spineless tagless machine machine designed support nonstrict higher order functional languages 
+presentation machine falls parts 
+firstly give general discussion design issues involved implementing non strict functional languages 
+stg language functional language denotational meaning defined operational semantics 
+stg language machine code spineless tagless machine 
+lastly discuss mapping stg language stock hardware 
+success machine model depends largely efficient mapping topic relegated short section 
+give detailed discussion design issues choices 
+principal target language treating compiler portable assembler 
+appear journal functional programming 
+changes version large new section comparing stg machine designs section profiling material section index 
+changes version proper statement initial state machine section reformulation caf updates section new format state transition rules separating guards govern applicability rules auxiliary definitions section 
+changes version term lambda form new subsection lambda lifting section discussion copy vs share section allow form default alternative algebraic case expressions 
+changes version explicit discussion translation stg language section re ordering sub sections section overview code generation process start section 
+changes version new format profiling section new section black holes saying avoid space leaks black holing section 
+changes version appendix added giving gory details 
+apart appendix essentially version published journal functional programming 
+minor changes main fixed bug fig typos 
+previously entitled spineless tagless machine second attempt 
+contents overview part design space part ii machine part iii mapping machine real hardware source language compilation route exploring design space representation closures function application evaluation stack data structures summary stg language translating stg language closures updates generating fewer updatable lambda forms standard constructors lambda lifting full laziness arithmetic unboxed values relationship cps conversion operational semantics stg language initial state applications rec expressions case expressions data constructors built operations updating target language mapping stg machine compiling jumps optimising tiny interpreter debugging heap closures represented allocation space garbage collection garbage collector variants trading code size speed standard entry code closure stacks stack 
+stacks compiling stg language initial state applications rec expressions case expressions arithmetic adding updates representing update frames partial applications constructors vectored returns returning values registers update place update frames garbage collection global updatable closures status profiling results gory details update flags black holes adding fillers performing updates lambda form info stack implementation challenges compiling non strict functional languages rise stream research 
+generally discussion focussed design called machine key aspects compilation technique swamped details source language code generation 
+quite machine designs years examples include augustsson johnsson tim fairbairn wray spineless machine burn peyton jones robson oregon machine chip kieburtz case machine davie hdg machine lester burn gi machine augustsson johnsson abc machine koopman 
+early implementations especially graph reduction radically different conventional compiler technology difference sk combinator implementation turner say lisp compiler substantial 
+great divergence new hardware architectures developed specifically support execution model stoye clarke norman 
+understanding developed possible recognise features conventional systems emerging mist generate efficient code stock architectures 
+new machine non strict functional languages spineless tagless machine set context conventional compiler technology give detailed discussion mapping stock hardware 
+design exhibits number unusual features ffl machines mentioned machine code program consists sequence machine instructions 
+instruction precise operational semantics state transition system 
+take different approach machine language small functional language usual denotational semantics 
+addition language construct direct operational interpretation give operational semantics language state transition system 
+ffl objects heap unevaluated suspensions head normal forms uniform representation code pointer field 
+implementations examine tag fields heap objects decide treat 
+representation jump code pointed object 
+call machine tagless 
+ffl pervasive feature functional programs construction data structures traversal pattern matching 
+machine designs say little efficiently pay lot attention 
+ffl machine manipulates unboxed values directly ideas companion peyton jones launchbury 
+essential efficient implementation arithmetic usually hidden code generator 
+ffl scope exploiting fruits strictness analysis sharing analysis improve execution speed 
+ffl lambda lifting common feature functional language implementations carried 
+free variables lambda abstractions identified abstraction left place 
+ffl machine particularly suited parallel implementations space prevents aspect discussed peyton jones clack 
+individual ideas describe implementations combination produces particularly fast implementation lazy functional languages 
+earlier version peyton jones similar title 
+underlying machine described unchanged presentation completely rewritten 
+overview divides parts 
+part explores design space show stg machine fits wider context 
+part ii introduces machine gives operational semantics part iii discusses machine mapped stock hardware 
+part design space implementation non strict functional languages tended done separate world real compilers 
+goal help bridge gap cultures 
+identify key aspects compiler representation data structures treatment function application compilation case analysis data structures compare approach take 
+hope exercise may useful right setting context rest 
+part ii machine usual way presenting evaluation model functional language define machine executes instruction stream 
+machine operational semantics state transition system compilation rules converting functional program machine code 
+application compilation rules usually preceded lambda lifting johnsson eliminates lambda abstractions favour supercombinators functions free variables 
+example approach machine johnsson peyton jones machine code called code 
+approach suffers annoying disadvantage machine generally 
+example machine uses stack hold intermediate values 
+code compiled native machine code stack operations eliminated holding intermediate values registers 
+code generator simulate operation stack effect mainly name intermediate values 
+process complicate code generator code harder manipulate optimise 
+avoid problem driven introduce explicitly named values machine code earlier derived peyton jones 
+unfortunately simplicity machine lost 
+take slightly different approach 
+defining new machine small functional language stg language machine code 
+usual denotational semantics principle possible check transformation original program stg language correct 
+give direct operational semantics state transition system explains intend executed 
+problem proving entire system correct easier example machine equivalence denotational operational semantics single language involved 
+substantial task attempt 
+part iii mapping machine real hardware typically written compilation functional program machine code little map machine underlying hardware 
+machine considered success mapping works resulting code efficient 
+believe spineless tagless machine comes regard devote considerable space discussing mapping process 
+nice aspects variety mappings possible increasing complexity efficiency 
+target machine code language 
+common late conferring wide portability 
+may pay performance penalty generating native machine code plan build code generators 
+source language compilation route interested compiling strongly typed higher order non strict purely functional languages lml haskell 
+expect heavy higher order functions non strict semantics hughes 
+back compiler 
+complete compilation route involves steps task proving simple machine correct carried lester thesis lester 
+
+primary source language haskell hudak strongly typed nonstrict purely functional language 
+haskell main innovative feature support systematic overloading 
+
+haskell compiled small core language 
+haskell syntactic sugar translated type checking performed overloading resolved 
+pattern matching translated simple case expressions performs single level matching 
+
+program analyses variety transformations applied core language 
+
+core language translated stg language introduce section 
+transformation simple 
+
+code generator translates stg language just internal data type simply printed code serve input native code generator 
+strictness analysis plays important role compilers non strict languages enabling compiler determine cases function arguments passed evaluated form efficient 
+technology compilers lazy languages generate code fast faster smetsers 
+usually results strictness analysis passed code generator significantly complicated 
+take different approach 
+extend core stg languages full fledged unboxed values expressive incorporate results strictness analysis simple program transformations 
+give brief unboxed values section full details including transformations required exploit strictness analysis separate peyton jones launchbury 
+code generator subject directly involved strictness analysis exploitation discuss 
+part exploring design space exploring design space introducing stg machine detail pause explore design space little 
+stg machine roots lazy graph reduction 
+folk lore graph reduction looks different conventional compiler technology best compilers graph reduction generate quite similar code say lisp 
+section attempt compare aspects stg machine conventional compilers 
+implementation result inter related design decisions partly justified presence 
+hard find place start description 
+proceed asking key questions help locate implementation techniques non strict higher order language ffl function values data values unevaluated expressions represented section 
+ffl function application performed section 
+ffl case analysis performed data structures section 
+section gives context motivation implementation techniques described parts ii iii suitable forward 
+representation closures heap contains kinds objects head normal forms values unevaluated suspensions thunks 
+head normal forms classified kinds function values data values 
+value may contain thunks inside example list cons cell unevaluated head tail 
+value contains thunks inside called normal form 
+worth noting polymorphic language possible distinguish thunks value turn function thunks value data value 
+example consider composition function compose function 
+depends course type compose polymorphic statically determined 
+reasons apparent term closure refer values thunks 
+remainder section consider various ways closures represented contrasting stg machine designs 
+representing functions implementation higher order language provide way represent function value 
+value behaves suspended computation value applied arguments computation performed 
+compact way represent function value block static code shared dynamic instances value values free variables 
+value commonly called closure term wider sense 
+direct physical representation closure pointer contiguous block heap allocated storage consisting code pointer points static code followed pointers values free variables code free variables representation adopted compiled lisp systems sml new jersey spineless tagless machine 
+perform computation distinguished register environment pointer point closure code executed 
+call operation entering closure 
+code access free variables offsets environment pointer arguments standard argument passing convention registers stack activation record 
+storing values free variables closure possible store pointer block free variables chain blocks 
+representations attempt save storage cost slowing access 
+orbit compiler example works hard choose best representation closures including allocating stack heap possible sharing block free variables closures kranz 
+apart compiler complexity involved considerable extra care taken garbage collector avoid space leakage occur closure captures larger set free variables closure requires 
+appel measurements sml new jersey suggest clever closure representation techniques gain little potentially lose lot space complexity recommends simple flat representation appel chapter 
+instruction machine tim takes interesting position 
+representing closure single pointer represents closure pair code pointer pointer heap allocated frame fairbairn wray 
+frame vector code pointer frame pointer pairs gives values free variables closure may shared closures 
+code pointer frame pointer pairs need handled carefully lazy system duplicated risk duplicating 
+proper sharing ensured results system remarkably similar conventional mentioned peyton jones lester chapter 
+representing thunks non strict language values passed functions stored data structures unevaluated form evaluated value required 
+function values unevaluated forms capture suspended computation represented closure way function value 
+terminology bloss hudak young call particular sort closure thunk term goes back early algol implementations call name 
+value thunk required thunk forced 
+thunk principle represented simply parameter function value inefficient evaluated repeatedly 
+duplicated avoided called lazy implementations follows thunk forced time physically updated value 
+main strategies dealing updates lazy implementations naive reduction model updates graph reduction peyton jones 
+reduction meant replacement instance left hand side function definition corresponding instance right hand side 
+apart optimisations update strategy machine johnsson 
+main disadvantage thunk may updated thunk object may updated repeatedly consider model 
+cell model 
+cell model closure provided status flag indicate evaluated 
+code force get value closure checks status flag 
+closure evaluated value extracted suspended computation performed entering closure value written cell status flag flipped bloss hudak young 
+self updating model stg machine 
+cell model places responsibility performing update code evaluates thunk 
+self updating model places responsibility code inside thunk 
+code force closure simply pushes continuation stack enters closure closure thunk arranges update performed evaluation complete just returns value 
+tests need performed 
+update overwrites thunk value code pointer subsequent forces re enter thunk turned value 
+representation natural function values discussed surprise data values 
+list cell example represented code pointer pointers comprising head tail list 
+code pointed list cell simply returns immediately effect code pointer plays role flag cell model 
+section explore variants scheme code list cell simply return 
+bloss hudak young call model closure mode implementation suggest efficient time space outlined translation lisp 
+models offer scope optimisation 
+consider cell model example 
+forcing optimised compiler prove thunk certainly evaluated reverse test flag omitted bloss hudak young 
+furthermore compiler prove subsequent code forces thunk omit code performs update 
+similar situation holds self updating model 
+compiler prove particular thunk evaluated expect quite common create code thunk doesn perform update 
+cell model self updating model take advantage order evaluation analyses 
+uniform representation closures indicated self updating model strongly suggests heap allocated object head normal form thunk represented uniformly code pointer zero fields give values free variables code 
+stg machine adopts uniform representation seen operational semantics section heap values represented uniformly code sequence values 
+machine called tagless objects form need tag distinguish kind object contrast presentation peyton jones chapter 
+term closure refer values thunks uniform representation 
+decision uniform representation closures interesting ramifications explore section 
+firstly thunk updated value possible value take space thunk 
+case thunk updated indirection value 
+causes difficulty self updating model indirections represented closure code simply enters target closure 
+indirections readily removed garbage collection section 
+cell model second test check indirections alternatively updated thunk indirection 
+shows case 
+methods impose extra overhead 
+secondly self updating model allows exceptional cases taken care extra tests 
+example ffl thunk entered code pointer overwritten black hole code pointer 
+thunk re entered updated value depend 
+follows program entered infinite loop suitable error message displayed 
+mechanism stack overflow occurs helpful programmer 
+updating big value indirection code value cons code head tail updating small value code free vars updating updating self updating model ffl system supports concurrent threads execution exactly method synchronise threads 
+thunk entered code pointer overwritten queue code pointer 
+thread tries evaluate thunk thread completed suspended added queue threads attached thunk 
+thunk updated queued threads re enabled 
+ffl system distributed memory pointers remote memory units treated differently local pointers 
+expensive test remote ness dereferencing pointer 
+self updating model remote pointer represented special kind indirection tests remote pointers need performed 
+value updating code free vars updating updating cell model function application evaluation stack higher order languages allow functions class citizens interesting challenges compiler writer 
+illuminating way comparing compilation strategies ask function application performed 
+currying languages interested heavy curried functions 
+example consider haskell function definition attributed type 
+
+
+may thought function argument returns function takes second argument 
+application say short 
+application argument perfectly acceptable example map xs 
+strict languages lisp hope sml definition usually form attributed type 
+
+denote type pairs elements type 
+function applied suitable pair applied just argument 
+languages possible sml easy define curried functions hardly deserve title higher order compilers usually implement uncurried form efficiently programmers respond accordingly 
+inverse cultural tradition non strict functional languages additional flexibility allowed curried form means usually preferred programmers compilers typically treat curried application fundamental 
+compiling function application compilers lisp tradition usually compile function application follows evaluate function evaluate argument apply function value argument 
+known function applied case especially lisp evaluate function part trivial 
+model function application call model invariably compilers strict languages lisp hope sml secd machine henderson landin 
+implementations non strict languages course function evaluated application abc machine koopman gi machine augustsson johnsson 
+contrast compilers lazy graph reduction treat function application follows push argument evaluation stack tail call enter function 
+return evaluation function complete 
+call push enter model machine tim stg machine 
+difference models slight pervasive effect 
+difficult say general better 
+essentially order programs generate code 
+programs extensive curried functions push enter model looks better 
+example consider curried function definition apply lisp compiler compelled evaluate evaluate function applied apply result graph reduction compiler just push evaluation stack jumping closure evaluation stack main cost push enter model function application link function body activation frame broken 
+example consider apply 
+eval apply model compiler allocate activation frame apply deallocated value computed 
+push enter model happens arguments pushed evaluation stack jumping put way identifiable moments new activation frame allocated reclaimed 
+pushes push enter evaluation model direction having contiguous evaluation stack linked list heap allocated activation frames exemplified new jersey sml compiler appel jim 
+idea heap allocated activation frames appealing easy implement call cc appel jim parallel threads cooper morrisett certain debugging mechanisms tolmach appel 
+things done allocating contiguous stack medium sized chunks heap price little extra complication hieb dybvig bruggeman peyton jones 
+performance may better contiguous stack improved spatial locality reduces paging cache misses 
+contiguous allocation fresh activation records caches fetch useless data clever know free space allocated write back activation frame main memory quite garbage 
+uses generational garbage collection youngest generation fits entirely cache contiguous stack far better cache performance appel chapter wilson lam moher 
+current cache sizes small contain complete generation may change 
+interesting quantify effects 
+gi machine interesting design compromise augustsson johnsson 
+contiguous evaluation stack 
+working space allocated closure gi machine calls frame closures evaluation linked heap allocated activation frames 
+penalties space usage worse closures contain extra space regardless evaluated function evaluated partial application arguments copied function frame application frame possible statically bound amount working space required separate compilation abandoned exception checking mechanism required deal cases little allocated 
+data structures strongly typed functional languages haskell encourage programmer define algebraic data types 
+built data types language lists booleans tuples see section integers may regarded algebraic data types 
+example representative type declarations data boolean false true data list nil cons list data tuple data int mkint int data tree leaf branch tree tree special syntax lists tuples provided high level languages stg language 
+data values built constructors false cons branch taken apart case expressions 
+example case leaf 
+branch 
+high level programming language data values usually taken apart various pattern matching constructs known translate constructs case expressions simple single level patterns wadler 
+assume translation performed 
+operations construction pattern matching pervasive functional programs deserve particular attention 
+compilers implement built types list tuples numbers special magic ways programmer pays performance penalty user defined types 
+take view general mechanisms userdefined types efficient built types 
+lisp course user defined types question arise 
+discussed representation data values code pointer zero contents fields 
+turn attention compilation case expressions 
+notice case expression really things evaluates expression value selects appropriate alternative 
+cell model case expression force value 
+inspect value discover constructor built alternative case expression executed 
+follows data value contain tag usually natural number distinguishes constructors relevant data type 
+sequence events ffl force value 
+ffl extract tag 
+ffl take multi way jump tag ffl bind names pattern alternative components data value 
+ffl execute code alternative 
+case self updating model possibilities 
+recall model closure forced entering regardless forced 
+far assumed code constructor returns immediately 
+variants possible 
+example load tag register returning tag need represented explicitly section 
+better returning multi way jump constructor code return appropriate member vector return addresses call vectored return section 
+return conventions chosen independently data type 
+effect self updating model stg machine takes advantage fact data value forced case expression 
+property unique stg machine 
+lazy implementations treat numeric data types special case implicitly forced built arithmetic operations 
+stg machine numeric data types implemented algebraic data types forced case section 
+idea taken step 
+consider expression case nil 
+cons 
+suppose evaluates cons 
+cell model evaluate resulting heap allocated cons cell components 
+suppose self updating model code cons puts head tail cons cell registers returning loading tag register return vectored 
+cons cell need allocated heap 
+functions return data values optimisation quite valuable 
+summary cell model separates forcing thunk case analysis unpacking performed case expression 
+self updating model allows operations woven offer interesting opportunities optimisations 
+fair optimisations complicate updating see roll part iii benefit entirely cost section 
+summary single pervasive design decision stg machine closure including data values represented uniformly entering 
+benefits include ireland cleverly avoids forcing step necessary field encode evaluation status flag constructor tag 
+case expression multi way jump extra branch case unevaluated thunk indirection encountered forces thunk re executes multi way jump 
+ffl cheap indirections available useful performing updates 
+cost eliminated easily garbage collection 
+ffl exceptional conditions black holes concurrency handled way 
+ffl variety return conventions constructors possible including vectored returns returning components constructor registers 
+means data values may allocated heap 
+costs 
+main common case possible thunk turns evaluated self updating model takes jumps enter closure return cell model takes conditional jump 
+seen jump saved vectored return 
+worse jump unknown destination means code generator keep things registers 
+cell model incurs context switching costs thunk unevaluated 
+cell model may win 
+forces row nasty possibility saving context evaluating thunk restoring context discovering second thunk unevaluated saving context second time 
+sort situation may just save context start string forces self updating model 
+underlying architectural issues 
+firstly indirect jumps cause cache misses taken conditional jumps 
+secondly modern optimised conditional jumps employed cell model indirect jumps needed self updating model 
+principle jump target address fetched instructions jump instruction fetch logic interprets indirect jump directly pipeline bubbles need caused 
+optimised sequence tera architecture allows branch target prefetched register supports zero delay indirect branches 
+short entering closure need value pay single fairly modest front cost get wide variety benefits cost 
+benefits outweigh costs open question 
+part ii machine stg language machine code spineless tagless machine language called stg language syntax 
+virtually functional language compiler uses small purely functional language intermediate code enriched lambda calculus peyton jones peyton jones fc field harrison kid ariola arvind 
+distinguishing feature stg language formal operational semantics expressed state transition system usual denotational semantics 
+exactly property justifies title machine code 
+particular correspondence stg language operational matters maintained construct operational reading function application tail call expression heap allocation case expression evaluation constructor application return continuation salient characteristics stg code follows ffl function constructor arguments simple variables constants 
+constraint corresponds operational reality function arguments prepared constructing closure evaluating prior call 
+easy satisfy condition translating stg language simply adding new bindings non trivial arguments 
+ffl constructors built operations saturated 
+constraint simplifies operational semantics stg code 
+easily arranged adding extra lambdas un saturated constructor built application performing opposite reduction 
+notice higher order language ensure function application saturated gives function exactly number arguments expects 
+ffl pattern matching performed case expressions patterns case expressions simple level patterns 
+complex forms pattern matching easily translated form wadler 
+value case expression arbitrary expression restricted simple variable constant 
+gained restriction performance lost closure expression unnecessarily built immediately evaluated 
+ffl special form binding 
+stg language special form binding general form 
+program prog binds bindings binds var lf var lf lambda forms lf vars vars 
+expr update flag updatable updatable expression expr binds expr local definition letrec binds expr local recursion case expr alts case expression var atoms application constr atoms saturated constructor prim atoms saturated built op literal alternatives alts default algebraic default primitive algebraic alt constr vars 
+expr primitive alt literal 
+expr default alt default var 
+expr default 
+expr literals literal primitive integers primitive ops prim primitive integer ops variable lists vars var var atom lists atoms atom atom atom var literal syntax stg language readings 
+denotational point view free variables update flag ignored definition binds function 
+operational point view bound heap allocated closure containing code pointer pointers free variables closure represents function code executed special register point closure giving access free variables 
+right hand side binding called lambda form site lambda abstraction 
+notice abstraction free variables lambda lifting need performed section 
+update flag lambda form indicates closure updated reaches normal form section 
+say lambda form closure built updatable update flag non updatable 
+ffl stg language supports unboxed values 
+aspect discussed section 
+stg program just collection bindings 
+variables defined top level set bindings called globals variables bound program called locals 
+value stg program value global main 
+concrete syntax conventional parentheses disambiguate application associates left binds tightly operator body lambda abstraction extends far right possible layout meaning clear allow omit semicolons bindings case alternatives 
+stg language similar ways continuation passing style cps point return section 
+translating stg language section outline translate functional program stg language 
+example known function map 
+definition conventional notation haskell follows map map ys map ys corresponding stg binding map xs 
+case xs nil 
+nil cons ys 
+fy 
+ys 
+map ys cons fy notice flattened structure explicit argument lists call free variable lists update flags lambda form 
+map global constant considered free variable lambda form 
+example lambda form arguments free variables 
+illustrate combination consider alternative definition map map mf mf mf ys mf ys recursion mf free variable corresponding stg binding map 
+letrec mf mf xs 
+case xs nil 
+nil cons ys 
+fy 
+mf ys 
+mf ys cons fy mf mf example lambda form free variables arguments 
+notice mf free variable right hand side see section 
+general transformation general translation stg language involves transformations ffl replace binary application multiple application 
+fe semantics curried application course stg machine applies function available arguments doing 
+ffl saturate constructors built operations expansion necessary 
+fe fe built constructor arity ffl name non atomic function argument lambda abstraction introducing expression ffl convert right hand side binding lambda form adding update flag information 
+identifying free variables transformation stg code requires free variables lambda form identified 
+rule follows variable appear free variable list lambda form 
+mentioned body lambda abstraction 
+bound lambda 
+bound top level program 
+version map previous section map appear list global constant 
+hand second version map mf free variable 
+free variable rule handles mutual recursion complications 
+example haskell definition transform stg definition 
+letrec 
+
+letrec builds pair closures points 
+rule says variable appear free variable list lambda form 
+course scope variable may appear redundantly surprisingly situation redundant free variables prove useful see section 
+closures updates stg language rec expressions bind variables lambda forms 
+pieces denotationally redundant operationally significant information attached list free variables lambda form update flag 
+section focus update flag 
+updates expensive feature lazy evaluation closure representing unevaluated expression updated head normal form evaluated section 
+aim avoid evaluating particular closure 
+contrast machine performs update reduction spineless tagless machine able decide closure closure basis updating required 
+shares property tim spineless machine 
+update decision controlled update flag lambda form update flag corresponding closure updated head normal form evaluated update performed 
+clearly safe set update flag lambda form updating closure 
+better 
+obvious question safely assign update flag losing single evaluation property 
+explore question classifying lambda forms distinct classes manifest functions 
+manifest function lambda form non empty argument list 
+example map mf manifest functions examples previous section 
+manifest functions require updating head normal form 
+partial applications 
+partial application lambda form form vs fg 
+fx known manifest function arguments 
+manifest functions partial applications head normal form require updating 
+manifest functions partial applications course function values 
+partial applications appear directly programs arise result performing updates section 
+lambda forms precisely form classified partial applications 
+example lambda form 
+classified partial application body required form 
+reason closure built lambda form updated closure re built time entered 
+constructors 
+constructor lambda form form vs fg 
+fx constructor 
+constructor applications saturated stg language bound arity 
+update flag constructor update 
+thunks 
+remaining lambda forms empty argument list special form partial application constructor called thunks 
+fy examples thunks previous section 
+thunks normal form appears update flag set compiler prove thunk evaluated safe set update flag allowing update omitted 
+example consider definition xs 
+
+factorial case xs nil 
+cons ys 
+clear evaluated closure need updated 
+summary updates required functions partial applications constructors may addition omitted thunks 
+analysis phase determines thunks need updated called update analysis 
+done topic working simple update analyser 
+generating fewer updatable lambda forms translation core stg language largely straightforward apart update analysis course omitted flagging thunks updatable 
+important opportunity reduce incidence updates concerns constructors partial applications 
+consider haskell expression xs 
+straightforward translation stg language gives xs 
+
+
+
+nil cons cons cons 
+updatable thunks built subsequently updated xs traversed 
+alternative usually superior translation 
+nil 
+cons 
+cons xs 
+cons 
+updatable thunks built 
+bad thing translation xs discarded traversed constructing constructor closures wasted 
+strictly bounded amount 
+just alternative translation possible known function applied arguments bindings argument expressions lifted level partial application lambda form remains need updated 
+general ffl updates omitted parameterless lambda forms body head normal form 
+ffl opportunities improvement may enhanced moving rec bindings lambda form enclosing context 
+generally small bounded computation may moved lambda form enclosing context expose head normal form avoid update 
+standard constructors final form example previous section lambda forms form xs 
+cons xs various xs shape clearly share single code pointer 
+general lambda form form fx fg 
+fx constructor arity called standard constructor 
+lambda forms particular constructor share common code 
+free variable list global definition usually empty global mention globals represented closure consisting code pointer 
+consider global haskell definition alist thing thing 
+straightforward translation stg language gives alist cons thing nil nil nil thing 
+perfectly correct means having special purpose code alist thing nil wired 
+alist list items cell list separate code sequence 
+alternative translation alist thing nil cons thing nil nil nil thing 
+lambda form alist free variables strictly necessary payoff lambda form standard constructor standard code cons 
+represented code pointer alist represented cons code pointers globals thing nil 
+apply idea just top level sure lambda form body simple constructor application standard constructor 
+nullary constructors nil possible share code share closure 
+example nil global shared occurrences nil program 
+lambda lifting lambda lifting process function definitions lifted top level making free variables extra arguments johnsson peyton jones lester 
+lambda lifted program lambda form free variables arguments 
+contrast machines stg machine require program lambda lifted right hand side free variables arguments 
+operational difference fairly slight 
+consider stg language definition 
+
+lambda form free variables argument lambda lifting performed new global function introduced giving 
+
+
+program thunks supercombinators 
+operationally happens entered pushes free variables evaluation stack jumps original version stg machine execute directly free variables directly closure 
+short local environment stg machine executes consists parts section values held closure just entered free variables values held stack arguments 
+level environment reduces somewhat movement values heap stack clear big improvement marginal 
+full laziness consider binding 
+
+ez ef ez ef arbitrary expressions 
+suppose free ef free ez 
+lambda form free variable equivalent pair bindings 
+ez 
+ef furthermore form may save applied times instantiated call general binding moved outwards immediately enclosing lambda abstraction binds free variables binding 
+transformation called full laziness transformation described detail peyton jones lester 
+arithmetic unboxed values non strict functional language implementation variable bound generally bound unevaluated closure allocated heap 
+value variable required closure points evaluated closure overwritten resulting value 
+evaluations closure find value immediately 
+evaluation model means numbers represented pointer heap allocated closure box contains information enables number computed closure evaluated actual value number 
+call actual value unboxed value manipulated directly instruction set machine 
+uniform boxed representation arithmetic expensive 
+simple addition takes instruction conventional system requires sequence instructions evaluate operands fetch values add allocate new box result place result 
+innovative features compiler unboxed values explicitly part core stg languages 
+variables may bound unboxed values functions may take unboxed values arguments return results unboxed values may stored data structures 
+main motivation approach explicit steps involved say addition 
+declare data type data int mkint int declares data type boxed integers int algebraic data type single constructor mkint 
+single argument type int type unboxed integers 
+value mkint represents boxed integer stands unboxed constant type int 
+expression say rewrite case mkint 
+case mkint 
+case 
+mkint outer case expressions evaluate respectively inner case expresses fact added result boxed mkint constructor 
+convention trailing identifiers values results primitive 
+just human readability identifiers distinct recognised specially compiler 
+turns simple idea allows optimisations hitherto buried code generator reformulated program transformations 
+furthermore idea generalised number directions allowing general algebraic data types unboxed components just int 
+discussed detail peyton jones launchbury 
+purposes suffices establish facts ffl data types divided kinds algebraic data types introduced explicit data declarations primitive data types built system 
+values primitive type manipulated directly machine instructions unboxed 
+example int algebraic type int primitive 
+purpose suffices identify primitive types unboxed types generalisations discussed peyton jones launchbury permit unboxed algebraic types 
+ffl literal constants primitive type literals algebraic type expressed giving explicit application constructor 
+ffl arithmetic built operations operate primitive values example 
+definitions functions operating non primitive algebraic values expressed directly stg language need built 
+ffl values unboxed type need size pointer 
+example double type double precision floating point numbers occupy bits pointers usually occupy bits 
+result polymorphic functions take arguments boxed type arguments passed functions uniform representation 
+unboxed values size pointer difficulty garbage collector distinguishing pointer non pointer 
+ffl letrec expression bind variable unboxed type 
+binding case expression 
+reason variable unboxed type bound expression bound evaluated immediately point unboxed values represented unevaluated closures 
+words stg language case expressions perform evaluation letrec build closures 
+uniform semantics gives rise uniform transformation laws example expression bound variable elided 
+reason global top level bindings stg program bind values unboxed type 
+ffl forms case expression syntax describes 
+takes apart value algebraic data type performs case analysis value primitive type 
+relationship cps conversion transformation continuation passing style cps technique effect compilers strict call value languages appel fradet metayer kelsey kranz steele 
+stg language lazy flavour cps nested constructs flattened explicit sequence simple operations flow control manifest direct relationship remaining language constructs individual machine operations 
+connection explicit table shows approximate correspondence constructs cps language appel appel stg language 
+operation appel cps form stg form application app application local function definition fix record construction record rec thunk construction forcing data values selection alternative switch case algebraic types extraction record components select primitive operations case primitive types minor differences appel cps stg language 
+firstly implementations usually case expressions forcing multi way selection extraction components data value 
+bundled case expressions seen advantage stg machine 
+secondly stg language uses single construct rec allocate function valued data valued closures allowing arbitrary mutual recursion 
+clear achieve appel form cps 
+important difference stg language continuationpassing style 
+cps user defined function extra parameter continuation apply result 
+example assuming continuation expression converted cps form fx 
+fx call tail call passing extra argument continuation fx 
+fx 
+continuation says computed add result pass value contrast stg form expression case mkint 
+case mkint 
+case 
+mkint continuation call passed implicitly evaluation complete control returns second case expression 
+second case evaluates course necessary appel world sml strict 
+lazy version cps require suspended computation inside thunk function continuation argument 
+cps form really fx 
+force yr 
+fx yr force function forces thunk argument applying force second argument continuation 
+code strikingly similar stg form 
+difference way continuations handled clearly distinguishes cps stg language quite difficult pin implications difference 
+example cps version natural stack implementation call tail call 
+hand may incur cost heap allocating closure continuation passing argument stg version suggests stack implementation current activation frame contains environment continuation executed 
+course implementation possible styles 
+stg style natural curried function application 
+consider call left unchanged conversion stg language 
+converted cps assuming call continuation generate expensive clumsy compilation ordinary function application 
+expect curried function application pervasive stg language provides primitive 
+course imposes extra requirement code generator stg language cope functions applied fewer arguments expecting 
+example take argument lot computation reduce function takes second argument 
+section show graph reduction gives natural way provide functionality 
+summary stg language similar flavour cps little extreme 
+far discovered opportunities optimisation exposed cps hidden stg language 
+consel danvy show transforming source program cps may improve accuracy analyses investigated stg language similar property 
+operational semantics stg language stg language machine code stg machine 
+section give direct operational semantics stg language state transition system 
+state transition semantics specifies initial state machine series state transition rules 
+rule specifies set source states corresponding target states transition taken place 
+set source states specified implicitly pattern matching guard conditions state source set transition rule say rule matches state 
+transition rule match state rule matches machine halts 
+state components 
+code takes forms 
+argument stack contains values 
+return stack rs contains continuations 
+update stack contains update frames 
+heap contains closures 
+global environment oe gives addresses closures defined top level 
+sequences extensively follows 
+denoted curly brackets fa empty sequence denoted fg bs sequences bs concatenation denotes sequence obtained adding item sequence length sequence denoted length 
+value takes forms addr heap address int primitive integer value operational semantics values tagged addr int distinguish different kinds value 
+discuss ways avoid implementing tagging real implementation section 
+add forms value primitive data types floating point numbers handled exactly analogously integers omit reduce clutter 
+range values ws range sequences values 
+argument stack just sequence values 
+top stack sequence 
+return stack update stack dealt sections respectively 
+heap mapping addresses ranged closures 
+closure form vs xs 
+ws intuitively lambda form vs xs 
+denotes code closure sequence values ws gives value free variables vs 
+range update flags 
+exactly uniform representation discussed section 
+global environment component state oe maps name variable bound top level program address closure 
+closures allocated execution begins 
+components oe change execution 
+stg machine unusual binding globals closures code sequences 
+important global may updatable closure update 
+discussed earlier possible share code standard constructor closures section 
+special case constructors arguments nil possible share just code closure closure 
+example nil address single global closure 
+easily done adding constructors possible form atom extending oe address suitable closure constructor 
+sake simplicity perform optimisation operational semantics follows 
+code component state takes forms accompanied intuitive meaning eval ae evaluate expression environment ae apply value arguments argument stack 
+expression arbitrarily complex stg language expression 
+enter apply closure address arguments argument stack 
+returncon ws return constructor applied values ws continuation return stack 
+return primitive integer continuation return stack 
+local environment ae maps variable names values 
+notation ae 
+extends map ae mapping variable value notation extends obvious way sequences variables values example ae vs 
+ws 
+val function takes atom delivers value val ae oe int val ae oe ae dom ae oe atom literal val returns primitive integer value 
+variable val looks ae oe appropriate 
+val extends obvious way sequences variables val ae oe vs sequence values val ae oe maps variables vs initial state specifying initial state stg machine 
+general form stg program follows vs xs 
+vs xs 
+main 
+program corresponding initial state machine arg return update code stack stack stack heap globals eval main fg fg fg fg fg init oe oe 
+addr 
+addr init 
+vs xs 
+oe vs 
+vs xs 
+oe vs write machine state horizontal row components auxiliary definitions introduced clause 
+initial state code component says main evaluated empty local environment argument return update stacks empty initial heap init contains closure global global environment oe binds global closure 
+notice values range global environment addresses 
+reflects fact global variables boxed 
+applications main operational semantics rule applications 
+eval xs ae rs oe val ae oe addr enter val ae oe xs rs oe top line rule gives state transition bottom line gives state 
+pattern matching notation top line 
+case rule matches code component eval expression form 
+clause constrains rule case bound address closure primitive value 
+rule says perform tail call values arguments put argument stack value function entered 
+function expected closure case address primitive value dealt section 
+notice local environment discarded point general local environment local lifetime 
+thing discuss rule entering closure 
+give rule entering non updatable closures rule updatable closures section 
+enter rs 
+vs xs 
+ws oe length length xs eval ae rs oe ws length ws length xs ae vs 
+ws xs 
+ws non updatable closure entered local environment constructed binding free variables values ws closure arguments values ws stack 
+body closure evaluated environment 
+rule clause give values variables result state rule 
+rec expressions mentioned earlier expression constructs closures heap 
+eval vs xs 
+vs xs 
+ae rs oe eval ae rs oe ae ae 
+addr 
+addr 
+vs xs 
+ae rhs vs 
+vs xs 
+ae rhs vs ae rhs ae rule letrec identical ae rhs defined ae ae 
+case expressions data constructors return stack time come case expressions 
+expression case alts operational interpretation push continuation return stack evaluate 
+evaluation complete execution resume continuation decides alternative execute 
+rule case follows fairly directly eval case alts ae rs oe eval ae alts ae rs oe continuation pair alts ae alternatives alts say evaluation completes environment ae provides context evaluate chosen alternative 
+say expensive looking environment saving performed section 
+side coin rules constructors literals 
+presumably eventually evaluates constructor literal point continuation popped return stack executed 
+rules constructors literals intermediate state returncon respectively just rule function application uses enter primitive values dealt section rules constructors 
+evaluating constructor application simply moves returncon state eval xs ae rs oe returncon val ae oe xs rs oe rules returncon return appropriate continuation taken return stack returncon ws vs 
+ae rs oe eval ae vs 
+ws rs oe provided continuation return stack contains pattern vs constructor evaluated just evaluate right hand side alternative saved environment ae augmented bindings variables vs values actual arguments alternative default alternative taken 
+rule easy variable bound default case returncon ws vs 
+vs 
+default 
+ae rs oe eval ae rs oe variable bound default need heap allocate constructor closure bind returncon ws vs 
+vs 
+
+ae rs oe eval ae 
+rs oe 
+vs 
+vs ws vs sequence arbitrary distinct variables length vs length ws rule little complicated simple program transformation eliminate variable binding form default language algebraic case expressions anyway case 
+xs 
+case default 
+implementation terms version little efficient closure allocated updated rule simply allocates constructor final form 
+lastly match default alternative rule matches interpreted failure 
+built operations section give extra rules handle primitive values 
+rule evaluating primitive literal enters state eval ae rs oe rs oe similar rule deals case variable bound primitive value entered eval fg ae 
+int rs oe rs oe come rules state look continuation return stack 
+case alternative matches literal ae rs oe eval ae rs oe cases default alternative taken 
+
+
+ae rs oe eval ae 
+int rs oe 
+
+default 
+ae rs oe eval ae rs oe need family rules built arithmetic operations binary built operation phi form eval phi fx ae 
+int 
+int rs oe phi rs oe updating section cover updating technology necessary graph reduction machine 
+updates happen stages 
+updatable closure entered pushes update frame update stack argument return stacks empty 
+update frame triple rs consisting ffl previous argument stack ffl rs previous return stack ffl pointer closure entered updated 
+
+evaluation closure complete update triggered 
+happen ways ffl value closure data constructor literal attempt pop continuation return stack fail return stack empty 
+failure triggers update 
+real implementation avoid making test merging return update stacks making update special sort continuation section ffl value closure function function attempt bind arguments argument stack away update frame 
+failure find arguments triggers update 
+situations precise rules 
+need add extra rule applies entering updatable closure update flag 
+rule similar usual closure entry rule rule enter rs 
+vs 
+ws oe eval ae fg fg rs oe ae vs 
+ws difference argument stack return stack closure entered formed update frame pushed update stack 
+naturally real implementation manipulates pointers copying entire stacks section closures non empty argument list updatable section deal case rule 
+need new rules constructors see empty return stack 
+happens update closure pointed update frame restore argument return stacks update frame try 
+may restored return stack contains continuation may empty case second update performed continuation exposed 
+returncon ws fg fg rs oe returncon ws rs oe vs sequence arbitrary distinct variables length vs length ws 
+vs fg 
+vs ws closure updated address just updated standard constructor closure 
+rule returncon need 
+possible state see empty return stack imply closure updated primitive value closure primitive type section 
+need rule handle case arguments stack bound lambda abstraction triggers update 
+relevant rule enter fg rs oe vs xs 
+ws length length xs enter rs oe xs xs xs length xs length 
+vs xs xs 
+ws rule apply number arguments xs greater zero closure entered non updatable line rule 
+closure updated address value value closure entered address applied arguments stack updated closure code vs xs xs 
+body free variables xs vs fewer arguments xs xs 
+update enter retried 
+concludes basic rules updating 
+constraints real implementation manufacture compiled code fly need careful code part closures created updating 
+code required constructors vs fg 
+vs ok constructor code partial applications vs xs xs 
+tiresome suggests need entire body function possible partial application 
+alternative rule partial application updates avoids problem enter fg rs oe vs xs 
+ws length length xs enter rs oe xs xs xs length xs length arbitrary variable 
+xs fg 
+xs closure entered new closure 
+new code required xs fg 
+xs shared partial applications number arguments 
+required family code blocks possible number arguments 
+part iii mapping machine stock hardware completed description spineless tagless machine 
+whilst interesting features real justification maps nicely stock hardware rich set design alternatives indicated 
+rest describe mapping detail 
+target language goal course generate native code variety stock architectures 
+approach write individual code generators architecture give best results 
+unfortunately compete mature imperative languages code generators evolved improved years comparably job code generation lot 
+motivated concern generate code language primary target generating native code direct 
+way gain instant portability implemented wide variety architectures benefit directly improvements code generation 
+approach high level assembler gained popularity bartlett miranda 
+particular tarditi compiling sml developed independently concurrently addresses essentially problems tarditi acharya lee 
+generating directly go internal datatype called 
+allows spectrum alternatives final code generation increasing efficiency decreasing portability ffl generate ansi standard widely portable 
+ffl generate exploits various non standard extensions supported gnu compiler stallman 
+ffl generate native machine code directly 
+far concentrated alternatives 
+compiling attractive portability reasons things come free 
+rest section describe tricks substantially improve code generate route usually exploiting non standard extensions provided gnu miranda trade mark 
+name researcher queen mary westfield college london 
+mapping stg machine appears sensible try map functions original functional program functions soon abandoned approach 
+mis match non strict higher order functional language great 
+argument stacks control stack mapped explicit arrays bypassing usual parameter passing mechanism 
+registers stack pointers heap pointer heap limit registers introduced held global variables 
+approach results great deal global variable manipulation 
+overheads reduced losing portability caching globals register allocated local variables execution single code block simple usage analysis tarditi acharya lee 
+expense portability overheads eliminated entirely telling compiler keep particular globals specified registers permanently highly non standard architecture specific facility provided gnu compiler 
+compiling jumps main difficulty generating concerns labels 
+term code label just label mean identifier code sequence 
+important characteristics code label ffl name arbitrary block code 
+ffl manipulated example pushed stack stored closure placed table 
+ffl destination jump 
+usually think labels represented code addresses 
+trouble directly corresponds code labels 
+ways dilemma outline subsections 
+giant switch solution map labels integer tags embed entire program loop form int cont true switch cont code label code label 
+jump implemented assigning cont followed break statement 
+switch statement re execute new label 
+shortcomings technique clear 
+firstly layer indirection imposed labels implemented directly code pointers 
+secondly seriously separate compilation difficult 
+code entire program including run time system gathered single giant procedure compiled 
+stress compiler quite substantially impose heavy recompilation costs local changes means special linker written paste code generated separately compiled source language module 
+tiny interpreter problems alternative method nice trick 
+idea compile labelled block code parameter function name required label 
+treat functions storable values representing pointer code 
+problem jump code block 
+mechanism provides call function jump return stack grow word causing certain stack overflow 
+compiler implemented tail call jump suffer problem hardly portable solution require optimisation correct operation 
+furthermore complicated tail call optimisation quite hard get right presence functions example compiler known 
+trick parameterless function representing code block returns code pointer jump calling 
+execution entire program controlled line interpreter true cont cont cont address code block function executed 
+function points called returns address 
+loop broken long jump equally test cont particular value fairly minor cost 
+example code block jumps label top return stack lbl return lbl result fully portable implementation supports separate compilation usual way standard linker 
+labels represented directly code addresses 
+temporary variables single code block declared local variables function generated code block 
+scope limited compiler put registers possible 
+turns idea old reinvented 
+clever ideas steele inventor called handler rabbit compiler scheme steele 
+idea tarditi acharya lee target sml compiler 
+optimising tiny interpreter portable tiny interpreter described jump overheads ffl epilogue generated compiler current function concluding return instruction pops return address return interpreter ffl jump implement interpreter loop ffl subroutine call instruction pushes interpreter return address ffl prologue generated compiler new function 
+expense portability architecture compiler specific optimisations jump sequence eliminating register saves 
+architectures fixed register set compilers implement callee saves convention registers small number registers 
+save sequence start function restore sequence 
+gnu provides compiler flag compiler caller saves convention 
+conjunction direct jump optimisation described eliminates register save instructions 
+eliminating frame pointer 
+compilers generate instructions functions set frame pointer register 
+redundant compiler offsets local variables stack pointer vital debuggers 
+gnu provides compiler flag suppress frame pointer manipulation expense confusing debugger 
+generating direct jumps 
+generating return lbl generate jump lbl jump macro 
+portable implementation jump expands return statement implementation faster making jump expand line assembly code instruction really take jump 
+compilers provide assembly language trapdoor exploit 
+line assembly code way pitfalls especially simultaneously try local variables 
+miranda gives details tricky things miranda 
+debugging tiny interpreter turned useful property anticipated tremendous debugging aid 
+stg machine frequently takes indirect jump code pointed closure 
+bug caused closure corrupted indirect jump usually causes segmentation fault illegal instruction 
+difficulty usually way backing code performed jump step identifying source error 
+tiny interpreter provides easy solution easily record trail jumps 
+jump passes tiny interpreter faithfully records address code block containing fatal jump 
+furthermore easy add tiny interpreter loop call hygiene checking routine checks machine state looks plausible 
+slows program considerably hygiene checking invaluable aid trapping point machine state corrupt point corruption causes crash 
+hard usefulness trick especially impact compiler code generates 
+people spent night trying find cause heap corruption subsequently led system crash truly appreciate 
+heap heap collection closures variable size identified unique address 
+term pointer refer address closure 
+closures represented closure occupies contiguous sequence machine words laid shown 
+word closure called info pointer points info table 
+info pointer block words contains pointer followed block words containing pointers 
+distinction garbage collector follow 
+single statically allocated info table associated bind program text 
+dynamic instance binding heap allocated closure info pointer refers static info table rule 
+info table contains number fields described important field contains label closure standard entry code 
+operation entering closure performed ffl loading address closure node register 
+standard entry code evacuation code scavenge code info 
+info table pointer words non pointer words info pointer layout closure ffl jumping standard entry code closure label usually fetched info table node 
+standard entry code access various fields closure indexing node register 
+rest info table contains ffl information enable garbage collector job 
+fact implement information code labels described section 
+ffl debugging information inspection debugger trace generator 
+ffl parallel implementation information enable closure flushed global memory 
+implemented code label 
+usual heap allocated objects contain layout information specify size fields contain pointers 
+contrast closures contain information 
+shall see size layout information encoded info table 
+indirection closures generated update operations particularly efficient representation ind info pointer closure standard entry code consists instructions load indirection pointer closure node second enter new closure 
+retrospect representation quite similar chosen chalmers group machine implementation johnsson 
+system heap cell word tag points table entry points various operations performed cell 
+system differs theirs respects 
+important having fixed collection tags generate new info table bind program text associated code 
+essentially eliminates interpretive unwind machine 
+second operation entering closure involves indirection find code label jump indirection avoided generating native code directly section discusses 
+allocation closures top level globals allocated statically fixed addresses call static closures 
+static closure necessarily immutable may thunk updated execution 
+alert reader spot policy gives rise garbage collection problem return section closures allocated dynamically heap 
+understood performance essential allocate contiguous block free space free list appel 
+free space delimited special registers hp register points register points 
+allocation done basic block basis free space exhaustion check basic block 
+space garbage collection garbage collection performed space copy collector baker 
+available memory divided semi spaces 
+garbage collection initiated live closures copied semi space 
+copying process involves basic operations closures ffl live closure space space 
+ffl space scanned linearly closure scavenged closure points new space pointer substituted old space pointer 
+unusual feature system operations evacuation scavenging implemented code pointed info table closure 
+code sequences know exact structure closure operate interpretive loops layout information 
+evacuation code called function ffl copies closure space 
+ffl overwrites closure space forwarding pointer points newly allocated copy closure space 
+ffl returns new space address closure caller 
+scavenging code closure called function 
+pointer closure ffl calls evacuation code closure points ffl replaces pointer original closure space pointer returned evacuation call 
+scavenging code knows argument fields contain closure addresses 
+function collection switching spaces accumulating statistical information garbage collection carried evacuate scavenge routines closures heap 
+case standard entry code closure info table dispatch mechanism evacuation scavenging provides opportunity deal special cases free tests forwarding pointers 
+forwarding pointer handles situation second attempt evacuate closure attempt evacuate closure overwritten forwarding pointer simply returns space address forwarding pointer 
+nice optimisation available 
+systems distinguish forwarding pointer sort tag bit tested just 
+forwarding pointer look just closure info pointer field points space copy 
+info table forwarding pointer simple evacuation code just returns space address forwarding pointer 
+evacuate closure simply jumps evacuation code regardless closure forwarding pointer 
+forwarding pointer test performed 
+heap allocated closures words long order leave space forwarding pointer 
+indirections 
+indirections easily removed garbage collection nice trick 
+required evacuation routine indirection jumps evacuation routine closure indirection points 
+jumps calls deliberate tail call 
+indirections moved space don scavenging routine 
+static closures 
+closures notably global closures section allocated fixed static locations 
+closures moved garbage collector 
+easily arranged making evacuation code return immediately moving closure 
+constructor closures exist static dynamic space section fact need info tables constructor cases 
+standard entry code constructor shared course 
+small integers 
+fixed precision integer type int represented mkint constructor applied primitive integer value section 
+turn represented word closure consisting mkint info pointer primitive integer value 
+evacuation code mkint sees value integer lies pre determined range uses integer index table statically allocated int closures returning address static closure 
+effect small integers garbage collector point fixed collection small integer closures 
+integer range table closure space usual 
+easy refinement give new copy different info pointer won perform test time certainly fail 
+small integer check course time int allocated means generating extra code lots places doing garbage collector requires just chunk extra code 
+optimisation applies char closures constructors isomorphic int char 
+garbage collector variants space garbage collection works residency program approaches half real memory available point virtual memory system begins thrash 
+implemented dual mode collector switches dynamically single space compacting collector space collector try minimise paging encouraging early results sansom 
+developing extension generational collector appel simple generation scheme appel 
+trading code size speed info table dispatch mechanism outlined allows interesting space time tradeoffs 
+far assumed kind closure evacuation scavenging code knows size layout 
+requires new evacuation scavenging routines compiled closure program 
+garbage collection routines closure depend structure possible share 
+example closures consist exactly pointer field apart info pointer share evacuation scavenging routines 
+runtime system contains standard garbage collection routines number common layouts 
+closure constructed match standard layouts 
+possible compile special garbage collection code adopt compromise position allows provide evacuation scavenging routines part runtime system 
+generating code garbage collection routines nonstandard closure provide generic evacuation scavenging routines runtime system 
+routines look closure info table find certain layout information number pointer words non pointer words closure 
+contained info field 
+loop having loop unrolled special purpose routines 
+notice layout informa tion stored static info table extra cost allocating closure 
+extra execution cost executing loops garbage collection routines 
+benefit generic routines closures laid pointers preceding non pointers 
+convention means numbers required encode layout information 
+closure layout fit standard layout directly supported runtime system 
+example closures words pointers routines layout convention liberal number different possible layouts closures 
+convention carries runtime cost course 
+standard entry code closure particular place prevents obvious code improvement 
+info pointer closure points table containing number code labels 
+closure entered 
+better arrange info pointer pointed directly code placing rest info table just code 
+entering closure takes fewer indirections info table entries available negative offset info pointer 
+usually quite easy arrange generating native code gnu compiler doesn allow programmer specify array info table immediately precede word code function 
+away issue macro enter contains address closure entered 
+usual definition enter define enter jump stacks machine contains stacks ffl argument stack contains mixture closure addresses primitive values 
+ffl return stack contains continuations case expressions 
+ffl update stack contains update frames 
+question stacks mapped concrete machine 
+stack 
+stacks operate synchrony possible represent single concrete stack 
+major reason choose avoid confusing garbage collector 
+garbage collector pointers stack source roots update point new locations closures 
+needs know stack locations closure addresses code addresses primitive values 
+couple ways problem retaining single stack 
+possibility distinguish pointers non pointers tag bit usually significant bit 
+nuisance arithmetic slower standard bit floating point numbers impossible 
+spirit implementation type information static requiring runtime testing 
+possibility described earlier version spineless tagless machine peyton jones uses static bit masks associated code pointed return addresses stack give stack layout 
+works fine introduced idea fully fledged unboxed values technique 
+consider example program pick pick pick called arguments argument stack 
+presumably primitive applied 
+point garbage collection initiated evaluation context information available tell bottom argument stack primitive 
+conclude single stack require runtime tagging previous ways avoiding cope fully fledged unboxed values 
+stacks obvious solution provide concrete stacks stack pointers stack non pointers 
+solution adopted machine non pointer stack called stack number subsequent systems 
+nomenclature taken abc machine koopman stands argument basic value 
+argument stack split stacks stack contains things non pointer arguments apparent 
+detailed mapping stacks concrete stacks subsequent sections 
+stack pointers held special registers spa 
+twin stack implementations stacks grow avoid risk overflow plenty space left stack grows lower addresses 
+sequential implementation stack space allocated fixed size area separate heap 
+compiling stg language ready discuss code generated constructs stg language 
+section long detailed 
+apology remarked earlier machine considered success maps concrete architectures plenty opportunities optimisations 
+overview code generation process arbitrary stg expression considering various syntactic forms expression take ffl calls non built functions section 
+expression compiled sequence statements pushes arguments appropriate stacks adjusts stack pointers final values enters function discuss enter may take form entering closure bound info table jumping direct appropriate code ffl rec expressions section 
+expression lf lf compiled sequence statements allocates closure heap lambda lf followed code letrec expressions treated way difference closures allocated may cyclic 
+lambda standard constructor code generator produces separate block code labelled entry obtained compiling body lf 
+see section may useful give code extra entry point 
+declaration statically initialised array info info table element info table label standard entry code entry 
+declarations hoisted top level appearing embedded middle code expression 
+code generator flattening process performed code generation intermediate data type permitting nested declarations 
+lambda standard constructor shared info table appropriate constructor need generate info entry 
+ffl literals calls built operators section 
+primitive literal compiled statements load register exactly register depends type adjusts stack pointers final values returns address top stack 
+call built operation works way operation performed 
+sound built operation associated return easy optimisation allows sequences built operations compiled section 
+ffl case expressions section 
+primitive case expression case compiled code saves volatile variables stacks pushes return address stack followed code arbitrary unique label invented return address label separate block code compiled code compiled performs case analysis value returned non default alternatives followed code alternative expression 
+code lambda forms entire code block hoisted top level 
+code algebraic case expressions similar address return vector pushed return address section 
+ffl top level bindings section 
+top level bindings treated little differently nested ones 
+declaration lf compiled declaration array closure represents static closure info table info standard entry code block entry produced just nested bindings 
+ffl standard constructors section 
+mentioned code generated lambda forms standard constructors shared info table code constructor 
+necessary generate info table entry code constructor declared module 
+ideas concrete gives code compiled map stg code follows see section map xs 
+case xs nil 
+nil cons ys 
+fy 
+ys 
+map ys cons fy code written assuming lists vectored return convention cons returns arguments registers matters explained fully section 
+rest section explores code generation detail 
+subsection corresponds similarly numbered subsection section gives operational semantics stg language 
+initial state machine initialised evaluate global main empty argument return update stacks section 
+machine initial heap empty contains closure globally defined variable 
+implement allocating static closure variable section 
+closures referred directly label effectively linker implement global environment oe 
+mapinfo mapinfo rest info table argument satisfaction check 
+jump stack overflow check 
+push return vector node spa enter node enter xs spa spa pop args grab return vector jump head tail regs allocate fy hp hp heap overflow check 
+hp hp spa hp hp hp spa hp return cons cell hp hp spa spa jump rest info table push update frame 
+updatable thunk stack overflow check 
+spa node spa spa push node node enter node enter rest info table stack overflow check 
+spa node spa node spa spa push ys jump code generated map applications code generated applications follows directly rule operational semantics consists steps ffl push arguments stack adjust stack pointer ffl enter closure represents function 
+discuss steps separately 
+doing small example 
+consider binding apply 
+code generated application code executed pointer top stack pointer node spa grab node register spa grab local variable spa push extra args spa spa spa adjust stack pointer enter node enter entering closure mean enter closure 
+operational semantics quite rules dealing enter state 
+spineless tagless machine responsibility complications closure entered code enter closure simple uniform 
+establish simple entry convention closures closure entered particular register node register points closure 
+code closure access free variables indexing directly node register 
+caller load pointer closure node register jump standard entry code closure info pointer 
+previously discussed jump involve indirections depending particular representation chosen closures info tables section possible useful optimisations process entering non updatable closure 
+functions defined top level program standard libraries map example 
+entry functions efficient standard entry mechanism just described ffl function free variables point making node point closure 
+ffl code label function statically determined jump direct info pointer 
+ffl code generator knows arguments closure expecting number arguments supplied call jump point called direct entry point just argument satisfaction check see section 
+bit cleverness stack heap overflow checks bypassed 
+ffl argument passing convention direct entry point different standard ones 
+particular arguments passed registers 
+beneficial strict language functions frequently evaluating arguments saved stack anyway 
+implemented idea 
+improvements applied locally defined functions 
+example consider expression 
+
+call pushing argument stack loading pointer closure node jumping directly appropriate code call function definition statically visible code generator compile direct jumps including bypassing argument satisfaction check appropriate 
+need take bit care entering updatable closure 
+case jump info pointer directly standard entry code update changed info pointer 
+node point closure standard entry code updatable closure begins pushing update frame recording address closure updated 
+code push update frame compiled individually closure arrange include static address closure update frame node 
+optimisations apply entering closure lambda bound variable case apply 
+pushing arguments pushing arguments stack quite simple sounds 
+firstly arguments may mixture pointers non pointers pushed appropriate stack 
+argument stack operational semantics split stacks 
+secondly implementation environment ae operational semantics represented partly locations stacks 
+quite conventional language implementations 
+means stacks cleared accumulated environment just part see section pushing arguments call 
+course need take little care overwrite stack location contains value required argument position 
+ways solve simplest move threatened live stack locations registers generating local variables starting overwrite 
+example 
+entry stack 
+immediately calls requires arguments order register stack rearrangement 
+argument shuffling unusual 
+common argument appear position case code need generated 
+case recursive functions pass arguments unchanged 
+rec expressions mentioned earlier letrec expressions compile code allocates closure heap definition followed code evaluate body rec 
+closures consists info pointer field free variables 
+example expression fs xs 
+compiles code allocates closure continues code evaluate example consider definition compose compose 
+gx 
+gx code body compose runs follows allocate heap block hp hp allocate heap hp heap exhaustion check trigger gc 
+fill closure gx hp info pointer hp spa hp spa call node spa grab node spa hp push gx spa spa adjust spa enter node statically allocated info table gx static int scavenge evacuate 
+info table name function implements code closure gx 
+scavenge evacuate runtime system routines performing garbage collection closures containing pointers section 
+allocation allocation closures straightforward discussed section 
+dynamically allocated closures single instruction sequence offsetting heap pointer 
+code generator keeps track physical position heap pointer correct offsets moved instructions basic block 
+notice term single instruction sequence 
+particular method addressing survive evaluation triggered case expression evaluation may take unbounded amount computation 
+may move heap pointer unpredictably may trigger garbage collection may rearrange relative positions closures 
+short points operational semantics environment ae saved return stack pointer live closure saved pointer stack section 
+code closure interesting course standard entry code closure 
+code get executed closure entered 
+standard entry code closure begins sequence argument satisfaction check 
+concerns updating discussed section 
+generated arguments 
+stack overflow check 
+execution closure cause stack overflow stacks organised grow collide execution halted 
+parallel machine works stacks different action taken 
+stack overflow check look ahead branches case expressions involved evaluation closure worst case path overflow criterion 
+course net stack growth check performed 
+heap overflow check 
+similar check performed heap overflow heap allocated 
+discussed section 
+heap check look ahead case branches evaluation implied case perform unbounded amount computation 
+info pointer update 
+case updatable closure info pointer may overwritten black hole info pointer parallel system queue info pointer 
+discussed detail section 
+update frame construction 
+updatable closures update frame pushed update stack 
+action causes update overwrites closure head normal form 
+implementation updates mapping update stack discussed detail section 
+code generated body closure free variables bound appropriate offsets node register arguments offsets appropriate stack pointers 
+compilers keeps track stack pointers pointing current activation record moment generate correct offset current stack pointer 
+black holes updatable closure entered standard entry code opportunity overwrite closure info pointer standard black hole info pointer provided runtime system 
+whilst operation costs instruction advantages ffl closure re entered updated black hole entry code report error 
+situation occurs programs value depends example letrec ffl closure left updated head normal form serious risk space leak 
+example consider stg definitions ns 
+
+ns 
+ns 
+produces long list 
+returns element list 
+thunk left updated element list ns retain pointer entire list consuming incrementally 
+nice example due jones 
+overwriting thunk black hole immediately entered solves space leak black hole retains pointers 
+possible obtain advantages slightly subtle way performing black hole overwriting operation 
+firstly non termination form detectable black holes results stack overflow 
+cause stack overflow easily determined noticing pointer update stack closure 
+happen value depends 
+possible error message obtainable post mortem update stack informative entire collection closures involved self dependent loop identified original info tables attached source code location information shown 
+secondly address space leak question 
+example pointer ns retained matters garbage collection time 
+cases thunk entered updated garbage collections space improvement gained overwriting black hole 
+black hole thunks evaluation garbage collection time 
+happily exactly thunks update stack points 
+safely omit black hole update thunk entry provided garbage collection black holing thunks pointed update stack 
+techniques rely update stack apply updatable thunks update flag 
+thunk non updatable update flag black standard entry code 
+reason implementation variants update flag reentrant closure may entered times black single entry closure entered black 
+flag manifest functions constructors partial applications flag thunks update analysis determined update required 
+parallel system standard entry code updatable thunk overwrite thunk queue info pointer section 
+black holing sequential system operation postponed garbage collection 
+case expressions pattern matching case expressions utterly pervasive lazy functional programs spineless tagless machine boxing unboxing operations arithmetic done case expressions ad hoc mechanism 
+strengths spineless tagless machine rich design space pattern matching implemented including efficient options 
+case expressions case expressions cause evaluation take place 
+operational semantics expressed pushing continuation return stack evaluating expression rule 
+mirrored precisely code generated case expressions 
+code generation languages act pushing continuation return address immediately followed function call 
+worth noticing passing case stg language may significant gap instruction push continuation instruction transfers control 
+example consider expression case case 
+
+continuation outer case pushed continuation inner case call 
+programmers write sort code arises result program transformations compiler 
+order case expressions interchanged risk code duplication 
+main point interest continuations represented 
+recall continuation operational semantics consists parts 
+alternatives case expression 
+
+environment ae executed 
+representation alternatives intimately connected code generated primitive values constructors defer discussion topic sections 
+environment saving independent constructors discuss 
+saving local environment local environment saved saving stacks values variables live free alternatives 
+way live variable saved depends currently resides ffl may stack example argument current closure 
+code need generated 
+ffl may register may bound offset heap pointer 
+case saved appropriate stack 
+ffl may closure currently pointed node 
+case possibilities save variable save node 
+reduces number saves saving node effectively saves values variables 
+hand extra memory access subsequently required get value variable 
+problem saving node entire contents closure retained garbage collector continuation may fields 
+space leak avoidance mechanisms described section applied 
+possible rescue space behaviour compiling indicate fields closure live complicated 
+current policy avoid difficulties saving variables individually 
+saving variable stack stack usage re stack slots belonging variables dead 
+useful side benefit structure pointed dead pointers stack reclaimed garbage collector overwriting pointers live ones helps avoid space leaks 
+experiment done generating extra instructions overwrite dead pointers slots reused specifically order space 
+call stack 
+constructor applications expression case expression eventually evaluate primitive value constructor application 
+deal case section deferring primitive case section 
+code generated constructor application return control appropriate alternative case expression making argument application available alternative 
+just done rules constructors operational semantics rules 
+example consider expression hd xs 
+case xs cons ys 
+nil 
+error single ws 
+cons ws hd single ws bound enclosing scope 
+code generated case expression hd pushes continuation enters closure xs bound single case 
+code constructor application cons ws body single return control appropriate alternative returning ws agreed way 
+remember constructor applications stg language saturated 
+main aspects consider ffl may alternatives question appropriate selected 
+ffl constructor particular alternative may arguments case need communicated code alternative 
+issues discussed turn 
+selecting alternative simplest possible representation alternatives single code label call return address pushed stack 
+control returned constructor application labelled code evaluation object completed 
+member algebraic data type tuples example evaluation single alternative proceed immediately 
+member type lists example tag object put particular register switch statement generated perform case analysis 
+native code generator multi way jump compiled tree conditionals jump return vector stack code nil alternative code cons alternative vectored returns table depending sparsity alternatives target code allows delegate choice compiler 
+possible representation alternatives 
+possibility represent alternatives pointer table code labels entry table constructor data type 
+illustrates situation case expression list 
+pointer table call return vector pushed stack code case expression 
+loading code constructor application transfer control directly appropriate destination saving jump 
+call vectored return pointer return vector vectored return address 
+important point note return convention chosen independently datatype datatype basis 
+particular case expression objects particular type 
+practice somewhat arbitrarily vectored returns data types constructors catches vast majority data types risking wasting code space large sparsely return vectors 
+returning constructor arguments correspondingly simple convention available communicating constructor arguments alternative node register point constructor closure containing appropriate values 
+code alternative address components indexing node register usual 
+works fine simple better alternative readily available sufficiently arguments return registers 
+closure constructor gained may lost components may loaded registers alternative requires 
+gain thunk may avoid building constructor heap 
+critical example ordinary integer arithmetic 
+consider example neg 
+case mkint 
+case neg 
+mkint neg function negates integer 
+operates evaluating integer extract primitive value negating give returning integer mkint 
+simple return convention boxed value mkint constructed heap node point control returned continuation 
+component constructor returned register value need built heap result update section 
+turns big effect performance important point return convention chosen datatype datatype basis 
+integers special case 
+example list cons cells returned putting head tail values specific registers 
+independently vectored return convention chosen 
+choice registers return values independently data type 
+example floatingpoint number returned floating point register 
+reason probably idea return constructors arguments entirely registers 
+virtue necessity limited number registers return larger constructors allocating heap making node point 
+turns return registers convention updates substantially harder shall see gain worth 
+arithmetic suppose expression case turns evaluate primitive value primitive literal rule variable value primitive rule arithmetic operation result primitive rule 
+rules enter state takes action depending alternatives stored top return stack 
+return convention primitive values simple 
+continuation top return stack return address pointing directly continuation code 
+primitive value returned standard return register chosen independently primitive data type 
+example register integers floating point values 
+code generated primitive literal simply loads specified value appropriate return register pops return address stack jumps 
+similarly code generated primitive variable just loads value variable return register returns arithmetic follows way 
+code generated return address implements case analysis implied alternatives suitable switch statement 
+alternative binds variable value returned 
+easily done binding variable appropriate return register 
+important special case compiling expressions form case phi alts built arithmetic operations phi 
+pointless push return address evaluate phi return return address 
+operations easily short circuited practically essential 
+express equivalence doing simple transformations rules give derived rules eval case phi fx 
+
+
+ae 
+int 
+int rs oe eval ae 
+int phi rs oe phi eval case phi fx 
+ae 
+int 
+int rs oe eval ae rs oe phi particular optimisation implemented expression case phi fx 
+compiles simple statement phi local variables hold values adding updates far quite tidy tree reduction nice easy 
+sadly graph reduction harder updates quite complicated 
+part spineless tagless machine 
+
+representing update frames recall closure entered opportunity push update frame update stack 
+update frame consists ffl pointer closure updated 
+ffl saved argument return stacks 
+update frame pushed execution continues empty argument return stacks 
+course don copy argument return stacks separate update stack 
+dedicate registers called stack base registers point just bottom word stacks respectively 
+argument return stacks saved empty merely saving stack base registers update frame making point current top stacks 
+update stack kept 
+represented separate stack chosen merge stack 
+minor reason avoid stack 
+major reason available important optimisation discuss section 
+conclude operation pushing update frame rule done ffl pushing update frame stack 
+ffl setting stack base registers point top respective stacks 
+alert reader spotted pointer closure updated ended stack 
+discuss section update triggered ways function finds arguments stack constructor application finds empty return stack 
+situations discussed sections 
+partial applications closure entered finds arguments stack update triggered 
+described rules 
+check arguments called argument satisfaction check occurs start code closure takes arguments cf section 
+minor complication arguments split stacks presents little difficulty 
+argument available certainly check performed stack contains argument 
+argument satisfaction check performed subtracting stack base pointer appropriate stack corresponding stack pointer giving difference words 
+compared statically calculated number words required arguments passed stack 
+words jump taken runtime system routine performs update 
+update done concludes re entering closure node pointing 
+argument satisfaction check performed rule requires case update needed 
+special case required top level closures code entering closure may node point section 
+case just jumping argument satisfaction check code loads pointer closure node 
+recall top level closures statically allocated address fixed 
+
+follows rule 
+builds heap closure representing partial application structure 
+
+overwrites closure updated obtained update frame indirection newly constructed closure 
+
+restores values stack base registers values saved update frame 
+
+removes update frame stack sliding portion stack 
+
+re enters closure pointed node 
+partial application closure look 
+general case contains ffl info pointer 
+ffl total size closure number pointers 
+storage manager information required standard entry code see 
+ffl pointer function closure node 
+ffl contents stack top stack stack base pointer 
+ffl contents stack top stack stack base pointer 
+partial application closure entered standard entry code pushes saved stack contents respective stacks size information determine words move stack enters function closure saved partial application closure 
+garbage collection routines size information stored closure guide 
+general case 
+couple optimisations readily available 
+firstly collection specialised pointers provided various combinations numbers pointer non pointer words 
+example pointer word non pointers 
+advantages specialised info pointers need store field sizes closure entry garbage collection code faster interpretive loop 
+course small execution time cost decide special case applies 
+secondly new closure small built directly top closure updated 
+constructors way update triggered constructor finds empty return stack 
+looks code constructor application test empty return stack just implied rule 
+looks expensive constructors common 
+furthermore return stack non empty test vain 
+data structures built repeatedly traversed 
+time pattern matching performed data structure continuation pushed return stack closure representing data structure entered 
+evaluated returns immediately vectored return perform return stack test 
+comes tricky part 
+update frames continuations stored stack return address top stack update frame 
+top word update frame code label constructor just return making test 
+common case update frame just want 
+update required update frame top stack return land code perform update return update frame real continuation 
+examine complications worth looking crude costs benefits 
+cost extra instruction update frame pushed 
+benefit omission couple instructions conditional jump constructor evaluation 
+data structures traversed repeatedly constructor evaluations occur substantially updates 
+benefits look significant 
+trouble trick interacts various return conventions constructors discussed sections 
+simple return conventions works fine 
+case alternatives represented simple code label stack result returned making node point constructor closure 
+need overwrite closure updated indirection constructor closure restore stack base registers return 
+vectored returns life gets complicated add vectored returns 
+problem providing vectored form entry return vector points code performs update returns turn vectored fashion 
+difficulty update frame created return convention known 
+type expression may polymorphic 
+consider example compose function looks stg language compose 
+gx 
+gx code closure gx know type 
+pushes update frame know vectored return expected 
+short code nil alternative code update nil code cons alternative code update cons return vector stack vectored updates able cope vectored non vectored return 
+generating machine code little problem 
+just adopt convention pointer vector table points just table table accessed indexing backwards pointer 
+labels ordinary code immediately preceded vector table 
+sadly allow specify relative placement data code way adopt convention non vectored returns behave just vectored returns vector table entry cf section 
+imposes extra indirection non vectored returns 
+returning values registers unfortunately matters get worse consider idea returning constructor values registers 
+way perform update way tell return convention 
+closure pushed update frame push version appropriate data type 
+just discussed answer polymorphism 
+looks serious problem 
+way round tricky 
+idea update frame may know type value returned case expression caused evaluation place certainly 
+perform update merely records update required placing pointer closure updated special register 
+case expression continuation perform update 
+continuation know update pending 
+simple entry case expression return vector expanded pair code labels 
+just code case expression alternative performs update closure pointed jumps 
+call normal return code update return code respectively 
+update return update return code normal return code merely increasing offset return vector 
+costs surprising slight 
+static space cost vector table doubles size 
+extra code perform update generated constructor pointed return vectors data type 
+constructor update code find way appropriate case alternative provided pointer return vector kept handy register 
+objection remains looks serious suppose update frames top real continuation reached 
+arise programs 
+
+
+entered push update frame enter push update frame enter 
+reaches head normal form find update frames top stack reflecting fact closure updated value 
+looks special case arise practice closure may return value closure property 
+example definition case nil 
+cons ps 
+problem multiple update frames register point closure 
+fortunately easy solution 
+recall return vectors including consist paired entries returns update return code normal return code pair 
+update return code vector knows update frame 
+possibility chain closures updated simpler way second subsequent update frames just update closures indirection pointed 
+updated updating successfully completed 
+result chains indirections remember indirections eliminated garbage collector 
+non vectored returns 
+need pair code addresses return vectored case 
+results returned heap allocated closure pointed node problem update return code just performs update jumps normal return code 
+results returned registers update return code needs perform case analysis perform update 
+need copy update return code 
+update place update technology just described important benefit allows updated closure overwritten directly result small overwritten indirection result 
+uniform return convention meant closures overwritten indirections case principle possible overwrite directly result 
+introduce extra indirections seriously gives rise lot extra memory allocation 
+kieburtz specifically identify quantify shortcoming kieburtz 
+dual return mechanism previous section shortcoming easily overcome 
+code performing update knows exactly closure laid small directly overwrite closure updated 
+example code perform updates list cons cell head tail jump assuming cons constructor returns head register head tail tail 
+info table cons constructor 
+address return vector assumed register 
+offset picks code address pair cons 
+larger constructors new object built directly top old new object built heap old updated indirection 
+usual heap exhaustion check garbage collection triggered space remains 
+update routine careful save pointers returned registers place garbage collector find 
+updating code know closure updated large 
+main possibilities ffl establish global convention minimum size updatable closures making large padding necessary contain list cons cell plausible guess 
+scope small optimisation closure allocated type say int possibly updated integer need padded cons cell size 
+ffl updating code look closure info table find size update place indirection depending finds 
+costs time unconditional scheme merit succeed updating place 
+aspect design plan quantify 
+update place desirable 
+suppose value thunk turned existing constructor returns components registers 
+update inplace overwrite thunk copy constructor 
+duplicated potential loss space copies stay live 
+worst great copies object built way substantially increasing space usage program 
+point copied cheap mechanism original copy 
+preliminary measurements suggest updates copy existing constructor occasionally higher program reported runciman wakeling 
+plan careful measurements see important effect turns significant implement simple extension dual return address scheme outlined section element return vector triple return addresses 
+omit details scheme effect updating thunk indirection value thunk existing heap object 
+update frames garbage collection update frames include pointer closure updated kept stack 
+looks awkward garbage collector expects pointers pointer stack turns quite convenient observation pointer closure update frame closure reclaimed update frame discarded 
+take advantage garbage collection way 
+perform garbage collection usual pointers update frames roots 
+look update frame see points closure marked live 
+copying collector adjust pointer point new copy closure 
+squeeze update frame stack altogether 
+easy find update frames stack base register stack points topmost word topmost update frame saved stack base register stack points update frame 
+gives top bottom traversal turns bottom top traversal squeezing process efficient reasons ffl squeeze move data bottom stack stack creep memory working bottom top means word stack moved 
+ffl update frame removed stack base pointers update frame need adjusted 
+easy working bottom top 
+happily easy top bottom traversal reversing pointers bottom top traversal 
+result garbage collector reclaims redundant update frames 
+main benefit saving updates performed 
+optimisation performed documented fairbairn wray original tim implementation 
+global updatable closures previously discussed section globally defined variable bound closure 
+closures free variables course closures need treat source roots garbage collection 
+global closures may arguments updatable call argument top level closures constant applicative forms cafs 
+example ints caf value infinite list integers ints zero zero mkint function returning infinite list integers starting argument 
+difficulties 
+caf updated pointers static space dynamic heap 
+question garbage collector find pointers 
+
+garbage collection techniques described section closures static space need different garbage collection code dynamically allocated heap 
+readily distinguishable address unfortunate update slowed test vast majority updates dynamic closures 
+way solve problem adopted follows 
+idea arrange 
+cafs evaluated evaluation complete linked caf list known garbage collector 
+solves problems 
+
+update frames point closures dynamic heap solving second problem 
+achieve goals adding little extra code start standard entry code caf 
+extra code allocates black hole closure heap purpose receive subsequent update pushes update frame pointing black hole overwrites static caf closure word cell pointing black hole heap linked caf list 
+example shown cafs entered linked caf list cl abbreviate info pointer cell 
+evaluation complete points black hole dynamic heap info pointer bh 
+evaluation completed black hole updated indirection info pointer value 
+entered consists info pointer 
+cell looks closure 
+entered simply enters heap allocated closure points behaving just indirection 
+garbage collector knows gamma gamma cl cl caf list static space dynamic heap cl bh global updates caf list walks iteratively heap allocated closure cell points updating cell appropriately 
+slightly pessimistic holds value caf program may avoiding garbage collector traverses code 
+status profiling results built compiler haskell back stg machine just described 
+implementation constructed carefully may motherboard implementors may plug optimisation passes 
+source code available anonymous ftp contacting haskell request dcs glasgow ac uk 
+apart stg machine technology described current major innovations compiler ffl systematic unboxed values implement built data types 
+ffl new approach input output monads allows entire system written haskell hammond peyton jones wadler 
+done general purpose mechanism allows arbitrary calls haskell result system readily extended modifying compiler runtime system 
+ffl core language serves main intermediate data type compiler second order lambda calculus complete type abstraction application 
+permits maintain complete type information presence extensive program transformation accommodating front ends type system expressive haskell 
+implementation covers language virtually optimisations implemented 
+result compared absolute performance compilers 
+omission important shortcoming rectified follow 
+begun gather simple dynamic statistics 
+shows output taken run simple type inference program 
+program takes lines haskell source code apart functions prelude sample run allocated megabytes heap 
+profile main headings allocations split various categories 
+allocation thunks 
+proportion data value allocation surprisingly low data values built updating thunk performing new allocation rec 
+program uses monads heavily quite lot function valued closures allocated 
+stack high water marks self explanatory 
+enters classification kind closure entered 
+case low proportion function calls bypass argument satisfaction check due higher order nature program 
+returns give information data value returns took place 
+run vectored registers 
+third classification tells returns entering evaluated constructor case 
+cell model enter return sequence performed cases 
+update frames classifies various forms update frame uninformative case 
+updates 
+fifth line counts number times update frames stacked directly top 
+line counts number updates existing value copied updates section 
+long time 
+kind give help guidance improving 
+andrew appel detailed comments relationship 
+geoff burn cordy hall denis howe nikhil chris okasaki julian seward anonymous referees gave useful feedback 
+implementation compiler owes cordy hall partain 
+sadly friend colleague jon authored stg died suddenly 
+allocations words total admin goods avg words admin goods function values thunks data values big tuples partial applications black hole closures partial application updates data value updates total storage manager allocations words stack usage stack max 
+depth words stack max 
+depth words enters direct entry code rest indirected node info ptr thunks data values function values bypassed arg satisfaction chk partial applications indirections returns registers rest heap vectored rest entering new constructor rest entering existing constructor update frames omitted thunks standard frames constructor frames black hole frames updates data values place allocated new space node partial applications place allocated new space updates followed immediately place updates copied example output dynamic profiling information bibliography callahan cummings koblenz porterfield smith june tera computer system proc international conference supercomputing amsterdam 
+aw appel garbage collection faster stack allocation info proc lett 
+aw appel compiling continuations cambridge university press 
+aw appel feb simple generational garbage collection fast allocation software practice experience 
+aw appel jim jan continuation passing closure passing style proc acm conference principles programming languages acm 
+zm ariola arvind june syntactic approach program transformations symposium partial evaluation semantics program manipulation yale 
+augustsson compiling lazy functional languages part ii phd thesis dept comp sci chalmers university sweden 
+augustsson johnsson sept parallel graph reduction nu machine proc ifip conference functional programming languages computer architecture london acm 
+henry baker apr list processing real time serial computer cacm 
+jf bartlett jan scheme portable scheme compiler dec wrl rr 
+bloss hudak young code optimizations lazy evaluation lisp symbolic computation 
+geoff burn sl peyton jones john robson july spineless machine proc acm conference lisp functional programming snowbird 
+consel danvy sept better support static data flow functional programming languages computer architecture boston hughes ed lncs springer verlag 
+ec cooper jg morrisett dec adding threads standard ml cmu cs dept comp sci carnegie mellon univ davie dj case lazy version secd machine flat environment proc ieee bombay jon fairbairn stuart wray sept tim simple lazy machine execute supercombinators proc ifip conference functional programming languages computer architecture portland kahn ed springer verlag lncs 
+aj field pg harrison functional programming addison wesley 
+fradet le metayer jan compilation functional languages program transformation acm transactions programming languages systems 
+hammond sl peyton jones pl wadler feb new input output model purely functional languages dept computing science university glasgow 
+henderson functional programming application implementation prentice hall 
+hieb rk dybvig bruggeman june representing control presence class continuations proc conference programming language design implementation pldi 
+hudak sl peyton jones pl wadler arvind boutel fairbairn fasel guzman hammond hughes johnsson kieburtz rs nikhil partain peterson may report functional programming language haskell version sigplan notices 
+john hughes apr functional programming matters computer journal 
+pz thunks comm acm 
+ireland jan lazy functional machine proc th australian computer science conference hobart world scientific publishing 
+thomas johnsson lambda lifting transforming programs recursive equations proc ifip conference functional programming computer architecture jouannaud ed lncs springer verlag 
+thomas johnsson compiling lazy functional languages phd thesis pmg chalmers university goteborg sweden 
+thomas johnsson june efficient compilation lazy evaluation proc sigplan symposium compiler construction montreal 
+jones march tail recursion space leaks department computer science university kent 
+kelsey may compilation program transformation yaleu dcs rr phd thesis department computer science yale university 
+rb kieburtz oct risc architecture symbolic computation proc asplos ii rb kieburtz sept optimising evaluation suspensions proc workshop implementation lazy functional languages 
+lester gl burn hdg machine highly distributed graph reducer transputer network computer journal 
+pwm koopman functional programs executable specifications phd thesis university nijmegen 
+da kranz may orbit optimising compiler scheme phd thesis department computer science yale university 
+pj landin march correspondence algol church lambda calculus comm acm 
+lester apr combinator graph reduction congruence applications phd thesis programming research group oxford 
+erik meijer sept generalised expression evaluation proc workshop implementation lazy functional languages 
+miranda apr machine independent fast threaded code dept computer science queen mary westfield college london 
+sl peyton jones implementation functional programming languages prentice hall 
+sl peyton jones functional language intermediate code sigplan notices 
+sl peyton jones clack june high performance parallel graph reduction proc parallel architectures languages europe parle rem eds lncs springer verlag 
+sl peyton jones launchbury sept unboxed values class citizens functional programming languages computer architecture boston hughes ed lncs springer verlag 
+sl peyton jones lester may modular fully lazy lambda haskell software practice experience 
+sl peyton jones dr lester implementing functional languages tutorial prentice hall 
+sl peyton jones jon sept spineless tagless machine functional programming languages computer architecture macqueen ed addison wesley 
+runciman wakeling april heap profiling lazy functional programs department computer science university york 
+sansom aug combining copying compacting garbage collection proc fourth annual glasgow workshop functional programming springer verlag workshops computer science 
+mark aug norma graph reduction processor proc acm conference lisp functional programming smetsers van groningen plasmeijer sept generating efficient code lazy functional languages functional programming languages computer architecture boston hughes ed lncs springer verlag 
+rm stallman feb porting gnu cc version free software foundation gl steele rabbit compiler scheme ai tr mit lab computer science 
+william stoye thomas clarke arthur norman august practical methods rapid combinator reduction proc acm symposium lisp functional programming 
+tarditi acharya lee march assembly required compiling standard ml school computer science carnegie mellon university 
+ap tolmach aw appel june debugging standard ml reverse engineering proc acm conference lisp functional programming nice acm 
+da turner new implementation technique applicative languages software practice experience 
+wadler efficient compilation pattern matching implementation functional programming languages sl peyton jones ed prentice hall 
+pr wilson ms lam tg moher jan caching considerations generational garbage collection department computer science university texas 
+gory details appendix contains gory implementation specific notes glasgow haskell compiler 
+todo add stuff stack 
+update flags really kinds update flag ffl updatable 
+update normal form 
+ffl single entry 
+don update normal form overwrite black hole prevent space leak 
+promise entered 
+ffl reentrant 
+don update normal form black hole 
+may entered re evaluated 
+manifest functions constructors partial applications reentrant 
+note zero arguments things may reentrant 
+black holes reasons overwriting thunk black hole immediately entered ffl prevent space leaks 
+ffl give better error message infinite loop 
+ffl thread synchronisation parallel system 
+dealt different way garbage collector 
+space leaks prevented black holing things update stack gc time 
+infinite loops detected post mortem update stack stack overflow 
+need parallelism black holing waste instructions 
+adding fillers great invariant closure modified overwritten black hole updating filler written tail closure initial segment exactly words long 
+allow cons cells linked indirections 
+truth gen objects bigger leaves room gen filler min size closure slot 
+means black hole update code defined fixed size thing modify 
+closures thunks spec gen form 
+filler set node size closure excl fixed hdr course gamma 
+closure spec form words ptrs non ptrs filler set node size closure 
+spec case argument guaranteed integer building label 
+remember spec closures variable header size just ptrs non ptrs compiler calculate 
+done basic block just node discarded assigned 
+node loaded closure go temporary need node size node size space collection isn done filler macros generate course variants load node 
+performing updates update performing code behaves follows ffl new closure doesn fit min size closure slot allocate new object heap hp xxx ffl new closure fits min size closure slot fill 
+incompletely filled generational gc code checks old gen update allocates min size closure new space updates old gen thing pointer thing point 
+fills remaining 
+argument guaranteed integer 
+lambda form info ready summarise remarkably subtle questions entry update conventions 
+reentrant updatable single entry node point fvs arity cost centres note note fvs note jump direct code note push update frame note black hole entry note optional notes iff fvs notes filler gc static note iff fvs note ditto note 
+longer assume closure free variables allocated statically 
+assume fvs implies static 
+note 
+black hole updatable static closure 
+overwritten cell pointing newly allocated black hole 
+note 
+black holing done garbage collector running update stack black holing pending infinite loops detected update stack 
+note 
+single entry closure free vars black avoid space leaks 
+trick mentioned note doesn don sit update stack 
+argue space leaks omitting black hole single entry things similar unavoidable space leaks don black hole 
+single entry closure fvs black give rise space leak trust single entry flag mean form part loop 
+true update stack post mortem reveal loop 
+notice means static single entry closures fvs black 
+note 
+updatable static closures update frame point newly allocated black hole 
+note 
+closure updatable node point static fv closure 
+reason may updated caf indirection 
+indirect closure get entry code anyway updated big deal load node 
+theory different caf indirection code caf knows closure address saves time 
+note 
+node point conditions ensure node points closure black 
+note 
+reentrant things arity choice jump fast slow entry point depending args thing applied 
+note 
+cost centre profiling node point isn hnf fvs cost centre extracted closure 
+note 
+single entry closures need filler black 
+condition 
+nb fvs implies static 
+note 
+static updatable closures don need filler black hole freshly allocated standard size 
+note 
+rule says node doesn need point fv closures arity 
+problem things argument satisfaction check needs know closure solve allocating closures statically result space leak fvs result loss laziness 
+imported things know entered updatable things free vars 
+stack black holing closures way avoid space leaks important source caught pointers stack happen dead 
+example case involving 
+passed stack dead soon entered 
+simplest solution ffl just tail call overwrite stack held ptrs dead pointer special stub closure 
+stub static closure pointers inside plugs space leak 
+entry code stub elicits error message stack slot supposed dead 
+know slots dead 
+bound variables aren free continuation 
+unfortunately stack takes instructions perform 
+improve matters somewhat ffl dead stack slots save volatile variables case expression 
+mean fewer slots need reduces stack growth 
+way avoiding remaining stack instructions attaching bit mask return vector addresses pushed stack identify dead stack pointers 
+quite bit don count instructions execute 
+implementation need keep extra information code generator state 
+need keep track stack slots purpose particular slots store variables 
+info saving volatile variables case expression identify dead slots tail call identify slots 
+just adding extra component code generator state carried monad making sure keep date alter environment 
+
+compiling tail call need know variables continuation occupying stack slots tail call spa 
+easy just add piece inherited information monad set filler stuff 
+difference case expression needed var info goes case branches scrutinee 
+scheme far slightly pessimistic 
+consider case 
+code generated allocate save stack push continuation enter live point save allocate new stack slot stub slot just entering better save slot 
+spot special case including slightly general case scrutinee function application 
+index gi machine stack abc machine activation frame address algebraic data type allocation argument satisfaction check argument stack arithmetic stack black holes built operation cache caf list cafs call cc case expression case expressions cell model closure closure mode closures entering static code code pointer continuation constant applicative form see cafs constructors standard continuation continuation passing style see cps core language cps currying data structures data values debugging direct entry point enter entering see closures environment pointer evacuation eval eval apply model evaluation stack forcing see thunks forwarding pointer frame frame pointer free variables full laziness function application function values machine garbage collection generational garbage collection global environment globals graph reduction haskell head normal forms heap heap overflow check indirection indirections info pointer info table initial state input output integers small lambda lifting lambda form laziness local environment saving locality locally defined functions locals main manifest functions monads non updatable normal forms normal return code operational semantics paging parallel execution partial applications pattern matching pointer primitive data type primitive values profiling push enter model queue reduction reentrant register saves return address return convention return stack return vector returncon scavenging secd machine second order lambda calculus self updating model sequences single entry space leak stack base registers stack overflow check stack stacks standard constructors see constructors standard entry code state transition system status flag stg language strictness analysis suspension code tag big tagless target language threads instruction machine see tim thunks forcing representing tim unboxed values uniform representation updatable update flag reentrant single entry update frame update return code update stack updates place values vectored return vectored returns 

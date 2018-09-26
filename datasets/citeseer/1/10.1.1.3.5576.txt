@@ -1,0 +1,463 @@
+simple graph intermediate representation cliff click hpl hp com graph intermediate representation ir simple semantics low memory cost implementation 
+ir uses directed graph labeled vertices ordered inputs unordered outputs 
+vertices labeled opcodes edges unlabeled 
+represent cfg basic blocks vertex edge structures 
+opcode defined class encapsulates opcode specific data behavior 
+inheritance common opcode behavior allowing new opcodes easily defined old ones 
+resulting ir simple fast easy 
+
+intermediate representations exist vacuum 
+stepping stone programmer wrote machine understands 
+intermediate representations bridge large semantic gap example fortran vector operations address add machine code 
+translation high level language machine code optimizing compiler repeatedly analyzes transforms intermediate representation 
+compiler users want analyses transformations fast correct 
+compiler writers want optimizations simple write easy supported arpa onr center research parallel computation rice university nfs cooperative agreement number ccr 
+authors addresses cliff click cambridge research office hewlett packard laboratories main street th floor cambridge ma 
+michael rice university citi ms south main houston tx 
+permission copy fee part material granted provided copies distributed direct advantage acm copyright notice title publication date appear notice copying permission association computing machinery 
+copy republish requires fee specific permission 
+ir san francisco california usa 
+acm michael cs rice edu understand easy extend 
+goal representation simple light weight allowing easy expression fast optimizations 
+discusses intermediate representation ir research compiler implemented part author dissertation 
+parser builds ir performs significant parse time optimizations including building form static single assignment ssa parse time 
+classic optimizations conditional constant propagation global value numbering novel global code motion algorithm ir 
+topics scope covered click thesis 
+intermediate representation graph object oriented structure similar spirit operator level program dependence graph gated single assignment form 
+final form contains information required execute program 
+graph edges represent def chains 
+analyses transformations directly modify def information 
+graph form structure tiered control flow graph cfg containing basic blocks tier instructions tier 
+control data dependencies form implementation 
+optimizations constant propagation value numbering support code control data values 
+model execution closely resembles familiar cfg model 
+considerable care taken design allow compact easily edited implementation 
+moving value definition value requires single pointer dereference 
+implementation heavy features code reuse squeezing lot functionality lines code 
+section introduce graph intermediate representation 
+section give model execution representation 
+section implementation 
+section shows experimental results parse time optimization 
+section look related contrasting intermediate representation published representations 
+
+design section presents structure intermediate representation directed graph labeled vertices ordered inputs 
+help reader understand relationship program graph classic cfg basic block instruction representation assume program simple canonical form 
+expressions simple assignments primitive operation right 
+program ssa form subscripts different versions name 
+nodes values vertices called nodes 
+edges unlabeled order output edges leaving node important 
+label node determines kind operation program primitive node represents 
+inputs node inputs node operation 
+node defines value inputs operation value available output edges 
+values include typical machine word integers pointers floating point values function pointers 
+values include quantities state memory outside world control 
+memory state discussed control value covered shortly 
+special values written underlined help distinguish text 
+nodes referred lower case letters node operations written style 
+operation node referred opcode 
+node inputs array syntax input node written 
+edges unlabeled refer directly refers node defines input node operation perform output edges iterate nodes inputs 
+expression represented input node labeled add 
+node names 
+program semantics useful output 
+show graph representation 
+nodes shown shadowed box rounded corners 
+edges carrying data values shown light arrows 
+written notation opcode add 
+basic blocks region nodes traditional representations distinct levels 
+top level cfg contains basic blocks 
+bottom level basic block contains instructions 
+past distinction useful separation concerns 
+cfgs deal control flow basic blocks deal data flow 
+handle kinds dependences mechanism removing distinction simplify representation 
+replace basic blocks special region node 
+region node takes control value predecessor block inputs produces merged control output 
+shows change basic blocks region nodes 
+edges carrying control information shown thick arrows 
+primitive node takes control input indicate basic block primitive 
+edge required 
+removing enables number global optimizations requires complex serialization operation output 
+optional control edges shown dashed arrows 
+cfg edges cfg edges basic block add expression graph edges region edges add basic blocks region nodes phi nodes true cc predicate branch eq program ssa form graph representation uses functions represented phi nodes 
+phi nodes input data values output single selected data value 
+cfg edges determine values merged functions 
+cfg edges intermediate representation compositional 
+need associate data input phi node control input corresponding basic block 
+doing directly means phi nodes set pairs inputs 
+element pair data dependence control dependence 
+structure complicated semantics 
+borrow ideas field 
+control input comes region node defining control phi node 
+inputs phi node aligned region node control inputs 
+ith data input phi node matches ith control input region node 
+essence split paired inputs phi node region node 
+show phi node 
+note nodes run time operation correspond machine instruction 
+essence require information local instruction 
+non compositional representation difficult transform correctly changing instruction may require information directly associated instruction 
+region phi nodes merging data false true example construct control predicate exist mark places values merge required correct optimization 
+machine code generated phi nodes folded back normal basic blocks cfg behavior 
+nodes projections phi false region region replace conditional instructions nodes shown 
+basic block representation predicate sets condition codes variable named cc branch sends control block block 
+explicit control edges node takes control input predicate input 
+predicate true node supplies control true basic block region node 
+control sent false basic block region node 
+shown nodes labeled output edges 
+intuitively operations produce value 
+examples include instructions set condition code register computing result subtract subroutine calls set result register condition codes memory 
+method handling label outgoing edges kind value carry 
+requires edges carry information direct negative impact implementation 
+prefer keep edges lightweight 
+multiple value instructions produce tuple output edge 
+projection nodes strip piece tuple true cc predicate branch eq store store store want giving distinct names different results 
+projection field specifying piece input tuple project 
+projections corresponding run time operation execute zero cycles 
+shows structure pro node node 
+node takes control predicate produces distinct outputs true control false control 
+produces tuple values 
+projection true strips true control projection false strips false control 
+compound values memory false treat memory value call store 
+start node projection store node produce initial store 
+load nodes take store address produce new value 
+store nodes take store address value produce new store 
+phi nodes merge store values 
+shows sample treatment store 
+projection true projections node load ptr ptr treatment memory store control predicate projection false region region value ptr store value memory ptr load value loaded value lack anti dependences edged sword 
+store allow load nodes reorder 
+valid schedules serializations graph overlap stores requiring memory copied 
+serialization algorithm treats memory type unique machine register infinite spill cost 
+algorithm schedules code avoid spills possible store succeeds 
+design store coarse 
+better design break global store smaller unrelated store independent variable array get store 
+operations separate store proceed independently 
+add understanding pointers 
+memory mapped volatile treated memory read write nodes produce new state 
+extra dependence reads produce new state loads produce new store completely serializes program exit state required anti dependence dependence read write 
+store anti dependence load store 
+store required 
+non requires subroutine call 
+start node produces initial control initial values incoming parameters memory state 
+start node classic multi defining instruction producing large tuple 
+projection nodes strip various smaller values 
+treat subroutines simple instructions take values return values 
+subroutines take return control token store state 
+take input parameters may return additional result 
+
+model execution graph representation lacks basic blocks cfg needed rethink model execution 
+cfg control moves basic block basic block block determined instruction current block 
+basic block control moves serially instructions 
+execution model cfgs execution model distinct sections 
+distinct subgraphs embedded single graph representation 
+optimizations distinction subgraphs functions approximate opcodes differ 
+control subgraph uses petri net model 
+single control token moves node node execution proceeds 
+reflects cfg works control moves basic block basic block 
+model restricts control token region nodes nodes start node 
+starting basic block replaced start node produces initial control 
+time execution advances control token leaves node currently 
+token moves onward outgoing edge region node 
+token reaches node execution halts 
+constructed graph cfg assured suitable target region exists current node outgoing edges 
+data subgraph token semantics 
+data nodes outputs immediate reflection inputs operation 
+notion data token petri net 
+data values available unlimited amounts output edge 
+intuitively node demands value data node follows input edge data node reads value stored 
+acyclic graph changes ripple root leaf speed light 
+propagation data values stabilizes control token moves region node 
+build graph loop nodes loop phi region nodes 
+mixing subgraphs subgraphs interact distinct node types phi nodes nodes 
+phi reads data control outputs data value 
+data nodes phi nodes change outputs region node visited 
+control token moves region phi nodes region latch data value coming matching control input 
+control token consumed phi 
+control token moves region phi latches value node 
+control comes phi latch value 
+nodes take data value control token produce control tuple control tuple 
+projections produce control token value 
+loop example shows simple loop looks 
+basic block heading loop region node 
+region node merges control outside loop control loop back edge 
+phi node merging data values outside loop data values loop 
+loop ends node takes control region loop head 
+passes true control back loop head false control outside loop 
+irreducible loops handled naturally 
+second region second set phi nodes marks second entry loop 
+unstructured control flow handled naturally region nodes mark places control flow merges nodes places control flow splits 
+start loop 
+implementation implementation 
+felt gave better match design concrete implementation previous version 
+obvious occurrence coding operation dependent behavior various analyses 
+version large switch statements branch operation 
+spread semantics individual operation disjoint sections code 
+adding new operation painful switch altered individually 
+version give operation class inheriting base class node 
+lets virtual functions specify operation dependent behavior 
+operations semantics localized individual classes 
+adding new operation consists inheriting similar existing class overriding changed behavior 
+classes representing primitive operations typically inherit behaviors number inputs required input output values integer vs floating point default constant folding algebraic identities printing functions 
+node class initial data cc test branch eq loop instances class node contain data operation specific information classes inherit node 
+show slice class hierarchy proj false start region cc loop exit control example loop proj true 
+class defines instances algebraic rings including additive multiplicative identity commutativity associativity 
+class merely provides identity elements integers unique string name printing iadd inherits behaviors 
+integer add instance class 
+node subnode test part class node hierarchy class node shown holds virtual function pointer edge pointers destination variable name 
+notice node object contain opcode field sort 
+virtual function pointer unique class node opcode 
+need perform function virtual function call 
+lightweight edges initial data add phi loop back control loop exit data design edges flow defining node node def edges 
+pointers implementation define edge direction back name wards def edges 
+shown concrete implementation graph allows convenient traversal design edge sink source def source sink def 
+edges implemented pointers nodes 
+nodes require fields 
+con node defines literal constant needs hold value constant defined inputs 
+projection input field specify piece incoming tuple project 
+part code generation include load offset operations 
+offsets constants kept fields large style union 
+virtual function table array input pointers count total inputs class node public node inputs array input pointers short cnt total count semantic precedence input pointers int name name symbol table index node short cnt short total node inputs constructor input count inline array syntax accessing inputs node node operator int idx const assert idx total return inputs idx virtual const char name printable opcode name abstraction implementation def def object layout code class node implementation dependence edges number edges carrying semantic meaning generally unchanged compilation divide exactly inputs 
+compiler may find convenient add precedence edges scheduling dependence analysis purposes 
+handle requirement counted array node pointers 
+need edge array full reallocate array larger storage 
+usually know edge count ahead time edge pointer array kept node structure 
+class subnode shown example input result instruction 
+inherits virtual function pointer node adds def pointers control pointer 
+required correct semantics edges necessary efficient forward analysis 
+implement essentially manner precedence edges 
+clarity show fields 
+build def edges fast batch pass just prior doing global forward analysis 
+analysis discard def edges wish maintain transforming pro class public node class nodes define integer constants virtual const char name return const int con constant defined class public node class projections nodes virtual const char name return projection node src tuple producing node const int field desired field incoming tuple value definition classes gram results analysis 
+virtual support functions virtual function table count total inputs input input name controlling node class subnode public node class input result instructions node src usually inputs total sub subnode node node node control node src inputs inputs inputs control local value numbering optimization hash table hashing nodes opcode inputs 
+opcode ideally class virtual function table pointer access directly 
+address virtual name function unique class defines opcode 
+hash table lookup able compare nodes class inputs 
+differently classed nodes different hash functions different compare semantics 
+example addition commutative add nodes equal inputs match order 
+sample code virtual hash functions 
+common behaviors defined virtual functions 
+particular algebraic identities subtract zero multiply handled way 
+call virtual identity shown returns node equivalent passed 
+function local global value numbering 
+node self contained object contains information required determine node interacts program 
+major field node opcode represented virtual function table pointer 
+object class de object layout code input node int node hash hash opcode inputs int sum int name int cnt sum int input return sum int hash return node hash con constant part hash function node node identity return return pre existing equivalent node node identity integer subtract specific implementation return src constant src subtract zero just input virtual hash identity functions propagates constants handles algebraic identities finds congruences nodes 
+intermediate representation understand new kind operation need define new class 
+new class inherits fields inputs supplies functions algebraic identities hash table support 
+need changes optimization code 
+ssa vs names ssa form useful optimization compiler eventually emit code functions 
+requires assigning node results variable names 
+infinite set virtual register numbers names relying register allocator reduce number really available 
+destination names stored name field source names def edges 
+removing functions merge exactly set names 
+leaving functions place get keep def information 
+functions behave input ports basic blocks 
+start assigning unique integers name field maximally renaming values insert copy node function input 
+give copy destination name function class arena arenas linked lists large chunks heap enum size chunk size bytes arena chunk char bin size chunk arena arena new arena plug head linked list arena delete recursively delete chunks class node base node class static arena arena arena store nodes static char hwm max old high water mark limit arena static void grow grow arena size void operator new size allocate new node size hwm max node grow old hwm hwm hwm return old void operator delete void ptr delete node ptr old hwm old check deleting allocated space arena node arena null initial arena char node hwm null allocation attempt fails char node max null initial arena void node grow get memory arena arena new arena arena grow arena hwm arena bin update high water mark max arena bin arena size cache chunk making inputs function destination name 
+occasionally naively insert clobbered destination name source name cases require temporary variable 
+copy insertion method naive 
+robust compiler requires coalescing phase 
+possible combine copy insertion pass coalescing pass inserted values renamed inserting having coalesce phase remove renaming 
+fast node allocation time new node call default operator new get storage space 
+turn calls malloc fairly time consuming 
+addition optimizations frequently delete newly created object requiring call free 
+speed frequent operations hooking class specific operator new delete class node 
+replacement operators arena 
+arenas hold heap allocated objects similar lifetimes 
+lifetime ends de fast allocation arenas lete arena freeing contained objects fast operation 
+code 
+allocation checks sufficient room arena 
+sufficient room available chunk memory added arena 
+object fits current high water mark returned object address 
+high water mark bumped object size 
+common case object fits amounts inlined test increment high water marker 
+deallocation normally op objects deleted arena deleted 
+case check see just allocated deleted memory 
+delete code pushes back high water marker reclaiming space allocation 
+fast allocation deallocation cycle allows parse time optimizer quickly perform naive node creation may reversed immediately optimization 
+high water mark address past byte memory chunk 
+
+parse time optimizations def information optimization parsing 
+parse time optimizations remove simple constant computations common subexpressions early slower global optimizations 
+reduces peak memory required optimizer speeds global optimizations follow 
+parse time optimizations pessimistic opposed optimistic know parsed program 
+find constants common subexpressions global techniques particularly loops 
+reason replacement global analysis optimistic transformations require def information generally available parsing 
+pessimistic analysis requires def information gather parse code 
+compiler looks changes fixed size instruction window intermediate representation 
+window looks program graph sequential instructions providing compiler access related instructions far away program text 
+code outside window affected transformation code inside window transformed knowledge outside window 
+pessimistic analysis essentially local peephole analysis 
+optimizing peephole optimization works follows time parser builds new node node referenced node parser attempts replace new node existing node computes value 
+nodes queried virtual functions determine compute constant algebraic identity node value numbered equal operation equal inputs node 
+possible new nodes deleted replaced constants prior nodes 
+value numbering ignore control input computing nodes cause exceptions 
+allows value numbering find nodes different control regions 
+prior node replaces new node may dominate uses new node need pass global code motion gcm discover legal ordering instructions 
+gcm moves code loops control dependent regions 
+gcm relies solely dependence information need prior legal ordering instructions 
+gcm orders instructions setting control input region node selecting basic block 
+dependences determine order basic block 
+compared parse time optimizations global optimization combines conditional constant propagation ccp global congruence finding gcf global value numbering 
+combination stronger iterating optimizations fixed point combination finds constants equivalent expressions discussed click thesis 
+kinds optimization followed pass gcm dead code elimination dce 
+experimental method converted large test suite low level intermediate language 
+produced translation naive intended optimized 
+performed optimizations level 
+ran resulting simulator collect execution cycle counts virtual machine 
+applications ran completion simulator produced correct results 
+virtual assembly language virtual machine 
+machine infinite register set cycle latencies operations including loads stores jumps 
+load store architecture includes usual assortment logical arithmetic floating point operations 
+simulator implemented translating files simple form code compiled target system standard compiler linked fortran libraries executed native program 
+executed code contains annotations collect statistics dynamic cycle count 
+test suite consists dozen applications total procedures 
+procedures static instruction sizes 
+applications written fortran cplex 
+cplex large constraint solver written doduc tomcatv matrix fpppp spec benchmark suite 
+matrix performs various matrix multiplies 
+machine model include memory hierarchy single cycle load latencies measure effects memory access patterns inner loops 
+choose matrix matrix faster testing times cutting matrix size 
+remaining procedures come forsythe moler suite routines 
+program routine static cycles program routine static cycles doduc cplex doduc cplex doduc si cplex doduc cplex doduc fmin fmin doduc fpppp doduc fpppp doduc fpppp doduc fpppp doduc fpppp doduc heat fpppp fpppp doduc matrix saxpy doduc yeh matrix doduc matrix doduc rkf rkf doduc rkf doduc rkf doduc doduc spline doduc supp solve solve doduc solve decomp doduc svd svd doduc tomcatv main doduc doduc doduc doduc doduc doduc test suite results measured optimization time peephole pass 
+total time applications peephole optimization followed global analysis seconds 
+global analysis seconds 
+time parse input print output case 
+peephole pass saved total compile times 
+ran optimizer global optimizations compare quality just peephole optimizer global code motion algorithm stronger global analysis 
+results 
+columns list application procedure name 
+columns give cycles spent virtual machine percentage optimized cycles 
+higher percentage means cycles spent relative global optimization cycles 
+show cycles percent optimized cycles just parse time optimization gcm 
+point ran pass gcf pre ccp 
+total improvement global optimization just parse time optimization average improvement 
+numbers show peephole optimizer 
+global analysis gets percentage points improvement 
+means constants common subexpressions easy find 
+program routine combined gcm parse gcm gcf pre ccp optimization doduc doduc cplex doduc doduc doduc doduc doduc doduc solve decomp doduc doduc doduc fpppp rkf fmin fmin fpppp fpppp fpppp fpppp fpppp doduc heat doduc doduc doduc doduc doduc doduc doduc doduc doduc doduc rkf rkf rkf doduc matrix saxpy matrix matrix doduc si spline doduc doduc supp svd svd tomcatv tomcatv fpppp doduc cplex cplex cplex doduc yeh procedure vs optimization cycle counts virtual machine 
+related program representations evolved gained executable model include information necessary execute program 
+restrictions evaluation order expressed edges graph lifted 
+representations compact complete allow optimizations 
+representation step lines 
+executable model fewer restrictions evaluation order previous models 
+lifting restrictions gives analysis optimization algorithms freedom discover facts reorganize code disjoint sections original program 
+ferrante ottenstein warren program dependence graph 
+pdg restrictive representation control edges added node 
+pdg lacks control information required merges execution model 
+cartwright felleisen extend pdg program representation graph adding valve nodes pdg 
+prg model execution 
+thesis gives semantic framework pdg 
+pdg fewer restrictions representation control edges required 
+extend combined optimization algorithm understands control dependence 
+cytron ferrante rosen wegman zadeck describe efficient way build ssa form program assigns variable 
+ssa form convenient way express data dependences lacks control information functions 
+alpern wegman zadeck value graph 
+value graph essentially ssa form program expressed directed graph 
+authors extend value graph handle structured control flow attempt represent complete programs way 
+value graph lacks control information functions model execution 
+maccabe ottenstein program dependence web 
+combination pdg ssa form includes necessary control information model execution 
+includes extra control edges unnecessarily restrict model execution 
+includes nodes support demand driven data model 
+representation supports data driven model need nodes 
+complex build requiring phases 
+pingali beck johnson dependence flow graph 
+dfg executable includes compact ssa representation data dependences 
+dfg switched data outputs essentially add unnecessary control dependences 
+dfg includes anti dependence edges manage store representation require 
+dfg includes denotational semantics step church rosser property 
+paul havlak done thinned gated single assignment form program 
+form executable compact 
+currently gsa limited reducible programs 
+gsa find congruences dags basic blocks representation 
+find congruences loop invariant expressions gsa 
+clear forms combined form better 
+promising implementation thinned gsa exists large suite fortran applications results 
+weise crew ernst steensgaard value dependence graph 
+vdg similar spirit representation 
+represents independent line research performed parallel 
+weise stress vdg research partial evaluation slicing optimizations built visual display tools help transformations vdg 
+stress compilation speed code quality compiler faster includes larger set classic optimizations 
+john field gives formal treatment graph rewriting representation strongly resembling representation 
+hope semantics minimal modifications 
+
+intermediate representation compact lightweight graph containing essential information program execution optimization 
+data dependences represented def edges ssa graph control dependences edges region nodes 
+providing control information phi nodes model compositional helpful implementing fast local optimizations 
+consistent treatment control data edges simplifies intermediate representation implementation compiler 
+take advantage inheritance mechanisms construct separate class different opcode 
+opcode specific information literal fields defined class 
+node opcode represented virtual function table pointer 
+def edges simple pointers nodes control edges pointers region nodes 
+virtual functions define opcode semantics providing example node specific hash function value numbering 
+produce faster optimizer moved front 
+reasoned inexpensive peephole optimizations done parsing reduce size intermediate representation expense optimization phases 
+feel approach successful benefited availability def information static single assignment property parsing 
+bibliography alpern wegman zadeck 
+detecting equality variables programs 
+conference record fifteenth acm symposium principles programming languages 
+bala 
+private conversation ksr register allocator dec 
+maccabe ottenstein 
+program dependence web representation supporting control data demand driven interpretation imperative languages 
+proceedings sigplan conference programming languages design implementation june 
+briggs 
+massively scalar compiler project 
+unpublished report 
+preliminary version available ftp cs rice edu public preston optimizer shared ps 
+rice university july 
+briggs harvey 
+
+technical report tr rice university 
+cartwright felleisen 
+semantics program dependence 
+proceedings sigplan conference programming languages design implementation june 
+chase wegman zadeck 
+analysis pointers structures 
+proceedings sigplan conference programming languages design implementation june 
+click combining analyses combining optimizations 
+ph thesis rice university 
+preliminary version available ftp cs rice 
+edu public thesis ps gz 
+click 
+global code motion global value numbering 
+submitted pldi 
+cytron ferrante rosen wegman zadeck 
+efficient method computing static single assignment form 
+conference record sixteenth acm symposium principles programming languages jan 
+davidson fraser 
+code selection object code optimization 
+acm transactions programming languages systems oct 
+drechsler 
+solution problem morel renvoise global optimization suppression partial redundancies 
+acm transactions programming languages systems oct 
+ferrante ottenstein warren 
+program dependence graph optimization 
+acm transactions programming languages systems july 
+field 
+simple rewriting semantics realistic imperative programs application program analysis 
+proceedings acm sigplan workshop partial evaluation semantics program manipulation pages 
+moler 
+computer methods mathematical computations 
+prentice hall englewood cliffs new jersey 
+hanson 
+fast allocation deallocation memory object lifetimes 
+software practice experience jan 
+havlak interprocedural symbolic analysis 
+ph thesis rice university 
+morel renvoise 
+global optimization suppression partial redundancies 
+communications acm feb 
+pingali beck johnson 
+dependence flow graphs algebraic approach program dependencies 
+technical report tr cornell university 
+rosen wegman zadeck global value numbers redundant computations 
+conference record fifteenth acm symposium principles programming languages jan 
+semantic framework program dependence 
+ph thesis rice university 
+weise crew ernst steensgaard 
+value dependence graphs representation taxation 
+proceedings st acm sigplan symposium principles programming languages 
+wegman zadeck 
+constant propagation conditional branches 
+acm transactions programming languages systems april 
+

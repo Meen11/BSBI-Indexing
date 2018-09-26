@@ -1,0 +1,626 @@
+originally published proceedings th usenix security symposium san antonio texas january bro system detecting network intruders real time vern paxson lawrence berkeley national laboratory information usenix association contact 
+phone 
+fax 
+email office usenix org 
+www url www usenix org bro system detecting network intruders real time describe bro stand system detecting network intruders real time passively monitoring network link intruder traffic transits 
+give overview system design emphasizes high speed fddi rate monitoring real time notification clear separation mechanism policy extensibility 
+achieve ends bro divided event engine reduces network traffic stream series higherlevel events policy script interpreter interprets event handlers written specialized language express site security policy 
+event handlers update state information synthesize new events record information disk generate real time notifications syslog 
+discuss number attacks attempt subvert passive monitoring systems defenses give particulars bro analyzes applications integrated far finger ftp telnet 
+system publicly available source code form 
+growing internet connectivity comes growing opportunities attackers access computers network 
+problem detecting attacks termed network intrusion detection relatively new area security research 
+divide systems types rely audit information gathered hosts network trying protect operate stand supported director office energy research office computational technology research mathematical information computational sciences division united states department energy contract 
+de ac sf 
+line version corrects error version printed proceedings traffic level fddi ring factor 
+vern paxson network research group lawrence berkeley national laboratory berkeley ca vern ee lbl gov observing network traffic directly passively packet filter 
+focus problem building stand systems term monitors monitors necessarily face difficulties limited information systems access audit trails monitors gain major benefit added network requiring changes hosts 
+purposes monitoring collection heterogeneous hosts advantage immense 
+monitoring system called bro reminder monitoring comes hand hand potential privacy violations 
+number commercial products exist bro generally sophisticated interfaces management software wh larger attack signature libraries 
+knowledge detailed accounts network security literature monitors built 
+furthermore monitors susceptible number attacks aimed subverting monitoring believe attacks discuss previously described literature 
+contribution heart novel idea believed novel undertook project detailed overview experiences building system 
+prior developing bro significant operational experience simpler system line analysis trace files 
+experience formulated number design goals requirements high speed large volume monitoring environment view greatest source threats external hosts connecting hosts internet 
+network want protect appear product literature things direct experience products 
+somewhat different sort product network flight recorder described ne 
+single link connecting remainder internet economically monitor greatest potential source attacks passively watching link 
+link fddi ring monitor requires system capture traffic speeds mbps 
+addition volume traffic link fairly gb day 
+packet filter drops application packet filter consume packets quickly arrive monitored link filter buffers packets consumption 
+eventually filter run buffer point drops packets arrive 
+security monitoring perspective drops completely defeat monitoring missing packets contain exactly interesting traffic identifies network intruder 
+design requirement high speed monitoring avoiding packet filter drops strong requirement 
+tempting dismiss problem packet filter drops argument traffic spike occur time attack happens underway 
+argument completely undermined assume attacker parallel break attempt attack monitor see 
+real time notification main initial line system lengthy delay incurred detecting attack 
+attack attempted attack detected quickly easier trace back attacker example site coming minimize damage prevent break ins initiate full recording attacker network activity 
+requirements bro detect attacks real time 
+discount enormous utility keeping extensive permanent logs network activity analysis 
+invariably suffered break turn logs retrospective damage assessment searching back number months 
+mechanism separate policy sound software design stresses constructing clear separation mechanism policy done properly buys simplicity flexibility 
+problems faced system particularly benefit separating fairly high volume traffic deal need able easily trade different times filter inspect respond different types traffic 
+hardwired responses system changes cumbersome errorprone 
+extensible enormous number different network attacks knows waiting discovered system clearly designed order easy add knowledge new types attacks 
+addition system research project time production system plays significant role daily security operations 
+consequently need able upgrade small easily debugged increments 
+avoid simple mistakes course want avoid mistakes 
+mean particularly desire way site defines security policy clear error free possible 
+example consider expressing policy code meeting goals 
+monitor attacked assume attackers eventually full knowledge techniques monitor access source code knowledge attempts subvert overwhelm monitor fails detect attacker break activity 
+assumption significantly complicates design monitor failing address build house cards 
+allow assumption monitor attacked 
+network connection hosts assume compromised try attack monitor 
+assumption greatly aids dealing problem attacks monitor means trust endpoints know 
+addition note second assumption costs virtually 
+compromised attacker establish intricate covert channels 
+hard detect depending channel system fails means give extremely difficult anyway 
+final important point concerns broader context monitoring system 
+site engaged basic unclassified research 
+consequences break usually limited potentially significant expenditure lost time re securing compromised machines public image depending subsequent actions attackers 
+aim minimize break activity try achieve security 
+emphasize monitoring blocking possible 
+obviously sites may quite different security priorities claim address 
+remainder discuss design bro attempts meet goals constraints 
+give overview structure system 
+presents specialized bro language express site security policy 
+turn details system currently implemented 
+discusses attacks monitoring system 
+looks specialized analysis bro internet applications ftp finger telnet 
+gives status implementation brief assessment performance availability thoughts directions 
+appendix illustrates different elements system come monitoring finger traffic 
+structure system bro conceptually divided event engine reduces stream filtered packets stream higher level network events interpreter specialized language express site security policy 
+generally system structured layers shown 
+lower layers process greatest volume data limit performed minimum 
+go higher layers data stream diminishes allowing processing data item 
+basic design reflects need conserve processing possible order meet goals monitoring high speed large volume traffic flows dropping packets 
+libpcap perspective rest system just network libpcap mlj library tcpdump 
+libpcap gains significant advantages isolates bro details network link technology ethernet fddi slip greatly aids porting bro different unix variants easier upgrade faster hardware available policy script network real time notification record disk policy script interpreter event control tcpdump filter event stream event engine libpcap filtered packet stream packet stream structure bro system means bro operate save files making line development analysis easy 
+major advantage host operating system provides sufficiently powerful kernel packet filter bpf mj downloads filter reduce traffic kernel 
+consequently having haul packet user level merely majority discarded filter accepts small proportion traffic rejected packets discarded kernel suffering context switch data copying 
+winnowing packet stream soon possible greatly monitoring high speeds losing packets 
+key packet filtering course judicious selection packets keep discard 
+application protocols bro knows captures packet analyze application 
+filtering language looks tcp port finger tcp port ftp tcp port telnet port filter accepts tcp packets source destination port finger ftp telnet tcp udp packets source destination port 
+addition bro uses tcp capture tcp packets syn fin rst control bits set 
+packets delimit syn fin rst tcp connection 
+tcp ip packet headers contain considerable information tcp connection just control packets extract connection start time duration participating hosts ports generally name application number bytes sent direction 
+capturing order packets initial syn packets exchanged final fin packets exchanged determine great deal connection filter data packets 
+packet filter choose snapshot length determines packet captured 
+example uses snapshot length bytes suffices capture link layer tcp ip headers generally discards data packet 
+smaller snapshot length data accepted packet needs copied user level packet filter aids accelerating packet processing avoiding loss 
+hand analyze connections application level bro requires full data contents packet 
+consequently sets snapshot length capture entire packets 
+event engine resulting filtered packet stream handed layer bro event engine layer performs integrity checks assure packet headers formed 
+checks fail bro generates event indicating problem discards packet 
+checks succeed event engine looks connection state associated tuple ip addresses tcp udp port numbers creating new state exists 
+dispatches packet handler corresponding connection described shortly 
+bro maintains tcpdump trace file associated traffic sees 
+connection handler indicates return engine record entire packet trace file just header 
+triage trades completeness traffic trace versus size time spent generating trace 
+generally bro records full packets analyzed entire packet just header analyzed packet syn fin rst computations skips recording packet processing 
+give overview general processing done tcp udp packets 
+cases processing ends invoking handler process data payload packet 
+applications known bro results analysis discussed 
+applications analysis ends point 
+tcp processing 
+tcp packet connection handler virtual function verifies entire tcp header validates tcp checksum packet header payload 
+successful tests tcp header includes syn fin rst control flags adjusts connection state accordingly 
+processes data header invokes handler process payload data 
+different changes connection state generate different events 
+initial syn packet requesting connection seen event engine schedules timer seconds presently minutes timer expires connection changed state engine generates connection attempt event 
+time connection endpoint replies correct syn packet engine immediately generates connection established event cancels connection attempt timer 
+hand endpoint replies rst packet connection attempt rejected engine rejected 
+similarly connection terminates normal fin exchange engine finished 
+generates events reflecting unusual ways connections terminate 
+udp processing 
+udp processing similar simpler connection state regard 
+host sends udp packet host source port pa destination port pb bro considers having initiated request establishes pseudo connection state associated request 
+subsequently sends udp packet source port pb destination pa bro considers packet reflect reply request 
+handlers virtual functions udp payload data readily distinguish requests replies usual case udp traffic follows pattern 
+default handlers udp requests replies simply request reply events 
+policy script interpreter event engine finished processing packet checks processing generated events 
+kept fifo queue 
+processes event queue empty described 
+checks timer events expired processes 
+key facet bro design clear distinction generation events versus response events 
+shown separate boxes structure reflects separation mechanism policy discussed 
+policy script interpreter executes scripts written specialized bro language detailed 
+scripts specify event handlers essentially identical bro functions don return value 
+event passed interpreter retrieves semi compiled code corresponding handler binds values events arguments handler interprets code 
+code turn execute arbitrary bro scripting commands including generating new events logging real time notifications unix syslog function recording data disk modifying internal state access subsequently invoked event handlers event engine 
+separating mechanism policy bro emphasis asynchronous events link event engine policy script interpreter buys great deal terms extensibility 
+adding new functionality bro generally consists adding new protocol analyzer event engine writing new event handlers events generated analyzer 
+analyzer event handlers tend overlap existing functionality part avoid subtle interactions subtle design decision involved processing generated events proceeding read packet 
+tempted defer event processing period relatively light activity aid engine keeping periods heavy load 
+doing lead races event control arrow reflects fact policy script limited degree manipulate connection state maintained inside engine 
+event processing deferred control may happen connection state changed due received traffic 
+ensure event processing reflects fresh data inadvertently lead inconsistent connection state process events immediately moving newly arrived network traffic 
+loosely coupled modules easily lead maintenance headaches buggy programs 
+language discussed express security policies terms scripts written language 
+section give overview language features 
+aim convey flavor language describe precisely 
+goal avoid simple mistakes sounding fact heavily influenced design bro language 
+intrusion detection form cornerstone security measures available site want policy scripts behave expected 
+experience big step avoiding surprises strongly typed language detects typing inconsistencies compile time guarantees variable run time valid values 
+furthermore come appreciate benefits domain specific languages languages tailored particular task 
+having monitoring system tcpdump awk shell scripts ways deal directly hostnames ip addresses port numbers devising ascii 
+making sorts entities class values bro increase ease expression offered language due strong typing catch errors comparing port ip address slip 
+data types constants atomic types 
+bro supports types familiar users traditional languages bool booleans int integers count non negative integers unsigned double double precision floating point series bytes 
+termed arithmetic types mixing expressions count toint 
+bro provides bool constants true false series digits constants style constants 
+bro strings represented internally count vector bytes series bytes 
+difference important easily introduced strings derived network traffic nature application inadvertently maliciously attacker attempting subvert monitor 
+example sending ftp server user nice user root represents nul 
+depending written ftp application receiving text interpret separate commands user nice followed user root 
+monitoring program uses nul terminated strings effectively see user nice opportunity detect action 
+similarly important bro logs strings prints text file expands embedded visible escape sequences flag appearance 
+bro includes number non traditional types geared specific problem domain 
+value reflects absolute time difference time 
+subtracting time values yields interval adding subtracting interval time yields time adding time values error 
+presently time constants interval constants specified numeric possibly floating point value followed unit time min minutes 
+type corresponds tcp udp port number 
+tcp udp ports distinct internally bro distinguishes bit quantities storing port values bit integer setting bit udp ports 
+variable hold tcp udp port time holding exactly 
+forms port constants 
+consists unsigned integer followed tcp udp example tcp corresponds tcp port protocol world wide web 
+second form constant specified identifier matches services known library routine 
+probably service names built directly bro avoid problems porting bro scripts operating systems 
+example telnet constant equivalent tcp second form constant highly convenient readable brings subtle problem 
+names domain systems correspond different ports exam ple tcp udp 
+type domain simple port value list port values 
+accordingly constant domain expressions dst port domain ambiguous value intended 
+return point shortly 
+values type port may compared equality ordering example tcp telnet yields true operated 
+networking type provided corresponding ip address 
+represented internally unsigned bit integers scripts operations performed comparisons equality inequality built function provides masking discussed 
+constants type addr familiar dotted quad format lie 
+interesting hostname constants 
+bro type corresponding internet hostnames hostnames correspond multiple ip addresses quickly runs ambiguities comparing hostname 
+bro support hostnames constants 
+series identifiers delimited dots forms hostname constant example lbl gov www microsoft com hostname constants writing corresponds distinct ip addresses 
+value hostname constant alist containing elements 
+lists lists associated constants discussed expressions play central role discussed 
+aggregate types 
+bro supports number aggregate types 
+collection elements arbitrary type 
+example predefined conn id type hold connection identifiers defined run time initialization file type conn id record orig addr orig port resp addr resp port orig resp elements fields hold connection originator responder ip addresses 
+similarly orig hold originator responder ports 
+record fields accessed operator 
+specifying security policies particularly useful bro type 
+bro tables components yield type 
+indices may atomic non aggregate type record types recursively expanded elements comprised atomic types 
+bro tables provide form associative array 
+example table port string indexed port value yielding string table conn id ftp session info indexed id record equivalently addr yields session info record result 
+closely related table types set types 
+types yield value 
+purpose maintain collections tuples expressed terms set indices 
+examples clarify useful 
+aggregate type supported 
+support files presently crude script open files writing appending pass variable command specify write 
+files simple ascii 
+plan extend files support reading ascii parsing binary typed reading writing 
+note key type missing pattern supporting regular expression matching text 
+plan add patterns near 
+alluded type holds zero instances value 
+currently type directly available bro script writer implicitly hostname constants 
+primarily internal script interpreter initializing variables describe 
+operators bro provides number operators assume reader familiar detail 
+assignment done table set indexing function invocation event generation 
+numeric variables incremented decremented 
+record fields accessed avoid ambiguity hostname constants 
+assignment aggregate values shallow variable refers aggregate value right hand side assignment expression 
+choice facilitate performance semantics differ 
+may add operator construct deep copies 
+perspective novel operators 
+infix operators yield bool values depending index table set 
+example sensitive services aset indexed single port tcp sensitive services returns true set element corresponding index tcp port false element 
+similarly okay aset indexed source address destination address rpc service number src addr dst addr serv rpc okay yields true ordered triple index okay 
+operator simply returns boolean negation operator 
+presently indexing table set value correspond elements leads run time error operations need preceded tests 
+find entirely satisfying plan add mechanism optionally specifying action take cases table basis 
+bro includes number predefined functions perform operations directly available language 
+interesting fmt provides sprintf style formatting printing manipulating strings edit returns copy string edited editing characters currently knows single character deletions mask addr takes addr returns addr corresponding top bits open close manipulate files network time returns timestamp received packet getenv provides access environment variables skip processing marks connection requiring analysis set record packets instructs event engine record connection packets syn fin rst recorded parse ftp port takes ftp port command returns record corresponding addr 
+variables bro supports levels scoping local function event handler global script 
+experience shown benefit adding third intermediate level scoping part module object facility simple scoping 
+local variables declared declarations come inside body function event handler 
+requirement declare variables function 
+scope variable ranges point declaration body 
+global variables declared keyword global declarations come outside function bodies 
+type declaration keyword replaced indicates variable value constant changed 
+syntactically variable declaration looks class identifier type init class local global scope const qualifier name variable optional type optional initialization value 
+specified 
+naturally type initialization agree specified type 
+type variable marked having value attempting access value setting results run time error 
+initializer specified bro infers variable type form initializer 
+proves quite convenient ease complex tables sets initialized 
+example const irc tcp tcp tcp infers type port const ftp serv ftp lbl gov www lbl gov infers type addr serv initializes consist ip addresses lbl gov www lbl gov noted may encompass addresses 
+bro infers compound indices notation const allowed services ftp lbl gov ftp ftp lbl gov smtp ftp lbl gov auth ftp lbl gov tcp www lbl gov ftp www lbl gov smtp www lbl gov auth www lbl gov tcp nntp lbl gov nntp results allowed services having type set addr port 
+hostname constants may result ip address 
+time bro encounters list values initialization replicates corresponding index 
+furthermore explicitly introduce lists initializers enclosing series values compatible types written const allowed services set addr port ftp lbl gov ftp smtp auth tcp www lbl gov ftp smtp auth tcp nntp lbl gov nntp cost initialization bro algorithm inferring variable type initializer currently gets confused embedded lists type needs explicitly supplied shown 
+addition previously defined global variable initialization subsequent global variable 
+variable fashion aset indices expanded enclosed list 
+simplified const allowed services set addr port ftp serv ftp smtp auth tcp nntp lbl gov nntp initializing table values looks similar difference table initializer includes yield value 
+example global port names tcp echo tcp discard tcp infers type port string 
+find forms initialization shorthand syntactic sugar 
+allow define large tables succinct fashion referring previously defined objects concisely capturing forms replication table specify intricate policy relationships fashion easy write easy verify 
+certainly prefer final definition services predecessors terms knowing exactly set consists 
+clarity conciseness important advantage emphasis tables sets speed 
+consider common problem attempting determine access allowed service host conceptually ftp lbl gov www lbl gov ftp smtp 
+nntp lbl gov nntp simply allowed services okay 
+operation translates single hash table lookup avoiding clearly showing intent test 
+statements bro currently supports modest group statements far sufficient 
+style return expression evaluation statements print list expressions stdout default log list expressions add element aset delete element set table generates new event 
+particular language support looping style construct 
+wary loops event handlers lead arbitrarily large processing delays turn lead packet filter drops 
+wanted see adequately express security policies resorting loops confidence event handled quickly 
+far experiment successful 
+looping possible recursion functions calling event handlers generating events need resort 
+group sets statements blocks enclosing fg 
+function definitions look function endpoint id addr port string port names return fmt port names return fmt event handler definitions look function replaced specify return type 
+see appendix example 
+functions invoked usual way expressions specified function name followed arguments enclosed parentheses 
+events generated similar fashion keyword event handler name argument list 
+events return values processed asynchronously event generation statement expression 
+bro allows global statements part function event handler definition 
+executed parsing full script course invoke functions generate events 
+event engine generates events different phases operation bro init operation bro done terminate bro signal receives unix signal 
+difference defining functions defining event handlers allows multiple different definitions event handler 
+event generated instance handler invoked turn order appear script 
+example different conceptual modules define bro init handlers take care initialization 
+find considerably simplifies task creating modular sets event handlers anticipate requiring greater control exact order invokes multiple handlers 
+implementation issues implemented bro event engine script interpreter currently lines 
+section discuss significant implementation decisions tradeoffs 
+defer discussion bro defends attacks monitoring system postpone application specific issues discussion benefits notions developed 
+single threaded design 
+event handling lies heart system natural consider multi threaded design thread active event handler 
+far resisted approach concerns lead subtle race conditions bro scripts 
+important consequence single threaded design system careful initiating activity may potentially block waiting resource leading packet filter drops engine fails consume incoming traffic 
+particular concern performing domain name system dns lookups take seconds complete time 
+currently bro performs lookups parsing input file want able address hostname translations fly generate clearer messages detect certain types attacks 
+consequently bro includes customized nonblocking dns routines perform dns lookups asynchronously 
+may adopt multi threaded design 
+possibility evolving bro distributed design loosely coupled multiple bro separate processors monitor network link 
+bro watch different type traffic nfs communicate high level convey current threat information 
+managing timers 
+bro uses numerous timers internally operations timing connection establishment attempt 
+thousands timers pending moment 
+consequently important timers lightweight quick set expire 
+initial implementation single priority heap attractive insert delete operations require log time heap contains elements 
+heap grows quite large hostile port scan creates hundreds new connections second overhead significant 
+consequently perceived need redesign timers bring overhead closer 
+achieve bro process converted calendar queues br 
+related issue managing timers concerns exactly expire timers 
+bro derives notion time timestamps provided libpcap packet delivers 
+clock advances time element timer queue bro begins removing timers queue processing systems dids csm orchestrate multiple monitors watching multiple network links order track users move machine machine 
+differ envision bro require host network run monitor 
+expiration continuing queue empty element timestamp current time 
+approach flawed situations port scans event engine may find needs expire hundreds timers suddenly due clock advanced large amount due lull incoming traffic 
+clearly sacrifice exactness timers expired expire single advance clock expire timers processing lull precisely time excess cpu cycles available waiting packet arrive lull 
+changes part current revisions bro timer management 
+interpreting vs compiling 
+presently bro interprets policy script parses script tree objects reflect syntax tree ast executes portions tree needed invoking virtual evaluation method root subtree 
+method turn recursively invokes evaluation methods children 
+design virtues simplicity ease debugging comes cost considerable overhead 
+inception readily admit compilation low level virtual machine 
+execution profiles current implementation indicate interpretive overhead significant anticipate developing compiler optimizer 
+current interpreter simple constant folding peephole optimization building ast 
+interpreter introduced implementation problem 
+structuring interpreter recursively invokes virtual evaluation methods ast wind tying bro evaluation stack run time stack 
+consequently easily bundle bro function execution state closure execute point time 
+functionality bro scripts timers available semantics timers execute block statements timer expires including access local variables function event handler scheduling timer 
+adding timers bro require minimum implementing execution stack bro scripts separate interpreter 
+checkpointing 
+run bro continuously monitor network 
+need periodically checkpoint operation reclaim memory tied remembering state long dormant connections don timers scripting language see collect snapshot archiving line analysis discussed 
+checkpointing currently stage process 
+run new instance bro parses policy script resolves dns names 
+non blocking dns routines bro perform large number lookups parallel timing lookup attempts chooses 
+lookup compares results may previously cached generates corresponding events mapping valid mapping time lookup mapping changed 
+updates dns cache file exits 
+second stage run instance bro time specifying consult dns cache perform lookups 
+works directly cache starts quickly 
+waiting short interval send signal longrunning bro telling terminate 
+exits checkpointing complete 
+find checkpointing deficient ways 
+simpler coordinate checkpoint new instance bro directly signal old instance announce ready take monitoring 
+second important currently state survives checkpointing 
+particular older bro identified suspect activity watching particularly closely say recording packets information lost new bro takes 
+clearly need fix 
+line analysis 
+mentioned reason checkpointing system facilitate line analysis 
+step analysis copy libpcap save file files generated policy script analysis machine 
+policy script generates files summary connection activity including starting time duration size direction protocol endpoints ip addresses connection state additional information username identified summary network interface packet filter statistics list generated log messages summaries finger ftp commands list unusual networking events 
+regarding event engine identifies different types unusual behavior incorrect connection terminations checksum errors packet length mismatches protocol violations 
+generates conn weird net weird event identifying behavior predefined string 
+policy script uses string count map strings different values ignore file log meaning ignore behavior entirely record anomaly file log realtime notification record file 
+anomalies prove surprisingly common typical day anomaly file contains order entries script suppresses duplicate messages 
+copied files form archival record day traffic 
+keep files indefinitely 
+prove invaluable discover break occurred weeks months past 
+addition identified attacking site run archive find hosts may attacked monitoring failed detect quite common example attacker obtained list passwords password sniffer 
+addition checkpoint analysis machine studies traffic logs looking possible attacks significant port scans address sweeps 
+intend eventually move analysis real time portion system waits adding timers bro time connection state avoiding consuming huge amounts memory trying remember distinct port address host connected 
+line analysis generates traffic summary highlighting busiest hosts giving volume number connections bytes transferred due different applications 
+writing typical day site engages connections transferring gb data 
+great majority connections highest byte volume comes ftp data nntp network news ordering variable 
+attacks monitor section discuss difficult problem defending monitor attacks 
+defer discussion bro application specific processing section elements processing reflect attempts defeat types attacks describe 
+discussed assume attackers full access monitor algorithms source code control connection endpoints 
+addition assume cracker access bro policy script site customized keep protected 
+previous addressed general problem testing intrusion detection systems focussed correctness system terms recognize attacks claimed 
+knowledge literature contain discussion attacks specifically aimed subverting network intrusion detection system discussion general problem monitor failing keep due high load 
+purposes classify network monitor attacks categories overload crash 
+remainder section defines category briefly discusses degree bro meets class threat 
+overload attacks term attack overload goal attack monitor point fails keep data stream process 
+attack phases attacker drives monitor point overload second attacker attempts network intrusion 
+monitor ordinarily detect second phase fails fails non negligible probability longer tracking data necessary detect current threat 
+consideration attack detected monitor sufficiently overwhelmed complicates overload attacks turn provides defensive strategy leave doubt exact power typical load monitor 
+defensive strategy monitor shed load unduly stressed see ct discussion shedding load different context 
+example monitor decide cease capture packets form high proportion traffic 
+course attacker knows form monitor exploit consequent blindness launch undetected attack 
+bro particular develop overload attack inspecting see increase data flow 
+step send packets match packet filter packet streams turn generate events third events lead logging recording disk 
+particularly easy libpcap filter bro fixed 
+defense hardware platform sufficient processing power keep high volume filtered traffic consideration lead elaborating goal packet filter drops 
+second level attack causing engine generate large volume events bit difficult achieve bro events designed lightweight 
+events policy specifies quite bit provide leverage attack level assume attacker access policy scripts 
+consideration attack final level elevating logging recording rate difficult attacker necessarily know events lead logging 
+help defend overload attacks event engine generates net stats update event seconds 
+value event gives number packets received number dropped packet filter due insufficient buffer number reported dropped network interface kernel failed consume quickly 
+bro scripts basic information available determine monitor overloaded 
+crash attacks crash attacks aim knock monitor completely action causing fault run resources 
+overload attack crash attack phases attacker crashes monitor second proceed intrusion 
+crash attacks subtle overload attacks 
+careful source code analysis may possible find series packets just received monitor causes fault due coding error 
+effect immediate violent 
+defend form crash attack careful coding testing 
+type crash attack harder defend causes monitor exhaust available resources dynamic memory disk space 
+monitor memory leaks needs maintain state active traffic 
+attack create traffic consumes large amount state 
+bro supports timers policy scripts attack difficult harder predict necessary level bogus traffic 
+attacks disk space likewise difficult knows available disk capacity 
+addition monitor continue run disk space available sacrificing archival record producing real time notifications disk space attack fail mask follow attack 
+bro provides features aid defending crash attacks 
+event engine maintains watchdog timer expires seconds 
+timer bro internal timer unix alarm expiration watchdog handler checks see event engine failed finish processing packet subsequent events working seconds 
+watchdog presumes engine sort processing jam due coding error due excessive time spent managing resources terminates monitor process logging fact course generating core image analysis 
+feature particularly useful fact coupled second feature script runs bro detects unduly exits logs fact executes copy tcpdump records traffic monitor captured 
+crash attacks logged allow subsequent intrusion attempt go evade real time detection 
+window opportunity time bro monitor crashes runs 
+attacker predict exactly window occurs evade detection 
+determining window difficult knowledge exact configuration monitoring system 
+attacks attack attacker attempts mislead monitor meaning traffic analyzes 
+attacks particularly difficult defend overload crash attacks successful leave traces occurred attacks quite subtle 
+access monitor source code particularly aids devising attacks 
+briefly discussed example attack attacker sends text embedded nul hope monitor text nul 
+form attack fragmented ip datagrams attempt elude monitors fail reassemble ip fragments attack known firewall community 
+key principle find traffic pattern interpreted monitor different fashion receiving endpoint 
+thwart attacks developed bro attempted stage analyze explicit implicit assumptions system violating attack successfully elude detection 
+difficult process claims 
+remainder section focus attacks integrity byte stream monitored tcp connection 
+look attacks aimed hiding keywords interactive text 
+analyze tcp connection application level requires extracting payload data tcp packet reassembling proper sequence 
+consider spectrum approaches problem ranging simplest easiest defeat increasingly resilient 
+scanning data individual packets remembering connection state easiest obviously suffers major problems time text interest happens straddle boundary packet text go unobserved 
+split happen simply accident certainly malicious intent 
+systems address problem remembering previously seen text certain degree current line 
+approach fails soon sequence hole appears time packet missing due loss order delivery resulting discontinuity data stream mask presence key text partially 
+step fully reassemble tcp data stream sequence numbers associated packet 
+doing requires maintaining list contiguous data blocks received far fitting data new packets blocks merging adjacent blocks possible 
+moment scan text connection highest sequence byte received 
+careful keeping track noncontiguous data blocks suffice prevent tcp attack 
+key observation attacker manipulate packets tcp sends monitor sees particular packet endpoint 
+way doing transmit packet invalid tcp checksum 
+particular attack dealt checksumming packet discarding fail monitor needs anyway correctly tracks endpoint state presence honest data corruption errors particularly rare pa :10.1.1.134.20
+way launch packet ip time live ttl field sufficient carry packet past monitoring point insufficient carry way endpoint 
+site complex topology may difficult monitor detect attack 
+third way possible final path attacked endpoint happens smaller maximum transmission unit mtu internet path attacker host monitoring point 
+attacker sends packet size exceeding mtu ip don fragment header bit set 
+packet transit past monitoring point discarded router point mtu narrows 
+manipulating packets fashion attacker send innocuous text benefit monitor user nice retransmit sequence numbers attack text user root time allowing packets traverse way endpoint 
+monitor simply discards retransmitted data inspecting mistakenly believe endpoint received innocuous text fail detect attack 
+defense attack observe retransmitted packet data wholly partially overlaps previously seen data compare data overlaps sound alarm bro generate event disagree 
+tcp retransmit data originally sent disagreement due broken tcp unfortunately observed undetected data corruption corruption checksum fails catch attack 
+argued monitor retain record previously transmitted data sequence outof sequence 
+question arises long monitor keep data 
+keeps lifetime connection may require amounts memory time happens particularly large connection infrequent pa 
+discard data blocks soon possible reclaim associated memory 
+clearly safely discard blocks sequencing hole lose opportunity scan text crosses sequence hole block 
+determine safe discard sequence data 
+assumption attacker controls connection endpoints 
+suppose stream interest flows host host attacker controls unable manipulate data packets attack safely discard data sequence opportunity analyze 
+hand control assumption traffic see reflects correct functioning tcp assumes anti spoofing filters attacker forge bogus traffic coming 
+particular trust see sequence number received data sequence point tcp deliver delivered data application running particular tcp accept retransmitted data sequence indicated interest data 
+monitor sees safely release memory associated data sequence application specific processing finish overview bro discussion additional processing applications currently knows finger ftp telnet 
+admittedly just small portion different internet applications attacks bro effectiveness benefit greatly added 
+fortunately general system meets goal extensibility adding new applications bro major headache robustly interpreting application protocol quite straight forward matter deriving class analyze connection traffic devising set events corresponding significant elements application 
+finger applications finger user information service zi 
+structurally finger simple connection originator sends single line terminated carriage return line feed specifying user request information 
+optional flag requests full verbose output 
+responder returns information deems appropriate multiple lines text closes connection 
+bro generates finger request event monitors complete finger request 
+handler event looks event finger request connection user string full bool site policy finger requests includes testing possible buffer overflow attacks checking user list sensitive user id privileged accounts 
+see appendix discussion finger analysis integrated bro 
+bro currently generate analogous finger reply event 
+reasons view primary threat finger come originator responder adding finger reply lower priority manipulating multi line strings bro clumsy iteration operator easily moving table count string 
+final note event engine finds policy script define finger request handler bother creating finger specific analyzers new finger connections 
+general event engine tries determine early possible user defined particular handler avoids undertaking associated generating corresponding event 
+ftp file transfer protocol pr complex finger protocol highly structured easy parse interpreting ftp dialog straight forward 
+ftp requests bro parses line sent connection originator command word argument remainder splitting instance whitespace finds converting command uppercase circumvent problems policy script testing store file commands attacker remote ftp server happily accept 
+generates ftp request event corresponding connection arguments 
+ftp replies status code number followed accompanying text 
+replies indicate continue line 
+accordingly line reply event engine generates reply code text flag indicating continuation corresponding connection arguments 
+far event engine concerned lines straight forward 
+interesting ftp remaining done lines site 
+request han keeps track distinct ftp sessions pulls usernames test list sensitive id annotate connection general summary ftp request manipulates file checks access sensitive files 
+checks depend context example guest anonymous user attempt manipulate user configuration files users doing fine 
+final analysis step ftp request events parse port request extract hostname tcp port associated upcoming transfer 
+ftp protocol uses multiple tcp connections control information user requests dynamically created data transfer 
+important step enables script tell subsequent connections belong ftp session 
+site policy allow ftp access particular servers access servers merits alarm parsing port request impossible distinguish legitimate ftp data transfer connection illicit non ftp connection 
+consequently script keeps track pending data transfer connections encounters marks data applications known port associated transfers standard require 
+note addition correctly identifying ftp related traffic requests possible detect ftp bounce attacks 
+attacks malicious ftp client instructs ftp server open data transfer connection back third victim site 
+client manipulate server uploading data arbitrary service victim site effectively port scan victim site client multiple requests observing completion status subsequent requests 
+script flags port requests attempt redirection data transfer connection 
+interestingly added check easy months monitored subsequent ftp bounce attacks 
+reply events simply formatting succinct line summary request result recording ftp activity log 
+addition ftp request structure similar port request ftp server client determines specifics subsequent data transfer connection 
+consequently script subjects replies analysis requests 
+prevent different remote host connecting data transfer port offered server reply 
+hard see occur putting test simple unfortunately false alarms due multi homed clients heuristics reduce months adding triggered due attacker way ftp evidently way disguise trail 
+services remote procedure call rpc defined sr listen requests wellknown port pick arbitrary port initialized 
+register port service running machine 
+needs run known port clients want access service contact tells port contact order reach service 
+second port may tcp udp access depending client requests 
+monitoring traffic detect attempted access number sensitive rpc services nfs yp cases attacker learns port services way port scanning 
+service built top rpc turn uses xdr external data representation standard sr 
+furthermore rpc top tcp udp typically listens known tcp port wellknown udp port port 
+consequently adding analysis bro required adding generic rpc analyzer tcp udp specific analyzers unwrap different ways rpcs embedded tcp udp packets xdr analyzer specific analyzer 
+generates pairs events request reply actions supports null call add binding service port remove binding look binding dump entire table bindings look service call directly requiring second connection 
+monitoring headache means rpc service potentially accessed directly connection 
+policy script traffic fairly large lines 
+concerns requests allow pairs hosts particularly nfs access 
+telnet final application currently built bro telnet service remote interactive access pr 
+significant difficulties monitoring telnet traffic 
+ftp telnet traffic virtually unstructured 
+nice user xyz directives trivial identify account associated activity employ series heuristics hope best 
+problem telnet particularly susceptible attacks heuristics holes attacker slip undetected 
+goal determine telnet usernames robust fashion discuss remainder section 
+scanning telnet sessions strings reflecting questionable activity course highly interesting wait add regular expression matching bro 
+recognizing authentication dialog 
+facet analyzing telnet activity accurately track initial authentication dialog extract usernames associated login failures successes 
+initially attempted build state machine track various authentication steps waiting username scanning login prompt comes username processing line oriented full newline terminated prompt line appear username entered waiting password scanning password prompt looking indication password accepted rejected case process repeats 
+approach founders great variety authentication dialogs different operating systems prompt passwords re prompt passwords login names password failure utilize steps password authentication extract usernames environment variables 
+working simpler approach associating particular strings password particular information attempting track authentication states explicitly 
+appears better workings certainly easier follow 
+telnet analyzer generates telnet logged determining user successfully authenticated telnet failure user failed authenticate authentication skipped recognizes authentication dialog specified policy script requiring analysis telnet confused analyzer confused regarding authentication dialog 
+example trigger full packet recording subsequent session manual analysis 
+type ahead 
+basic difficulty complicates analysis type ahead 
+rely entered string corresponding current prompt line 
+keep track user input lines separately consume observe different prompts 
+example analyzer scans password associates prompt unread line user type ahead buffer consumes line 
+hazard approach telnet server flushes type ahead buffer due part authentication dialog explicit signal user monitor misses fact sync 
+opens monitor attack attacker passes innocuous string username policy script turn fails recognize attacker fact authenticated privileged user 
+fix problem reflecting strategy adopt general keystroke editing problem discussed test usernames passwords list sensitive usernames 
+careful type ahead opens door attack 
+example attacker type ahead string password echoed telnet server interpreted analyzer corresponding password prompt fact dialog different state 
+analyzer defends attacks checking string different dialog strings knows generating possible telnet match 
+keystroke editing 
+usernames disguised due keystroke editing 
+example recognize rb del oot correspond username root assuming del single character deletion operator 
+find assumption problematic systems del bs 
+address problem applying forms editing usernames yielding possibly different strings script assesses turn 
+example string rob del bs bs ot tested directly ro bs bs ot root 
+editing limited deleting individual characters 
+systems support deleting entire words lines allow access previously typed lines escape sequence 
+word line deletion allow attacker hide username tests sensitive usernames check embedded occurrence username input text 
+history access previous text problematic presently analyzer recognizes operating system supports vms expands escape sequence text previous line 
+telnet options 
+telnet protocol supports rich complex mechanism exchanging options client server pr rfcs discussing different telnet options 
+ignore possible presence options analysis attacker embed middle text transmit order disguise intent example ro option ot 
+telnet server strip option passing remaining text authentication system 
+
+hand parsing options yields benefits detect connections successfully negotiate encrypt data session skip subsequent analysis confused events analyzing options authentication example kerberos transmit user environment variables systems user default username subsequent authentication 
+status performance directions bro operated continuously april integral part site security system 
+initially included general tcp ip analysis time permitted added additional modules discussed plan add 
+presently implementation lines lines lines boilerplate specific site 
+runs digital unix freebsd irix sunos solaris operating systems 
+generates mb connection summaries day average real time notifications varies greatly 
+notifications innocuous developers system suppress infrequently detect break attempts 
+operation system resulted far email messages incident reports filed cert number accounts deactivated sites couple incidents involving law enforcement 
+system generally operates incurring packet drops 
+fddi ring runs moderately utilized trace pm busy hour reflects traffic level packets sec mbps sustained full hour peaks packets sec 
+packet filter discards great deal due filtering primarily syn fin rst control bits traffic belongs networks routinely monitor link shared large neighbor institution 
+busy hour monitor may receive packets matching filter peaks sec 
+order preliminary assessment system stress ran minute period interesting networks filter resulting higher fraction traffic accepted packet filter 
+period filter accepted average packets sec peaks sec 
+filter reported dropped packets 
+note hardware platform longer state art 
+addition developing application analysis modules see number avenues 
+discussed compiling bro scripts devising mechanisms distribute monitoring multiple cpus high priority 
+interested extending bpf better support monitoring adding lookup tables variable length snapshots 
+interesting direction add teeth monitoring form actively terminating misbehaving connections sending rst packets endpoints communicating intermediary routers 
+form reactive firewall fit particularly environments need strike balance security openness 
+bro publicly available source code form see www nrg ee lbl gov bro info html release information 
+hope benefit community turn benefit community efforts enhance 
+gratefully acknowledge digital equipment western research laboratory contributing alpha system developing operating bro high speeds possible 
+particularly jeff mogul instrumental arranging wrl external research program 
+craig leres 
+bro benefited greatly discussions 
+craig wrote calendar queue non blocking dns routines discussed 
+appreciation scott john alpha testing bro contributing portability fixes enhancements 
+possible support enthusiasm mark rosenberg van jacobson stu dave stevens appreciated 
+example tracking finger traffic appendix give overview different elements bro come monitoring finger traffic 
+event engine class derived connection class 
+bro encounters new connection service port instantiates object tcp connection object unrecognized port 
+redefines virtual function invoked connection object created void resp new tcp endpoint orig new tcp resp corresponding responder finger server side connection initialized ordinary tcp endpoint object bro presently look inside finger replies 
+orig finger client side initialized tcp object means bro track contents side connection furthermore deliver contents line oriented fashion function int newline tcp endpoint double char line line skip whitespace line check int long line toupper line long line skip whitespace line val list vl new val list vl append vl append new line vl append new val long type bool mgr finger request vl return newline skips whitespace request scans indicator requests verbose finger output moves past 
+creates val list object holds list generic bro val objects 
+assigned generic connection identifier value see second containing finger request third bool indicating request verbose 
+penultimate line queues new finger request event corresponding list values arguments return indicates done memory associated line copy memory reclaimed caller 
+connection identifier discussed defined bro connection record type endpoint record size count state count type connection record id conn id orig endpoint resp endpoint start time time duration interval service string empty service determined addl string hot count hot don know hot id field conn id record discussed 
+orig correspond connection originator responder record consisting size number bytes transferred endpoint far endpoint tcp state syn sent established closed 
+better expressed enumerated type count may add bro 
+start time field reflects connection packet seen long connection existed service corresponds name service empty string identified 
+convention addl holds additional information associated connection better string sort union generic type bro supported 
+convention policy script finds potentially suspicious connection 
+corresponding policy script global hot names root lp uucp global finger log open getenv bro id finger log fmt finger getenv bro id event finger request connection request string full bool byte len request request fmt sub bytes request hot request hot names hot local req request fmt request addl additional request 
+req fmt req full req fmt req local msg fmt id orig id resp req hot log fmt finger msg print finger log fmt start time msg addl addl req fmt addl req names 
+inthe line finger log initialized named finger log id environment variable set name derived function 
+request event handler follows 
+takes arguments corresponding values added val list 
+checks request excessively long truncates increments field connection information record 
+bro built functions named terms bytes string assumptions nul termination arguments particular byte len returns length argument including final nul byte 
+script checks request corresponds entries hot names set 
+marks connection hot initialize local quoted ver sion request request empty finger protocol indicates request type changed 
+event handler stores finger request connection record field see line checks see field contains request 
+seeing multiple requests single finger connection 
+allowed finger protocol doesn mean won see 
+particular imagine attack attacker queries innocuous name request sensitive name second depending finger server written may respond 
+script catch fully processes request needs careful keep global state corresponding connection addl field complete 
+marks additional requests enclosing parentheses prepends asterisk field additional request visual inspection finger logs requests immediately stand 
+msg local variable holds basic description finger request 
+function knows format ip id orig andc id resp dotted quads connection marked hot just previously completely different event handler script generates real time notification 
+case records request finger log file 
+updates field reflect request flag multiple requests discussed 
+entries log file look feng lines split 
+real time notifications look quite similar keyword finger added avoid ambiguity types real time notification 
+see occasional multiple requests 
+far appeared fully innocuous 
+br brown calendar queues fast priority queue implementation simulation event set problem communications acm pp 
+oct 
+ct compton tennenhouse collaborative load shedding media applications proc 
+international conference multimedia computing systems boston ma may 
+internet security systems realsecure tm www iss net prod rs html 
+jacobson leres mccanne tcpdump available anonymous ftp ftp ee lbl gov jun 
+mj mccanne jacobson bsd packet filter new architecture userlevel packet capture proc 
+winter usenix conference san diego ca 
+mlj mccanne leres jacobson libpcap available anonymous ftp ftp ee lbl gov 
+mukherjee heberlein levitt network intrusion detection ieee network pp 
+may jun 
+ne network flight recorder network flight recorder www nfr com 
+pa paxson empirically derived analytic models wide area tcp connections ieee acm transactions networking pp 
+aug 
+pa paxson internet packet dynamics proc :10.1.1.134.20
+sigcomm cannes france sep 
+pr postel reynolds telnet protocol specification rfc network information center sri international menlo park ca may 
+pr postel reynolds telnet option specifications rfc network information center sri international menlo park ca may 
+pr postel reynolds file transfer protocol ftp rfc network information center sri international menlo park ca oct 
+zhang chung mukherjee olsson methodology testing intrusion detection systems ieee transactions software engineering pp 
+oct 
+wall implementing generalized tool network monitoring proc 
+lisa usenix th systems administration conference san diego oct 
+sr srinivasan rpc remote procedure call protocol specification version rfc ddn network information center aug 
+sr srinivasan xdr external data representation standard rfc ddn network information center aug 
+touch technologies www com nsa www html 
+wh netranger tm www com 
+white cooperating security managers peer intrusion detection system ieee network pp 
+jan feb 
+zi zimmerman finger user information protocol rfc network information center sri international menlo park ca dec 

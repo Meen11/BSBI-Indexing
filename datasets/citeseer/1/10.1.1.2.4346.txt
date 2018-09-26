@@ -1,0 +1,518 @@
+clotho decoupling memory page layout storage organization shao jiri schindler steven schlosser ailamaki gregory ganger database application performance depends utilization memory hierarchy smart data placement plays central role increasing locality improving memory utilization 
+existing techniques optimize accesses levels memory hierarchy different workloads storage level uses different technology cache memory disks application accesses data different patterns 
+clotho new buffer pool storage management architecture decouples inmemory page layout data organization non volatile storage devices enable independent data layout design level storage hierarchy 
+clotho maximize cache memory utilization transparently appropriate data layouts memory non volatile storage dynamically synthesizing data pages follow application access patterns level needed 
+clotho creates memory pages individually tailored compound dynamically changing workloads enables efficient different storage technologies disk arrays mems storage devices 
+describes clotho design prototype implementation evaluates performance variety workloads disk arrays simulated mems storage devices 
+page structure storage organization subject numerous studies play central role database system performance 
+research continues single data organization serves needs systems 
+particular access patterns resulting queries posed different workloads vary emc intel permission copy fee part material granted provided copies distributed direct commercial advantage vldb copyright notice title publication date appear notice copying permission large data base endowment 
+copy republish requires fee special permission endowment 
+proceedings th vldb conference toronto canada carnegie mellon university significantly 
+query instance access attributes table full record access accesses subset partial record access 
+accesses typical transactional oltp applications insert delete statements require entire record read written partial record accesses met decision support system dss queries 
+executing compound workloads query may access records sequentially access records randomly non clustered index 
+currently database storage managers implement single page layout storage organization scheme utilized applications running 
+result environment variety workloads subset query types serviced 
+data page layout techniques proposed literature targeting different query type 
+notably ary storage model nsm stores records consecutively optimizing full record accesses penalizing partial record sequential scans 
+contrast decomposition storage model dsm stores values attribute separate table optimizing accesses penalizing queries need entire record 
+pax optimizes cache performance memory utilization 
+mirrors reduce dsm record reconstruction cost optimized structure scan operators need keep nsm organized copy database support full record access queries 
+previously proposed schemes provides universally efficient solution fundamental assumption pages main memory contents stored disk 
+proposes clotho buffer pool storage management architecture decouples memory page layout non volatile storage data organization 
+decoupling allows memory page contents determined dynamically queries served offers significant advantages 
+optimizes storage access memory utilization requesting data accessed query 
+second allows new twodimensional storage mechanisms exploited mitigate trade nsm dsm storage models 
+clotho chooses data layouts level memory hierarchy match nsm performs best dsm performs best outperforms query mixes access types 
+leverages atropos logical volume manager efficiently access dimensional data structures stored disk arrays mems storage devices 
+describes evaluates prototype implementation clotho shore database storage manager 
+experiments disk arrays show single storage organization performance dss oltp workloads comparable page layouts best suited respective workload dsm pax respectively 
+experiments simulated confirm similar benefits realized devices 
+remainder organized follows 
+section gives background related 
+section describes architecture database system enables decoupling memory storage layouts 
+section describes design buffer pool manager supports query specific memory page layout 
+section describes design volume manager allows efficient access arbitrary subset table attributes needed query 
+section describes initial implementation section evaluates implementation database workloads disk array logical volume simulated 
+background related conventional relational database systems store data fixed size pages typically kb 
+access individual records relation table requested query scan operator database system accesses main memory 
+accessing data page fetched non volatile storage logical volume disk array main memory 
+page basic allocation access unit non volatile storage 
+database storage manager facilitates access sends requests storage device fetch necessary blocks 
+single page contains header describing records contained laid 
+order retrieve data requested query scan operator understand page layout storage model 
+page layout determines records attributes relation stored single page storage model employed database system far reaching implications performance particular workload 
+page layout prevalent commercial database systems called ary storage model nsm optimized queries full record access common line transaction processing oltp workload 
+nsm stores attributes relation single page full records stored page 
+accessing full record accomplished accessing particular record consecutive memory locations 
+unwritten rule access consecutive logical blocks lbns storage device efficient random access storage manager maps single page consecutive lbns 
+entire page accessed single request 
+alternative page layout called decomposition storage model dsm optimized decision sup data cache memory memory storage organization nsm dsm pax oltp dss oltp dss table summary performance current page layouts 
+port systems dss workloads 
+dss queries typically access small number attributes data page touched memory scan operator dsm stores attribute page 
+ensure efficient storage device access storage manager maps dsm pages consecutive records containing attribute extents contiguous lbns 
+anticipation sequential scan records stored multiple pages storage manager prefetch pages extent single large efficient accessing page individually separate page layout optimized cpu cache performance called pax offers cpu memory performance individual attribute scans dss queries accesses oltp workloads 
+pax layout partitions data separate 
+single contains data attribute occupies consecutive memory locations 
+collectively single page contains attributes set records 
+scanning individual attributes pax accesses consecutive memory locations take advantage cache line prefetch logic 
+proper alignment cache line sizes single cache effectively prefetch data records amortizing high latency memory access compared cache access 
+pax address performance 
+described storage models share characteristics 
+highly optimized workload type ii focus predominantly level memory hierarchy iii static data layout determined priori relation created iv apply layout levels memory hierarchy level unique different characteristics 
+consequence inherent performance trade offs layout arise workload changes 
+example nsm pax layouts waste memory capacity storage device bandwidth dss workloads data page touched 
+similarly dsm layout inefficient oltp queries accessing random full records 
+reconstruct full record attributes pages fetched joins record identifiers performed assemble full record 
+addition wasting memory capacity storage bandwidth access inefficient storage device level accessing pages results random page os 
+summary page layout exhibits performance specific type access specific level memory hierarchy 
+shown table 
+researchers proposed solutions address performance trade offs 
+proposed mirrors store data nsm dsm layouts eliminate need reload reorganize data access patterns change 
+workload type database system choose appropriate data organization 
+unfortunately approach doubles required storage space complicates data management physically different layouts maintained synchrony preserve data integrity 
+patel proposed data morphing technique reorganize data individual pages needs workloads change time 
+morphing takes place memory pages stored format storage device fine grained changes address trade offs involved accessing non volatile storage 
+multi resolution block storage model mbsm groups dsm table pages superpages improving dsm performance running decision support systems 
+database storage manager exploits unique disk drive characteristics improve performance dss workloads compound workloads consist dss oltp queries competing storage device 
+matches page allocation access policies leverage characteristics storage model different transparently stores memory nsm pages storage device logical blocks 
+promising new type storage device potential provide efficient accesses dimensional data 
+schlosser proposed data layout exploits inherent access parallelism 
+yu devised efficient mapping database tables layout takes advantage unique characteristics improve query performance 
+similarly schindler proposed data organization dimensional access database tables mapped logical volumes composed disk drives 
+initial works explore implications new data organization memory access performance 
+summary solutions address performance trade offs applicable level memory hierarchy 
+clotho builds previous uses decoupled data layout adapt dynamic changes workloads need maintain multiple copies data reorganize data layout compromise memory access efficiency 
+decoupling data layouts discussion previous section clear designing static scheme data placement memory non volatile storage performs different workloads different device types technologies difficult 
+accepting trade offs inherent particular page layout affects levels memory hierarchy propose new approach 
+level memory hierarchy vastly different performance characteristics data organization level different 
+clotho select id age id table name age jane john jim susan tom jerry jean kate storage format page page hdr id age jane john jim susan lbns page tom jerry jean kate memory format lbns lbns lbns unused space page page decoupled storage device memory layouts 
+ples memory data layout storage organization implements different data layouts tailored level compromising performance levels 
+challenge ensure decoupling works seamlessly current database systems 
+section introduces different data organizations describes key components clotho architecture 
+data organization clotho clotho allows decoupled data layouts different representations table memory storage levels 
+depicts example table attributes 
+storage level data organized pages 
+page contains attributes records page needs fetched retrieve full record 
+exploiting idea pax page organizes data group values attribute efficient predicate evaluation rest attributes page 
+ensure record reconstruction cost minimized regardless size page clotho allows device optimized methods placing contents page storage medium 
+clotho fully exploit sequential scan evaluating predicates places pages carefully device ensure near sequential semi sequential access reconstructing record 
+placement pages disk explained section 
+rightmost part depicts page memory representation page 
+page frame sized buffer pool manager order kb 
+page similar page contains attribute values grouped maximize processor cache performance 
+page page contains values attributes query accesses 
+query example uses page includes attributes maximizing memory utilization 
+note page uses data pages fill space saved omitting 
+rest refer page layout clotho storage model csm 
+system architecture difficulty building database system decouple memory page layout storage organization lies implementing necessary changes undue increase system code complexity 
+allow decoupled data layouts clotho changes parts database system components buffer pool manager storage manager 
+changes span limited areas components alter query processing interface 
+clotho takes advantages atropos logical volume manager lvm allows efficient access dimensional structures dimensions 
+shows relevant components database system highlight interplay clotho components 
+component independently take advantage enabling hardware os technologies level memory hierarchy hiding details rest system 
+section outlines role component 
+changes components explained sections details specific prototype implementation provided section 
+operators essentially predicated scan store procedures access data memory pages stored common buffer pool 
+take advantage query specific page layout pages leverages cpu cache characteristics cache prefetch logic efficient access data 
+buffer pool manager manages pages buffer pool enables sharing different queries need data 
+traditional buffer pool managers buffer page assumed schema contents corresponding relation 
+clotho page may contain subset table schema attributes 
+ensure sharing correctness updates high memory utilization clotho buffer pool manager maintains page specific schema denotes attributes stored buffered page page schema 
+challenge approach ensure minimal determining sharing partial overlapping concurrent queries minimal book keeping overhead 
+section details buffer pool manager operation detail 
+storage manager maps pages specific logical volume logical blocks called lbns 
+page format different memory layout storage manager rearranges page data fly pages query specific csm layout 
+traditional storage managers pages smallest access units clotho storage manager selectively retrieves portion single page 
+scatter gather direct memory access dma pieces individual delivered directly proper memory frame buffer pool arrive logical volume 
+storage manager simply sets appropriate vectors destination address ranges requested lbns 
+data placed directly destinations storage manager involvement need data shuffling extraneous memory copies 
+disk array operators 
+requests pages subset attributes payload buffer pool manager clotho storage manager storage interface exposes efficient access non contiguous blocks atropos logical volume manager buffer pool payload data directly placed scatter gather disk logical volume page hdr access payload disk interaction clotho components 
+efficiently access data variety access patterns storage manager relies explicit hints provided logical volume manager 
+hints convey lbns accessed efficiently clotho uses allocating pages 
+logical volume manager lvm maps volume lbns physical blocks underlying storage device 
+independent database system typically implemented storage system disk array 
+atropos lvm leverages device specific characteristics create mappings yield efficient access collection lbns 
+particular atropos storage interface exports functions establish explicit relationships individual lbns logical volume enable clotho storage manager effectively map pages individual lbns 
+function returns set consecutive lbns yield efficient access blocks mapped disk track 
+clotho maps containing attribute lbns efficient scans subset attributes 
+function returns set non contiguous lbns efficiently accessed parallel accessible lbns mapped different tips disks logical volume 
+clotho maps single page lbns 
+atropos lvm briefly described section detailed 
+clotho need rely atropos lvm create query specific pages 
+conventional map full page contiguous run lbns mapped discrete lbns 
+conventional access dimension efficient 
+benefits decoupled data layouts concept decoupling data layouts different levels memory hierarchy offers benefits 
+leveraging unique device characteristics 
+volatile main memory level clotho uses csm data layout maximizes processor cache utilization minimizing unnecessary accesses memory 
+csm organizes data pages groups attribute values ensure useful information brought processor caches 
+storage device level granularity accesses naturally coarser 
+objective maximize memory utilization types queries bringing buffer pool data query needs 
+query specific memory layout 
+memory organization decoupled storage layout clotho decide data needed particular query request needed data storage device arrange data fly organization best suited particular query needs 
+fine grained control data fetched stored puts pressure buffer pool storage system resources 
+requesting data needed storage device devote time servicing requests queries executing concurrently speed execution 
+dynamic adaptation changing workloads 
+system flexible data organization experience performance degradation query access patterns change time 
+systems static page layouts binding data representation workload occurs table creation binding done clotho query execution 
+system decoupled data organizations easily adapt changing workloads fine tune available resources contention 
+buffer pool manager clotho buffer pool manager organizes relational table data pages csm data layout 
+csm query optimized memory page layout stores subset attributes needed query 
+consequently page contain single attribute similar dsm attributes attributes set records similar nsm pax depending query needs 
+section describes buffer pool manager constructs maintains pages ensures data sharing consistency buffer pool 
+memory page layout depicts examples pages table attributes different sizes 
+design pages contain fixed size attributes 
+variable size attributes stored separately page layouts see section 
+page contains page header set containing data attribute collectively holding attributes needed queries 
+single attribute values stored consecutive memory locations maximize processor cache performance 
+current number records presence bits distributed 
+page handles fixed size attributes size determined time table creation 
+page start addr max rec 
+pages schema header pid block presence bits rec blocks full records 
+blocks blocks blocks page layout 
+pages max rec 
+schema header pid block rec presence bits blocks partial records 
+blocks blocks blocks blocks blocks page header stores information page id page number partial pages contained starting address page bit vector indicating schema page contents maximal number records fit page 
+depict pages complete partial records respectively 
+leftmost page created queries access full records rightmost page customized queries touching attributes 
+space left store partial records additional pages right 
+example single hold requested attributes pages increasing memory utilization factor 
+right side page list number storage device blocks occupies 
+example block bytes 
+depending relative attribute sizes fill page data pages may unused space 
+performing costly operations fill space choose leave unused 
+experiments show right page size aggressive prefetching unused space cause detectable performance deterioration details space utilization section 
+data sharing buffer pool concurrent queries necessarily access sets attributes concurrent sets accessed attributes may disjoint inclusive overlapping 
+clotho buffer pool manager maximize sharing ensuring memory space efficiency minimize book keeping keep buffer pool operations light weight maintain consistency presence updates 
+example query asks attributes query asks attributes 
+simple approach buffer manager create separate pages tailored query 
+approach ignores sharing possibilities case queries scan table concurrently 
+achieve better memory utilization buffer manager dynamically reorganize inside pages fetching needed values keeping track progress query dynamically creating new pages read query sch sch sch sch add sch schema list new sch sch sch sch sch add new sch list write query update delete insert full schema sch modify list full sch buffer pool manager algorithm 
+
+approach incurs book keeping overhead inefficient practice 
+clotho buffer pool manager balances memory utilization management complexity 
+frame buffer pool stores page conforms page schema bitvector describes attributes holds 
+active table keep list different page schemas pages belong table currently buffer pool 
+active query keeps query schema bitvector describes attributes query needs accessed table 
+query starts executing buffer pool manager notes query schema inspects active page schemas 
+new query schema accesses disjoint set attributes active queries buffer pool manager creates new page 
+merges new schema efficient overlapping memory 
+algorithm modifies page schema list sch initially empty query schema sch 
+query complete system removes corresponding query schema list adjusts page schema list accordingly currently active query schemas 
+query execution page schema list dynamically adapts changing workloads depending concurrency degree overlaps attribute sets accessed queries 
+list ensures queries having common attributes share data buffer pool queries disjoint attributes affect 
+example comes buffer pool manager creates pages 
+arrives buffer pool manager create page queries 
+finishes pages created 
+maintaining data consistency algorithm buffer pool may contain multiple copies 
+ensure data consistency transaction modifies page clotho uses mechanisms described fetch latest copy data queries 
+looking record traditional database buffer manager looks corresponding page id page table determines record memory 
+support record lookup query specific page clotho page table buffer pool manager contains page ids pages construct active pages augmented page schema 
+perform record lookup clotho uses key consisting page id page schema requested 
+hit means page id matches page page ids schema page subsumes schema requested record described key 
+case insertions deletions updates clotho uses full schema pages 
+insertions deletions need full record access modify respective full schema pages updates help keep buffer pool data consistent additional cost 
+queries asking updated records automatically obtain correct dirty page buffer pool 
+deletion records operates full pages csm existing deletion algorithms pseudo deletion 
+write query looking page invalidates buffered pages contain page 
+valid copy modified data 
+page updated data full schema updated page serve queries asking records page flushed disk 
+clotho affect locking policies page data organization transparent lock manager 
+logical volume manager section briefly describes storage device specific data organization mechanisms exploited lvm creating logical volumes consist disk drives single 
+builds previous atropos disk array logical volume manager 
+section describes high level points device type 
+atropos disk array lvm standard interface disk drives disk arrays uses simple linear abstraction meaning dimensional data structure stored disk needs serialized 
+example nsm serializes full records row major dsm serializes single attributes column major 
+table stored access dimension serialization sequential efficient 
+access dimension random inefficient 
+atropos uses linear abstraction solves problem new internal data organization exposing abstractions higher level software 
+exposing information data organization database storage manager achieve efficient access dimension 
+atropos exploits request scheduler built disk firmware automatically extracted knowledge track switch delays support semi sequential access diagonal access ranges blocks range track multiple adjacent disk tracks 
+second dimension access enables dimensional data structures accessed efficiently 
+support efficient sequential access atropos exploits automatically extracted knowledge disk track boundaries stripe unit boundaries achieving efficient sequential access 
+exposing boundaries explicitly allows clotho storage manager previously proposed track aligned extents provide substantial benefits streaming patterns interleaved activity 
+logical volume managers delivers aggregate bandwidth disks volume offers reliability performance tradeoffs traditional raid schemes 
+semi sequential access understand semi sequential access imagine sending requests disk request lbn track second lbn second track 
+adjacent tracks typically cylinder different heads access 
+disk seek cylinder initial rotational latency lbn read 
+disk switch track takes fixed amount time typically ms access second lbn 
+properly chosen lbns second lbn accessible right track switch additional seek rotational latency incurred 
+requesting lbns laid fashion successive tracks allows semi sequential access 
+naturally sustained bandwidth semi sequential access sequential access 
+semi sequential access efficient reading randomly chosen lbns spread adjacent tracks case accessing data csm secondary dimension table atropos 
+accessing random lbns incur additional rotational latency equal half revolution average 
+efficient database organization atropos clotho storage manager lay pages access dimension table sequential access dimension semi sequential 
+shows mapping simple table attributes records pages stored atropos logical volume disks 
+single page includes records maps diagonal semi sequential lbns mapped single lbn 
+accessing attribute records atropos track sized track aligned reads 
+example sequential scan attribute results access lbn lbn accessing full page results semi sequential accesses disk 
+example fetching attributes record results disk disk disk disk mapping database table attributes atropos logical volume disks 
+numbers left disk lbns mapped gray disk locations connected arrow block row 
+arrow illustrates efficient semi sequential access fetching single page records 
+single sequential lbns efficiently fetch attribute records striped disks 
+semi sequential accesses proceeding parallel different disks starting lbns 
+mems storage devices groups evaluated internal access parallelism efficiently access database tables 
+clotho shows benefit techniques context complete database management system 
+devices available simulate behavior simulator combined atropos logical volume manager 
+designs consist media sled array probe tips 
+actuators position spring mounted media sled plane stationary probe tips access data sled moved dimension 
+read write tip accesses small portion media naturally divides media squares reduces range motion required media sled 
+seek occurs media positioned specific offset relative entire read write tip array 
+result point time tips access locations squares 
+example shown lbns location square identified ovals 
+realistic expected read write tips potentially access lbns parallel 
+power shared component constraints lbns accessed parallel 
+simple device third read write tips active parallel system access lbns shown ovals 
+lbns chosen sequential disjoint 
+case lbns transferred data layout parallel accessible lbns highlighted 
+lbns marked ovals location square comprise equivalence class 
+potentially accessed parallel 
+media parallel efficiency 
+pages arranged rows columns read write tips sequential semi sequential lbns disk drive 
+activating appropriate read write tips parallel access rows columns table possible 
+contrast disk drives access dimension efficient access vs sequential access rows columns equally efficient 
+clotho implementation clotho implemented shore database storage manager 
+section describes implementation pages scan operators lvm 
+implementation modify layout index pages 
+creating scanning pages implemented csm new page layout shore format described section 
+significant change internal shore page structure page header aligned occupy block experiments 
+described section original buffer pool manager augmented schema management information control reuse page contents 
+modifications minor limited buffer pool module 
+access set records scan operator issues request buffer pool manager return pointer page records requested 
+pointer consists page id page plus page schema id appropriate page buffer pool serve request buffer pool manager allocates new frame requested page 
+fills page header schema information allows storage manager determine data needed 
+decision depends number attributes query payload relative sizes 
+storage manager determines header information request constructs vector memory locations individual issues batch requests fetch 
+completion individual os requested blocks scattered appropriate locations 
+implemented scan operators scan similar scan operator nsm pages difference scans attributes accessed query 
+predicate payload 
+clotho invokes scan read tuples containing attributes predicate payload reads predicate attributes condition true returns payload 
+second scan operator si scan works similarly index scan 
+fetches evaluates attributes predicates list qualifying record ids retrieves projected attribute values directly 
+section evaluates operators 
+implement changes wrote lines code 
+storing variable sized attributes current implementation stores fixed sized attributes separate pages 
+fixed sized attributes stored pages described section 
+variable sized attribute stored separate page format similar dsm page 
+fetch full record table variable sized attributes storage manager issues batch fetch page containing fixed size attributes additional variable sized attribute table 
+plan design storage variable sized attributes pages fixed sized attributes attribute size estimations overflow pages needed 
+logical volume manager atropos logical volume manager implemented standalone application 
+communicates shore socket control path shared memory data path avoid data copies user level processes 
+atropos determines requests broken individual disk os issues directly attached scsi disks linux raw scsi device 
+smp host process runs separate cpu minimal impact shore execution 
+real exist atropos lvm implementation relies simulation 
+uses existing model mems storage devices integrated storage subsystem simulator 
+lvm process runs timings uses main memory storing data 
+evaluation section evaluates benefits decoupling inmemory data layout storage device organization clotho prototype 
+evaluation parts 
+part uses representative microbenchmarks perform sensitivity analysis varying parameters query payload projectivity selectivity predicate 
+second part section presents experimental results running runtime rel 
+nsm nsm dsm pax csm query payload attributes atropos disk lvm 
+runtime rel 
+nsm nsm dsm pax csm query payload attributes mems device 
+runtime sec scan si scan selectivity scan operators performance 
+microbenchmark performance different layouts 
+graphs show total microbenchmark query run time relative nsm 
+performance scan si scan shown csm layout running atropos disk array 
+dss oltp workloads demonstrating efficiency clotho running workloads common storage organization 
+microbenchmarks include queries sequential random access point updates bulk insert operations evaluate performance worst best case scenarios 
+experimental setup experiments conducted way ghz pentium xeon workstation running linux kernel redhat distribution 
+machine disk array experiment mb memory equipped ultra wide scsi adapters controlling gb seagate cheetah es disks st lc 
+atropos lvm exports single gb logical volume created disks experimental setup maps blocks disks outermost zone 
+identical machine configuration experiments gb memory half data store 
+emulated parameters includes probe tips simultaneously access lbns size bytes total capacity gb 
+experiments compare csm nsm dsm pax implementations shore 
+nsm pax implemented described dsm implemented tight space efficient form tuple ata time reconstruction algorithm 
+csm atropos lvm uses default configuration 
+nsm dsm page layouts don take advantage semi sequential access atropos provides 
+run logical volume effectively conventional striped logical volume stripe unit size equal individual disks track size ensure efficient sequential access 
+stated buffer pool size experiments set mb page sizes nsm pax dsm kb 
+csm page page sizes set kb 
+tpc queries experiments variable sized attributes 
+tpc new order transaction query asking variable size attribute stored separately described section 
+microbenchmark performance establish clotho baseline performance run range query form attributes type populated records roughly gb data 
+attribute values uniformly distributed 
+show results varying query payload increasing number attributes select clause entire record selectivity changing values lo hi 
+run query sequential scan index simulate random access 
+order attributes accessed affect performance results atropos uses track aligned extents fetch attribute sequential scans 
+queries sequential scan varying query payload 
+compares performance microbenchmark query varying projectivity data layouts 
+csm uses scan operator 
+data shown query selectivity selectivity exhibits trends 
+clotho shows best performance low high 
+low projectivity csm achieves comparable performance dsm best page layout accessing small fraction record 
+slightly lower runtime dsm attribute value caused limitation linux operating system prevents dma supported scatter gather large transfers result read data contiguous memory region extra memory copy scatter data final destinations 
+dsm experience extra memory copy pages put verbatim proper memory frames 
+dsm csm effectively pushes project level 
+attributes involved query fetched storage saving bandwidth memory space accelerating query execution 
+increasing projectivity csm performance better equal best case spectrum nsm pax selecting full record 
+size vector scatter gather linux limited elements commercial unix es support elements 
+runtime msec nsm dsm pax csm query payload attributes point queries 
+runtime nsm dsm pax csm full scan 
+microbenchmark performance atropos lvm 
+dsm suboptimal performance high due additional joins needed table fragments spread logical volume 
+clotho hand fetches requested data lock step disk places memory csm maximizing spatial locality eliminating need join 
+clotho performs full record scan faster compared dsm 
+shown performance shows results 
+comparison scan si scan 
+compares performance query scan operators 
+vary selectivity payload attributes trend continues higher selectivities 
+expected si scan exhibits better performance low selectivities scan wins selectivity increases 
+performance gain comes fact pages containing qualified records processed 
+performance deterioration si scan increasing selectivity due factors 
+process higher number pages scan 
+selectivity equal pages qualifying records uniform data distribution 
+second qualifying record si scan locate page calculate record address scan uses simpler page record locator 
+optimizer si scan scan depending perform best estimated selectivity 
+point queries random access worst case scenario clotho data placement schemes random point tuple access access single record relation non clustered index 
+single record accessed sequential scan contrary payload increases csm penalized semi sequential scan disk obtain attributes record 
+shows payload attributes csm performs closely nsm pax 
+payload increases csm performance slightly worse deteriorates dsm performance 
+updates bulk updates updates multiple records sequential scan exhibit similar performance queries sequential scan varying selectivity payload 
+runtime relative nsm nsm dsm pax csm tpc benchmark atropos disk array query mems device tpc performance different layouts 
+performance shown relative nsm 
+similarly point updates updates single record exhibit comparable performance data placement methods point queries 
+clotho updates single records full schema pages performance worse nsm regardless payload 
+alleviate behavior currently investigating efficient ways partial record pages updates queries 
+point queries performance dsm deteriorates faster 
+full table scans bulk inserts scanning full table full record selectivity populating tables bulk insertions clotho exhibits comparable performance nsm pax dsm performance worse corroborates previous results 
+shows total runtime scanning table accessing full records 
+results similar doing bulk inserts 
+optimized algorithm issues track aligned requests uses aggressive prefetching data placement methods 
+bulk loading intensive operation space efficiency factor affect relative performance different layouts 
+experiment designed layout space efficient possible table occupies minimum number pages possible 
+csm exhibits similar space efficiency performance nsm pax 
+dss workload performance quantify benefits decoupled layout database workloads run tpc decision support benchmark shore prototype 
+tpc dataset gb buffer pool size mb 
+shows execution times relative nsm representative tpc queries sequential scans joins 
+leftmost group bars represents tpc execution atropos rightmost group represents queries run simulated 
+nsm pax perform worst factor dsm access attributes 
+performance dsm better queries benchmark projectivity 
+csm performs best benefits projectivity avoids cost joins dsm reconstruct records 
+results exhibit trends 
+oltp workload performance queries typical oltp workload access small number records spread entire database 
+addition oltp applications insert delete statements point updates 
+nsm pax page layouts entire record retrieved single page random layouts map single page consecutive lbns 
+clotho spreads single page non consecutive lbns logical volume enabling efficient sequential access scanning single attribute multiple records efficient semi sequential scan accessing full records 
+tpc benchmark approximates oltp workload shore prototype data layouts kb page size 
+tpc configured warehouses users think time warm time 
+buffer pool size mb caches database 
+completed transactions minute throughput repeatedly measured period table shows results running tpc benchmark 
+expected nsm pax comparable performance dsm yields lower throughput 
+despite efficient semi sequential access csm achieves lower throughput nsm pax advantage decoupled layouts construct pages shared queries accessing partial records 
+hand frequent point updates penalize csm performance semi sequential access retrieve full records 
+penalty part compensated buffer pool manager ability create share pages containing needed data 
+compound oltp dss workload benchmarks involving compound workloads important order measure impact performance different queries access logical volume concurrently 
+clotho performance degradation may potentially worse page layouts 
+originally efficient semi sequential access disjoint lbns oltp queries disrupted competing os workload creating inefficient access 
+occur layouts map entire page consecutive lbns fetched media access 
+simulate compound workload single user dss tpc workload running concurrently multiuser oltp workload tpc atropos disk lvm measure differences performance relative isolated workloads 
+respective tpc workloads configured described earlier 
+previous demonstrated effectiveness track aligned disk accesses compound workloads compare page layouts efficient os achieve comparable results tpc 
+layout nsm dsm pax csm table tpc benchmark results atropos disk array lvm 
+slowdown relative stand workload dss oltp compound workload stand compound nsm dsm pax csm nsm dsm pax csm tpc query tpc compound workload performance different layouts 
+shows slowdown tpc query runtime run tpc benchmark relative case runs isolation impact tpc performance 
+shown undue performance degradation occur csm exhibits lesser relative performance degradation layouts 
+shows indicative performance results tpc query exhibit similar behavior tpc relative base case oltp dss queries run separately 
+larger performance impact compound workloads dss dsm shows small random traffic aggravates impact seeks necessary reconstruct dsm page 
+comparing csm pax lesser impact pax tpc query offset bigger impact tpc benchmark performance 
+space utilization csm page partitions attributes minimal size equal size single lbn csm susceptible negative effects internal fragmentation nsm pax 
+consequently significant amount space may potentially wasted resulting diminished access efficiency 
+pax boundaries aligned word boundaries bits easily accommodate schemas high variance attribute sizes 
+case clotho may large page sizes accommodate attributes undue loss access efficiency due internal fragmentation 
+measure space efficiency csm page compare space efficiency nsm csm layouts tpc tpc schemas 
+nsm exhibits best possible efficiency page layouts 
+shows space efficiency csm relative nsm tables tpc tpc function total page size 
+space efficiency defined ratio maximum number records packed csm page number records fit nsm page 
+kb page suffices achieve space utilization customer stock tables space efficiency tpc page size kb new order item history orders warehouse order line district stock customer space efficiency tpc page size kb region nation partsupp supplier customer part orders lineitem space efficiencies csm page layout 
+tpc benchmark 
+kb page size achieves space efficiency remaining tables 
+customer stock tables include attribute larger attributes 
+customer table includes byte long attribute containing miscellaneous information largest attribute size bytes 
+stock table includes byte attribute largest attribute bytes 
+attributes rarely tpc benchmark 
+clotho decouples memory page layout storage data organization enabling independent data layout design level storage hierarchy 
+doing allows clotho optimize performance memory utilization fetching data desired queries access partial records mitigating trade nsm dsm 
+experiments clotho implementation show substantial performance improvements spectrum query types real disk array mems storage devices 
+anonymous referees detailed insightful comments members companies pdl consortium including emc hewlett packard hitachi ibm intel lsi logic microsoft network appliance oracle seagate sun veritas interest insights feedback support 
+sponsored part nsf ccr iis ccr bes 
+ailamaki dewitt hill 
+weaving relations cache performance 
+international conference large databases pages 
+morgan kaufmann publishing 
+ailamaki dewitt hill wood 
+dbmss modern processor time go 
+international conference large databases pages 
+morgan kaufmann publishing 
+kersten 
+database architecture optimized new bottleneck memory access 
+international conference large databases pages 
+morgan kaufmann publishers 
+carey persistent applications 
+acm sig mod international conference management data 
+
+carley single chip computers systems magnetic memory 
+journal applied physics may 
+chen zhang 
+coordinated data prefetching utilizing information proxy web servers 
+performance evaluation review 
+acm september 
+copeland khoshafian 
+decomposition storage model 
+acm sigmod international conference management data pages 
+acm press 
+simulation environment version 
+www pdl cmu edu index html 
+patel 
+data morphing adaptive cache conscious storage technique 
+international conference large databases pages 
+vldb 
+kersten 
+generic database cost models hierarchical memory systems 
+international conference large databases pages 
+morgan kaufmann publishers 
+mohan aries transaction recovery method supporting fine granularity locking partial rollbacks write ahead logging 
+acm transactions database systems march 
+patterson gibson katz 
+case redundant arrays inexpensive disks raid 
+acm sigmod international conference management data pages june 
+ramakrishnan gehrke 
+database management systems number rd edition 
+mcgraw hill 
+dewitt su 
+case mirrors 
+international conference large databases pages 
+morgan kaufmann publishers 
+schindler ailamaki ganger 
+robust database storage management device specific performance characteristics 
+international conference large databases pages 
+morgan kaufmann publishing 
+schindler atropos disk array volume manager orchestrated disks 
+conference file storage technologies pages 
+usenix association 
+schindler griffin ganger 
+extents matching access patterns disk drive characteristics 
+conference file storage technologies pages 
+usenix association 
+schlosser griffin nagle ganger 
+designing computer systems mems storage 
+architectural support programming languages operating systems 
+
+schlosser schindler ailamaki ganger 
+exposing exploiting internal parallelism mems storage 
+technical report cmu cs 
+carnegie mellon university pittsburgh pa march 
+shao ailamaki 
+database systems small real world 
+technical report cmu cs 
+carnegie mellon university pittsburgh pa october 
+tips afm data storage 
+ibm journal research development 
+yu agrawal abbadi 
+tabular placement relational data mems storage devices 
+international conference large databases pages 
+zhou ross 
+multi resolution block storage model database design 
+international database engineering applications symposium 

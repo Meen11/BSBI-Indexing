@@ -1,0 +1,841 @@
+experiences amoeba distributed operating system andrew tanenbaum robbert van renesse hans van staveren gregory sharp dept mathematics computer science vrije universiteit de boelelaan hv amsterdam netherlands internet ast cs vu nl cs vu nl cs vu nl gregor cs vu nl mullender jack jansen guido van rossum centrum voor wiskunde en informatica kruislaan sj amsterdam netherlands internet cwi nl jack cwi nl guido cwi nl amoeba distributed operating system development years 
+describe system experience right wrong 
+things done right basing system objects single uniform mechanism capabilities naming protecting location independent way designing completely new fast file system 
+things done wrong having threads pre initially building window system having multicast facility outset 
+computing reviews categories keywords operating systems distributed systems distributed operating systems computer networks experience descriptors network operating systems distributed applications distributed systems measurements general terms design experimentation performance 
+research supported part netherlands organization scientific research 
+amoeba project research effort aimed understanding connect multiple computers seamless way basic idea provide users illusion single powerful timesharing system fact system implemented collection machines potentially distributed countries 
+research led design implementation amoeba distributed operating system prototype vehicle research 
+describe current state system amoeba tell lessons learned designing past years 
+discuss experience influenced plans version amoeba 
+amoeba originally designed implemented vrije universiteit amsterdam jointly developed centre mathematics computer science amsterdam 
+chief goal build distributed system transparent users 
+concept best illustrated contrasting network operating system machine retains identity 
+network operating system user logs specific machine home machine 
+program started executes home machine user gives explicit command run 
+similarly files local remote file system explicitly mounted files explicitly copied 
+short user clearly aware multiple independent computers exist deal explicitly 
+transparent distributed system contrast users effectively log system specific machine 
+program run system user decides best place run 
+user aware choice 
+single system wide file system 
+files single directory may located different machines possibly different countries 
+concept file transfer uploading downloading servers mounting remote file systems 
+file position directory hierarchy relation location 
+remainder describe amoeba lessons learned building 
+section give technical overview amoeba currently stands 
+amoeba uses client server model describe important servers implemented far 
+followed description wide area networks handled 
+discuss number applications run amoeba 
+measurements shown amoeba fast data 
+discuss successes failures encountered may profit ideas worked avoid 
+conclude brief comparision amoeba systems 
+technical overview amoeba describing software worth saying system architecture amoeba runs 
+
+research cwi supported part digital equipment 
+system architecture amoeba architecture consists principal components shown fig 
+
+workstations user users carry editing tasks require fast interactive response 
+workstations diskless primarily intelligent terminals window management computers running complex user programs 
+currently sun workstations 
+generation hardware may terminals 
+processor pool workstations fig 
+
+amoeba architecture 
+gateway specialized servers file data base wan second pool processors group cpus dynamically allocated needed returned pool 
+example command need compilations processors taken pool time necessary compilation returned 
+alternatively pass compiler processors allocated compilations gaining speedup 
+applications heuristic search ai applications playing chess large numbers pool processors computing 
+currently single board vme computers cpus 
+vax cpus forming additional processor pool 
+third specialized servers directory servers file servers data base servers boot servers various servers specialized functions 
+server dedicated performing specific function 
+cases multiple servers provide function example part replicated file system 
+fourth gateways link amoeba systems different sites different countries single uniform system 
+gateways isolate amoeba peculiarities protocols wide area networks 
+amoeba machines run kernel primarily provides multithreaded processes communication services little 
+basic idea kernel keep small enhance reliability allow possible operating system run user processes outside kernel providing flexibility experimentation 
+objects capabilities amoeba object system 
+system viewed collection objects set operations performed 
+file object example typical operations reading writing appending deleting 
+list allowed operations defined person designs object writes code implement 
+hardware software objects exist 
+associated object capability kind ticket key allows holder capability perform necessarily operations object 
+user process example capability file permitted read file modify 
+capabilities protected cryptographically prevent users tampering 
+user process owns collection capabilities define set objects may access type operations may perform 
+capabilities provide unified mechanism naming accessing protecting objects 
+user perspective function operating system create environment objects created manipulated protected way 
+object model visible users implemented remote procedure call associated object server process manages object 
+user process wants perform operation object sends request message server manages object 
+message contains capability object specification operation performed parameters operation requires 
+user known client blocks 
+server performed operation sends back reply message unblocks client 
+combination sending request message blocking accepting reply message forms remote procedure call encapsulated stub routines entire remote operation look local procedure call see 
+structure capability shown fig 
+
+bits long contains fields 
+field server port identify server process manages object 
+effect bit random number chosen server 
+server port object number rights check field fig 
+
+capability 
+numbers current sizes bits 
+second field object number server identify objects addressed 
+server port object number uniquely identify object operation performed 
+third field rights field contains bit map telling operations holder capability may perform 
+bits operations allowed 
+bits holder capability may perform corresponding operations 
+operations usually coarse grained bits sufficient 
+prevent users just turning bits rights field bits cryptographic protection scheme 
+server asked create object picks available slot internal tables puts information object newly generated bit random number 
+index table put object number field capability rights bits set newly generated random number put check field capability 
+owner capability perform operations object 
+owner construct new capability subset rights turning rights bits xor ing rights field random number check field 
+result operation run publicly known way function produce new bit number put check field new capability 
+key property required way function original bit number owner capability unencrypted rights field easy compute xor nearly impossible find argument produces functions known 
+capability arrives server server uses object field index tables locate information object 
+checks see rights bits 
+server knows capability claimed owner capability just compares original random number table contents check field 
+agree capability considered valid desired operation performed 
+rights bits server knows dealing derived capability performs xor original random number table rights field capability 
+number run way function 
+output way function agrees contents check field capability deemed valid requested operation performed rights bit set 
+due fact way function inverted possible user decrypt capability get original random number order generate false capability rights 
+remote operations combination request client server reply server client called remote operation 
+request reply messages consist header buffer 
+headers bytes buffers kilobytes 
+request header contains capability object operated operation code limited area bytes parameters operation 
+example write operation file capability identifies file operation code write parameters specify size data written offset file 
+request buffer contains data written 
+reply header contains error code limited area result operation bytes capability field return capability result creation object directory search operation 
+primitives doing remote operations listed get request req header req buffer req size put reply rep header rep buffer rep size operation req header req buffer req size rep header rep buffer rep size server prepared accept requests clients executes get request primitive causes block 
+request message arrives server unblocked formal parameters call get request filled information incoming request 
+server performs sends reply put reply 
+client side invoke remote operation process uses operation 
+action causes request message sent server 
+request header contains capability object manipulated various parameters relating operation 
+caller blocked reply received time rep parameters filled status returned 
+return status operation possibilities 
+request delivered executed 
+
+request delivered executed server 
+
+status unknown 
+third case arise request sent possibly acknowledged reply forthcoming 
+situation arise server crashes part way remote operation 
+conditions lost messages crashed servers amoeba guarantees messages delivered 
+status returned application run time system fault recovery 
+remote procedure calls remote procedure call consists just request reply exchange described 
+client place capability operation code parameters request buffer receiving reply unpack results 
+server check capability extract operation code parameters request call appropriate procedure 
+result procedure placed reply buffer 
+placing parameters results message buffer called marshalling non trivial cost 
+different data representations client server handled 
+steps carefully designed coded lest introduce unacceptable overhead 
+hide marshalling message passing users amoeba uses stub routines 
+example file system stubs start read bytes file capability bytes int file file cap offset nbytes buffer read cap long offset long nbytes char buffer long read call reads nbytes starting offset file identified file cap buffer 
+returns number bytes read bytes read 
+function returns executed correctly error code 
+hand written stub code simple construct produce request header containing file cap operation code read file offset nbytes invoke remote operation operation req hdr req buf req bytes rep hdr buf rep bytes automatic generation stub procedure header impossible 
+essential information missing 
+author handwritten stub uses pieces derived information job 
+
+buffer receive information file server output parameter sent server 
+
+maximum length buffer nbytes parameter 
+actual length buffer returned value error zero 
+
+file cap special defines service carry remote operation 
+
+stub generator know server operation code read file requires extra information 
+fair human stub writer needs extra information 
+order able automatic stub generation interfaces client servers contain information listed plus information type representation language machine combinations 
+addition interface specifications inheritance mechanism allows lower level interface shared interfaces 
+read file operation instance defined low level interface inherited file server interfaces terminal server interface segment server interface 
+ail amoeba interface language language extra information generation efficient stubs specified ail compiler produce stub routines automatically 
+read file operation part interface called class ail definition look class simple file server read file unsigned offset unsigned nbytes char buffer nbytes nbytes write file 
+specification ail generate client stub example correct marshalling code 
+generate server main loop containing marshalling code corresponding client stubs 
+ail specification tells ail operation codes simple file server allocated range tells parameters input parameters server output parameters server tells length buffer nbytes constant actual length nbytes 
+bullet file server file servers operational amoeba inherits interface making part bullet file server interface class bullet server inherit simple file server creat file 
+ail supports multiple inheritance bullet server interface inherit simple file interface instance capability management interface restricting rights capabilities 
+currently ail generates stubs modula stubs stubs languages planned 
+ail stubs designed deal different data representations byte order floating point representation client server machines 
+threads process amoeba consists threads run parallel 
+threads process share address space dedicated portion address space private stack program counter 
+programmer point view thread traditional sequential process threads process communicate shared memory 
+addition threads optionally synchronize mutexes semaphores 
+purpose having multiple threads process increase performance parallelism provide reasonable semantic model programmer 
+example file server programmed process multiple threads 
+request comes thread handle 
+thread checks internal software cache see needed data 
+performs rpc remote disk server acquire data 
+waiting reply disk thread blocked able handle requests 
+new requests threads process thread blocked 
+way multiple requests handled simultaneously allowing thread sequential way 
+point having threads share common address space possible direct access common cache possible thread address space 
+scheduling threads process done code process 
+thread blocks get request waiting remote reply operation internal scheduler called thread blocked new thread run 
+threads effectively routines 
+threads pre empted currently running thread stopped run long 
+decision avoid race conditions 
+thread need worry halfway updating critical shared table suddenly stopped thread start try table 
+assumed threads process written programmer actively operating 
+process 
+interaction threads process quite different interaction threads different processes may hostile hardware memory protection required 
+evaluation approach discussed 
+servers amoeba kernel described essentially handles communication process management little 
+kernel takes care sending receiving messages scheduling processes low level memory management 
+done user processes 
+capability management done entirely user space cryptographic technique discussed earlier virtually impossible users generate counterfeit capabilities 
+remaining functions normally associated modern operating system environment performed servers just ordinary user processes 
+file system example consists collection user processes 
+users happy standard file system free write 
+situation contrasted system unix single file system applications matter inappropriate may 
+example numerous problems unix creates database systems described great length 
+sections discuss amoeba memory server process server file server directory server examples typical amoeba servers 
+exist 
+memory process server applications processes need way create subprocesses 
+unix subprocess created fork primitive exact copy original process 
+process run attending housekeeping activities issue exec primitive overwrite core image new program 
+distributed system model attractive 
+idea building exact copy process possibly remotely throwing away shortly inefficient 
+consequently amoeba uses different strategy 
+key concepts segments process descriptors described 
+segment contiguous chunk memory contain code data 
+segment capability permits holder perform operations reading writing 
+segment somewhat core file similar properties 
+process descriptor data structure provides information process process started debugged migrated 
+components 
+describes requirements system process run class machines instruction set minimum available memory special instructions floating point 
+second component describes layout address space number segments segment size virtual address mapped read read write code data space capability file segment containing contents segment 
+third component describes state thread control stack pointer stack top bottom program counter processor status word registers 
+threads blocked certain system calls get request described 
+fourth component list ports process server 
+list helpful kernel comes buffering incoming requests replying port locate operations 
+process created executing steps 
+
+get process descriptor binary file system 
+
+create local segment file initialize initial environment new process 
+environment consists set named capabilities primitive directory arguments process unix terms argc argv 
+
+modify process descriptor segment environment segment just created 
+
+send process descriptor machine executed 
+unix registered trademark bell laboratories 
+processor descriptor arrives machine process run memory server extracts capabilities remote segments fetches code data segments reside capabilities read operations usual way 
+manner physical locations machines involved irrelevant 
+segments filled process constructed process started 
+capability process returned initiator 
+capability kill process passed debugger suspend read write memory 
+file server far system concerned file server just user process 
+consequently variety file servers written amoeba course existence 
+fuss free university storage system designed experiment managing concurrent access optimistic concurrency control 
+current bullet server designed extremely high performance 
+describe 
+decrease cost disk ram memories past decade allowed radically different design unix operating systems 
+particular abandoned idea storing files collection fixed size disk blocks 
+files stored contiguously disk server main memory 
+design wastes disk space memory due fragmentation overhead feel enormous gain performance described offsets small extra cost having buy say mb disk mb disk order store mb worth files 
+bullet server immutable file store principal operations read file create file 
+garbage collection purposes delete file operation 
+process issues read file request bullet server transfer entire file client single rpc larger maximum size bytes case multiple rpcs needed 
+client edit modify file locally 
+finished client issues create file rpc new version 
+old version remains intact explicitly deleted garbage collected 
+note different versions file different capabilities exist making straightforward implement source code control systems 
+files stored contiguously disk cached file server memory currently mbytes 
+requested file available memory loaded disk single large dma operation stored contiguously cache 
+conventional file systems blocks file system 
+create file operation request reply file written disk speed know successfully written 
+bullet server booted entire node table read memory single disk operation kept server running 
+file operation requested object number field capability extracted index table 
+entry located gives disk address cache address contiguous file 
+disk access needed fetch node disk access needed fetch file cache 
+simplicity design trades space high performance 
+directory server bullet server provide naming services 
+access file process provide relevant capability 
+working bit binary numbers convenient people designed implemented directory server manage names capabilities 
+directory server manages multiple directories normal object 
+stripped essentials directory maps ascii strings capabilities 
+process string file name directory server directory server returns capability file 
+capability process access file 
+unix terms file opened capability retrieved directory server subsequent read write operations 
+capability fetched directory server subsequent rpcs go directly server manages object 
+directory server longer involved 
+important realize directory server simply provides mapping function 
+client provides capability directory order specify directory search string directory server looks string specified directory returns capability associated string 
+directory server knowledge kind object capability controls 
+particular capability directory different directory server file mailbox database process capability segment capability capability piece hardware 
+furthermore capability may object located machine different machine local network capability object foreign country 
+nature location object completely arbitrary 
+objects directory need disk example case systems support remote mount operations 
+directory may contain entries directories possible build arbitrary directory structures including trees graphs 
+optimization possible give directory server complete path follow far returning single capability 
+directories slightly general just simple mappings 
+commonly case owner file may want right perform operations may want permit read access 
+directory server supports idea structuring directories series rows object shown fig 
+column gives string file name 
+second column gives capability goes string 
+remaining columns apply user class 
+example set directory different access rights owner owner group unix combinations possible 
+capability directory specifies columns holder access bit map part rights field bits 
+example bits specify access column 
+earlier discussed rights bits protected tampering check field 
+object name capability owner group cap games dir cap cap prog cap fig 
+
+directory user classes entries rights 
+see multiple columns consider typical access 
+client provides capability directory implying column string 
+string looked directory find proper row 
+column checked singleton bit map rights field see column 
+remember cryptographic scheme described sec 
+prevents users modifying bit map accessing forbidden column 
+entry selected row column extracted 
+conceptually just capability proper rights bits turned 
+avoid having store capabilities optimization entry just bit map directory server ask server manages object return new capability rights new capability returned user cached reduce calls server 
+directory server supports number operations directory objects 
+including looking capabilities adding new rows directory removing rows directories listing directories inquiring status directories objects deleting directories 
+provision performing multiple operations single atomic action provide fault tolerance 
+furthermore support handling replicated objects 
+capability field fig 
+hold set capabilities multiple copies object 
+process looks object retrieve entire set capabilities copies 
+objects unavailable ones tried 
+technique similar eden 
+addition new object installed directory option available directory server request copies store capabilities freeing user administration 
+addition supporting replication user objects directory server duplicated 
+properties possible install new versions killing instance installing new version replacement killing original instance installing second replacement running new code 
+way bugs repaired interrupting service 
+wide area amoeba amoeba designed idea collection machines lan able communicate wide area network similar collection remote machines 
+key problem wide area networks slow unreliable furthermore protocols tcp ip osi event rpc 
+primary goal wide area networking amoeba achieve transparency sacrificing performance 
+particular undesirable fast local rpc slowed due existence wide area communication 
+believe goal achieved 
+amoeba world divided domains domain interconnected collection local area networks 
+key aspect domain campus broadcasts done machine domain received machines domain machines outside domain 
+importance broadcasting ports located amoeba 
+process rpc port previously kernel broadcasts locate message 
+server responds broadcast address cached rpcs 
+strategy undesirable wide area network 
+broadcast simulated minimum spanning tree expensive inefficient 
+furthermore service available worldwide 
+example laser printer server physics building university california may clients new york 
+problems dealt introducing concept publishing 
+service wishes known accessible outside domain contacts service wide area networks swan asks port published set domains 
+swan publishes port doing rpcs swan processes domains 
+port published domain new process called server agent created domain 
+process typically runs gateway machine get request remote server port 
+quiescent server needed time comes life performs rpc server 
+consider happens process tries locate remote server port published 
+process kernel broadcasts locate received server agent 
+server agent builds message hands link process gateway machine 
+link process forwards wide area network server domain arrives gateway causing client agent process created 
+client agent normal rpc server 
+set processes involved shown fig 
+client gateway gateway server sa ca wide area network lan lan fig 
+
+wide area communication amoeba involves processes 
+beauty scheme completely transparent 
+user processes kernel know processes local remote 
+communication client server agent completely local normal rpc 
+similarly communication client agent server completely normal 
+client server knows talking distant process 
+course agents aware going automatically generated needed visible users 
+link processes ones know details wide area network 
+talk agents rpc protocol wide area network requires 
+point splitting agents link processes completely isolate technical details wide area network kind process easier multiway gateways type link process wide area network type gateway attached 
+important note design causes performance degradation whatsoever local communication 
+rpc client server lan proceeds full speed relaying kind 
+clearly performance loss client talking server located distant network limiting factor normally bandwidth wide area network extra overhead having messages relayed times negligible 
+useful aspect design management 
+start services published help swan server check see system administration wants port published 
+important control ability prevent certain processes owned students accessing wide area services traffic pass gateways various checks 
+gateways accounting statistics gathering monitoring wide area network 
+applications amoeba program variety applications 
+section describe including unix emulation parallel traveling salesman alpha beta search 
+unix emulation goals amoeba useful program development environment 
+environment needs editors compilers numerous standard software 
+decided easiest way obtain software emulate unix run unix compilers utilities top 
+special set library procedures rpcs amoeba servers possible construct emulation unix system call interface dubbed ajax common utility programs ported amoeba 
+amoeba user standard editors compilers file utilities programs way looks unix fact really amoeba 
+session server provided handle state information fork exec unix way 
+parallel shown hardware amoeba runs contains processor pool dozen processors 
+obvious application processors unix environment parallel version 
+idea discovers multiple compilations needed run parallel different processors 
+idea sounds simple potential problems 
+single target file sequence commands may executed may files created earlier ones 
+solution chosen command execute parallel block needs file fully generated 
+problems relate technical limitations program 
+example expects commands run sequentially parallel keep track processes forked may exceed various system limits 
+programs yacc write output fixed name files tab multiple running directory write file producing 
+problems dealt means described 
+parallel compilations directed new version called 
+traditional makefiles 
+user tells source files needed dependencies 
+compilers modified keep track observed dependencies files fact included 
+compilation information goes kind mini database replaces traditional makefile 
+keeps track flags version compiler information 
+having think makefiles automatically generated ones popular users 
+overhead due managing data base negligible speedup due parallelization depends strongly input 
+making program consisting medium sized files considerable speedup achieved 
+program large source file small ones total time smaller compilation time large 
+traveling salesman problem addition various experiments unix software tried programming applications parallel 
+typical applications traveling salesman problem alpha beta search briefly describe 
+details 
+traveling salesman problem computer starting location list cities visited 
+idea find shortest path visits city exactly return starting place 
+amoeba programmed application parallel having pool processor act coordinator rest slaves 
+suppose example starting place london cities visited include new york sydney tokyo 
+coordinator tell slave investigate paths starting london new york second slave investigate paths starting london sydney third slave investigate paths starting london 
+searches go parallel 
+slave finished reports back coordinator gets new assignment 
+algorithm applied recursively 
+example slave allocate processor investigate paths starting london new york sydney processor investigate london new york forth 
+point course cutoff needed slave calculation try farm processors 
+performance algorithm greatly improved keeping track best total path far 
+initial path closest city heuristic 
+slave started length best total path far 
+finds working partial path longer best known total path immediately stops doing reports back failure asks 
+initial experiments shown percent theoretical maximum speedup achieved algorithm 
+rest lost communication overhead 
+alpha beta search application programmed parallel amoeba game playing alpha beta heuristic pruning search tree 
+general idea traveling salesman 
+processor board evaluate generates legal moves possible starting board hands evaluate parallel 
+alpha beta heuristic commonly person zero sum games prune search tree 
+window values established positions fall outside window examined better moves known exist 
+contrast traveling salesman problem tree searched alpha beta allows greater pruning positions evaluated chosen order 
+example single machine legal moves point 
+result evaluating discover looking siblings tree pointless 
+parallel implementation ultimately waste computing power devoted result parallel searching wasted net result better sequential algorithm single processor 
+experiments running othello amoeba shown unable utilize percent total processor capacity available compared percent traveling salesman problem 
+performance amoeba designed fast 
+measurements show goal achieved 
+section results timing experiments done 
+measurements performed sun mhz mbps ethernet 
+measured performance different configurations 
+user processes running amoeba 
+
+user processes running sun os amoeba primitives 
+
+user processes running sun os sun rpc 
+comparison purposes 
+ran tests local case processes machine remote case process separate machine communication ethernet 
+cases communication process process running user mode outside kernel 
+represent average values trials highly reproducible 
+configuration pure amoeba amoeba primitives unix sun rpc unix tried run test cases byte message integer kbyte message kbyte message 
+byte message test typical short control messages kbyte message typical reading medium sized file remote file kbyte test maximum current implementation amoeba handle 
+total cases configurations sizes 
+standard sun rpc limited measurements 
+noted standard amoeba header room bytes data test bytes header sent data buffer 
+hand sun special optimization available local case 
+fig 
+give delay bandwidth cases local processes distinct processes machine remote processes processes different machines 
+delay time seen client running user process calling returning rpc primitive 
+bandwidth number data bytes second client receives server excluding headers 
+measurements done local rpcs client server processes running processor remote rpcs ethernet 
+delay msec bandwidth kbytes sec case case case case case case bytes kb kb bytes kb kb pure amoeba local pure amoeba remote unix driver local unix driver remote sun rpc local 
+
+sun rpc remote 
+
+fig 
+
+rpc user processes common cases different systems 
+local rpcs rpcs client server running processor 
+delay msec 
+bandwidth kbytes sec 
+unix driver implements amoeba rpcs amoeba protocol sun unix 
+interesting comparisons tables comparisons pure amoeba rpc pure sun os rpc short communications delay critical long ones bandwidth issue 
+byte amoeba rpc takes msec vs msec sun rpc 
+similarly kbyte rpcs amoeba bandwidth kbytes sec vs kbytes sun rpc 
+amoeba delay times better throughput twice 
+sun obviously system interest widespread convenient benchmark 
+looked literature performance figures distributed systems shown null rpc latency maximum throughput fig 
+
+system hardware null rpc throughput estimated implementation notes msec 
+kbytes cpu mips amoeba sun measured user user cedar dorado custom microcode kernel sun measured kernel kernel sun measured user user topaz firefly consists vax cpus sprite sun measured kernel kernel mach sun throughput reported fig 
+
+latency throughput systems reported literature 
+rpc numbers systems listed fig 
+
+taken publications cedar kernel sprite topaz mach 
+numbers shown compared knowing systems taken speed hardware tests varies factor 
+distributed systems type running fast lans protocols largely cpu bound 
+running system faster cpu network definitely improves performance linearly cpu mips point network saturates systems quoted come close saturating 
+example earlier reported null rpc time msec sun 
+current msec faster sun 
+fig 
+corrected machine speed rough estimate raw total computing power system fifth column table mips millions instructions second 
+realize crude measure best see way compensate fact system running mips machine dorado cpu multiprocessor firefly significant advantage slower workstations 
+aside sun faster sun 
+cedar rpc amoeba implemented hardware percent faster 
+throughput amoeba partly due fact early version ethernet running megabits sec 
+manage full megabits sec 
+kernel better throughput amoeba published measurements kernel kernel amoeba measured user process user process 
+extra overhead context switches kernel user copying kernel buffers user buffers considered comparable amoeba numbers kernel figures reduced msec null rpc throughput kbytes sec mapping incoming data kernel user kbytes sec copying peterson private communication 
+published sprite figures kernel kernel 
+sprite support rpc user level close equivalent time send null message user process get reply msec 
+user user bandwidth kbytes sec 
+uses clever technique improve performance short rpcs entire message put cpu registers user process taken kernel transmission 
+processor byte data registers bytes transferred way 
+topaz rpc obtained vax multiprocessors 
+performance obtained fig 
+obtained cpus 
+single cpu null rpc time increases msec throughput drops kbytes sec 
+null rpc time mach obtained published may applies mach networking code kernel 
+mach rpc performance worse systems factor times slower amoeba 
+measurement improved version mach gives rpc time msec throughput bytes sec draves private communication 
+amoeba bullet server designed fast performance major objective 
+measurements achieved 
+measurements sun client talking remote sun file server equipped scsi disk 
+gives performance bullet server tests files kbyte kbytes mbyte 
+column delay bandwidth read operations shown 
+note test file completely memory disk access necessary 
+second column create delete operation measured 
+case file written disk 
+note create delete operations involve disk requests delay msec bandwidth kbytes sec file size read create del read create del kbyte kbyte mbyte fig 
+
+performance bullet file server read operations create delete operations 
+delay msec 
+bandwidth kbytes sec 
+careful reader may noticed user process pull kbytes sec bullet server fig 
+user user bandwidth kbytes sec fig 
+
+reason apparent follows 
+far clients concerned bullet server just black box 
+accepts requests gives replies 
+user processes run machine 
+circumstances decided move bullet server code kernel users tell difference anyway protection issue free standing file server process 
+kbyte sec user kernel access file cache kbyte sec user user memory memory involving files 
+pure user kernel bandwidth certainly higher kbytes sec lost file server overhead 
+compare amoeba results sun nfs file system measured reading creating files sun remote sun file server mbyte memory running sunos 
+file server type disk bullet server hardware configurations exception extra memory nfs identical measure amoeba 
+measurements night light load 
+disable local caching sun locked file sun unix primitive doing read test 
+timing read test consisted repeated measurement followed read system call 
+write test consisted consecutively executing creat write close 
+creat effect deleting previous version file 
+results depicted fig 
+
+delay msec bandwidth kbytes sec file size read create read create kbyte kbyte mbyte fig 
+
+performance sun nfs file server read create operations 
+delay msec 
+bandwidth kbytes sec 
+observe reading creating mbyte files results lower bandwidths reading creating kbyte files 
+bullet file server performance read operations times better sun nfs file server 
+create operations bullet file server constant overhead producing capabilities gives relatively better performance large files 
+evaluation section take critical look amoeba evolution point aspects consider successful consider successful 
+areas amoeba wanting improvements amoeba currently development 
+improvements discussed 
+area little improvement needed portability 
+amoeba started cpus easily moved vax ns intel 
+amoeba rpc protocol implemented part widespread world 
+objects capabilities basic ideas object system worked 
+framework easy think system 
+new objects services proposed clear model deal specific questions answer 
+particular new service decide objects supported operations permitted objects 
+structuring technique valuable occasions 
+capabilities naming protecting objects success 
+cryptographically protected capabilities unique system wide fixed length name object yielding high degree transparency 
+simple implement basic directory set ascii string capability pairs 
+result directory may contain names kinds objects located world windows written process holding appropriate capability matter feel model conceptually simpler flexible models remote mounting symbolic links sun nfs 
+furthermore implemented just efficiently 
+experience capabilities huge systems thousands simultaneous users 
+hand large system capabilities bound leak compromising security 
+hand capabilities provide kind firewall compromised capability affects security object 
+fine grained protection better worse practice conventional schemes huge systems hard say point 
+satisfied low level user primitives 
+effect principal system calls get request put reply operation easy understand 
+communication primitives simpler example socket interface berkeley unix myriad system calls parameters options 
+amoeba bit bit capabilities amoeba 
+larger check field secure attack 
+security aspects tightened including addition secure encrypted communication client server 
+larger capabilities room location hint exploited swan servers locating objects wide area network 
+third fields new bit capability aligned bit boundaries potentially may give better performance 
+remote procedure call part rpc communication satisfactory gives problems 
+particular rpc inherently master slave point point 
+issues lead problems 
+unix pipeline pic file eqn tbl troff outfile example inherent master slave relationship obvious data movement elements pipeline read driven write driven 
+amoeba rpc transfers long message sent sequence packets individually acknowledged driver level wait protocol 
+scheme simple slows system 
+amoeba acknowledge messages allow achieve higher bandwidths shown fig 
+
+rpc inherently point point problems arise parallel applications traveling salesman problem 
+process discovers path better best known current path really wants send multicast message large number processes inform immediately 
+impossible simulated multiple rpcs 
+amoeba fully support group communication multicast 
+message sent group delivered members attempt 
+higher level protocol devised implement reliable multicasting unreliable networks essentially price rpc messages reliable broadcast 
+protocol described 
+applications replicated data bases various kinds reliable broadcasting life simpler 
+amoeba replication facility support fault tolerance 
+lan supports broadcasting multicasting hardware available ethernet provide enormous performance gain applications 
+example simple way update replicated data base send reliable multicast machines holding copies data base 
+idea obvious realized earlier put start 
+long corrected amoeba truly decision asynchronous rpc 
+system sender transmitted message receiver continued executing 
+reply came sender interrupted 
+scheme allowed considerable parallelism impossible program correctly 
+advice designers avoid asynchronous messages plague 
+memory process management probably worst mistake design amoeba process management mechanisms decision threads run completion pre 
+idea thread starting critical table interrupted thread process logically blocked 
+scheme simple understand certainly easy program 
+problems arose programmers concept process blocked 
+example debug code critical region programmer add print statements middle critical region code 
+print statements call library procedures performed rpcs remote terminal server 
+blocked waiting thread interrupted thread access critical region havoc 
+critical region destroyed putting print statements 
+needless say property confusing naive programmers 
+run completion semantics thread scheduling amoeba prevents multiprocessor implementation exploiting parallelism shared memory allocating different threads process different processors 
+amoeba threads able run parallel 
+promises scheduler allowing thread run blocks thread scheduled 
+threads sharing resources explicitly synchronize semaphores mutexes 
+problem concerns lack timeouts duration remote operations 
+memory server starting process uses capabilities process descriptor download code data 
+perfectly legal capabilities somebody private file server bullet server 
+server malicious simply respond thread memory server just hang forever 
+probably included service timeouts doing introduce race conditions 
+amoeba support virtual memory 
+working assumption memory getting cheap added complexity virtual memory worth 
+workstations ram days couple years 
+simplicity design implementation high speed goals really decided implement virtual memory amoeba 
+similar vein support process migration mechanisms needed supporting exist 
+process migration load balancing essential feature just discussion 
+file system area system think eminently successful design file server directory server 
+separated distinct parts bullet server just handles storage directory server handles naming protection 
+bullet server design allows extremely fast directory server design gives flexible protection scheme supports file replication simple easy understand way 
+key element fact files immutable replicated copies regenerated necessary 
+entire replication process takes place background lazy replication entirely automatic bothering user 
+regard file system innovative part amoeba design combining high performance reliability robustness ease 
+issue interested handle databases environment 
+envision amoeba database system large memory essentially core database 
+updates done memory 
+function disk checkpoints periodically 
+way immutability files pose problems 
+problem arisen arise amoeba scaled thousands users caused splitting directory server file server 
+creating file entering capability directory separate operations 
+client crash file exists inaccessible 
+current strategy directory server access file knows days bullet server automatically garbage collect files accessed days 
+current setup reliable hardware problem huge international amoeba system 
+internetworking happy way wide area networking handled server agents client agents swan 
+particular fact existence wide area networking affect protocols performance local rpcs crucial 
+designs tcp ip osi start wide area case locally 
+choice results significantly lower performance lan amoeba design better performance wide area networks 
+configuration adequately dealt amoeba system consisting large number local area networks interconnected bridges gateways 
+amoeba works systems performance poor partly due way port location message handling done 
+amoeba designed implemented completely new low level protocol called fast local internet protocol flip greatly improve performance complex internets 
+features entire messages acknowledged individual packets greatly reducing number interrupts processed 
+port location done efficiently single server agent listen arbitrary number ports enormously reducing number quiescent server agents required gateways large systems 
+unexpected problem poor quality wide area networks especially public ones 
+access machines traverse multiple networks problems 
+insight researchers blindly assume public wide area networks function correctly experimentally verified 
+unix emulation amoeba unix emulation consists library session server 
+written idea getting unix software effort part 
+price pay approach able provide compatibility 
+example concept user ids group ids hard get right capability system 
+view protection totally different 
+furthermore amoeba essentially stateless system 
+means various subtle properties unix relating files shared parent child virtually impossible get right 
+practice live demanded binary compatibility approach shortcomings 
+parallel applications amoeba originally conceived system distributed computing existence processor pool cpus close quite suitable parallel computing 
+interested processor pool achieve large speedups single problem 
+program parallel applications currently engaged implementing language called orca 
+orca concept globally shared objects 
+programmers define operations shared objects compiler run time system take care details making sure carried correctly 
+scheme gives programmer ability atomically read write shared objects physically distributed collection machines having deal complexity physical distribution 
+details physical distribution completely hidden programmer 
+initial results indicate linear speedup achieved problems involving branch bound successive overrelaxation graph algorithms 
+example redone traveling salesman problem orca achieved fold speedup processors compared non orca version described earlier 
+alpha beta search orca achieves factor speedup processors compared orca 
+appears orca reduces communication overhead remains true problems processes high interaction rate small grain size problem 
+performance performance general major success story 
+minimum rpc time amoeba msec user space processes sun interprocess throughput nearly kbytes sec 
+file system lets read write files rate 
+user interface amoeba originally window system 
+faster windows view cleaner 
+smaller easier understand 
+reasons thought easy get people accept 
+wrong 
+technical factors play second fiddle political marketing ones 
+abandoned window server switched windows 
+security intruder capable tapping network amoeba runs discover capabilities considerable damage 
+production environment form link encryption needed guarantee better security 
+thought security mechanism implemented amoeba 
+potential security systems designed amoeba 
+version friendly environments network operating system kernels assumed secure 
+version uses way ciphers caching argument result pairs run virtually fast current amoeba 
+version assumptions security underlying network operating system 
+mit kerberos uses trusted authentication server key encrypts network traffic :10.1.1.112.9002
+intend install versions investigate effects performance system 
+researching problems authentication large systems spanning multiple organizations national boundaries 
+comparison systems amoeba distributed system world 
+known ones include mach chorus sprite 
+comprehensive comparison amoeba doubt interesting scope 
+general remarks 
+main goal amoeba project differs somewhat goals systems 
+intention develop new operating system scratch best ideas currently available regard backward compatibility systems designed years ago 
+particular written library server provide unix compatibility unix utilities run amoeba relinking special library compatibility goal 
+marketing standpoint aiming complete compatibility latest version unix may scare potential customers large existing software bases research point view having freedom selectively ideas unix plus 
+systems take different viewpoint 
+difference systems emphasis amoeba distributed system 
+intended start run large number machines 
+comparison mach instructive point 
+mach uses clever optimization pass messages processes running machine 
+page containing message mapped sender address space receiver address space avoiding copying 
+amoeba consider key issue distributed system communication speed processes running different machines 
+normal case 
+rarely processes happen physical processor true distributed system especially hundreds processors put lot effort optimizing distributed case local case 
+clearly philosophical difference 
+amoeba project demonstrated possible build efficient highperformance distributed operating system current hardware 
+object nature system capabilities provides unifying theme holds various pieces 
+making kernel small possible key features implemented user processes means system evolve gradually needs change learn distributed computing 
+amoeba operating satisfactorily years locally limited extent wide area network 
+design clean performance excellent 
+large satisfied results 
+operating system finished continually working improve 
+amoeba available 
+information obtain please contact author tanenbaum preferably electronic mail 
+accetta baron bolosky golub rashid tevanian young mach new kernel foundation unix development 
+proceedings summer usenix conference atlanta ga july 
+tanenbaum design amoeba configuration manager 
+proc 
+nd int workshop software config 
+mgmt acm 
+bal van renesse tanenbaum implementing distributed algorithms remote procedure call 
+proc 
+nat 
+comp 
+conf afips 
+pp 
+
+bal tanenbaum distributed programming shared data ieee conf 
+computer languages ieee pp 
+
+birrell nelson implementing remote procedure calls acm trans 
+comput 
+systems feb pp 
+
+cheriton distributed system 
+comm 
+acm march pp 
+
+dalal broadcast protocols packet switched computer networks 
+ph thesis stanford univ 
+dennis van horn programming semantics multiprogrammed computation 
+commun 
+acm march pp 
+
+evans weiss user authentication scheme requiring secrecy computer 
+commun 
+acm aug pp 
+
+feldman program maintaining computer programs 
+software practice experience april pp 
+
+johnson yacc compiler compiler 
+bell labs technical report bell labs murray hill nj 
+kaashoek tanenbaum flynn hummel bal efficient reliable broadcast protocol 
+operating systems review vol 
+oct pp 
+
+lawler wood branch bound methods survey 
+operations research july pp 
+
+marsland campbell parallel search strongly ordered game trees 
+computing surveys dec pp 
+
+mullender van rossum tanenbaum van renesse van staveren amoeba distributed operating system 
+ieee computer may pp 
+
+mullender tanenbaum design capability distributed operating system 
+computer journal aug pp 
+
+mullender tanenbaum distributed file service optimistic concurrency control 
+proc 
+tenth symp 
+operating system principles dec pp 
+
+ousterhout douglis nelson welch sprite network operating system 
+ieee computer feb pp 
+
+peterson hutchinson malley rao kernel platform accessing internet resources 
+ieee computer may pp 
+
+pu noe regeneration replicated objects technique eden implementation 
+proc 
+nd int conf 
+data eng feb pp 
+
+rozier 
+
+armand 
+
+
+
+hermann 
+kaiser 
+
+leonard 
+chorus distributed operating system 
+computing systems fall pp 
+
+schroeder burrows performance firefly rpc 
+proc 
+twelfth acm symp 
+oper 
+syst 
+prin acm dec pp 
+
+steiner neuman schiller kerberos authentication service open network systems :10.1.1.112.9002
+proceedings usenix winter conference usenix assoc pp 
+
+stonebraker operating system support database management 
+commun 
+acm july pp 
+
+tanenbaum unix clone source code operating systems courses 
+operating syst 
+rev jan pp 
+
+tanenbaum mullender van renesse sparse capabilities distributed operating system 
+proc 
+sixth international conf 
+distr 
+computer systems ieee 
+tanenbaum van renesse critique remote procedure call paradigm 
+proc 
+pp 
+
+tanenbaum van renesse distributed operating systems 
+computing surveys dec pp 
+
+van renesse tanenbaum wilschut design high performance file server 
+proc 
+ninth int conf 
+distr 
+comp 
+systems ieee pp 
+
+van renesse tanenbaum van staveren hall connecting rpc distributed systems wide area networks 
+proc 
+seventh int conf 
+distr 
+comp 
+systems ieee pp 
+
+van renesse van staveren tanenbaum performance amoeba distributed operating system 
+software practice experience march pp 
+
+van renesse van staveren tanenbaum performance world fastest distributed operating system 
+operating systems review oct pp 
+
+van rossum ail class oriented stub generator amoeba 
+proc 
+workshop experience distributed systems ed springer verlag preparation 
+welch ousterhout pseudo devices user level extensions sprite file system 
+proc 
+summer usenix conf pp 
+june 

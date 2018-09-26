@@ -1,0 +1,633 @@
+generic application level protocol analyzer language david helen wang berkeley carnegie mellon university microsoft research application level protocol analyzers important components tools intrusion detection systems firewalls network monitors 
+currently protocol analyzers written ad hoc fashion low level languages incurring high development cost security risks inherent low level language programming 
+motivated large number application level protocols new ones constantly emerging architected prototyped generic application level protocol analyzer gapa consisting protocol specification language gapal analysis engine operates network streams traces 
+gapa allows rapid creation protocol analyzers greatly reducing development time needed 
+uses syntax similar existing specification documents supports binary text protocols 
+gapa design goals include expressiveness ease safety low overhead intended operate adversarial environment 
+evaluation demonstrates gapa language expressive easy practical protocols gapa system scalable allows online analysis protocol traffic 
+gapa useful intrusion detection firewall networking monitoring contexts envision additional applications automatic vulnerability signature generation 
+protocol analysis process re constructing protocol context communication sessions ongoing network stream trace 
+involves translating sequence packets protocol messages grouping sessions modeling state transitions protocol state machine 
+protocol context extracted protocol analyzer refers particular traversal state machine communication session shown 
+illustrates example analyzing rpc protocol protocol analyzes packets messages parses payload rpc messages groups rpc messages respective sessions rpc protocol session semantics 
+protocol analysis widely intrusion detection systems snort bro firewalls guo institute communications engineering 
+msg msg handler msg msg handler 
+
+request msg msg handler final fig 
+
+tracing protocol context byte stream rpc protocol analyzer reply rpc session state handler message arrival state transition protocol context 
+
+request rpc request rpc ack rpc bind 
+fig 
+
+protocol analyzer rpc shield 
+protocol analysis crucial systems precise reconstruction protocol context significantly reduces number false positives false negatives 
+existing protocol analysis label network traffic trace protocol semantics facilitating network monitoring distributed system debugging 
+ethereal employs numerous protocol analyzers purpose 
+unfortunately state art practice creating proto 
+col analyzers ad hoc 
+develop protocol analyzer protocol specification obtained written 
+specification protocol analyzer developed general purpose low level languages plugin statically loaded base framework 
+development requires understanding large body source code involves thousands lines low level language programming effort followed comprehensive testing 
+process repeated protocols analyzed 
+addition protocols multiple implementations differences extensions need explicitly modeled analyzer 
+multitude protocols variations applying traditional development techniques simply scale 
+tackle problem rapid development protocol analyzers application level protocols operate transport layer 
+target protocols numerous new ones constantly emerging 
+scaling development effort protocols worthwhile goal 
+motivated observation task analyzing various protocols shares significant number common functions session dispatching state machine operations message parsing protocol layering handling order fragmented messages 
+approach architect common generic protocol elements analysis engine part generic application level protocol analysis gapa framework 
+part framework gapa language gapal special purpose language describing individual protocols configuring common functions specifying protocol specific details message layout state machine transitions 
+configuration customization semantics reflect essential abstractions protocol analysis 
+gapa creating new analyzer involves specifying protocol gapal testing specification replacing process low level language development 
+language gapal goals challenges flexibility able express analyze common protocols gapa framework 
+requires encapsulate full set common protocol functions gapa flexible gapa language describing binary text protocols 
+ease gapal specifications easy write read 
+goal tension previous flexibility language allows expressive language richer harder 
+similarly low level language quite flexible difficult write read 
+challenge strike balance ease flexibility having right set common functions implemented gapa leaving flexibility accommodate distinctiveness protocol 
+practical guideline followed constrain level details protocol descriptions gapal greater today rfc protocol specifications design syntax gapal naturally reflect various protocol abstractions ease writing 
+safety want reduce chance errors protocol analyzers 
+safety errors analyzer cause crashes underlying system worse introduce vulnerabilities exploitable remote traffic 
+build type safety language 
+gapal special purpose luxury static checks ensure protocol analysis logic properly specified guarantee termination protocol analyzers 
+modularity protocols built top components protocol reused 
+modularity needed ensure re usability readability gapal specifications 
+addition analysis engine interprets gapal specifications performs protocol analysis goals challenges low performance overhead overhead incurred gapa small relation applications implement protocols analyzed order support online analysis 
+correct operation adversarial environment ensure gapa functions presence attackers 
+gapa real time protocol analysis part firewall example attackers attempt launch state holding service attacks 
+gapa offline purposes trace analysis attackers respond large amounts decoy traffic delaying detection malicious 
+protect online real time operations gapa minimizing amount state maintains protocol analysis 
+furthermore ensure gapa interpretation protocol context consistent application face carefully crafted malicious traffic 
+inspired shield host firewall 
+shield analyzes exploitable application protocols vulnerability signature detects blocks exploits 
+shield authors gave preliminary incomplete design generic protocol analyzer language 
+gapa language new design analysis engine addresses numerous issues timeout exception handling pre existing session handling left shield 
+gapa numerous applications application level firewalls 
+design prototype comprehensive generic application level protocol analysis language framework creating protocol analyzers protocol specification languages various purposes proposed literature practice suitable specifically designed purpose protocol analysis 
+languages asn ndr specify binary text packet formats languages statechart esterel express state machines data handling 
+languages estelle statechart promela lotos sdl designed formal reasoning verification protocol interactions orthogonal protocol analysis 
+languages proposed programming entire logic protocol provide specialpurpose abstractions protocol analysis 
+alternative approach protocol analysis framework implemented library believe advantageous special purpose language protocol analysis 
+offering appropriate protocol abstractions easier program language programs succinct easy read 
+contexts special purpose languages fold reduction code size 
+second specialpurpose language gives opportunities protocol safety checks optimizations 
+comparison existing languages gapa language expresses protocol abstractions specific protocol analysis 
+gapal contains number interesting features meet special needs protocol analysis 
+payload format specification easy binary text protocols adopt syntax similar backus form bnf grammar widely protocol specifications standard bodies rfcs 
+introduce ability direct parsing computations previous fields giving language expressive power staying close simple bnf syntax 
+create special visitor syntax allows easy access manipulation message components embedded grammar 
+support protocol analysis specific safety checks optimizations addition traditional ones 
+achieve scalability resiliency state holding attacks analysis engine minimize memory footprint engine speculative execution 
+speculative execution allows process partially arrived messages apply analysis logic having buffer packets complete message arrives 
+carefully manage timeouts exceptions pre existing sessions minimize chance incorrect interpretation protocol context gapa 
+particular novel aspect outgoing message clocking synchronize current protocol state gapa application 
+prototyped gapa system 
+initial evaluation specified number application level protocols gapal expressive easy gapa prototype scalable online protocol analysis clients potentially scalable servers 
+gapa protocol specifications gapal provides knowledge precise protocol context communication session giving ability accurately label network traffic detect intrusions 
+gapa normalize online communication traffic ensure invariants traffic delivered application 
+example gapa application level firewall shield ensure traffic exploits vulnerabilities delivered application 
+detailed protocol knowledge obtained gapa uses 
+example gapa potentially enable automatic generation vulnerability signatures combined unknown attack detection tools minos dynamic check reactive immune system enforce signatures 
+rest give overview gapa system section ii 
+gapal language section iii gapa analysis engine section iv 
+evaluations section describe number applications gapa section vi 
+section vii compare contrast related 
+address section viii conclude section ix 
+ii 
+gapa system overview set common protocol functions carried analysis engine determines flexibility gapa language ease programming gapal 
+naturally want implement protocol independent functions engine gapal syntax support programming configuring customizing common functions 
+briefly illustrate functions respective abstractions need supported gapal give overview functions gapa system 
+common functions session dispatching session abstraction common protocols 
+session identified underlying transport connection source destination ip address ports session identification message 
+gapa engine need keep track active sessions dispatch messages appropriate ones 
+state machine operations session gapa maintain current protocol state 
+state affects input messages processed arriving messages cause transitions new state 
+message parsing protocol analyzer need parse messages protocol specific message format 
+parsing needs done incrementally application contrast traffic normalize transport protocols 
+layer messages split packets 
+correct parsing state maintained packets partial messages analyzed incorrectly 
+protocol layering application level protocols layered 
+example rpc layered 
+layering support needed analysis engine involves piping payload upper layer maintaining respective session state layer 
+application level datagrams application level protocols udp transport protocol implement datagram fragmentation reassembly reordering 
+gapa engine uses layering support datagrams lower layer directing gapa perform reordering reassembly delivering order byte stream upper layer 
+timeout handling timeout events protocols 
+analysis engine needs timer supports 
+timer support analyzing network traces uses timing information trace 
+timeout handling complicated inability stay completely synchronized application timeout event gapa may exactly correspond event application 
+outgoing message clocking eliminates need maintain timers engine protocols helps resynchronize application case timing mismatch protocols 
+section iv gives details 
+exception handling protocol messages may malformed causing parsing exception 
+exceptions may include explicit errors signaled protocol analysis errors buffering layers engine 
+depending user policy gapa engine handle exceptions raising alerts dropping packets terminating connections simply ignoring 
+allow separate handling kind exception 
+pre existing session handling may sessions started gapa protocol analysis takes place 
+analysis engine need handle messages belonging sessions carefully treated malformed messages exception handling may undesirably disrupt pre existing sessions 
+section iv gives details 
+shows packet live stream trace traverses analysis engine gets analyzed 
+spec dispatcher uses process image name packet belongs available port numbers locate proper gapal specification short handed spec compiled statically checked specs previously loaded system 
+session identification logic 
+
+fig 
+
+gapa system architecture overview variable type lifetime visibility message local vars message entire program session local vars session session dispatching handler local vars handler handler visitor blocks local vars block block table lifetime scope gapal variables 
+spec interpreted dispatch packet proper session 
+session packet parsed message format specified spec 
+current state direction packet corresponding handler invoked parse process payload 
+handler sets state session 
+protocol layering involved specified spec packet piped upper layer going session dispatching message processing layer 
+iii 
+gapa language section gapal design achieve goals described section walk high level layout gapal program shown 
+abstractions enclosed curly braces support modularity readability 
+particular order abstraction specified unimportant 
+uses statement indicates lower layer protocol message payload piped protocol specified 
+allows programmer specify layer separate gapal file layering means composition 
+include standard pre processor directive includes specified file data place 
+transport statement specifies underlying transport protocols port numbers base layer protocols 
+define kinds variables gapal different lifetimes scopes 
+variables defined grammar section track data lifetime session spanning multiple messages 
+accessed code blocks gapal run session identifier run session instance determined point execution 
+allow protocol uses include filename transport tcp udp port base type varname grammar message base type varname message nonterminal code name type code name 
+
+state machine name timeout initial state statename final state statename session identifier code return id handler name handler scoped base type varname post code return fig 
+
+high level layout gapal protocol specification items enclosed optional indicates items enclosed indicates items 
+global variables different sessions gapal sessions flexible may defined protocol example gapal session defined represent multiple rpc sessions respective state machine models multiple sessions gapal programmer feels need sharing variables sessions sessions defined single session gapal 
+variables defined grammar message local variables lifetime parsing message may composed multiple packets 
+variables accessed entire program including code blocks executed identifier 
+variables re initialized message intended assist parsing 
+allow local variables inside block lifetime duration block 
+special case handler local variables defined handler visible long handler executed explain variables detail section iii 
+table shows lifetime scope variable type 
+base types variable declarations bit integers signed unsigned uninterpreted bytes floats doubles strings booleans 
+support safe arrays base types programmer manually allocate free dynamic memory 
+rest section specifies protocol message formats bnf grammar rules 
+non terminal refers message component entire message 
+non terminal roughly corresponds structure union type name binary messages bnf non terminal text messages 
+production rule non terminal indicates non terminal include alternation 
+programmers alt alternation name indicate name alternation useful visitors explained 
+type base type token type regular expression non terminal 
+type typing message components type safety expressions statements grouping bytes type instances parsing 
+programmers add symbol type refer parsed message field needed 
+programmers indicate maximum number bytes symbol type take 
+alternatively programmers specify default upper bound size fields shown enforce run time ensure correct gapa operations face malicious malformed runaway payloads 
+code embedded grammar rule contain parsing related logic 
+run time analysis engine uses recursive descent parsing parse input byte stream grammar 
+typical recursive descent parsers disallow left recursion 
+design rationale details grammar section iii 
+state machine specifies protocol states respective handlers indicates initial final state session 
+indicate direction input packet incoming outgoing 
+handler state packet direction 
+allow timeout transition specified timeouts activated dynamically handlers see section iv 
+session identifier parses packet grammar rule extracts returns session id session id analysis engine dispatch input packet correct session instance 
+previously unseen id creates new session instance 
+session instance copy handlers session state machine session variables 
+identifier section message local variables session local ones session dispatching finished running 
+handler carries customization logic program mer intended protocol analysis returns state current session 
+state returned handler specified state machine may dependent message content protocol analysis logic 
+support assignment conditional statements common expression operators foreach iterator handlers 
+foreach iterator iterate local safe arrays grammar array elements message 
+allow forward traversal arrays dpf 
+infinite loops created foreach 
+cycles grammar statically detected disallowed illustrate section iii 
+statements expressions statically typed safety 
+offer variety built functions 
+common functions include byte order conversion routines string routines strlen 
+layering lower layer protocol pipe data upper layer send call 
+give details visitor usage scoping handlers section iii 
+message parsing grammar key challenge message parsing accommodate binary text protocol messages 
+previous section vii addressed binary protocols 
+binary messages typically viewed constructed type structs unions overlayed byte stream 
+text messages hand represented sort grammar backus form bnf variant thereof 
+gapal able parser binary text messages observing follow similar recursive structure bnf grammar represent 
+expressing text messages grammar natural experience grammar created simply copying pasting bnf notations rfc similar specification 
+expressing binary messages straightforward structure represented sequence fields nested structures non terminals refer component substructures 
+unions implemented alternation include special support arrays specified name type may constant previously defined symbol type integer executable expression 
+array support represents departure context free nature grammar specification 
+find common idiom text binary protocols need support gapal 
+straightforward integrate array support recursive descent parser encounters type evaluates keeps counter parse copies type 
+gives comparison rpc binary message grammar snippet corresponding specification 
+shows text messages 
+notations explained shortly 
+message request response response headers crlf body body chunked body body body headers headers name za value crlf comparison name content length ase value 
+
+fig 
+
+gapal code snippet 
+code blocks embedded grammar simplify writing grammar rules allow programmers embed code blocks grammar help direct parsing 
+particularly useful messages length field indicate size data example length body message specified header field content length content length value saved inside variable retrieved production 
+code blocks helpful type symbol best determined runtime 
+introduce resolve operator denoted allows statements specify parse subsequent fields 
+resolve assigns type nonterminal specified right hand side symbol name left hand side 
+dynamically resolved symbol name denoted type 
+gapal code snippets usage resolve operator 
+possible rewrite grammars avoid resolve operator context free resulting specification awkward 
+code blocks access message local variables session vars locally defined temporary variables 
+session vars means message parsing dependent session context 
+ensure type safety statically check resolved symbols expressions able determine type 
+statement blocks handy modularity grammar reusability advise programmers include parsing related logic exclude protocol analysis functions best belong handlers 
+size direct parsing data called synthesized attribute automata theory 
+reason grammars called attribute grammars 
+bind common bind ptype ptype common var 
+
+rpc bind message specification 
+visitors handlers perform analysis handlers need refer fields message recursive grammar 
+simple cases dot notation useful 
+dot notation cumbersome cases deep recursion alternation occur binary text protocols 
+example rpc may different alternations alternation levels deep 
+case alternation explicitly check case chosen current message order avoid referring fields 
+dot notation essentially requires duplicating parsing logic grammar tedious error prone 
+eliminate re parsing cleaner clearer syntax allowing programmer write grammar visitors 
+visitor block code executed time rule visited 
+syntax visitor non 
+name 
+
+code block 
+syntax assigns non terminal alternation code block run time non terminal ptype byte uint uint uint 
+
+fig 
+
+rpc tcp bind message layout rpc bind message gapal alternation parsed 
+symbol names production non terminal alternation accessed locally visitor 
+code blocks similarly blocks inserted grammar want enable clean separation parsing logic protocol analysis parsing logic re different protocol analyses 
+essentially visitors handler represent handler customization message parsing purpose protocol analysis 
+consequently visitors executed rest handler code 
+visitors declare local variables exist duration code block 
+longer lived variables visitors refer handler local variables 
+handler local variables lifetime corresponding handler execution initialized visitors called destroyed handler exits 
+example counts number headers request grammar message number grammar rule symbols non terminal locally available visitor 
+handler local variable initialized zero time handler called 
+time traversed parsing incremented 
+entire message parsed total number headers printed 
+safety checks optimizations gapal type safe 
+addition check dynamic safety perform array bounds checking runtime avoid memory errors 
+addition perform checks missing memory safe languages java ocaml checking integer math overflow division zero eliminate logic errors caused gapal programs robust run analysis engine 
+unreachable grammar rules gapal author may inadvertently create unreachable grammar productions 
+non terminal unreachable reached parsing 
+warn author productions 
+correct state machine perform control flow analysis sure handler returns state 
+sure returned state defined state machine abstraction 
+furthermore alert programmers unreachable states 
+resolve safety resolve statements section iii naturally proceeded conditional statement condition occurs resolve grammar symbol non terminal 
+check sure symbols properly resolved control paths 
+sure resolved symbols expressions statically determine type 
+session identifier safety ensure message local variables accessed session identifier section 
+code fragments executed parsing may session vars cause error executed session identifier session dispatching run 
+prevent errors run time perform static analysis code blocks executed session dispatcher complete flag error refer session vars 
+ensuring termination want ensure parsing terminate 
+find cycles grammar standard techniques find left recursion 
+code blocks guaranteed terminate include infinite loops 
+resolve feature possible create parsing cycle combining grammar rules code blocks 
+example creates parsing cycle 
+detect checking code blocks obtaining list possible types symbol may resolve 
+apply left recursion check types 
+iv 
+analysis engine analysis engine operates normalizing mode forwarding potentially modified traffic application handler actions analysis mode monitoring traffic processing network logs modifications network data necessary 
+message parsing protocol analysis process engine 
+gapal spec dispatching section ii analysis engine finds respective gapal spec current packet analyzed 
+engine follows grammar specifies message format performs recursive descent parsing generates parse tree 
+engine may receive packets containing incomplete messages performs parsing incrementally saving parsing state packets 
+engine executes code fragments parsing embedded message grammar resulting visitor pattern handlers section iii 
+resulting parse tree contains components message parsed packet 
+handlers parse tree session state maintained code fragments carry analysis 
+rest section interesting techniques designing engine 
+buffering want memory footprint engine small possible improve performance avoid attacks 
+engine buffer parts parse tree referred handlers incompletely parsed fields message packets normalized 
+statically compute parts parse tree referenced handlers automatically discard unreferenced parts parse tree 
+parse time keep track parse tree variables handlers provided handler interpreter 
+soon know variable longer needed free corresponding memory 
+combined speculative handler execution described section greatly reduces parse tree buffering requirements 
+kind normalization currently supported dropping packet session error 
+optimized memory management gapa engine case 
+buffer packet engine long fields parsed grammar parser release application immediately 
+may cause potentially malicious packets application packets incomplete 
+security assumption making gapa engine message decision malicious partial content dangerous cause errors application 
+assumption real speculative execution mechanisms described requires care part gapal programmer 
+described section iii message components maximum size default gapal programmers explicitly specify maximum size 
+example url field specified exceed bytes 
+gives upper limit buffering needed message components 
+length field exceeds limit runtime exception triggered analysis engine 
+speculative execution special technique execute handlers early possible parsing process 
+firewall intrusion detection scenario allows detect attacks earlier avoid buffering incomplete messages 
+helps optimize parsing clear attack exists 
+engine begins executing handlers soon parsed single packet message incomplete 
+speculatively execute handler component message processed 
+point save continuation rest handler packet 
+packet includes referenced component resume execution handler continue unreferenced component encountered handler returns 
+handler finished switch light parsing mode rest message skipping parsing fields length determined advance 
+early execution works order fields referenced matches order parsed 
+lookup field comes late message delay execution handler 
+normalizing mode may result security hole partial message may passed application checks blocked field late message flag malicious 
+possible warn programmers scenarios compile time 
+simple cases data control flow dependencies statements may possible reorder code statements avoid problem 
+complex cases dependencies programmers conservative block early arriving field aggressively may cause false positives false negatives result 
+early execution session dispatching 
+message received execute session identifier logic followed appropriate handler 
+transition dispatcher handler happens automatically point message parsed dispatcher complete 
+layering important component analysis engine layering 
+layers implemented essentially separate instances gapa engine 
+lower layer sends data upper layer treated incoming packet upper layer gapa instance parsed dispatched processed way regular communications 
+particular buffering speculative execution mechanisms operate way defending malicious traffic avoiding state holding attacks 
+addition supporting protocols layered top layering separate complex protocol component layers 
+fact layering implement application level fragmentation datagram reordering 
+lower layer parses fragment headers uses special version send call indicate engine fragment sequence current datagram appears 
+engine performs fragment reassembly passing data upper layer parses reassembled data meaningful message components 
+gapa normalizing mode lies forwarding path packets forwarded lowest layer engine 
+upper layers may signal errors engine cause underlying packet dropped 
+speculative execution lower layers cause data passed upper layers possible speculative execution upper layers cause analysis proceed far forward possible 
+rely assumption gapal specifications data decision packet packet harm upper layer application 
+exception handling message parsing exception occur 
+may due malformed message exception handler 
+cause grammar field long gapa allows gapal authors specify maximum length fields avoid buffering large amounts data see section iii particularly useful gapa adversarial conditions 
+exception handled ways alerting user error dropping packet terminating communication session normalizing mode simply ignoring 
+exceptions raised handlers ignored parsing exceptions dealt policy decision 
+decision user gapa independent gapal specification depending important conservative analysis avoid disruption 
+important minimally disruptive gapa told pass packets understand application optimistically assuming cause harm 
+conservative approach reject packets potentially disrupting application error grammar 
+trace testing help prevent errors 
+case session transitions error state exception 
+packets session cause exception handled policy effectively terminating analysis session 
+plan investigate outgoing message clocking described section potentially resynchronize application parsing error watching response 
+course impossible erroneous packets discarded response sent 
+timeouts protocol state machines timeout events retries session state cleanup case remote host connectivity failures 
+maintaining timing gapa tricky timeout gapa may correspond timeout application vice versa 
+inconsistencies lead incorrect analysis 
+address challenge outgoing message clocking minimize timer usage gapa synchronize gapa current protocol state application necessary 
+intuition outgoing message host monitored entity trace sequence outgoing messages reveals current protocol state application 
+please note trust incoming messages adversarial environment incoming messages attacker 
+furthermore assuming machine application running compromised correct operations gapa guaranteed place 
+timeout handling kinds timeouts kind triggers network event retry message socket closing event observable network consequently gapa 
+kind timeouts network silent session cleanup kinds timeouts 
+network observable timeouts apply outgoing message clocking eliminate need maintain timing gapa maintaining timer transitioning new state timeout state transition triggered observable network events 
+network silent timeouts gapa choice maintain timer 
+gapa handler set timeout timeout time built function state transition occurs specified time elapsed timeout handler called 
+time determined dynamically protocol context 
+cope timing inconsistencies gapa application solution normalizing mode operation enforce timeout event gapa conservatively early timeout waited message arrives application times gapa discard message force timeout application 
+solution undesirable changes application behavior 
+furthermore applicable normalizing mode analysis mode enforcement possible 
+solution gapa maintains conservatively long timeout gapa may enter inconsistent state late arriving waited message may harmless application application treat message exception 
+guarding bug post timeout exception handling code application inconsistency problem 
+solution design analysis engine acknowledging ambiguity current protocol state create state protocol fig 
+
+application state machine fig 
+
+gapa maintained state machine transition conservatively application timeout 
+point apply outgoing message clocking infer synchronize current protocol state application 
+detail message received state normally transition state cause transition state indicating ambiguity application state 
+response application resolve ambiguity gapa transition correct state 
+traffic received protocol transition state timeout state large wait account margin synchronization error 
+gapa running machine application margin error quite small network setting may need large seconds 
+shows state machines maintained application analysis engine respectively example 
+general case may take message resolve ambiguity application state ambiguous states need introduced 
+gapal programmers agnostic timeout handling engine specify protocol state machine just described protocol specification documents timeout events network observable timeouts 
+gapa carries state machine transformation compile time 
+pre existing sessions time time gapa policies running analyzer need upgraded 
+want minimal disturbance analysis application 
+old policy process existing connections apply new policies newly formed sessions 
+complicated new policy uses different userdefined session identification function old 
+case perform stage session identification process old session identification see message corresponds existing session old policy 
+session exists new session identification function run dispatch message new policy 
+stage identification process remains effect long sessions old policy active 
+pre existing sessions gapa installed runs system 
+compromise security disturbing pre existing sessions adopt grace period gapa starts 
+grace period messages belonging unknown sessions gapa treated exception parsed observed infer current protocol state application 
+apply outgoing message clocking sequence outgoing messages infer correct state pre existing session 
+certainly normalizing mode grace period gives opportunities attacks vulnerable time windows eliminated restarting application 
+evaluation prototyped gapa framework 
+lex yacc specifications syntax 
+little lines code including comments 
+code interpreting type safe language grammar parsing session state management language syntax files yacc lex files 
+evaluation results expressiveness language performance prototype 
+experience gapal specified number protocols gapal rpc sip dns bittorrent tls 
+represents diverse collection including text binary protocols stream datagram oriented 
+cases specification process straightforward start bnf specification annotate additional parsing protocol logic 
+able specify protocols hours 
+difficult task resolving unclear parts protocol specification task helped tools easier detailed protocol knowledge 
+table ii summarizes specifications 
+gapal loc column shows number lines code gapal specification 
+session column indicates protocol uses implicit session identification ip addresses ports explicit session id embedded messages 
+column layering indicates layering mechanism protocol layering fragmentation order datagram handling 
+complexity specifications roughly corresponds complexity protocol definition rfcs lines copied bnf specifications rfcs 
+comparison studied protocol analyzers included ethereal 
+ethereal order magnitude lines code gapal 
+comparison entirely accurate lot ethereal code dedicated pretty printing protocol headers expect functionality large difference code size development effort involved ethereal gapal 
+protocols implemented simple labeling analysis print values relevant fields 
+visitor syntax useful task directly fields grammar parsed manually extracting parse tree 
+implemented complicated analysis detect codered worm 
+analysis uses layered composition protocol codered specific url parser 
+protocol identifies urls requests passes url parser layering mechanism 
+url parser looks urls interpreted ida filter breaks constituent components 
+analysis handler checks buffer parameter exceeds certain length causing buffer overflow raises alert 
+codered url parser specification lines gapal code 
+tested codered infection packet successfully detected worm tested parser gb web trace detect false positives 
+note able detailed protocol knowledge specify exact vulnerability simple web signature 
+codered analysis detected codered ii potential variants worm including polymorphic variants url escaping protocol analyzer removes escapes passing url parser 
+gapa performance evaluate gapa performance collected web trace front busy web server trace contains packets counting re transmitted packets 
+ran gapa prototype version gapal spec analyze trace ghz cpu gb ram running windows xp 
+evaluate parsing gapal spec contains parsing logic analysis logic 
+gapa parses messages rate name server disclosed purpose double blind review 
+protocol states gapal loc session layering implicit fragmentation rpc tcp explicit fragmentation rpc udp explicit fragmentation order sip explicit sdp dns explicit order udp bittorrent implicit tls implicit ssh implicit dhcp explicit packets second bit rate mbps 
+measured impact additional protocol analysis logic codered detector discussed measurement 
+obtained rate packets second mbps 
+profiling determined largest components contributing gapa overhead regular expression matching parsing execution interpreted language statements 
+regular expressions plan advanced pattern matching techniques optimized matching regular expressions 
+speed interpreted language execution plan investigate compiling machine code 
+vi 
+applications gapa gapa serve effective core number interesting applications sketch intelligent network trace labeling gapa enable rapid development new protocol analyzers network monitoring tools ethereal allowing network trace intelligently labeled right amount application level protocol semantics gapal programmer discretion 
+strong typing safety checks gapal eliminate potential software defects discovered ethereal 
+year different vulnerabilities identified tcpdump ethereal 
+vulnerabilities buffer overruns due safety issues caused integer overflow example denial ofservice attacks caused specially crafted packets triggering infinite loops 
+vulnerabilities impossible gapal specifications 
+possible gapa engine buffer overruns infinite loops engine core thoroughly tested constantly evolving body protocol specific analyzers 
+easy authoring vulnerability signatures known vulnerabilities shield uses vulnerability signatures block known vulnerability attacks 
+table ii experience gapal 
+signature application represented recognized protocol analyzer 
+signature encodes possible sequences protocol messages lead protocol state prior potential protocol context message parsing instructions exploit detections 
+precise protocol specifications authoring vulnerability signatures difficult 
+application may multiple vulnerabilities 
+processing vulnerability signatures turn inefficient merging signature non trivial 
+gapa authoring vulnerability signatures easier 
+believe beneficial maintain complete tested gapal specification application level protocol evolved application changes 
+specification useful testing debugging application vulnerability signatures 
+point authoring individual vulnerability signatures protocol reduced annotating existing specification vulnerability specific checks 
+example checking buffer overrun protocol message component requires just adding couple lines handler checking length component reacting buffer overruns happen 
+merging vulnerability signatures trivial matter customizing state handlers adding new visitors inspect message component example 
+fast vulnerability signature authoring close critical time window vulnerability disclosure protection 
+automatic vulnerability signature generation newly discovered vulnerabilities research designs tools detecting exploits discovering associated new vulnerabilities 
+minos reactive immune system proposed prototyped tools detecting tracing tainted control flows caused external data buffer overruns run time 
+know exactly binary code control flow violation buffer overrun occurs information sufficient author vulnerability signature protocol context information missing 
+directly extracting protocol semantics protocol state machine message formats binary code source code difficult 
+gapa generate accurate vulnerability signatures 
+attack detection tools identify packet caused run time violation gapa reconstruct protocol context identify protocol states message components involved causing vulnerability 
+done running gapa parallel attack detection tools signaling error occurs having tools simply keep log packet sequences active sessions passing sequence causing violation gapa trace 
+protocol context reconstructed gapa generated signature precise cause fewer false positives catch polymorphic worms 
+vii 
+related literature intrusion detection firewalls 
+addressed rapid development protocol analyzers generic protocol analysis framework 
+packet filters programmable selection criteria classifying selecting packets packet stream generic reusable fashion meant analyze protocol context requires interpreting packets messages messages sessions 
+section gave overview compares contrasts protocol description languages 
+section address related turn provide detailed comparisons 
+shield generic protocol analysis inspired design develop full fledged gapa purposes just shielding 
+fact shield design appears preliminary 
+shield language suitable binary protocols rpc difficult express text protocols 
+shield approach treat text messages binary ones struct allow units offset size defined words characters addition bytes 
+idea novel converting existing protocol specification document expressed shield language difficult task 
+contrast gapal design takes disciplined approach structuring binary text data stream rigidly gapal uses bnf attribute grammars easy text binary messages 
+shield address number issues analysis engine design exception timeout pre existing session 
+packet specification language automatically generate packet recognizers type protocol messages constituent fields 
+designed primarily binary protocols layer implement parser isdn layer protocol 
+gapal text protocol messages higher layer protocols hard express 
+statically typed object oriented language network protocol implementation 
+provides compiler creating code specification 
+design driven making tcp implementation readable extensible performance 
+implement network protocols gapal special purpose explicit built support abstractions needed protocol analysis 
+abstractions need manually implemented protocol implementation 
+statecharts esterel languages programming reactive systems real time systems control systems hardware design distributed systems communication protocols 
+esterel includes compiler translates esterel programs finite state machines 
+protocol state machine specification part language corresponds control handling aspect esterel statechart offers minimal data handling support protocol analysis abstractions 
+kernel provides explicit architecture constructing composing network protocols 
+infrastructure written enforces minimal objectoriented style protocol session objects 
+essential abstractions supported protocol session message objects set support routines buffer management identifier mapping timer support 
+uniform interface protocols kernel aims improve structure performance protocol layering 
+comparison kernel provide finer grained explicit protocol abstractions eliminate redundant implementations different protocols example protocol object additionally support abstraction session dispatching session object additionally support state machine automaton session supposed follow 
+modular design possible protocol analysis believe low level unsafe 
+contrast language gapal supports strong typing special purpose easily carry static checking compile time specific properties related protocol analysis section iii 
+asn ndr usc specify binary message formats protocol logic 
+languages considered subset gapal 
+built translators ndr asn gapal 
+formal description languages fdl estelle promela lotos sdl designed analyze reason verify properties particular protocol state machine design 
+orthogonal goal framework parsing analyzing protocol messages reassembling messages sessions 
+summary arena protocol analysis provide comprehensive generic application protocol analysis framework comparing related protocol description languages existing languages offers sufficient abstractions needed analyzing binary text protocols 
+viii 
+gapa analysis engine currently interprets gapal programs 
+higher speed may necessary compile machine code 
+involve translating grammar rules executable statement blocks key challenge supporting incremental parsing speculative execution translated code 
+gapa language benefit better support modularity 
+anticipate inheritance model refining protocol specification new session vars augmented handlers possibly extended state machine 
+model better support designing various analyses top base protocol specification 
+gaining experience programming gapal design 
+gapal programming easier having protocol analyzer development kit similar gui design tools states messages drawn canvas generate code template 
+debugging facilities facilitate gapal development 
+ix 
+concluding remarks design implementation evaluation comprehensive generic application level protocol analysis framework gapa 
+key contributions include design novel protocol analysis language safe easy expressive number techniques run time engine speculative execution outgoing message clocking timeout handling pre existing session handling 
+gapa great utility number applications intrusion detection intelligent network trace labeling vulnerability signature authoring generation 
+evaluation indicates gapal expressive easy gapa system prototype capable doing online analysis clients potential servers 
+andrew john douceur john jon howell dawn song gave invaluable critiques drafts 
+benefitted discussions jon pincus dan simon su yang 
+geoff kindly provided network traces evaluation short noticed requests 
+thankful help 
+david anderson 
+automated protocol implementation 
+ieee transactions software engineering march 
+lia 
+formal methods specification analysis communication protocols 
+ieee communications surveys tutorials december 
+anindya basu mark hayden greg morrisett thorsten von eicken 
+language approach protocol construction 
+proceedings acm sigplan workshop domain specific languages 
+andrew steven mccanne susan graham 
+bpf exploiting global data flow optimizations generalized packet filter architecture 
+computer communication review 
+gerard berry 
+esterel primer 
+bittorrent 
+bittorrent com 
+dembinski 
+estelle specification language distributed systems 
+computer networks isdn systems 
+microsoft security bulletin ms november 
+www microsoft com default asp url security bulletin ms asp 
+mitre 
+common vulnerabilities exposures database cve keyword search ethereal 
+www cve mitre org 
+mitre 
+common vulnerabilities exposures database cve keyword search tcpdump 
+www cve mitre org 
+manuel costa jon crowcroft miguel castro antony rowstron 
+contain internet worms 
+hotnets iii november 
+crandall frederic chong 
+minos control data attack prevention orthogonal memory model 
+proceedings th international symposium microarchitecture october 
+neil desai 
+increasing performance high speed nids 
+allen 
+rfc tls protocol version january 
+www ietf org rfc rfc txt 
+
+asn communication heterogeneous systems 
+morgan kaufmann publishers 
+dawson engler frans kaashoek 
+dpf fast flexible message demultiplexing dynamic code generation 
+proceedings acm sigcomm 
+fielding gettys mogul frystyk masinter leach berners lee 
+hypertext transfer protocol rfc june 
+erich gamma richard helm ralph johnson john vlissides 
+design patterns 
+addison wesley professional 
+handley schulzrinne schooler rosenberg 
+rfc sip session initiation protocol march 
+mark handley vern paxson christian 
+network intrusion detection evasion traffic normalization protocol semantics 
+proceedings usenix security symposium august 
+harel 
+statecharts visual formalism complex systems 
+science computer programming pages 
+
+sourceforge net projects 
+norman hutchinson larry peterson 
+kernel architecture implementing network protocols 
+ieee transactions software engineering 
+java 
+java sun com 
+eddie kohler frans kaashoek david montgomery 
+readable tcp protocol language 
+proceedings acm sigcomm 
+robert malan david watson jahanian 
+transport application protocol scrubbing 
+proceedings ieee infocom 
+mccann chandra 
+specification network protocol messages 
+proceedings acm sigcomm 
+mockapetris 
+rfc domain names implementation specification november 
+www faqs org rfcs rfc html 
+james newsome dawn song 
+dynamic taint analysis automatic detection analysis signature generation exploits commodity software 
+proceedings th annual network distributed system security symposium february 
+caml 
+www ocaml org 
+malley proebsting 
+usc universal stub compiler 
+proceedings acm sigcomm 
+vern paxson 
+bro system detecting network intruders real time 
+computer networks dec 
+thomas timothy 
+insertion evasion denial service network intrusion detection january 
+www insecure org stf ids ids html 
+martin rinard cristian daniel daniel roy leu 
+dynamic technique eliminating buffer overflow vulnerabilities memory errors 
+proceedings acsac 
+dce remote procedure call 
+www org 
+www sdl forum org publications index htm 
+richard sharpe ed ulf lamping 
+ethereal 
+www 
+ethereal com 
+michael stephen boyd angelos keromytis 
+building reactive immune system software services 
+proceedings usenix annual technical conference 
+open source network intrusion detection system 
+www snort org 
+international telecommunications union 
+recommendation isdn user network interface layer specification basic call control may 
+van eijk vissers diaz editors 
+formal description technique lotos 
+helen wang guo daniel simon alf 
+shield vulnerability driven network filters preventing known vulnerability exploits 
+proceedings acm sigcomm 
+

@@ -1,0 +1,225 @@
+fast mach network ipc implementation joseph barrera iii jsb cs cmu edu school computer science carnegie mellon university forbes avenue pittsburgh pa describes implementation network mach ipc optimized clusters processors connected fast network workstations connected ethernet processors non shared memory multiprocessor 
+contrasts earlier server emphasized connectivity robust widely available protocols tcp ip configurability entirely user state implementation expense performance 
+issues addressed support low latency delivery small large messages support port capabilities counting integration existing local mach ipc implementation 
+low latency small messages requires careful buffer control flow management compared fast rpc described literature 
+low latency large messages particularly faster networks requires avoidance copying achieved virtual memory support modifications necessary mach virtual memory support inexpensive useful purpose described 
+distributed implementation port capabilities port counts port migration discussed compared server 
+performance data quantify speedup achieved described implementation 
+mach ipc traditionally extended network server sansom sansom user level server uses general purpose protocols tcp ip 
+approach connectivity configurability advantages serious performance disadvantage 
+particular network mach rpcs times slower network rpcs systems comparable hardware 
+effort currently underway implement mach abstractions non shared memory multiprocessor yielded requirement faster network mach ipc 
+non shared memory multiprocessors intel ipsc successors interconnects high throughput low latency inappropriate burden fast interconnects slow ipc implementation 
+fast network ipc particularly important machines ipc systems remote 
+research supported defense advanced research projects agency information science technology office title research parallel computing arpa order issued darpa contract mds 
+issues implementation sections describe various important issues constructing network ipc implementation described implementation addressed 
+issues include support low latency delivery small large messages support port capabilities counting integration existing local mach ipc implementation 
+draves message sizes latency important cases optimize mach ipc small messages bytes large messages carrying pages line data 
+small messages requests replies large messages transferring data including file device access paging traffic 
+buffering operating system servers emulators responsible lack intermediate sized messages 
+example bsd unix server translates read system call read mapped file area read generates message page containing read data resident small request followed large reply page needs faulted 
+small messages software latency dominant cost 
+little data network throughput irrelevant 
+network latency including software cost setting send receive range tens hundreds microseconds requires optimized ipc system costs noticeable 
+large messages network throughput data dependent software costs important 
+common data dependent software cost cost copying data buffers 
+limiting number copies send receive moderately straightforward eliminating copies significantly difficult 
+difficulty network interfaces send receive special device memory interfaces scatter gather may require copy add remove headers 
+cost copying data may affect asymptotic throughput increase latency page messages messages common copying worth avoiding 
+copying fail affect asymptotic throughput copying packet done parallel network transmission feasible ethernet memory memory copying typically times faster ethernet 
+transferring small number packets chance overlap 
+faster networks speeds closer memory access speeds increase significance copying 
+small messages small message transfers optimized borrowing techniques explored systems firefly schroeder burrows amoeba van renesse sprite ousterhout cheriton zwaenepoel 
+example context switches avoided having interrupt thread having thread receiving message rest 
+context switch sending side rpc avoided switching idle thread runnable processes sending thread spins waiting reply message thread runnable 
+large messages optimizations required small messages optimizing large messages requires data size dependent costs minimized 
+discussed primary data dependent software cost cost copying data cost particularly significant latency networks run close memory speed 
+sections examine methods avoiding copying 
+avoiding copies shared buffers method avoiding copies example firefly rpc non buffers shared user tasks network driver 
+users construct messages shared buffer driver sends directly appropriate buffer 
+avoiding mapping copying operations scheme advantage working network devices view subset physical memory 
+shared buffer area approach number disadvantages 
+single shared buffer area offers protection tasks interfering message operations 
+protection requires separate buffer area sending task divides device space small pieces may artificially limit way maximum message size 
+furthermore separate buffer areas task protect driver malicious users particularly device scatter gather create headers shared area 
+semantic problems shared buffer area approach 
+ipc systems offer copy semantics message sending send completes modifying data sent buffer change data seen receiver 
+contrast data sent shared buffer sender wait driver indicate done buffer 
+furthermore fact shared buffer limited resource user data live shared buffer probable user task need copy data shared buffer sending receiving 
+shared buffers may shift need copying user task truly eliminating 
+avoiding copies virtual memory mapping mentioned problems shared buffer approach combined difficulty integrating shared buffers mach ipc semantics led decision avoid copying virtual memory operations 
+approach precedent mach system local mach ipc uses copy write avoid copying data sender receiver attempts modify data 
+copying avoided sending mapping user data kernel address space faulting non resident pages marking pages 
+network driver uses kernel mapping data 
+data received received kernel buffers mapped receiver address space 
+unfortunately existing mach methods manipulating line data network ipc cost virtual memory system avoid copy times cost avoided copy 
+primary problem mach virtual memory data structures represent copied data optimized long term copy write sharing data typified address space copies 
+particular line data message represented copy object complicated data structure preserves copying sharing relationships 
+line data sent network original virtual memory data structures expensive operations occurred 
+address message converted copy object 
+copy object mapped kernel address space pages faulted non 
+data sent data unmapped kernel address space 
+key observation way data sent remotely read quickly deallocated driver needs protected writing user driver completed sending 
+short term sharing data suggested page list data structure 
+page data sent located faulted necessary placed list handed network driver 
+methods preventing user task modifying pages sent 
+prevent user returning kernel long driver needs pages 
+method works user task performing send receive call wait anyway reply leaving kernel 
+method viable device requires copy byte swapping limited addressing reasons done pages soon copies network fast arrive time sender unwound routines leading driver send routine 
+second method protect pages writing user return send 
+general relatively expensive copy write technology pages marked busy protected writing calling pmap routine manipulates page tables directly 
+thread faults busy page blocks page busy preexisting mechanism mach virtual memory system indicate page waiting event complete page read disk 
+network driver marks page busy done 
+page virtual memory system automatically page fault 
+reason having network driver page possibility driver granting write permission longer allowed 
+separate method preventing copying user specify kernel deallocate sent pages user address space 
+option standard mach ipc commonly servers generate cache data pagers device servers 
+issues particular network ipc applicable kernel needs write data device network ipc standard protocols disk tape 
+key feature lack long term sharing fact kernel won write data 
+separate project generalized page lists cases 
+black avoiding copies receiving virtual memory mapping copies avoided receiving sending 
+pages data received received directly anonymous pages unmapped user task 
+pages threaded page lists inserted mach message constructed 
+user task receives message pages page lists mapped task address space page list pointers message replaced pointers mapped areas 
+anonymous pages receiving allows copies avoided manipulation examination receiver address space thread blocked waiting message 
+systems require thread waiting message copy avoided 
+integration local ipc implementation negative aspects integrating remote ipc kernel local ipc system possibility introducing complexity complex system 
+fortunately interactions local remote ipc code limited areas message translation message queueing 
+local mach ipc messaging stages copyin queuing 
+copyin consists copying message buffer user address space kernel buffer translating ports line data internal kernel representations 
+message buffer queued destination port 
+thread ready receive message message dequeued copied translation back kernel user representations ports line data 
+remote mach ipc implementation intercepts messages queueing stage 
+message queued port queueing routine checks port remote gives message remote ipc system queueing 
+code parallels existing code checks messages sent kernel owned ports task thread device ports 
+conversely remote ipc implementation receives message network inserts local ipc system calling queueing routine message sent local task 
+similarly translation state message destined remote port ports line data translated wire representations kernel internal representations 
+message received network wire representations translated kernel internal representations message local ipc system 
+port names capabilities counts extension mach ipc network introduces issues distributed naming consistency garbage collection 
+sections describe remote rights represented introduce efficient mechanism collecting distributing port usage information describe mechanism implement port death port migration senders notifications 
+global port identifiers node sends send rights port node uses global port identifier identify port 
+global identifier serves purposes 
+allows node merge port rights required mach ipc semantics 
+second provides method determining node messages sent port delivered 
+task receives send rights port holds send rights mach ipc guarantees new send rights name old 
+merging port names allows task identify port rights referring port 
+global port identifiers allows kernel support merging allowing recognize identical remote send rights 
+fundamental question concerning global identifiers encode location information 
+generally cheaper simpler locate object directly identifier separate mechanism map identifiers locations provision object migration invalidates location information encoded object identifier 
+new identifier object encoding new location created distributed identifier entered list maintained node lists identifiers location information incorrect 
+factors led decision encode port information global identifier change identifiers port migration 
+port migration rare sending port common 
+acceptable complicate port migration order reduce space time cost determining port location 
+second mechanisms required distributing new identifiers invalidating old identifiers required aspects mach ipc senders notifications 
+identifier replacement performed user impact tasks task port names see global port identifiers decision difficult tasks shared port name space 
+proxy ports proxy port local representative port receive rights lives node created time node receives send rights port 
+proxy port treated normal port local ipc code automatically maintains node usage information port 
+particular maintains local send right counts critical implementing distributed senders notification 
+global identifier port contained proxy port 
+allows nodes merge send rights seen allows remote ipc code know send message local ipc code attempts send message proxy 
+periodic token periodic token solves information distribution problems inexpensive manner 
+allows single node broadcast information nodes 
+allows node collect information large set nodes 
+allows nodes know information seen nodes 
+periodic token writable message periodically sent fixed path node system 
+token passes node times period 
+pass node writes information token 
+second pass node reads information token 
+third pass simply informs node information carried token seen node 
+reduce overhead due processing incoming token messages token pauses seconds periods 
+primary advantage periodic token batches small messages larger message greatly reducing message handling overhead 
+particularly appropriate port usage information information intrinsically self cancelling intermediate count values uninteresting need acted seconds 
+detecting senders task request senders notification message attempts receive port task send rights 
+notification allows servers garbage collect objects longer 
+detecting senders easy centralized case significantly harder distributed case 
+centralized case data structure describes current usage port including number send rights held tasks queued messages system 
+count updated operation changes send right count simple matter send notification receiver count drops zero 
+distributed case send right count distributed nodes general node accurate global count node knows local send right count 
+lack knowledge causes 
+holder send receive rights port generate new send rights 
+receive rights required generate send rights case send rights holder receive rights maintain accurate count 
+second node sends send rights node sending node assume global send count increased send right merged receiving task receiving node 
+naive approach implementing senders detection pessimistic date send count maintained node holding receive rights generate huge amount message traffic 
+approach message sent holder receive rights send right sent node message sent receiver send right send right count incremented 
+count pessimistic overestimates global send count 
+accurate count possible pessimistic count necessary prevent incorrect senders notifications 
+periodic token efficient implementation senders detection periodic token introduces fixed small number messages system 
+implementation node associates transit count proxy transit count incremented node sends send right associated proxy decremented receives send right 
+purpose transit count count send rights held messages sent received 
+period token circulates node writes send count transit count remote send rights token 
+token visit node instantaneously senders detected looking uniformly zero send transit counts 
+unfortunately token passes node second node send send right receive back deallocate leaves scanned node send right second node zero transit send count 
+correct algorithm exist requires passes new export flag 
+new flag indicates send rights sent node previous pass 
+senders detected passes return zero send transit counts export flags indicate right sent second pass 
+port death port death easily implemented senders implemented 
+port dies death broadcast periodic token 
+port global identifier garbage collected soon senders true 
+note senders automatically accounts send rights transit simply waiting token announcing port death seen node 
+port migration port death port migration easily implemented help senders detection 
+port migrated node new identifier allocated correct location information 
+new identifier broadcast node periodic token old identifier node knows node seen new identifier 
+danger new identifier soon node told new identifier realize refers port old identifier correctly merge port right 
+senders true old identifier nodes free garbage collect forwarding information associating old new identifiers 
+reliable delivery flow control network ipc implementation provide reliable delivery 
+unreliable delivery caused packets destroyed lost network packets dropped node lacks buffer space 
+described implementation originally designed reliable networks protocol handled lack buffer space negative 
+protocol extended unreliable networks adding timeouts retaining negative 
+protocol reliable network original protocol designed reliable networks packet sent node positively negatively acknowledged 
+positive allows sender send packet negative requires sender resend current packet 
+negative sent buffer space available packet received available may delayed long takes receiver find space 
+ability acknowledge positively negatively packet requires cooperation software hardware including limited hardware support flow control 
+software recognize buffer left continually reuse buffer receive incoming packet record nodes require negative 
+hardware lose packets sent node interconnect receive buffer practice interconnect infinite buffer space means interconnect willing delay network sends 
+interconnect ipsc provides capability presumably token ring designed 
+note existence hardware flow control obviate need software flow control hardware flow control network partially unusable long needs hold packet worst case cause system wide deadlock 
+primary motivation negative acknowledgments avoidance timeouts detect buffer space overflow 
+timeouts poor mechanism case large variation time takes node find buffer space difficult select appropriate timeout value 
+cases node just needs schedule thread perform memory allocation performed interrupt level cases node need page disk sufficient buffer space 
+adaptation unreliable network extend protocol unreliable networks ethernet necessary add timeouts retransmission 
+mechanisms added negative longer necessary decided retain negative reasons 
+wanted common protocol reliable unreliable networks want give advantages negative provide reliable case 
+second difficult find timeout value timeouts packet loss buffer space depletion 
+combine negative timeouts added types messages requests quench requests 
+node sends packet expects positive negative timeout periods 
+receive sends request waits 
+turn node receives packet buffer space buffer space timeout period sends quench message sender prevent series request messages 
+buffer space available receiver sends negative repeated necessary 
+timeouts detecting lost packets possible shorter timeout 
+particularly important inexpensive workstations personal computers combine low latency network ethernet lossy unreliable network interfaces 
+particular faced ethernet cards produced percent packet loss rates machines wire combined hardware latency millisecond sense timeouts hundreds milliseconds bsd tcp implementation leffler 
+tradeoffs primary tradeoff implementation server implementation speed versus generality 
+implementation primarily designed support distributed memory multiprocessors assumes fixed number homogeneous nodes low network latencies independent failures network partitions 
+return provides fast message delivery small space costs timely notifications events port death 
+possible obtain fast ipc nearby nodes connectivity far away machines fast ipc implementation cluster nodes running server nodes 
+configuration server acts gateway 
+messages sent cluster handled entirely fast ipc implementation message sent node cluster machine outside cluster sent fast ipc node running server remote machine way remote machine server 
+evaluation described implementation considerably faster server comparable fastest rpc systems described literature 
+simple mach rpc server pcs running mach kernel tcp ip takes milliseconds 
+contrast simple mach rpc described implementation machines takes milliseconds 
+represents fourfold improvement server comparable rpc times milliseconds sprite milliseconds measured sun workstations firefly rpc milliseconds running processor firefly schroeder burrows 
+described implementation provides comparable performance proprietary message passing systems distributed memory multiprocessors 
+example simple mach rpc mhz ipsc interconnect takes milliseconds compares milliseconds nx intel proprietary operating system running hardware despite considerably simpler semantics nx message passing 
+mach ipc implementation described optimized clusters processors connected fast network 
+avoiding complexities introduced hosts networks adopting optimizations demonstrated previous fast rpc developing new techniques avoid copying new implementation performs competitively rpc systems considerably faster server implementation preserving full mach ipc semantics 
+implementation serve cornerstone efficient mach kernel support distributed memory multiprocessors 
+black black page lists progress 
+unpublished june 
+cheriton zwaenepoel cheriton zwaenepoel distributed kernel performance diskless workstations 
+proceedings ninth symposium operating system principles 
+acm 
+draves draves revised ipc interface 
+proceedings usenix mach workshop pages october 
+sansom sansom issues efficient implementation network ipc rpc mach environment 
+unpublished september 
+leffler leffler mckusick karels quarterman design implementation bsd unix operating system 
+addisonwesley reading ma 
+ousterhout ousterhout douglis nelson welch sprite network operating system 
+ieee computer february 
+sansom sansom building secure distributed system 
+phd dissertation carnegie mellon university may 
+schroeder burrows schroeder burrows performance firefly rpc 
+proceedings twelfth symposium operating system principles 
+acm 
+van renesse van renesse van staveren tanenbaum performance world fastest distributed operating system 
+operating systems review oct 

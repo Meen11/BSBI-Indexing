@@ -1,0 +1,577 @@
+performance study alternative object faulting pointer swizzling strategies seth white presents portable efficient method accessing memory resident persistent objects virtual memory context progr language 
+approach objects copied buffer pool underlying object manager virtual memory demand accessed program 
+cumulative effects updates persistent object propagated back object manager single write operation transaction 
+method incorporates comprehensive pointer swizzling mechanism enhance performance 
+swizzling done pointer time software checks detect swizzled pointers 
+presents results performance study comparing method alternative software architectures including objectstore commercially available oodbms 
+results highlight tradeoffs providing software vs memory mapped support pointer swizzling quantify effects pointer swizzling performance 
+addition significant performance impact pointer swizzling generation recovery information examined 
+experimental results show situations software approach outperform memory mapped approach 
+
+persistent language rich rich originally designed ease implementation data intensive software applications database management systems require access huge amounts persistent data 
+current implementation uses interpreter persistent virtual machine epvm coordinate access persistent data schuh stored exodus storage manager carey carey bl 
+approach taken epvm memory resident persistent objects cached buffer pool exodus storage manager esm persistent objects accessed place 
+addition epvm provides support limited form pointer swizzling 
+introduces 
+alternative implementation epvm epvm targeted cad environments 
+common example cad application design tool loads engi permission copy fee part material granted provided copies direct commercial advantage vldb copyright title publication ifs date appear notice copying permission large base 
+copy republish requires fee special permission porn 
+proceedings th vldb conference vancouver british columbia canada david dewitt computer sciences department university wisconsin madison wi white dewitt cs wisc edu neering design main memory repeatedly traverses design performing computation saves design secondary storage 
+important property design applications perform considerable amount focused memory persistent objects 
+major fraction involves manipulation persistent objects pointers 
+basic approach employed epvm maintain cache virtual memory set persistent objects accessed program 
+objects copied esm buffer pool inserted cache accessed program 
+addition cumulative effects updates persistent object propagated back esm single write operation transaction commits finishes execution 
+cache supports comprehensive pointer swizzling scheme inter object pointer converts pointers object identifiers oids direct memory pointers 
+pointers swizzled time program 
+volume data accessed individual transaction exceeds size real memory objects swapped disk swizzled format virtual memory subsystem 
+help evaluate effectiveness design epvm presents results number performance experiments conducted benchmark 
+experiments compare epvm alternative software architectures 
+objectstore vi objec commercially available object oriented dbms 
+objectstore uses memory mapped approach support pointer swizzling fault objects main memory 
+second architecture represented epvm supports limited form pointer swizzling 
+third architecture support pointer swizzling corresponds conventional non persistent programming language call esm directly 
+experimental results illustrate tradeoffs different implementations object faulting pointer swizzling including doing swizzling examine impact different schemes generation recovery information 
+case epvm alternative ways managing migration persistent objects esm buffer pool virtual memory examined 
+systems included study client server architecture feature full support transactions concurrency control recovery 
+client server version esm frank store persistent data experiments epvm epvm 
+research funded defense advanced research projects agency contract 
+remainder organized follows 
+section discusses related object faulting pointer swizzling 
+section presents detailed description implementation epvm 
+section describes benchmark experiments 
+section presents performance results 
+section contains proposals 
+
+related previous approaches pointer swizzling roughly divided groups memory mapping techniques similar virtual memory software checks detect accesses objects 
+early software implementations pointer swizzling done part implementation ps algol atkin cock 
+approach pointer dereferences trigger transfer objects secondary storage main memory 
+moss presents study software swizzling techniques examines issue storing persistent objects buffer pool object manager versus copying virtual memory 
+moss takes object time approach swizzling objects memory classified swizzled unswizzled 
+approach pointers unswizzled object swizzled immediately rst object 
+causes objects pointers faulted memory marked unswizzled 
+initial object marked swizzled 
+advantage approach see generally perform unnecessary swizzling 
+disadvantage objects accessed program faulted memory swizzling mechanism resulting unnecessary operations 
+particular unswizzled objects memory resident definition referenced 
+restricted form pointer swizzling supported epvm schuh 
+maintains memory resident objects esm buffer pool swizzling inter object pointer difficult implement efficiently 
+local program variables pointers persistent objects swizzled 
+advantage approach allows objects written back disk presence swizzled pointers 
+general hard efficiently software approach swizzled pointers object unswizzled memory space occupied object reused 
+compiler stores local pointers persistent objects special pointer stack maintained parallel regular procedure activation stack 
+space buffer pool needs reclaimed epvm scans pointer stack swizzled pointers contains 
+ensures dangling objects longer resident memory 
+pointer swizzling scheme virtual memory techniques described 
+similar approach object design objectstore objec lamb 
+basic idea allocate virtual memory addresses pages containing persistent data step ahead program actual usage pages 
+program attempts access page virtual memory page fault occurs 
+fault intercepted underlying object manager loads page preassigned location memory 
+advantage method swizzling programs see regular virtual memory pointers allowing accesses persistent objects occur memory speeds 
+addition compiled code access persistent objects 
+objects span multiple pages virtual memory handled transparently long sufficient contiguous virtual memory address space reserved entire object 
+disadvantage basic approach described programs may incur unnecessary swizzling overhead 
+swizzling done granularity individual pages programs pointers located page 
+objec describes extension basic technique avoid problem eliminating need swizzle pointers cases 
+effect pointers stored swizzled format objec 
+
+epvm design concepts 
+object caching mentioned section esm provide disk storage persistent objects accessible program 
+epvm copies objects esm client buffer pool virtual memory accessed 
+separate schemes cache objects smaller disk page referred small objects large objects span number pages disk 
+small objects copied esm client buffer pool entirety stored individual contiguous regions virtual memory 
+bitmap appended region record locations swizzled pointers contained small object 
+large objects cached page time units bytes 
+individual large object pages cached demand pages referenced cached 
+cached page appended bitmap keeps track swizzled pointers page 
+different pages large object necessarily stored contiguously virtual memory 
+fact important implications pointer swizzling essentially means pointers large objects swizzled accesses large objects pointers span page boundaries 
+objects cached virtual memory organized hash table object identifier oid 
+entries hash table pointers object descriptors see 
+case small object object descriptor contains single pointer copy object virtual memory 
+paired pointer low high byte count keep track range modified bytes object 
+update small object range expanded decrementing incrementing low high byte counts respectively needed 
+note method keeping track modified portion object works best locality updates objects 
+range modified bytes bitmap stored object determines portion object written disk subset swizzled pointers object unswizzled transaction completes 
+object descriptor large object contains array pointers pages large object 
+large object page associated low high byte count keep 
+object descriptor large object 
+track modified portion page manner analogous small objects 
+shows example small large objects cached 
+small objects descriptors contain single pointer respective objects large object descriptor contains pointers pages large object 
+note pointers point object page corresponding bitmap 
+page large object referenced object descriptor points pages 
+object descriptors small objects organized second hash table disk page corresponding objects reside 
+small objects reside disk page overflow chain 
+allows effects updates objects page propagated back esm buffer pool time commits 
+large objects kept separate linked list traversed transaction write back dirty portions large object pages 
+depicts small objects residing disk page 
+objects linked page pointers object descriptors 
+course possible objects disk pages may overflow chain page numbers hash value 
+practice low cost strategy plus fact collisions rare allows perform 
+
+pointer swizzling epvm persistent objects accessed pointers important provide efficient mapping pointers persistent objects 
+pointer dereferenced program may states unswizzled case contains value object identifier old swizzled meaning contains direct memory pointer 
+dereferencing unswizzled pointer basically incurs cost overhead lookup oid hash table order obtain pointer referenced object 
+dereferencing swizzled pointer avoids cost swizzled pointer contains direct memory pointer object 
+difference dereferencing cost may small important remember tens hundreds thousands pointer dereferences occur execution program 
+potential savings offered pointer swizzling large 
+key assumption pointer swizzling scheme pointers average justify costs doing pointer swizzling 
+epvm supports pointer swizzling scheme converts pointers oid form direct memory pointers incrementally program execution 
+goal quickly cheaply convert pointers swizzled format program sees swizzled pointers majority time executing 
+software checks distinguish swizzled unswizzled pointers 
+reasonable price checks small part program execution time fact independently confirmed moss 
+furthermore possible standard kinds compiler optimizations eliminate checks program compiler currently 
+software approach combines efficiency portability provides flexible environment conducting research 
+swizzling scheme epvm characterized fact pointers time opposed approach described page time moss oid table 
+object cache containing small large objects 
+pointers granularity objects 
+type swizzling scheme epvm referred edge marking scheme moss 
+implementation strategy pointers swizzled dynamically program execution key decision execution swizzling 
+possibility swizzle pointers dereferenced 
+see done consider detail happens unswizzled pointer dereferenced execution program 
+memory address pointer passed epvm function performs lookup oid hash table value oid contained pointer 
+pointer composed byte oid volume id bytes page id bytes slot number bytes unique field bytes byte offset field 
+referenced object obtained exodus storage manager esm possibly causing done copied virtual memory inserted cache 
+pointer may swizzled virtual memory addresses pointer object known 
+type swizzling referred swizzling dereference 
+advantage scheme pointers dereferenced swizzled amount unnecessary swizzling minimized 
+furthermore pointers referenced objects swizzled unnecessary operations avoided 
+swizzling dereference major problem 
+particular pointer dereferenced copied temporary memory location local pointer variable activation stack 
+swizzling dereference fails swizzle pointers persistent objects effect force programs pointers unswizzled pointers execution 
+approach epvm swizzle pointers objects discovered location pointer known 
+shall call type swizzling swizzling discovery 
+pointer object may discovered value assigned pointer involved comparison operation number ways 
+context epvm pointers discovered follows 
+epvm passed persistent address pointer candidate swizzling 
+contents persistent address locate object containing candidate pointer cache 
+note initial step may involve caching object contains pointer swizzled 
+virtual memory address candidate pointer known contents inspected swizzled perform lookup oid hash table lind object 
+object denoted candidate pointer cache candidate pointer swizzled 
+note swizzling scheme solves major problem associated swizzling dereference pointers persistent objects swizzled 
+consider case object referenced candidate pointer cache 
+alternative go ahead cache object 
+eager approach result unnecessary operations object referenced candidate pointer may fact needed program 
+example consider persistent collection object store pointers objects class 
+routine deletion collection may need compare value pointer deleted arbitrary number pointers collection 
+comparisons discovers pointer contained collection deletion operation fault large number objects eager swizzling discovery 
+swizzling scheme avoid causing unnecessary operations epvm takes lazy approach swizzle candidate pointer object cached 
+swizzling scheme epvm uses pointer dereferences fault objects cache 
+object cache pointers object swizzled locations discovered 
+pointers object discovered object referenced immediately swizzled 
+lastly note swizzling discovery restricts swizzling activity pointers program programs pointers tc pay big price terms swizzling overhead 
+objects needed program cached extra activity results nom swizzling 
+example designed illustrate differences swizzling dereference eager lazy variations swizzling discovery described 
+traverses assembly persistent part objects assumed form tree simplicity depth order calculates total cost assembly 
+part object contains cost field pointers subparts 
+assume collection part objects shown part objects collection oids represented letters objects form tree height 
+depicts format part objects stored disk connections parts represented oids 
+note hat pointer dereferenced example root transient local pointer variable 
+swizzling executing roof swizzled subpart pointers contained part objects remain unswizzled form 
+implies repeated traversals parts assembly encounter unswizzled pointers assembly remain forma shown 
+pointers located part objects discovered function expression root ij evaluated part part subpart structure part int part root int depth int int root subpart depth root subpart depth root return 
+example function 
+
+different representations collection objects 
+line 
+note part object visited pointers located object discovered 
+suppose collection parts shown repeatedly traversed function object depth 
+eager implementation swizzling discovery subparts leaf node subtree visited tot cached 
+shows basic structure part assembly memory traversal parts method 
+example total part objects read disk cached double number objects needed 
+consider swizzling scheme epvm behaves doing traversal 
+rst traversal collection part objects cached appear 
+note objects accessed program cached pointers objects unswizzled oid form 
+case subpart pointers swizzled discovered line traversal objects cache 
+objects faulted cache traversal pointer root dereferenced line 
+second traversal structure collection 
+note pointers objects visited program swizzled traversals collection dereference swizzled pointers 
+
+performance experiments performance experiments done traversal portion benchmark 
+traversal portion involves repeatedly traversing collection part objects randomly selected part depth fashion depth levels 
+individual traversals referred iteration benchmark 
+part visited iteration simple function called values part object parameters 
+addition ability update part objects added time part object visited simple update performed fixed probability 
+update operation defined incrementing byte integer fields contained part object 
+lb total different software versions evaluated 
+software versions classified basic architectures see section 
+experiments compare performance different architectures investigate relative performance versions approach epvm 
+usefulness pointer swizzling evaluated 
+number experiments vary frequency updates performed objects conducted 
+done access impact swizzling approaches generation recovery information 
+architectures examined offer equivalent transaction facilities page level locking atomicity transactions transaction rollback 
+architectures attempt batch updates objects generate recovery information updates object transaction architectures take traditional database approach generating log records individual update 
+approaches important implications systems redo undo logging 
+experiments compare different software versions small database fits main memory large database represents working set size bigger main memory 
+
+software versions architecture shown results conventional non persistent programming language call esm directly 
+approach accesses objects client buffer pool esm procedural interface routines esm interface linked application compile time client buffer pool located application private address space 
+experiments server process located separate machine connected client network 
+page network 
+architecture 
+accesses occur particular transaction take place visit object follows 
+application wants read value contained object calls esm interface function 
+interface function requests page containing object server necessary possibly causing server perform behalf pins object client buffer pool 
+interface function returns data structure application known user descriptor carey contains pointer object 
+application read values object number times pointer contained user descriptor 
+time application wants update portion object call interface function passing things new value user descriptor pointing object parameters 
+update function updates specified portion object client buffer pool generates log record update old value contained object new value passed parameter 
+application finished visiting object calls esm function object client buffer pool 
+objects page point page candidate replacement client buffer manager 
+note architecture pin sequence operations object generally takes place short period time relative life program single invocation function 
+causes object pinned multiple times visited program 
+addition update operation causes log record generated 
+current release esm data pages cached client buffer pool transactions 
+client communicate server reacquire locks cached pages accessed succeeding transactions 
+transaction commit involves shipping dirty data pages log pages back server writing log pages disk releasing locks frank 
+esm support callbacks om server client 
+allow inter transaction caching locks client eliminate need ship dirty data pages back server transaction commit 
+pointer swizzling done architecture 
+single software version architecture referred 
+size esm client server buffer pools megabytes 
+second architecture represents approach taken epvm schuh 
+shows client portion architecture server portion identical server shown 
+epvm avoids calls storage manager maintaining cache worthy objects esm client buffer pool 
+objects accessed way 
+time object needed application epvm calls esm interface function pins object client buffer pool returns user descriptor object referenced 
+may involve communication client server server may turn perform behalf client 
+epvm creates object hash table object oid 
+hash table maintains mapping oids user descriptors remains valid client buffer pool full program execution completes 
+objects cached esm buffer pool accessed doing lookup oid hash table swizzled pointer epvm supports limited form pointer swizzling see section 
+updates objects require epvm oid hash oid hash table pj esm client buffer pool page page network connected server 
+architecture 
+invoke storage manager interface function 
+interface function updates object buffer pool generates log record update 
+transaction commit requires epvm scan oid hash table objects addition usual operations performed esm commit transaction 
+order measure effectiveness swizzling technique employed epvm experiments performed versions architecture version limited form pointer swizzling enabled second swizzling turned 
+versions referred epvml epvml respectively 
+megabyte client server buffer pools 
+third architecture investigated corresponds approach taken epvm 
+briefly review objects accessed architecture 
+object needed application program epvm calls esm behalf application 
+esm pins object client buffer pool shown 
+epvm uses user descriptor returned esm copy object virtual memory epvm inserts object cache manner depicted 
+epvm calls esm object client buffer pool 
+subsequent reads updates object current transaction occur cache handled exclusively epvm 
+transaction commit epvm scans page hash table small object updated epvm calls esm pin object client buffer pool update object 
+note may involve communication client server page containing object longer client buffer pool 
+esm updates object client buffer pool new value modified portion object old value located client buffer pool generate log record update 
+updates large objects handled similar manner difference epvm invokes esm modified page large object 
+alternative ways copying objects client buffer pool virtual memory examined 
+copies objects time client buffer pool virtual memory copies objects page object page accessed 
+schemes shall referred object caching page caching respectively 
+tradeoff approaches object caching generally requires interaction storage manager interaction object page caching requires interaction page potential perform copying 
+versions architecture investigated 
+object caching 
+order study effect buffer pool size object caching size client buffer pool version set megabytes client buffer pool set megabyte megabyte server buffer pool 
+versions shall referred oc respectively 
+versions pointer swizzling 
+third fourth versions designed measure benefit provided swizzling technique implemented epvm 
+versions page caching megabyte client buffer pool amount memory similar versions 
+megabyte server buffer pool experiments 
+version referred pclm pointer swizzling version labeled 
+fourth architecture examined objectstore lamb 
+lie esm objectstore uses client server architecture client server processes buffer accessed pages objects 
+interaction client server objectstore set take place granularity individual pages just esm 
+objectstore features basically transaction facilities esm recovery updates event client server failure page level locking rollback 
+objectstore supports inter transaction caching persistent data client main memory lamb 
+callback messages sent server clients order maintain coherence cached data 
+allows objectstore client cache locks transactions data pages 
+efficiently support callbacks objectstore client divided processes callback process application process 
+single client connected server process architecture noticeable effect performance application process communicates directly server obtain data pages locks pages 
+important difference objectstore architectures mentioned objectstore uses scheme similar virtual memory implement pointer swizzling fault objects secondary storage main memory see section 
+important difference objectstore generates recovery information updates received objectstore said manufacturer offer improved performance 
+lacked sufficient time obtain reliable results new version results objectstore 
+persistent data logging entire dirty pages 
+full page logging implement recovery largely due fact object store applications allowed update objects dereferencing normal virtual memory pointers 
+objectstore able keep track modified portions pages objects done epvm 
+amount real memory available client caching pages objects single transaction fixed 
+megabyte client server buffer pools experiments 
+architecture referred os 
+
+benchmark database esm small benchmark database consumed total byte disk pages mg consisted collection part objects object average bytes size 
+additionally sun benchmark requires objects indexed parts indexed array object pointers oids 
+array pointers tree index order keep performance differences due differing tree implementations influencing results 
+total size index esm bytes 
+small database including part index required pages mg objectstore 
+part object contains connections part objects database 
+connections implemented pointers systems 
+database required disk space esm largely differences way pointers persistent data stored systems 
+large benchmark database identical small database part objects 
+large database occupied disk pages index size megabytes esm 
+objectstore large database required pages 
+objects large database specified due limitations amount available swap space 
+objects eliminated problem providing database fit real memory workstations 
+
+hardware experiments performed identically configured sun sparcstation approximately mips 
+client machine server 
+machines connected private ethernet 
+machines megabytes main memory 
+data stored server megabyte raw disk partitions located separate sun disk drives 
+partition transaction log store normal data 
+virtual memory swap area client machine located sun megabytes size 
+
+benchmark results 
+small database results section contains results running variations traversal portion benchmark small benchmark database objects 
+experiments repeated times averaged obtain results shown 
+times listed seconds 
+tables individual cold warm hot iteration times updates performed entire benchmark run executed single transaction 
+cold time execution time iteration benchmark persistent data cached memory client server machines 
+warm time execution time tenth iteration benchmark 
+hot times obtained repeating traversal done warm iteration objects memory swizzling done prior hot iteration 
+number operations performed client iteration 
+times tables include overhead transaction commit 
+table compares version software architectures discussed section 
+versions selected generally comparable sense uses similar amount memory pclm slightly memory 
+best time cold iteration epvml 
+small difference due overhead inserting objects oid hash table epvml 
+pclm slower epvml due overhead caching full pages objects 
+os worst cold iteration despite fact performs fewest operations 
+understanding os works believe partially due overhead mapping data client address space 
+ordering times warm iteration table just reverse cold iteration 
+os faster versions warm iteration incurs essentially overhead accessing memory objects case 
+pclm terms performance 
+pclm faster epvml epvml incurs overhead inserting large number objects oid hash table pclm caches pages objects 
+pclm aggressive caching epvml cached additional objects previous iterations 
+worst performance warm iteration due overhead calling esm object visited iteration 
+table presents results versions epvm 
+worst performance cold iteration small client buffer pool size forces reread pages server 
+may surprising slower oc performs operations 
+due fact server buffer pool large hold pages read client case shipping pages server faster reading disk 
+oc faster pclm due overhead pclm incurs copying full pages virtual memory 
+similarity pclm pclm shows essentially advantage disadvantage doing swizzling cold iteration 
+warm iteration table shows pclm best performance 
+pclm better object caching versions warm iteration objects cached pages 
+precisely pages cached warm iteration page caching versions objects cached object caching versions 
+pclm caches fewer objects warm iteration cached additional objects previous iterations 
+accounts somewhat strange fact pclm page caching swizzling faster oc full swizzling 
+continues reread pages server warm iteration consequently worst performance 
+turning swizzling 
+warm case table shows swizzling provides reduction execution time page caching 
+times epvml shown tables 
+essentially difference epvml epvml cold iteration experiment 
+warm iteration swizzling epvml faster epvml hot times table represent asymptotic behavior versions conversion copying inmemory objects place 
+additional version labeled added table 
+represents implementation benchmark coded non persistent transient inmemory objects 
+represents best performance persistent system hope achieve hot case 
+examine architectural differences 
+os best hot iteration 
+fact performance os identical shows memory mapped architecture os imposes additional overhead hot case 
+os faster pclm overhead swizzle checks epvm function calls pclm incurs 
+addition fact pointers persistent objects bytes long opposed bytes os slows performance pclm 
+epvml third terms performance slower pclm 
+epvml swizzle pointers table single transaction updates times second 
+traversal updates version cold os warm os oc pclm pclm table 
+single transaction updates times seconds 
+traversal updates version hot hot random os pclm pclm epvm epvm table 
+single transaction updates times seconds 
+persistent objects extra level indirection imposed user descriptors 
+worst performance hot iteration 
+hot time approximately times epvml nearly times os 
+due fact calls esm pm object visited iteration 
+oc identical pclm hot iteration shown 
+comparing pclm pclm see swizzling improved performance hot case page caching swizzling difference just epvm 
+surprising hot column table os faster pclm 
+closer inspection benchmark implementation noticed unix function random called visit part object part overhead perform update 
+column table shows results hot traversal overhead calling random removed 
+note os approximately times performance pclm 
+closer expect differences architectures 
+similarly difference epvml increases 
+sets hot results included believe illustrate quickly difference performance architectures diminishes small amount computation performed object access 
+table contains cold warm iteration times traversal updates small database iteration executed separate transaction 
+table relative performance different architectures identical table cold iteration 
+comparing cold iteration times table table shows overhead transaction commit relatively minor versions updates done 
+warm iteration results table highlight effects inter transaction caching 
+os best performance large part caches data pages locks transactions 
+os client communicate server process read page accessed previous iterations 
+versions esm 
+hand communicate server read uncached data pages reacquire locks cached pages 
+pclm caches fewest pages transactions megabyte client buffer pool 
+causes worst performance 
+ran experiment inter caching esm 
+inter transaction caching improved performance epvml just pclm warm iteration 
+cold warm times versions epvm shown multiple transactions experiment 
+cold iteration times shown table 
+table 
+multiple transactions updates times seconds 
+warm iteration times course slower warm times table locks pages 
+oc best performance warm iteration 
+faster pclm faster 
+pointer swizzling essentially difference pclm epvml experiment 
+addition hot times warm times pclm 
+hot time os seconds faster warm time os table 
+hot times epvml oc approximately faster corresponding warm times 
+consider effect adding updates traversal 
+presents total execution time single transaction consisting cold warm hot iterations update probability ranges 
+non swizzling versions epvml pclm epvml pclm respectively shown 
+addition performance roughly faster epvml 
+os fastest time updates done 
+relative performance os degrades updates added due high cost transaction commit 
+believe transaction commit expensive os full page logging 
+performance os levels frequency updates high pages updated 
+pclm faster os updates performed 
+performance epvml continually degrades update probability increased generates log record update 
+little surprising epvml better pclm os cases 
+due large part fact log records generated epvml processed asynchronously server running 
+pclm faster epvml update probability greater 
+commit time pclm constant objects visited transaction updated 
+worst performance reread pages server transaction running commit phase 
+performance ocsm shows object caching perform quite client buffer pool large avoid having reread data pages 
+difference pclm oc pclm reread pages transaction commit order generate recovery information 
+pclm bigger client buffer pool performance nearly identical performance oc 
+presents execution time traversal varying write probability iteration benchmark constitutes separate transaction 
+curves pclm epvml omitted due similarity curves pclm epvml 
+os best performance update probability low 
+update probability increased relative performance os degrades due high cost transaction commit 
+little slower pclm reread pages server transaction executing 
+overhead greater cost extra copying done pclm 
+curve oc shows memory available object caching performs best cases 
+epvml quite avoids extra copying overhead pclm object caching versions reread data pages server context single transaction 
+note inter transaction caching improved cold wa hot cold warm hot os pclm write probability 
+benchmark run single transaction write probability 
+benchmark run multiple transactions 
+cold warm hot cold warm hot hot iterations 
+single read transaction 
+ot hot iterations 
+single transaction update prob 
+ol performance oc epvml read write prob 
+
+improvement smaller updates done fixed overhead sending dirty data pages back server transaction 
+pclm posted gain performance caching added 
+figures fix number cold warm iterations respectively vary number hot iterations 
+figures benchmark run single transaction 
+update probability ol 
+figures illustrate large difference cpu requirements versions large number hot performed 
+easy see best performance number hot iterations os best number hot iterations greater 
+pclm better epvm approximately hot iterations performed 
+hot iterations done os faster pclm faster epvml posts improvement 
+pclm better pclm shows improvement iterations done 
+results epvml shown faster epvml iterations 
+times ocsm pclm times omitted 
+ber hot traversals epvml best performance 
+pclm best number hot traversals 
+hot iterations os fastest 
+surprising hot traversals performed order os perform best due relatively high cost transaction commit os 
+turning swizzling iterations pclm slower pclm epvml shown slower epvml 
+oc shown 
+cases 
+performance oc initially faster pclm faster pclm iterations 
+demonstrates happens varies fraction part object updated update probability remains fixed experiment part objects defined contain array integers bytes usual data specified benchmark 
+axis shows percentage array updated 
+surprisingly os relatively flat performance updates done 
+full page logging 
+versions epvm show little change performance updates added 
+number log pages generated varied update fraction increased 
+esm required roughly seconds process extra log pages 
+performance epvml degrades quickly larger portion updated generates log record update 
+number log pages generated epvml cold warm hot varied update integer update array 
+
+large database results large database parts experiments number page faults occurred important versions 
+page faults listed parentheses number normal operations done client versions experienced page faults 
+number page faults obtained unix system call 
+tables cold warm times observed benchmark executed single transaction time transaction commit included 
+best performance cold iteration table 
+pclm fewer operations slower due copying costs 
+epvml slower primarily effective job buffer management 
+os worst performance cold iteration 
+believe due cost mapping data client address space 
+pclm performs best warm iteration comparing pclm architectures strictly fair case allowed available memory shown number page faults experiences 
+epvml close terms performance epvml little slower due fact performs insert objects oid hash table 
+os surprisingly slower epvml warm iteration 
+cold iteration due data mapping costs 
+table worst performance cold iteration performs operations 
+pclm little slower oc due overhead copying full pages 
+swizzling difference pclm cold iteration 
+relative times warm iteration similar cold iteration 
+performance pclm little better pclm swizzling pages virtual memory causing written disk 
+fact doesn show number page faults shown table numbers give number pages read swap area process 
+times epvml essentially identical epvml cold warm iterations shown traversal updates table 
+single transaction updates times seconds 
+bytes updated 
+single transaction update prob 
+
+table 
+single transaction updates times seconds 
+iteration executed single transaction cold times times shown versions tables 
+warm iteration times versions included table 
+pclm performance slower 
+decrease performance pclm due fact able cache data virtual memory performed lot unnecessary copying 
+slower pclm warm iteration oc just faster pclm 
+pclm epvml pclm respectively multiple transactions experiment 
+repeating experiment inter transaction caching showed caching impact performance large database 
+caching improved performance epvml pclm just warm iteration 
+presents total execution time traversal cold warm hot iterations run single transaction 
+os worst performance cases 
+may surprising results table os better pclm read case 
+pclm slower case scans page hash table transaction commit determine objects updated causes amount virtual memory swapping activity 
+poor performance commit phase slower versions 
+noted large database case strictly fair compare os epvml page caching object caching versions caching versions allowed memory 
+comparison epvml os fair versions equal amounts memory 
+times shown epvml 
+pclm shown faster pclm read case swizzling pages virtual memory pclm caused increase paging activity 
+difference pclm pclm gradually diminished updates performed pclm pclm update probability 
+presents total execution time traversal cold warm hot iterations executed separate 
+os worst performance cases 
+best performance slightly faster epvml 
+turning object page caching performance page caching intermediate ocsm 
+illustrates tradeoff object caching reread pages server page caching caches objects copies data virtual memory 
+epvml shown shown epvml pclm respectively 
+
+detailed discussion implementation pointer swizzling object caching epvm 
+analyzed relative performance versions epvm benchmark 
+epvm compared alternative methods supporting persistent data access including memory mapped approach object store 
+cold iteration times objectstore slower cold times architectures esm small large database 
+objectstore fastest warm iteration time small database large database objectstore worst warm performance 
+results suggest performance object store worse esm mapping data process address space relatively expensive operation 
+hot iteration results done small database showed memory mapped scheme objectstore times cold warm hot cold warm hot os pclm oc oc write probability write probability 
+benchmark run single transaction 
+
+benchmark run multiple transactions 
+faster software approach epvm operating memory data 
+observed difference performance small amount additional computation added compared total elapsed time different architectures transaction workloads 
+small database figures 
+objectstore best performance read case 
+shown pclm generally performed better objectstore updates performed 
+main reason appears objectstore full page logging order support crash recovery 
+epvml performed better objectstore pclm frequency updates low multiple transactions large database memory mapped approach objectstore slower performance epvml 
+versions epvm pclm better performance small database 
+pclm cost copying full pages relatively small compared cost copying individual objects case 
+pclm avoided need reread pages server normal transaction execution done 
+large database generally performed better pclm 
+pclm performed lot unnecessary copying experienced paging virtual memory lowered performance case 
+swizzling scheme epvm noticeably hurt performance small database improved performance cases see table column 
+large database swizzling improve performance resulted decrease cases due fact caused increase amount virtual memory paging activity 
+lastly note swizzling scheme epvml improved performance cases small database effect large database 
+feel important drawn results important look performance comparing different architectures 
+example simply comparing speed architectures manipulate memory data comparing considering recovery issues capture true differences performance systems 
+explore variations object caching page caching schemes studied context epvm see approach combining relative strengths 
+interested efficient ways generating recovery information epvm approach 
+efficient method generating recovery information memory mapped approach feel performance improved substantially 
+atkins atkinson chisholm cockshott algorithms persistent heap software practice experience vol 
+
+pp 
+march cattell engineering database benchmark benchmark handbook database transaction processing systems jim gray ed morgan kaufman 
+carey carey exodus extensible dbms project overview readings object databases zdonik maier eds morgan kaufman 
+carey carey storage management objects exodus object oriented concepts databases applications kim lochovsky eds addison wesley 
+cock cockshott persistent object management system software practice experience vol 
+pp 
+exodus storage manager technical documentation department computer sciences university wisconsin madison january 
+frank franklin crash recovery client server exodus proc 
+acm sigmod int conf 
+management data san diego california 
+lamb lamb landis orenstein 
+weinreb objectstore database system cacm vol 
+october moss eliot moss working persistent objects swizzle swizzle coins object oriented systems laboratory technical report university massachusetts amherst may 
+objec object design objectstore user guide release october 
+orenstein personal communication may 
+rich richardson carey schuh design programming language technical report computer sciences dept university wisconsin feb 
+rich richardson compiled item faulting proc 
+th int wor op persistent object systems martha vineyard ma september 
+schuh schuh carey dewitt persistence revisited implementation experiences implementing object bases principles practice fourth workshop persistent object systems 
+paul wilson pointer swizzling page fault time efficiently supporting huge address spaces standard hardware technical report uic eecs university illinois chicago december 
+wish jack orenstein dan weinreb benson object design helpful comments feedback concerning results 
+special dan schuh implemented epvm compiler 
+mike mike franklin implemented aries recovery algorithm exodus storage manager 
+nancy hall implemented caching 
+

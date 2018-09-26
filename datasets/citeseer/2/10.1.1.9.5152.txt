@@ -1,0 +1,357 @@
+tcp implementation enhancements improving webserver performance aron peter druschel cs rice edu tr department computer science rice university houston tx studies performance bsd tcp implementations web servers 
+find lack scalability respect high tcp connection rates reduces throughput web servers imposes memory overhead mb kernel 
+find insufficient accuracy tcp timers results overly conservative delays retransmission timeouts causing poor response time low network utilization throughput loss 
+proposes enhancements tcp implementation eliminate problems requiring changes protocol api 
+find conventional benchmark environments fully expose certain significant performance aspects tcp implementations propose techniques allow benchmarks accurately predict performance real servers 
+keywords internet tcp webserver timers widespread growth world wide web www expected keep increasing performance demands user community 
+www protocol uses tcp transmission control protocol underlying transport protocol data delivery 
+tcp implementation distributed bsd incorporated operating systems freebsd netbsd digital unix ibm aix fastest efficient 
+bsd implementation served model operating systems including ones unix 
+focuses enhancements bsd tcp implementations aimed improving performance busy 
+busy webserver manages thousands tcp connections 
+shows bsd tcp implementation scale high rates tcp connection establishments 
+measurements real workloads indicate lack scalability degrades webserver throughput imposes memory overhead mb kernel webserver machine 
+results indicate overheads caused management connections tcp time wait state 
+propose implementation enhancements capable reducing overheads 
+find conventional benchmark environments fully expose overheads propose techniques enable benchmarks accurately predict performance real servers 
+discusses limitations due relatively coarse grained clock tcp time measurement scheduling timer events 
+include overly conservative retransmission timeouts rto inability measure high bandwidths accurately packet pair technique :10.1.1.133.3305
+overly conservative retransmission timeouts resulting degradation server response time observed past brakmo peterson 
+address proposing timer framework decouples time measurement clock event scheduling clock 
+principal advantage afforded decoupling ability fine grained clock micro nano second granularity interval measurements 
+results indicate achieves factor tighter delays tcp retransmission timeouts 
+addition finer granularity afforded time measurement clock tcp measure bandwidth accurately high bandwidth networks techniques packet pair algorithm 
+study context busy expect techniques benefit applications ftp telnet tcp 
+rest organized follows 
+section ii provides background implementation timers tcp time wait state 
+section iii describes experimental environment obtaining results reported 
+section iv quan packet pair technique estimates network bandwidth observing spacing closely spaced packets 
+tify cpu memory overheads busy webserver discuss limitations due insufficient accuracy tcp timers 
+section techniques reduce cpu memory overhead associated tcp time wait processing 
+section vi proposes timer framework decouples time measurement clock event measurement clock 
+section vii discuss related conclude section viii 
+ii 
+background section provides background information implementation tcp timers bsd network stacks tcp time wait state 
+implementation timers bsd tcp connection oriented protocols tcp rely connection timers correct operation 
+maintain portability wide range hardware platforms bsd implementation tcp expects minimal timer support operating system 
+expects operating system provide periodic software interrupts interrupts invokes tcp handler called ms invokes handler called ms 
+interrupts constitute timing services tcp expects operating system tcp timer mechanisms round trip time estimation various tcp timeouts implemented tcp module interrupts 
+timers maintained tcp connection connection establishment timer retransmission timer delayed ack acknowledgment timer persist timer keepalive timer fin wait timer time wait timer 
+delayed ack timer implemented function timers implemented function 
+delayed ack timer timers set setting corresponding integer variables associated connection 
+similarly canceling timer simply requires setting value zero 
+function linearly scans list connections decrements integer variables executing associated handler value reaches zero 
+setting canceling timers optimized expense checking firing timeout 
+function linear scan connections sending ack connection pending 
+tcp time wait state tcp requires closes connection active close undergo time wait state serves main purposes detect discard old packets connection resend acknowledgment connection termination packet fin case got lost 
+case server active close results server tcp go time wait state 
+state associated connection time wait state discarded passage time corresponding twice msl maximum segment lifetime typically minutes current internet 
+operating systems including bsd set msl seconds requiring time wait period minute 
+iii 
+experimental environment section describes experimental environment obtaining results rest 
+emulate lan local area network wan wide area network benchmark environments 
+setup consists mhz pentium ii machines running freebsd operating system configured mb ram connected switched mbps ethernet 
+configuration depicted 
+ran apache webserver machines machines ran client program generated requests apache webserver 
+client program client architecture eventdriven program simulates clients 
+program generates requests fast webserver handle 
+delay router experiments modeled wan environment 
+emulating wan environment provides results representative servers internet 
+purpose delay router emulate wan propagation delays see lan test bed 
+main challenges design delay router preserve temporal spacing packets network 
+design delay router similar described banga druschel 
+delay router implemented modifying forwarding mechanism tcp ip protocol stack 
+vanilla ip forwards packet machine soon received interface 
+contrast delay router queues packets kernel data structure forwarded specified delay 
+dedicated kernel process continuously checks packets forwarded 
+continuous polling periodic interrupt driven check order conserve temporal spacing packets network 
+contrast periodic interrupt scheme introduces burstiness ethernet webserver client fig 
+
+lan configuration delay router client ethernet webserver fig 
+
+wan configuration going packet train packets due transmission check period transmitted simultaneously 
+clock period ms corresponds interrupt clock frequency commonly operating systems back back byte packets may sent check period bandwidth mbps 
+issue important tcp performance known affected phenomena ack compression timing packets network 
+iv 
+tcp implementation problems section evaluates implementation problems bsd tcp 
+show implementation timers tcp cause significant cpu memory overhead busy webserver 
+discuss conventional benchmark environments expose overhead propose technique allows benchmarks accurately predict performance real servers 
+section enhancements timer implementation reduce aforementioned overhead 
+discuss limitations due relatively coarse grained clock tcp time measurement event scheduling 
+include overly conservative retransmission timeouts inability measure high bandwidths accurately 
+section vi propose timer framework addresses limitations 
+measuring overhead subsection presents experimental benchmark results measure cpu memory overheads busy webserver 
+argue conventional benchmark environments limited number client machines fully expose overheads representative real webserver 
+shows throughput apache webserver client machines repeatedly request cached kb file webserver 
+file size chosen representative average web content internet 
+results show apache webserver attains throughput conn conventional client benchmark 
+instrumented kernel webserver machine measure maximum time taken functions mentioned section ii 
+include time scanning list connections include time executing timeouts 
+maximum cpu overhead imposed functions calculated depicted 
+shown maximum number connections time wait peak kernel dynamic memory allocation experiment 
+time wait period bsd tcp secs maximum connections time wait state instant expected 
+results conventional benchmark indicate maximum connections time wait 
+attribute fallacy arising due limited number client machines experiment explained 
+tcp connection machine uniquely identified tuple source ip address destination ip address source port number destination port number 
+port numbers bit entities connections client webserver distinguished client port number 
+client repeatedly initiating connections webserver high rate port numbers wrap old connection having tuple time wait state server 
+reception request new connection tcp webserver typically terminates old connection time wait state 
+real webserver receives requests thousands clients seldom client port number wrap earlier connection port number client time wait state 
+experimental setup limited number client machines number connections time wait far actual webserver 
+propose technique enables webserver benchmarks accurately predict performance real servers 
+conventional benchmark modified benchmark apache throughput conn max connections time wait max time ms max time ms max cpu max kernel dynamic memory mb fig 
+
+overhead tcp timers modification client benchmark shown conventional benchmark environments consisting limited number clients cause premature termination connections time wait state server fail fully expose cpu memory overheads 
+way fix problem modify kernel webserver machine purpose experiment discard connections prematurely 
+interested simpler solution applied environments kernel modifications feasible 
+propose technique applied client benchmark machines purpose measuring webserver performance representative real servers 
+methodology applicable operating systems measuring capacity faster servers single machine flash zeus cluster ibm lard 
+key making possible realize tuple client ip address server ip address client port number server port number repeat period time long wait time wait period 
+purpose changed clients follows 
+aliased ip addresses client machine network interface 
+client applications ip addresses round robin fashion initiating connections server 
+number chosen maximum rate connections initiated individual client machines time wait period secs bsd tcp size port number space available operating system client applications intuitively causes fold increase space tuples tuple gets repeated amount time larger time wait period 
+modern operating systems allow system administrator assign ip addresses individual network interfaces machine 
+port number bits ports available operating system unprivileged user applications 
+experiments value conn secs bsd allocates port numbers ranging user applications 
+gives value results modified benchmark shown 
+key results observed 
+cpu overhead due functions large principally caused periodic linear scans large number connections time wait 
+second peak kernel dynamic memory utilization large mb 
+significant fraction physical memory available current shelf hardware amounts fourth memory webserver machine 
+results indicate memory overhead caused large number connections time wait state 
+overhead expected increase number connections time wait increases higher throughput higher cpu speeds 
+discussed section propose implementation enhancements reduce cpu memory overhead associated time wait state 
+time secs fig 
+
+apache startup results lead observation respect webserver benchmarking 
+shows throughput variation apache webserver startup passage time 
+results show throughput decreases significantly seconds performance sta ble 
+reason degradation caused wait time wait state 
+period connections get terminated tcp connection termination overhead doesn affect throughput 
+second due continuous connection buildup overhead maintaining connections linear scans bsd worsens seconds stable connections start getting terminated 
+conclude webserver benchmark wait time wait period secs bsd starts recording results 
+intuitive feel issue stable webserver startup behavior widely understood 
+specweb employ period minutes allow server reach steady state popular webserver benchmarks webstone start recording results waiting minimum stabilization period 
+timing problems due coarse grained clock reliable transport protocols lossy networks tcp ultimately rely retransmission timeouts rto recover packet losses 
+timeouts conservative prevent unnecessary retransmissions 
+overly conservative timeouts cause unnecessarily long transmission stalls event losses may result poor response time low network utilization throughput loss 
+problem increasingly costly bandwidth delay product wide area networks increases 
+tcp designers long recognized problem 
+tcp fast retransmit mechanism attempts recover packet losses requiring retransmission timeout 
+multiple packet losses send window small tcp rely retransmission timeout recovery 
+despite conventional wisdom relying timeout mechanisms studies indicated lost packets internet recovered retransmission timeouts :10.1.1.134.20
+bsd implementation tcp uses coarse grained clock msecs granularity measuring rtt round trip time scheduling timeouts 
+handler see section ii checks pending timeouts regularly msecs synchronized time event scheduled 
+reason minimum possible timeout value ticks network round trip time significantly smaller msecs 
+shown value ticks result actual timeout secs 
+general granularity event scheduling desired timeout ticks actual timeout vary example smallest timeout value ticks timeout scheduled timeout fires timeout scheduled timeout fires ms clock tick time example largest timeout value ticks fig 
+
+timeout variation value ticks furthermore brakmo peterson observed rtts small msecs timeout estimation algorithms tcp cause value timeout large ticks causing actual timeout secs goes ticks 
+observe problem caused due usage coarse grained msecs clock measure round trip time resulting numerical errors due limited precision 
+appendix discusses detail 
+brakmo peterson propose fixes form larger scaling factors timeout estimation equations reduce numerical errors associated limited precision 
+operating systems finer clock granularities tcp implementations msecs bsd systems 
+linux uses clock msec granularity measurement scheduling 
+expect timeout delays linux conservative bsd systems msec clock coarse measurements high bandwidth networks 
+paxson observes networks packet size bytes algorithm distinguish bandwidths higher mbps clock granularity msec 
+propose timer framework section vi allows portable network protocol implementations take advantage best facilities interval measurement event scheduling available operating system 
+desired timeout permits actual timeout granularity event scheduling 
+additionally permits cycle counters available modern architectures enable time measurement fine granularity micro nano second 
+turn measure high bandwidths 
+tcp time wait processing section iv showed significant cpu memory overheads associated tcp time wait processing 
+section proposes implementation techniques tcp reduce overheads 
+timer implementation show avoid cpu overhead associated time wait processing 
+implementation technique reduces memory overhead 
+techniques require change tcp protocol api 
+reason techniques require implementation enhancements kernel webserver machine 
+reducing time wait cpu overhead subsection implementation dramatically reduces overhead associated time wait processing tcp 
+implementation timers tcp involves tradeoff 
+bsd tcp setting cancellation timers optimized expense checking firing timeout 
+setting canceling timer requires setting corresponding integer variable explained section ii check determine execution timeout handler involves linear scan connections 
+tradeoff pays active connections common case timers usually set canceled times linear scan check timeout 
+timer terminating connections time wait rarely canceled set 
+time wait period significantly larger period linear scans connection time wait state undergoes unnecessary checks handler time wait timer executed 
+propose implementation preserves fast setting cancellation timers bsd avoids inefficiency unnecessarily scanning connections time wait state 
+achieved organizing connections linear list scanned functions connections time wait state scanned needed 
+connection time wait connection list head connection time wait fig 
+
+efficient list timer implementation proposed implementation depicted 
+connections moved connection list soon enter restart time wait state 
+automatically ensures connections time wait sorted increasing order time handler time wait timer needs executed 
+function modified scanning list soon reaches connection time wait state connections time wait delay acks 
+function modified scanning list soon discovers connection time wait handler needs executed connections time wait sorted ensures invariant rest connections 
+original new apache throughput conn max time ms max time ms max cpu fig 
+
+comparison overheads results improved list implementation shown column labeled new 
+comparison earlier results quantifying overheads bsd tcp shown column labeled original 
+numbers indicate new implementation overhead tcp timers negligible available cpu cycles converted throughput improvement apache webserver 
+purpose comparison implemented timing wheel approach management tcp timers 
+results indicate list implementation outperforms timing wheel implementation 
+setting cancellation events timing wheel involves pointer manipulations computation hash function expensive simply setting integer variable 
+concern list implementation impose unnecessary scanning overhead idle connections resulting persistent connections 
+purpose repeated experiment idle connections established webserver client machines 
+results indicate relatively large number idle connections performance degraded 
+overhead imposed idle connections limited webserver applica acks delayed established tcp state 
+connection socket template pointer connection pointer previous fig 
+
+kernel data structures tion restricting maximum number connections 
+memory loading due time wait section iv quantified significant memory overhead mb associated kernel busy webserver 
+subsection discuss reasons overhead show overhead primarily caused large number connections time wait 
+propose implementation changes immensely reduce overhead 
+shows connection data structures maintained bsd kernel 
+connections maintained doubly linked list internet protocol control blocks list scanned functions 
+connection contains source destination ip addresses port numbers cached routing information pointers list maintenance associated tcp connection control block maintains tcp specific state congestion control flow control information tcp timers template caches header information regarding outgoing packets socket structure maintained contains state send receive buffers information regarding process owns socket bytes kernel state maintained connection occupies physical memory machine 
+section iv showed number connections time wait state large apache webserver 
+maintaining large amounts connection state inactive connections cause significant memory overhead 
+kernel dynamic memory occupies physical memory machine 
+original new fig 
+
+kernel memory webserver reduce memory overhead caused connections time wait state modified kernel discard state depicted soon connection enters time wait 
+data structure carrying small amount state bytes inserted connection list 
+state sufficient operation time wait state includes source destination ip addresses port numbers latest tcp sequence numbers exchanged time wait timer pointers list manipulation 
+bars labeled original new compare memory overheads bsd implementations proposed implementation technique respectively 
+results show implementation reduces memory overhead factor 
+resulting peak consumption mb easily afforded shelf hardware 
+physical memory available webserver utilized caching frequently requested documents memory help improve throughput user response time 
+original new apache throughput conn max kernel dynamic memory mb fig 
+
+performance real trace quantify effect improved memory utilization throughput repeated experiment workload trace obtained rice computer science department webserver 
+trace covered period days accessed distinct files having aggregate size mb 
+shows workload throughput proposed changes 
+improvement primarily attributed fewer disk accesses needed implementation result larger effective memory cache 
+memory overheads reported lower reported lower throughput resulting frequent disk accesses causes fewer connections time wait state simultaneously 
+vi 
+decoupling time measurement event scheduling section iv described limitations arising due coarse grained clock time measurement event scheduling tcp 
+section propose timer framework decouples time measurement facility available operating system event scheduling timer facility enabling best system capabilities 
+experimental results showing framework capable dramatically reducing time taken retransmission timeouts rto tcp 
+timer framework describe os timer framework allows network protocol implementations system components timer facilities available host operating system architecture portable way 
+framework provides separate facilities measurement intervals scheduling events 
+separating facilities interval measurement event scheduling allowing protocol implementations query granularity facility protocol implementations best available timer support 
+proposed framework salient features clients network protocol implementations expect os provide separate timer related services measurement event scheduling 
+clients aware clock granularity services adapt behavior accordingly 
+typically os service measuring intervals provide finer granularity service event scheduling 
+providing event timer involves periodic interrupt currently efficiently supported millisecond granularity finer granularity cause significant overhead 
+hand modern architectures provide fine grained timer counter micro nano second granularity hardware current value read little overhead 
+separation measurement event scheduling services framework allows protocol implementation take advantage feature 
+os service interval measurement consists operations measure time measure resolution 
+returns bit value representing current real time ticks clock resolution operation hz 
+operations measure time intervals time need synchronized standard time base 
+second os service provides facility schedule events 
+conventional facility implemented os periodic timer interrupt 
+service provides operations 
+schedule event handler schedules function handler called ticks resolution specified measure resolution 
+say required time event 
+
+schedule resolution gives expected resolution hz os schedule events equals frequency periodic timer interrupts os implement service 
+
+cancel event event provides cancellation previously scheduled event argument event returned schedule event 
+measuring clock tick example minimum actual timeout just larger example maximum actual timeout just smaller timeout fires timeout scheduled timeout scheduled timeout fires time scheduling clock tick fig 
+
+lower upper bounds actual timeout timer facility fires event calling corresponding handler value returned measure time exceeds value stored time event scheduled increment accounts fact time event scheduled may exactly coincide timer interrupt 
+resolution scheduling clock relative measurement clock measure resolution schedule resolution framework puts bounds actual time ticks measurement clock event fires rtt coarse rtt fine ms ms ms ms ms ms ms ms fig 
+
+sample rto computation gives examples bounds 
+noted increment upper bound negligible measurement clock significantly finer scheduling clock case modern systems 
+ms ms desired timeout timeout scheduled time scheduling clock tick fig 
+
+example usage tcp shows example framework achieves lower delay retransmission timeout tcp 
+assume sake argument time measurement clock granularity msec 
+timeout scheduled time msec 
+timeouts checked scheduling clock ticks msec framework invoke handler timeout time depicted framework maintain values granularity msec permitting check succeed 
+original bsd implementation invoke handler time imposes minimum clock ticks timeout explained section iv 
+coarse grained measurement rtt cause timeout value larger ticks observed brakmo peterson 
+interesting observe desired timeout value small comparison msec conventional bsd tcp implementation puts lower bound msec timeout framework puts upper bound msec 
+addition reducing delays associated timeout ability fine grained interval measurements employed protocol functionality instance measure high bandwidths packet pair algorithm 
+experimental results subsection show proposed timer framework achieving conservative retransmission timeouts tcp 
+specifically ability measure intervals fine grain obtain better rtt round trip time estimates conventional timer facility schedule retransmission timeouts granularity msec 
+original tcp algorithm described appendix retransmission timeout rto estimation computation performed granularity fine grained measurement clock 
+produce realistic tcp timeout estimates experimental topology delay router emulate round trip propagation delay msec 
+topology resembles real internetwork data transferred server wan link hosts mbps lans 
+shows series measured rtt values typical server connection resulting estimated rto values taken typical tcp sender topology 
+rtt coarse gives series successive rtt measurements msecs clock rtt fine gives measured pentium cycle counter reported msec granularity readability 
+new rtt measurement tcp estimates desired rto value resets retransmission timer value 
+gives rto estimate desired value timeout computed implementation gives applying fixes suggested brakmo peterson timeout estimation algorithms 
+columns labeled denote actual time msecs timeout taken fire brakmo peterson fixes respectively assuming periodic timer interrupts firing timeouts happen msecs intervals 
+measured computing time difference instance handler invoked timeout scheduled 
+gives estimated value timeout estimation algorithms finer grained measurement clock timer framework section vi 
+report value millisecond granularity readability 
+actual time msecs timeout taken fire scheduled value comparison columns shows framework capable achieving times tighter timeouts compared bsd implementation respectively fixes proposed brakmo peterson 
+bulk traffic consists relatively short tcp data transfers packet losses recovered timeout 
+reduction delay associated tcp timeouts directly translates corresponding reduction response time webserver 
+tighter delays associated timeout reduce underutilization link bandwidths corresponding degradation throughput 
+vii 
+related faber discuss overloading busy web servers time wait state propose change tcp protocol order shift time wait state clients 
+changes tcp protocol specification require support client webserver machines 
+aims reduce cpu memory overhead associated management connections time wait state requires implementation changes tcp webserver machine 
+protocol api changes required 
+keshav proposed packet pair technique estimates network bandwidth observing spacing closely spaced packets 
+hoe proposes set tcp slow start threshold appropriate value measuring bandwidth delay product variant packet pair technique 
+padmanabhan propose practice minimum value allowable estimated value rto msecs tcp receiver delay acks time 
+packet pair technique followed rate pacing alleviate slow start delays associated short tcp transfers 
+propose timer framework decouples time measurement clock event scheduling clock permitting time measurements finer granularity micro nano second cycle counters 
+enables packet pair technique measure high bandwidths 
+paxson observes networks packet size bytes packet pair algorithm distinguish bandwidths higher mbps clock granularity msec 
+suggests robust bandwidth estimation technique called pbm forms estimates range packet bunch sizes 
+paxson shows absence sack tcp option significant number lost packets internet recovered coarse grained retransmission timeout 
+confirmed balakrishnan 
+proposed timer framework reduces unnecessary long delays associated retransmission timeout coarse grained clock scheduling events 
+brakmo fine grained system clock detect lost packets early processing received duplicate ack tcp vegas 
+method affect coarse grained retransmission timeout tcp 
+viii 
+contributions 
+show lack scalability respect management connections time wait state imposes cpu memory overheads mb respectively 
+propose efficient implementation techniques reducing overheads 
+proposed techniques require implementation changes webserver machine require changes tcp protocol api 
+show conventional benchmark environments fully expose cpu memory overheads associated busy webserver propose benchmark techniques allow accurate prediction performance real servers 
+propose timer framework decouples time measurement clock event scheduling clock 
+permits time measurement fine granularity cycle counters available modern machines 
+results show framework capable dramatically factor reducing delay associated tcp retransmission timeout 
+addition finer granularity afforded time measurement clock measure bandwidth accurately high bandwidth networks packet pair algo rithm 
+berners lee fielding frystyk rfc hypertext transfer protocol may 
+fielding gettys mogul nielsen berners lee rfc hypertext transfer protocol jan 
+postel rfc transmission control protocol sept 
+wright stevens tcp ip illustrated volume implementation addison wesley reading ma 
+stevens tcp ip illustrated volume protocols addison wesley reading ma 
+keshav control theoretic approach flow control proceedings acm sigcomm symposium sept pp 
+
+hoe improving start behaviour congestion control scheme tcp proceedings symposium 
+lawrence brakmo larry peterson performance problems bsd tcp acm computer communication review vol 
+pp 
+oct 
+apache www apache org 
+gaurav banga peter druschel measuring capacity web server realistic loads world wide web journal special issue world wide web characterization performance evaluation 
+lixia zhang scott shenker david clark observations dynamics congestion control algorithm effects way traffic proceedings acm sigcomm symposium pp 
+
+jeffrey mogul case persistent connection proceedings acm sigcomm symposium 
+martin arlitt carey williamson web server workload characterization search invariants proceedings acm sigmetrics conference philadelphia pa apr 
+vivek pai peter druschel willy zwaenepoel flash efficient portable web server proceedings usenix annual technical conference monterey ca june 
+zeus www zeus uk 
+ibm ibm interactive network dispatcher www ics raleigh ibm com ics htm 
+vivek pai aron gaurav banga michael peter druschel willy zwaenepoel erich request distribution cluster network servers proceedings th conference architectural support programming languages operating systems san jose ca oct 
+aron peter druschel willy zwaenepoel efficient support cluster web servers proceedings usenix annual technical conference monterey ca june 
+specweb www org osg web 
+webstone www com webstone 
+lixia zhang tcp timers don proceedings acm sigcomm symposium aug 
+vern paxson internet packet dynamics proceedings acm sigcomm symposium 
+hari balakrishnan srinivasan seshan mark stemm randy katz analyzing stability wide area network performance proceedings acm sigmetrics conference 
+balakrishnan padmanabhan seshan stemm katz tcp behavior busy internet server analysis improvements proceedings ieee infocom san francisco california apr 
+linux www linux org 
+varghese hashed hierarchical timing wheels data structures efficient implementation timer facility proceedings eleventh acm symposium operating systems principles nov pp 
+
+theodore faber joe touch wei yue time wait state tcp effect busy servers proceedings ieee infocom mar 
+venkata padmanabhan randy katz tcp fast start technique speeding web transfers proceedings ieee globecom conference nov 
+mathis mahdavi floyd romanow rfc tcp selective acknowledgment options oct 
+lawrence brakmo larry peterson tcp vegas congestion avoidance global internet ieee journal selected areas communications vol 
+pp 
+oct 
+van jacobson congestion avoidance control proceedings acm sigcomm symposium aug pp 
+
+appendix tcp timeout estimation rto value calculation bsd implementations tcp described 
+appropriate retransmission timer value rto calculated rtt estimator mean deviation estimator formula rto estimators updated new rtt measurement formulas err err chosen values gain parameters allows integer arithmetic scaled versions equations scaled estimators defined sa sd calculations implemented integer arithmetic follows err sa sa sa err sd sd sd rto sa sd bsd implementations tcp coarse grained clock ms granularity measuring rtt scheduling timeouts 
+problems arise calculations performed ticks coarse grained clock 
+due coarse grained clock large variance measurement rtt resulting large value sd 
+small rtts contribution sa smaller contribution due sd resulting large estimates rto compared average rtt sa 
+
+brakmo peterson shown due limited precision implementation mean deviation estimator decay repeated rtt measurements value 
+problem significant sd large compared sa clock coarse grained 

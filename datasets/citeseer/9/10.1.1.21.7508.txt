@@ -1,0 +1,320 @@
+adaptive optimization jalape jvm controller analytical model matthew arnold stephen fink david grove michael hind peter sweeney ibm watson research center nk ibm com rutgers university cs rutgers edu provides details component jalape adaptive optimization system determines methods optimize 
+component called controller choose optimization levels 
+current implementation controller uses simple cost bene analysis drive adaptive compilation decisions 
+demonstrated simple analytic model achieve reasonable performance compared various jit compilation scenarios startup steady state program regimes 
+outlines open questions developing accurate controller model 
+experiments study ects current model predicts execution past limited experimental evaluation stability current model applications describe ongoing orts improve jalape controller 
+
+virtual machines modes execution reconcile tension responsiveness aggressive dynamic compilation 
+rst mode typically interpreter fast just time jit compiler focuses responsive execution second mode typically optimizing compiler strives achieve improved execution performance 
+second mode may incur signi cant overhead typically optimizes dynamically selected subset executed methods 
+examples systems include self hotspot jvm ibm java justin time compiler intel system jalape jvm ibm research 
+previously described current implementation adaptive optimization system jalape provide details key component system controller controller determines methods optimize optimizations apply method 
+previous showed simple analytical model naive rd acm workshop feedback directed dynamic optimization monterey california december cost bene estimates obtained comparable performance best jit strategy range workloads 
+experiences implementing system convinced making adaptive compilation decisions limited analytic model leads predictable robust performance ad hoc constants drive online compilation 
+strategy di ers strategy employed current product jvms 
+anticipate design ective model important generated code quality improves java performance problems resolved 
+examines jalape controller analytic model detail 
+experimental studies focus aspects analytic model related ability predict past stability applications 
+provide discussion outstanding research issues developing analytic controller model describe ongoing experimental plan resolve open questions 
+section provides background jalape jvm adaptive optimization system 
+section describes current cost bene model jalape section discusses issues related model assesses strengths weaknesses 
+illustrates varying parameters ect performance 
+section discusses related section ers :10.1.1.43.6404
+
+background comprehensive description jalape appears 
+section highlight characteristics jalape relevant 
+jalape research jvm developed ibm watson research center 
+jalape written java enabling adaptive optimizations applied application jvm 
+jalape targeted server applications employs compile strategy compiles methods native code execute 
+system currently includes fully operational compilers 
+baseline compiler translates bytecodes directly native code simulating java operand stack performing register allocation 
+compiler generates native code performs slightly better bytecode interpretation 
+optimizing compiler performs variety optimizations intermediate representation 
+compiler uses linear scan register allocation ecient ective register allocator :10.1.1.27.2462
+compiler optimizations grouped levels level consists mainly optimizations performed translation intermediate representation 
+optimizations include constant type nonnull copy propagation constant folding arithmetic simpli cation unreachable code elimination elimination redundant array store checks 
+level enhances level additional local optimizations common subexpression elimination array bounds check elimination redundant load elimination 
+performs inlining static size heuristics global ow insensitive copy constant propagation global ow insensitive dead assignment elimination er synchronization optimizations scalar replacement aggregates short arrays 
+level enhances level ow sensitive optimizations ssa form 
+addition traditional ssa optimizations scalar variables system uses extended version array ssa form perform redundant load elimination array bounds check elimination 
+section quanti es compilation costs performance improvements compilers 
+jalape multiplexes java threads jvm virtual processors implemented aix pthreads 
+system supports thread scheduling mechanism 
+compiler generates yield points program points running thread checks dedicated bit machine control register determine yield virtual processor 
+currently compilers insert yield points compiler performs unguarded inlining nal static methods guarded inlining non nal virtual methods 
+addition compiler exploits safely perform unguarded inlining invocations non nal virtual methods requiring stack frame rewriting invalidation 
+method loop back edges 
+timer interrupt mechanism interrupt handler periodically sets bit virtual processors 
+running thread reaches yield point check bit result call scheduler 
+section discusses exploit mechanism current version system 
+jalape adaptive optimization system contains components encompasses separate threads control 
+subsystems runtime measurements subsystem controller recompilation subsystem 
+depicts internal structure adaptive optimization system interactions components 
+sections discuss gure detail 
+runtime measurements subsystem runtime measurements subsystem gathers information executing methods summarizes information passes summary controller 
+shows structure runtime measurements subsystem 
+systems including instrumentation executing code hardware performance monitors vm instrumentation produce raw pro ling data program runs 
+usually systems perform extremely limited processing raw data produced 
+separate threads called organizers periodically process analyze raw data 
+controller directs data monitoring creates organizer threads process raw data speci time intervals 
+organizer analyzes raw data packages data suitable form consumption controller 
+additionally organizer may add information organizer event queue controller process may record information queries components 
+architecture support variety measurement techniques including hardware performance monitors call stack sampling compiler inserted instrumentation invocation counters basic block edge path pro les value pro les :10.1.1.43.6404
+current system current system employs sampling technique leverages existing mechanisms jalape jvm 
+scheduler entered timer interrupt occurred executing thread reached compiler generated yield point instrumentation jvm code records current method switches new thread 
+currently timer interrupts occur milliseconds resulting roughly samples second 
+organizers implemented java threads periodically process samples 
+hot method orga performance monitor profile information runtime measurements subsystem compilers base opt 
+compilation queue controller data formatted organizer organizer raw data raw data raw data database organizer event queue hardware vm threads optimized compilation code executing data formatted plan compilation instrumentation adaptive optimization system install new code instrumented code architecture jalape adaptive optimization system searches methods percentage samples certain threshold 
+current system adaptively varies threshold depending amount recompilations controller schedules 
+initial value 
+hot method organizer runs twice second seconds 
+frequency adaptively varied controller 
+second organizer adaptive inlining organizer guide inlining decisions 
+speci cally organizer searches hot call edges caller callee method pair high frequency samples attributed entry callee 
+currently threshold initialized periodically reduced controller reaches 
+adaptive inlining organizer runs seconds 
+method call edge samples currently decay mechanism weight behavior heavily assuming program behavior better indication execution 
+currently method call edge samples decayed samples rate respectively 
+results half life seconds method samples seconds call edge samples 
+controller controller conducts components adaptive optimization system 
+coordinates activities runtime measurements subsystem recompilation subsystem 
+controller initiates runtime measurement subsystem pro ling activity determining pro ling occur conditions long 
+receives information runtime measurement subsystem uses information compilation decisions 
+passes compilation decisions recompilation subsystem directing actions various compilers 
+information runtime measurements subsystem controller perform actions instruct runtime measurements subsystem continue change pro ling strategy include recompilation subsystem insert intrusive pro ling recompile methods pro ling data improve performance 
+controller decisions analytic model representing costs bene ts performing tasks 
+model described separately section 
+controller communicates components priority queues extracts measurement events queue lled runtime measurements subsystem inserts recompilation decisions queue compilation threads process 
+queues empty dequeuing thread sleep 
+current implementation recompilation subsystem improve method performance insert instrumentation 
+furthermore online feedback directed optimiza tion call edge samples described section tailor inlining decisions 
+recompilation subsystem recompilation subsystem consists compilation threads invoke compilers 
+compilation threads extract execute compilation plans inserted compilation queue controller 
+recompilation occurs separate threads application occur parallel 
+di ers initial lazy compilation method occurs rst time method invoked lazy compilation compilation occurs application thread attempted invoke method 
+compilation threads takes output compiler java object represents executable code associated runtime information exception table information garbage collection maps installs jvm calls method new version 
+current implementation previous activations method continue old compiled code method method activation completes 
+
+current controller model central role controller determine pro table recompile hot method additional optimizations optimization level 
+controller decision cost bene analysis 
+section describes current analysis 
+number optimization levels available controller method currently compiled level controller estimates quantities expected time program spend executing method recompiled 
+cost recompiling method optimization level expected time program spend executing method recompiled level hot method method exceeded threshold described section 
+discussion compilers current implementation baseline opt level opt level opt level map function level 
+model considers recompilation level new pro ling information may enable additional speedups previous version compiled level encoded feedback directed optimization boost factor calculation estimated values controller identi es recompilation level minimizes expected running time recompiled version chooses minimizes quantity controller decides recompile level decides recompile 
+clearly factors model practice 
+process estimating costs bene ts open research problem 
+current controller implementation fairly simple estimates described 
+controller assumes program execute twice current duration 
+application run seconds controller assumes run seconds 
+de ne tf expected running time program 
+described section system uses weighted average samples estimate percentage time pm method barring recompilation 
+percentage estimate time estimate controller predicts time spent method 
+tf pm example weighted samples indicate application spend time method code run seconds controller estimate execution time second 
+weight sample starts decays periodically 
+execution behavior past exerts uence estimates program behavior 
+controller methods adjusts estimates account new optimization level expected speedup due recompilation 
+system estimates ectiveness optimization level parameterized constant speci ed boot time 
+sk speedup estimate code level compared level 
+method level expected running time recompile level optimization ectiveness system uses linear model compilation speed optimization level function method size 
+values speci ed boot time 
+simple analytical model takes parameters particular optimization level cost compile expected speedup table presents compilation rate bytecodes speedup specjvm benchmarks run input size 
+numbers table gathered con guration compiles designated compiler invoked meth table compilation rate speedup specjvm benchmarks run input size 
+con guration adaptive compiles invoked methods pro ling recompilation occurs 
+speedup measured best runs relative baseline compiled system 
+compilation rate bc msec speedup baseline benchmark baseline opt opt opt baseline opt opt opt compress jess db javac mpeg mtrt jack geo mean ods pro ling recompilation occurring non adaptive system :10.1.1.43.6404:10.1.1.27.2462
+speedup reported best runs relative baseline compiled system 
+example average baseline compiler compiles methods rate bytecodes millisecond optimizing compiler opt level times slower bytecodes millisecond :10.1.1.43.6404
+average level optimizing compiler level provides speedup baseline compiled code 
+average values line default parameters analytical model 
+default system uses coarse values estimate cost bene ts optimizing method 
+uses average benchmarks averaged methods benchmark 
+
+better model described current implementation controller model rests simplifying questions 
+ongoing attempting evaluate analytical model needed develop model delivers better performance 
+potential topics explore area may dicult decide model 
+section outline topics model development currently exploring experimental evaluations address topics 
+experimental setup experimental evaluations section performed ibm model mhz ppc processors running aix :10.1.1.43.6404
+system gb main memory 
+experiments performed jalape copying garbage collector 
+jalape boot image compiled optimizing compiler level optimizing compiler adaptive optimization system included boot image 
+predicting past current model implementation assumes running time program twice current running time 
+understand ective heuristic modeling behavior software execution ran experiments 
+rst experiment depicts instances recompilation activity adaptive multi level system long running program phase shifts 
+experiment specjvm benchmarks run size input single jvm 
+graphs di er order benchmarks run 
+rst graph represents original order benchmarks second graph represents swapped order 
+xaxis gure represents time system boot program exit partitioned xed size intervals 
+axis marked show approximately benchmark begins ends execution 
+axis gives number recompilations occurred interval 
+bar subdivided show number recompilations optimization level 
+executions took approximately time complete original ordered execution gained run time lost compilation time compilation activity individual benchmarks changed signi cantly 
+consider javac 
+javac rst benchmark execute far methods compiled level fourth benchmark 
+javac executed controller assumes execute longer heuristic assumes cumulative execution javac benchmarks continue twice long currently executed 
+javac expected execute longer controller aggressive optimizing code 
+results higher benchmark currently imprecise art 
+requires inspecting log le rst time method benchmark hot 
+imprecision may account irregularities benchmark execution times 
+number methods recompiled compress jess db javac mpegaudio mtrt jack level level level number methods recompiled javac mpegaudio mtrt jack compress jess db level level level recompilation activity running specjvm benchmarks jvm 
+benchmark run size inputs 
+axis represents time partitioned xed size intervals 
+second graph di ers rst order benchmarks run 
+javac total threads compiled con gurations time main compile gc total methods opt opt opt heuristic exact large table table presents runtime behavior javac application predicted execution time varies :10.1.1.43.6404:10.1.1.27.2462
+jack total threads compiled con gurations time main compile gc total methods opt opt opt heuristic exact large table table presents runtime behavior jack application predicted execution time varies :10.1.1.43.6404
+optimization levels longer compilation times 
+behavior illustrates weakness heuristic heuristic accurately account phase shifts lifetime vm 
+experiment start benchmark represents phase shift 
+programs phase shifts vms serve web servers variable mix code execute time may sense compute expected running time program twice current running time phase shift 
+exploring techniques identify predict phase shifts preserving worst case bounds lost eciency 
+second experiment explores ects predicting execution time application 
+modi ed system take command line argument expected execution time application varied argument value observe application runtime behavior respect heuristic 
+tables show results javac jack 
+rst row illustrates runtime behavior application heuristic 
+second row denoted exact illustrates runtime behavior application execution time known advance 
+third row denoted large illustrates runtime behavior application execution time orders magnitude larger actual execution time 
+total time column application execution time 
+columns heading threads illustrate time spent threads contribute signi cantly time 
+threads main application compile time includes time baseline compile method executed :10.1.1.43.6404
+previously reported baseline compile time minimal 
+optimizing compiler gc garbage collector 
+columns labeled compiled illustrate times optimizing compiler invoked level optimization methods 
+column labeled total total number times optimizing compiler executed 
+column labeled methods total number methods optimized compiled 
+columns labeled opt opt opt show methods compiled level optimization 
+second number columns represents number methods multiple times obtaining level optimization 
+method twice 
+general observations tables exact prediction execution time slightly better heuristic grossly execution time signi cant performance implications 
+fact predicting execution time exactly slightly better heuristic indicates heuristic performs practice benchmarks 
+furthermore execution time grossly predicted controller aggressive compilation 
+behavior controller expected controller assumes compilation time absorbed faster execution time application application runs long 
+addition increase compilation time increases pressure memory results time spent garbage collection 
+stability model constants different applications simple analytical model relies sets xed constants compilation cost speedup opti time spent controller organizer decay threads insigni cant report 
+table performance adaptive system specjvm input size 
+parameters benchmark specialized average compress jess db javac mpeg mtrt jack mization level :10.1.1.43.6404:10.1.1.27.2462
+current implementation estimates set constants line experiments 
+example currently constants derived averages specjvm benchmarks 
+table shows values constants vary signi cantly benchmarks 
+expect system perform better particular benchmark constants derived benchmark 
+current model perform better derive constants online program execution 
+table presents results experiment 
+second column gives runtime rst run cost bene parameters particular benchmark 
+third column gives value average cost bene parameters 
+programs mtrt jack specialized parameters er clear improvement average parameters 
+programs improvement degradation 
+programs greatest variance speedup average javac mpeg show improvements specialized parameters 
+appears specializing methods particular benchmark bene cial current model average set benchmarks 
+surprised result currently investigating causes 
+constants derived methods particular benchmark di er signi cantly values hot methods benchmark 
+performance current model relatively insensitive variations constants model 
+incorporating method characteristics methods equal equal 
+straightforward extension estimate costs bene ts method characteristics method 
+current model assumes compile time cost linear size method bene constant depending optimization level 
+clearly optimizations run linear time expensive optimization currently implemented run linear time 
+importantly bene optimization particular method depends numerous factors 
+better estimate ects optimization particular method simple static characteristics loop structure exceptional control ow static mix bytecode instructions load store characteristics attempt produce accurate cost bene model 
+remains open question extension signi cantly improve performance 
+related question concerns inlining 
+system inlining drastically impacts costs bene ts compilation 
+controller currently feedback directed inlining high level distilling information call graph pro le passing compiler 
+controller try account impact inlining speci method 
+controller micro manage inlining decisions order obtain better estimates costs bene ts method 
+technique may apply optimizations system suspect inlining exert uence 
+idle resources current analytical model assumes cpu utilization considering costs bene ts 
+idle cycles model idle cycles aggressively compilation 
+example smp processors may idle system driven capacity 
+currently building functionality exploit hardware system performance monitors detect idle cpu cycles load system resources 
+expect improve bottom line performance single threaded benchmarks run smps changing model account idle cycles 
+plan enhance compilation infrastructure allow parallel compilation activities 
+related issue analytical model consider impact compilation system resources 
+example compilation threads consume memory bandwidth better application threads 
+system implemented entirely java compiler generates temporary objects increase load garbage collector 
+need determine ects substantial impact system performance incorporate controller model appropriate 
+
+related adaptive systems typically rely counters record events method invocations loop iterations :10.1.1.12.7138
+systems counter exceeds threshold method typically resulted threshold surpassed optimized 
+systems employ cost bene model determining hot method optimized 
+exception kistler describes continuous program optimization architecture oberon :10.1.1.43.6404
+periodically system optimizes collection hot methods determined sampling pro ling technique 
+optimization phase system provides expected bene derived hard coded bene estimates actual observed bene ts particular optimization 
+estimated bene ts determine relative order optimize hot methods 
+cost optimization considered 
+cytron propose adaptive implementation strategies simulate ectiveness programs binary rewriting tool 
+:10.1.1.43.6404
+provides details controller component jalape adaptive optimization system 
+previously demonstrated simple analytical model determines methods optimize sucient obtain comparable performance best jit range workloads 
+provides insight performance simple model 
+discovered predicting execution time method long jvm running dramatically ect recompilation activity application order application run varied 
+ignoring limitation holding order applications constant discovered current heuristic assuming method execution twice current duration ective predictor 
+discovered specializing model parameters benchmark speci bene cial current implementation 
+posed open questions relevant design evaluation enhanced controller model 
+acknowledgments jalape team members developing system conduct research 
+david ungar suggesting experiment described tables 
+acknowledge jeanne ferrante barbara ryder related discussions 
+anonymous reviewers provided useful feedback presentation 
+
+alpern attanasio barton burke cheng 
+choi cocchi fink grove hind hummel lieber litvinov mergen ngo russell sarkar serrano shepherd smith sreedhar srinivasan whaley 
+jalape virtual machine 
+ibm systems journal 
+alpern attanasio barton cocchi lieber smith ngo 
+implementing jalape java 
+acm conference object oriented programming systems languages applications pages 
+arnold fink grove hind sweeney 
+adaptive optimization jalape jvm 
+acm conference object oriented programming systems languages applications oct 
+arnold sweeney 
+approximating calling context tree sampling 
+technical report rc ibm watson research center july 
+bala duesterwald banerjia 
+dynamo transparent dynamic optimization system 
+sigplan conference programming language design implementation june 
+ball larus :10.1.1.43.6404
+branch prediction free 
+proceedings acm sigplan conference programming language design implementation pldi pages albuquerque new mexico june 
+sigplan notices june :10.1.1.43.6404
+bodik gupta sarkar 
+abcd eliminating array bounds checks demand 
+sigplan conference programming language design implementation june 
+burke 
+choi fink grove hind sarkar serrano sreedhar srinivasan whaley 
+jalape dynamic optimizing compiler java 
+acm java grande conference pages june 
+calder feller eustace 
+value pro ling 
+th international symposium microarchitecture pages dec :10.1.1.43.6404
+cierniak 
+
+practicing java dynamic optimizations 
+sigplan conference programming language design implementation june 
+cytron ferrante rosen wegman zadeck 
+ecient method computing static single assignment form control dependence graph 
+acm transactions programming languages systems 
+detlefs agesen 
+inlining virtual methods 
+th european conference object oriented programming 
+fink knobe sarkar 
+uni ed analysis array object strongly typed languages 
+seventh international static analysis symposium june 
+ungar 
+reconciling responsiveness performance pure object oriented languages 
+acm transactions programming languages systems july :10.1.1.43.6404:10.1.1.27.2462
+java hotspot performance engine architecture 
+white available java sun com products hotspot whitepaper html apr 
+kistler :10.1.1.43.6404
+continuous program optimization 
+phd thesis university california irvine 
+cytron 
+just time better late 
+conference record th acm sigplan sigact symposium principles programming languages pages jan 
+poletto sarkar :10.1.1.27.2462
+linear scan register allocation 
+acm transactions programming languages systems sept 
+takeuchi komatsu nakatani 
+overview ibm java just time compiler 
+ibm systems journal 
+whaley 
+portable sampling pro ler java virtual machines 
+acm java grande conference june 

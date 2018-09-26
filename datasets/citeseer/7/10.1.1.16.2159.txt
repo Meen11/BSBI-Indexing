@@ -1,0 +1,307 @@
+implementation scoped memory real time java william jr martin rinard mit laboratory computer science massachusetts institute technology cambridge ma mit edu rinard lcs mit edu 
+presents experience implementing memory management extensions real time specification java 
+extensions designed real time programmers control need obtain predictable memory system behavior preserving java safe memory model 
+describe implementation certain dynamic checks required real time java extensions 
+particular describe perform checks way avoids harmful interactions garbage collector memory management system 
+extensive debugging support necessary development real time java programs 
+static analysis dynamic debugging package development benchmark applications 
+java relatively new popular programming language 
+provides safe garbage collected memory model dangling buffer overruns memory leaks enjoys broad support industry 
+goal real time specification java extend java support key features required writing real time programs 
+features include support real time scheduling predictable memory management 
+presents experience implementing real time java memory management extensions 
+goal extensions preserve safety base java memory model giving real time programmer additional control needs develop programs predictable memory system behavior 
+base java memory model objects allocated single garbage collected heap raising issues garbage collection pauses unbounded object allocation times 
+real time java extends memory model support new kinds memory immortal memory scoped memory 
+objects allocated immortal memory live entire execution program 
+garbage collector scans objects allocated immortal memory find potentially change garbage collected heap manipulate objects 
+scoped memory conceptually contains preallocated region memory threads enter exit 
+thread enters scoped memory allocate objects memory allocation predictable amount time 
+thread exits scoped memory implementation deallocates objects allocated scoped memory garbage collection 
+specification supports nested entry exit scoped memories threads obtain stack active scoped memories 
+lifetimes objects stored inner scoped memories contained lifetimes objects stored outer scoped memories 
+objects allocated immortal memory garbage collector scans objects allocated scoped memory find potentially change garbage collected heap manipulate objects 
+real time java specification uses dynamic access checks prevent dangling ensure safety scoped memories 
+program attempts create object allocated heap object allocated scoped memory object allocated outer scoped memory object allocated inner scoped memory specification requires implementation throw exception 
+threads garbage collection real time java thread memory management models tightly intertwined 
+garbage collector may temporarily violate key heap invariants able suspend thread may interact way objects allocated garbage collected heap 
+real time java supports kinds threads real time threads may access refer objects stored garbage collected heap heap real time threads may access refer objects 
+heap real time threads execute asynchronously garbage collector particular may execute concurrently suspend garbage collector time 
+hand garbage collector may suspend real time threads time unpredictable lengths time 
+real time java specification uses dynamic heap checks prevent interactions garbage collector heap real time threads 
+heap real time thread attempts manipulate object stored garbage collected heap specification requires implementation throw exception 
+interpret term manipulate mean read write memory location containing object stored garbage collected heap execute method passed parameter 
+implementation primary complication implementation potential interactions heap real time threads garbage collector 
+basic design goals real time java specification presence garbage collection affect ability heap real time thread run 
+devoted significant amount time energy working design convince interactions fact operate conformance specification 
+debugging difficult scoped immortal memories correctly especially presence standard java libraries designed real time specification java mind 
+useful develop debugging tools 
+tools included static analysis finds incorrect uses scoped memories dynamic instrumentation system enabled implementation print information sources dynamic check failures 
+programming model proliferation different kinds memory areas threads real time java fairly complicated programming model 
+entering exiting memory areas real time java provides kinds memory areas scoped memory immortal memory heap memory 
+thread maintains stack memory areas memory area top stack thread default memory area 
+thread creates new object allocated default memory area thread explicitly specifies object allocated memory area 
+thread uses mechanism attempt allocate object scoped memory scoped memory thread stack memory areas 
+restriction exists objects allocated immortal heap memory 
+threads enter exit memory areas 
+thread enters memory area pushes area stack 
+exits memory area pops area stack 
+ways enter memory area start parallel thread initial stack contains memory area sequentially execute run method executes memory area 
+thread exits memory area run method returns 
+programming model complicated somewhat fact single thread reenter memory area multiple times different threads enter memory areas different orders 
+assume example scoped memories threads enter enter 
+objects deallocated exits exits 
+note programming model specifies nested entry exit memory areas nested entries exits directly translate hierarchical inclusion relationship lifetimes different memory areas 
+scoped memories scoped memories effect provide form region memory allocation 
+differ somewhat forms region memory allocation scoped memory associated computations computation typically thread execution sequentially invoked run method objects scoped memory deallocated associated computations terminate 
+primary issue scoped memories ensuring create dangling objects allocated scoped memories deallocated 
+basic strategy dynamic access checks prevent program creating object scoped memory object allocated heap memory immortal memory scoped memory lifetime encloses scoped memory 
+thread attempts store object field second object access check verifies object allocated scoped memory second object allocated scoped memory lifetime contained lifetime scoped memory containing object 
+implementation checks containment looking thread stack scoped memories checking objects allocated scoped memory thread entered scoped memory second object entered scoped memory object 
+check fails implementation throws exception 
+consider quick example clarify situation 
+assume scoped memories objects allocated allocated threads assume enters enters 
+store field store field situation reversed store field store field heap real time threads heap real time threads additional set restrictions restrictions intended ensure thread interfere garbage collector 
+specifically real time specification java states heap real time thread run asynchronously garbage collector allowed allocate object allocated heap allowed manipulate objects heap 
+implementation uses runtime heap checks ensure heap real time thread interfere garbage collection manipulating heap 
+implementation uses types checks call method guard poorly implemented native methods illegal compiler calls runtime 
+checks removed native runtime code known operate correctly 
+call native method invoked heap real time thread return heap allocated object 
+method java method passed heap allocated object argument running heap real time thread 
+compiler generated call runtime implementation heap real time thread return heap allocated object 
+read heap real time thread read heap allocated object 
+write part execution assignment statement heap real time thread overwrite heap allocated object 
+example example illustrates features real time specification java 
+presents sample program written real time java 
+program version familiar hello world program augmented real time java features 
+creates scoped memory worst case linear time allocation scheme size bytes 
+runs code run method new scope 
+run method creates new variable time allocation scoped memory object new worker 
+objects allocated scoped memory 
+run method starts worker thread executes join method return worker finishes 
+worker thread runs new 
+worker run method allocates new string stores string static results field main class previously initialized null :10.1.1.32.6278:10.1.1.32.6278
+worker creates new string hello world place array 
+worker finishes implementation deallocates objects allocated 
+back main thread join method returns main thread returns back run method 
+implementation deallocates objects allocated 
+main thread prints hello world element results array screen 
+note constructors differ slightly constructors described realtime java specification 
+implemented constructors addition specified constructors provide additional flexibility convenience programmer 
+hello world program legal program system 
+changes illegal program class worker extends worker ma super ma public void run im instance try main results string im newarray string class new int main results string im newinstance string class new class string class new object hello world 
+catch exception system exit public class main public static string results null public static void main string args lt new lt enter new runnable public void run worker new worker new start try join catch exception system println system println results fig 
+
+real time java example program 
+replace im newinstance hello world illegal 
+
+replace im newarray new string illegal static :10.1.1.32.6278
+
+replace instance instance illegal heap read 
+
+replace null new string illegally destroying heap assigning main results write :10.1.1.32.6278
+
+place worker main method assignment new worker illegally create heap 
+
+place system illegally reading heap 
+system initialized initial start program read consequence system println message exception 
+
+place entire worker new worker new outside scope pointer illegally point heap method 
+implementation discussion implementation focuses aspects implementing heap access checks implementing additional scoped immortal memory functionality ensuring absence interactions heap real time threads garbage collector 
+heap check implementation implementation able take arbitrary object determine kind memory area allocated 
+support functionality implementation adds extra field header object 
+field contains pointer memory area object allocated 
+complication scheme garbage collector may violate object representation invariants collection 
+heap real time thread attempts field object header determine object allocated heap may access memory rendered invalid actions garbage collector 
+need mechanism enables heap real time thread differentiate heap attempting access memory area field object 
+considered allocating contiguous address region heap checking see falls region 
+decided approach potential interactions garbage collector code heap real time thread checks falls heap 
+specifically scheme force garbage collector maintain invariant current heap address region include previous heap address regions 
+unwilling impose restriction collector 
+considered variety schemes eventually settled relatively simple approach setting low bit heap 
+generated code masks bit dereferencing pointer access object 
+approach heap real time threads simply check low bit check points heap 
+current system uses memory area field object header obtain information objects allocated scoped memories immortal memory 
+basic assumption objects allocated kinds memory areas move memory area field temporarily corrupted invalidated 
+presents code compiler emits heap check presents code determines current thread heap real time thread 
+note emitted code checks see heap expectation real time java programs manipulate relatively heap allocated objects 
+expectation holds benchmark programs see section 
+read write call exp exp call args call args exp exp method args method args body args method args arg args arg arg body fig 
+
+emitted code heap checks access check implementation access checks able determine lifetime scoped memory area included lifetime scoped memory area implementation searches thread stack memory areas perform check 
+searches occurrence closest start stack recall may occur multiple times stack 
+searches check occurrence occurrence start stack 
+access check succeeds fails 
+current implementation optimizes check checking see scoped memory area 
+presents emitted code access checks presents run time code emitted code invokes 
+ifdef debug void const int const char const char operation operation read write call method void endif jnienv env determine struct env optionally print helpful debugging info throw exception fig 
+
+function new object array obj new foo obj new foo ma obj new foo obj new foo obj ma access check obj foo bar ma obj ma instance ma bar static field obj foo bar fig 
+
+emitted code access checks public void object obj obj null obj null obj scoped helpful native method prints debugging info 
+obj obj overridden public void object obj obj null target obj target target scoped target obj target boolean source target source source return null target null fig 
+
+code performing access checks operations memory areas implementation needs perform basic operations scoped immortal memory areas allocate object area deallocate objects area provide garbage collector set heap stored memory area 
+note potential interaction garbage collector heap real time threads 
+garbage collector may process retrieving heap stored memory area real time thread operating concurrently interrupting garbage collector allocates objects memory area 
+garbage collector operate correctly face resulting changes underlying memory area data structures 
+system design involve locks shared heap real time thread garbage collector garbage collector allowed block heap real time thread 
+garbage collector may assume actions heap real time thread change set heap stored memory area 
+memory area may object allocation algorithm 
+code may execute different memory areas different times implementation set dynamically determine allocation algorithm current memory area 
+thread allocates object looks data structure associated memory area 
+field structure contains pointer allocation function invoke 
+structure contains pointer function retrieves heap area function deallocates objects allocated area 
+memory area counts described real time java specification memory area maintains count number threads currently operating region 
+counts atomically updated threads enter exit region 
+count zero implementation deallocates objects area 
+consider situation 
+thread exits memory area causing count zero point implementation starts invoke objects memory area part deallocation process 
+running heap real time thread enters memory area 
+real time java specification heap realtime thread blocks finish running 
+mention priority run raising potential issue real time thread may arbitrarily delayed 
+final problem occurs heap real time thread acquires lock running memory area attempts acquire lock blocking heap real time thread holds lock heap real time thread attempts enter memory area 
+result deadlock heap real time thread waits finish waits heap real time thread release lock 
+memory allocation algorithms implemented simple allocators scoped memory areas stack allocator malloc allocator 
+current implementation uses stack allocator instances guarantee linear time allocation malloc allocator instances provide time guarantees 
+stack allocator starts fixed amount available free memory 
+maintains pointer free address 
+allocate block memory increments pointer size block returns old value pointer newly allocated block 
+current implementation uses allocation strategy instances class guarantees linear time allocation strategy 
+complication associated implementation 
+note multiple threads attempt concurrently allocate memory stack allocator 
+implementation mechanism ensure allocations take place atomically 
+note lock synchronization cause unfortunate coupling real time threads heap real time threads garbage collector 
+consider scenario 
+real time thread starts allocate memory acquires lock suspended garbage collector suspended heap real time thread attempts allocate memory allocator 
+implementation clever deadlock force heap real time thread wait garbage collector releases real time thread complete memory allocation 
+current implementation avoids problem lock free nonblocking atomic exchange add instruction perform pointer updates 
+note multiprocessor presence contention multiple threads attempting concurrently allocate memory allocator approach cause allocation time depend precise timing behavior atomic instructions 
+expect machines provide guarantee termination time instructions 
+malloc allocator simply calls standard malloc routine allocate memory 
+implementation uses strategy instances 
+provide garbage collector list heap implementation keeps linked list allocated memory blocks scan blocks demand locate heap 
+design adding new allocator easy malloc allocator required lines code minutes coding debugging testing time 
+system flexible support multiple dynamically changing allocation routines linked list allocator stack allocator 
+garbage collector interactions heap objects point heap objects objects allocated immortal memory 
+garbage collector recognize immortal memory treat objects allocated immortal memory differently objects allocated heap memory 
+particular garbage collector change objects ways interact concurrently executing heap real time threads 
+implementation handles issue follows 
+garbage collector scans immortal scoped memories extract objects allocated memories heap allocated objects 
+scan coded operate correctly presence concurrent updates heap real time threads 
+garbage collector uses extracted heap part root set 
+collection phase collector trace objects allocated immortal memory 
+collector moves objects may need update objects allocated immortal memory scoped memories objects allocated heap 
+performs updates way interfere ability heap real time threads recognize referring objects allocated heap 
+note real time threads may access heap perform heap checks property ensures garbage collector heap real time threads inappropriately interfere 
+debugging real time java programs additional design goal extremely important developing real time java programs ease debugging 
+development process facilitating debugging primary design goal 
+fact close impossible develop error free real time java programs sort assistance debugging system static analysis helped locate reason problems different kinds memory areas 
+debugging especially complicated fact standard java libraries basically don heap real time threads 
+incremental debugging development real time java programs incremental debugging strategy useful 
+real time java heap access checks special memory allocation strategies effect running real time java program standard java program 
+version debug basic functionality program 
+added heap access checks version debug memory allocation strategy program 
+able strategy divide debugging process stages manageable amount bugs stage 
+possible static analysis verify correct real time java scoped memories 
+access analysis implementing benchmark programs analysis useful helping debug scoped memories 
+dramatically increased confidence correctness final program enabled static check elimination optimization improved performance program 
+additional runtime debugging information heap access checks help detect mistakes early development process additional tools may necessary understand fix mistakes timely fashion 
+augmented memory area data structure produce debugging system helps programmers understand causes object referencing errors 
+debugging flag enabled implementation attaches original java source code file name line number allocated object 
+furthermore macros obtain allocation site information native methods 
+store allocation site information list associated memory area object allocated 
+arbitrary object debugging function retrieve debugging information object 
+combined stack trace point illegal assignment allocation site information source destination illegal assignment location illegal instrumental quickly determining exact cause error objects responsible 
+allocation site information displayed time allocation provide program trace help determine control flow putting context time error 
+results implemented real time java memory extensions mit flex compiler infrastructure 
+flex ahead time compiler java generates native code variety garbage collectors 
+experiments generated boehm demers weiser conservative garbage collector 
+obtained benchmark programs programs measure overhead heap checks access checks 
+benchmarks include barnes hierarchical body solver water simulates water molecules liquid state 
+initially benchmarks allocated objects heap 
+modified benchmarks scoped memories possible 
+results synthetic benchmarks tree array object field assignment heavily 
+benchmarks designed obtain maximum possible benefit heap access check elimination 
+table presents number objects able allocate different kinds memory areas 
+goal allocate objects possible scoped memory areas results show able modify available www lcs mit edu table 
+number objects allocated different memory areas benchmark heap scoped immortal total array tree water barnes table 
+number arrays allocated different memory areas benchmark heap scoped immortal total array tree water barnes programs allocate vast majority objects scoped memories 
+java programs allocate arrays table presents number arrays able allocate scoped memories 
+objects able allocate vast majority arrays scoped memories 
+table presents number type access checks benchmark 
+recall check time program stores 
+different columns table break checks categories depending target store memory area stored refers 
+example scoped heap column counts number times program stored heap memory object array allocated scoped memory 
+table 
+access check counts heap heap scoped scoped scoped immortal immortal benchmark heap immortal heap scoped immortal heap immortal array tree water barnes table presents running times benchmarks 
+report results different versions program 
+versions heap table 
+execution times benchmark programs checks checks benchmark heap vt lt heap vt lt array tree water barnes access checks vary memory area objects able allocate scoped memory 
+heap version allocates objects heap 
+vt version allocates scoped memory objects instances malloc allocation lt version allocates scoped memory objects instances stack allocation 
+versions allocation strategy compiler generates code omits checks 
+benchmarks static analysis able verify checks fail enabling compiler eliminate checks 
+results show checks add significant overhead benchmarks 
+scoped memories produces significant performance gains barnes water 
+scoped memories checks significantly increases performance program 
+investigate causes performance differences instrumented run time system measure garbage collection pause times 
+measurements attribute performance differences versions water barnes scoped memories garbage collection overheads 
+specifically scoped memories improved aspect garbage collector reduced total garbage collection overhead increased time collections significantly reduced pause times collection 
+array tree garbage collection versions versions checks exhibit basically performance 
+checks versions allocate objects heap run faster versions allocate objects scoped memories 
+attribute performance difference fact heap heap access checks faster scope scope access checks 
+related christiansen suggested region approach memory management java called system 
+regions better performance variable sized regions region allocation predictable better performance garbage collection 
+static analysis detect region annotations placed annotations need manually modified performance reasons 
+compiling subset java include threads exceptions system allow regions coexist garbage collection 
+system permits creation dangling 
+gay aiken implemented region extension called counting regions safely allocate deallocate regions minimum overhead 
+special region pointers explicit calls gay aiken provide means explicitly manipulating region allocated memory 
+region allocation uses memory faster traditional malloc free memory management 
+unfortunately counting escaping incur overhead 
+christiansen gay aiken explore implications region allocation enhancing locality 
+gay aiken produced rc explicit region allocation dialect improvement 
+rc uses structured regions traditional pointer annotations reduce counting overhead execution time 
+static analysis reduce number safety checks rc demonstrates speedup programs regions opposed garbage collection typical malloc free 
+rc uses kb aligned pages allocate memory runtime keeps map pages regions resolve calls quickly 
+regions partial order facilitate checks 
+region analysis best programmer aware analysis indicating explicitly defined regions give programmer control storage allocation may lead efficient programs 
+example tofte talpin ml inference system required programmer aware analysis guard excessive memory leaks 
+programs regions explicitly may hierarchically structured respect memory usage programmer design programs intended traditional garbage collected heap 
+real time java uses explicit counted regions strictly prohibit creation dangling 
+research distinguished fact real time java strict superset java language program written ordinary java run real time java system 
+furthermore real time java thread uses region allocation heap allocation run concurrently thread ordinary java program support kinds region allocation allocation garbage collected heap system 
+real time java specification promises bring benefits java programmers building real time systems 
+key aspects specification extending java memory model give programmer control memory management 
+implemented extensions 
+primary implementation complication ensuring lack interference garbage collector heap real time threads execute asynchronously respect design 
+debugging tools necessary effective development programs real time java memory management extensions 
+static analysis dynamic debugging system help locate source incorrect uses extensions 
+research supported part darpa afrl contract part program composition embedded systems program 
+authors acknowledge scott large part development mit flex compiler infrastructure precise backend 
+karen zee implemented copy mark sweep garbage collectors facilitated development heap real time threads 
+hans boehm alan demers mark weiser implemented conservative garbage collector listed benchmarks 
+alex tailored escape analysis verify correctness real time java benchmarks respect scoped memory access violations 
+brian implemented package flex compiler improved performance benchmarks 
+
+aiken gay memory management explicit regions 
+proceedings acm sigplan conference programming language design implementation 
+montreal canada june 
+
+aiken gay language support regions 
+proceedings acm sigplan conference programming language design implementation 
+snowbird utah june 
+
+gosling hardin turnbull real time specification java 
+addison wesley reading massachusetts 
+
+christiansen region memory management java 
+master thesis department computer science diku university copenhagen may 
+
+rinard pointer escape analysis multithreaded programs 
+proceedings eighth acm sigplan symposium principles practice parallel programming 
+snowbird utah june 
+
+tofte talpin region memory management 
+information computation 

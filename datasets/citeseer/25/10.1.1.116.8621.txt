@@ -1,0 +1,382 @@
+sun network filesystem design implementation experience russel sandberg sun microsystems garcia ave mountain view ca 
+sun network filesystem nfs provides transparent remote access filesystems 
+remote filesystem implementations unix nfs designed easily portable operating systems machine architectures 
+uses external data representation xdr specification describe protocols machine system independent way 
+nfs implemented top remote procedure call package rpc help simplify protocol definition implementation maintenance 
+order build nfs unix kernel way transparent applications decided add new interface kernel separates generic filesystem operations specific filesystem implementations 
+filesystem interface consists parts virtual file system vfs interface defines operations done filesystem virtual node vnode interface defines operations done file filesystem 
+new interface allows implement install new filesystems way new device drivers added kernel 
+discuss design implementation filesystem interface unix kernel nfs virtual filesystem 
+compare nfs remote filesystem implementations describe interesting nfs ports done including ibm pc implementation ms dos vms server implementation 
+describe user level nfs server implementation allows simple server ports modification underlying operating system 
+conclude ideas enhancements 
+term server refer machine provides resources network client machine accesses resources network user person logged client application program executes client workstation client machine typically supports user time 
+design goals nfs designed simplify sharing filesystem resources network non homogeneous machines 
+goal provide way making remote files available local programs having modify relink programs 
+addition wanted remote file access comparable speed local file access 
+design goals nfs machine operating system independence protocols independent unix nfs server supply files different types clients 
+protocols simple implemented low machines pc 
+crash recovery clients mount remote filesystems different servers important clients servers able recover easily machine crashes network problems 
+transparent access want provide system allows programs access remote files exactly way local files special pathname parsing libraries recompiling 
+programs need able tell file remote local 
+unix registered trademark nfs trademark sun microsystems 
+unix semantics maintained unix client order transparent access unix machines unix filesystem semantics maintained remote files 
+reasonable performance people remote filesystem faster existing networking utilities rcp easier 
+design goal nfs fast small local disk scsi interface 
+basic design nfs design consists major pieces protocol server side client side 
+nfs protocol nfs protocol uses sun remote procedure call rpc mechanism reasons procedure calls simplify programs rpc helps simplify definition organization implementation remote services 
+nfs protocol defined terms set procedures arguments results effects 
+remote procedure calls synchronous client application blocks server completed call returned results 
+rpc easy understand behaves local procedure call 
+nfs uses stateless protocol 
+parameters procedure call contain information necessary complete call server keep track past requests 
+crash recovery easy server crashes client resends nfs requests response received server crash recovery 
+client crashes recovery necessary client server 
+state maintained server hand recovery harder 
+client server need reliably detect crashes 
+server needs detect client crashes discard state holding client client detect server crashes rebuild server state 
+stateless protocol avoids complex crash recovery 
+client just resends requests response received data lost due server crash 
+fact client tell difference server crashed recovered server slow 
+sun rpc package designed transport independent 
+new transport protocols iso plugged rpc implementation affecting higher level protocol code see appendix 
+nfs currently uses darpa user datagram protocol udp internet protocol ip transport level 
+udp unreliable datagram protocol packets get lost nfs protocol stateless nfs requests idempotent client recover retrying call packet gets 
+common nfs procedure parameter structure called file handle fhandle fh provided server client file 
+fhandle opaque client looks contents fhandle uses operations done file 
+outline nfs protocol procedures 
+complete specification see sun network filesystem protocol specification null returns procedure ping server measure round trip time 
+lookup name returns fh attr returns new fhandle attributes named file directory 
+create name attr returns attr creates new file returns fhandle attributes 
+remove name returns status removes file directory 
+getattr fh returns attr returns file attributes 
+procedure stat call 
+setattr fh attr returns attr sets mode uid gid size access time modify time file 
+setting size zero truncates file 
+read fh offset count returns attr data returns count bytes data file starting offset bytes file 
+read returns attributes file 
+write fh offset count data returns attr writes count bytes data file offset bytes file 
+returns attributes file write takes place 
+rename name returns status renames file name directory directory 
+link name returns status creates file directory link file name directory 
+symlink name string returns status creates symbolic link name directory value string 
+server interpret string argument way just saves association new symbolic link file 
+readlink fh returns string returns string associated symbolic link file 
+mkdir name attr returns fh creates new directory name directory returns new fhandle attributes 
+rmdir name returns status removes empty directory name parent directory 
+readdir cookie count returns entries returns count bytes directory entries directory 
+entry contains file name file id opaque pointer directory entry called cookie 
+cookie subsequent readdir calls start reading specific entry directory 
+readdir call cookie zero returns entries starting entry directory 
+fh returns returns filesystem information block size number free blocks new returned lookup create mkdir procedures take fhandle argument 
+remote fhandle root filesystem obtained client rpc mount protocol 
+mount protocol takes directory pathname returns fhandle client access permission filesystem contains directory 
+reason making separate protocol easier plug new filesystem access checking methods separates operating system dependent aspects protocol 
+note mount protocol place unix pathnames passed server 
+operating system implementations mount protocol replaced having change nfs protocol 
+nfs protocol rpc built top sun external data representation xdr specification xdr defines size byte order alignment basic data types string integer union boolean array 
+complex structures built basic xdr data types 
+xdr protocols machine language independent easy define 
+arguments results rpc procedures defined xdr data definition language looks lot declarations 
+data definition language input xdr protocol compiler produces structures xdr translation procedures interpret rpc protocols server side nfs server stateless servicing nfs request commit modified data stable storage returning results 
+implication unix servers requests modify filesystem flush modified data disk returning call 
+example write request data block modified indirect blocks block containing inode flushed modified 
+modification unix necessary server addition generation number inode filesystem id superblock 
+extra numbers possible server inode number inode generation number filesystem id fhandle file 
+inode generation number necessary server may hand fhandle inode number file removed inode reused 
+original fhandle comes back server able tell inode number refers different file 
+generation number incremented time inode freed 
+client side sun implementation client side provides interface nfs transparent applications 
+transparent access remote files method locating remote files change structure path names 
+unix remote file access methods pathnames host path host path name remote files 
+allow real transparent access existing programs parse pathnames modified 
+doing late binding file address decided hostname lookup file address binding filesystem allowing client attach remote filesystem directory mount command 
+method advantage client deal hostnames mount time 
+allows server limit access filesystems checking client credentials 
+disadvantage remote files available client mount done 
+transparent access different types filesystems mounted single machine provided new filesystem interface kernel filesystem type supports sets operations virtual filesystem vfs interface defines procedures operate filesystem virtual node vnode interface defines procedures operate individual file filesystem type 
+schematic diagram filesystem interface nfs uses 
+pc filesystem floppy client server system calls vnode vfs filesystem disk nfs filesystem rpc xdr filesystem interface vfs interface implemented structure contains operations done filesystem 
+likewise vnode interface structure contains operations done node file directory filesystem 
+vfs structure mounted filesystem kernel vnode structure active node 
+data type implementation allows kernel treat filesystems nodes way knowing underlying filesystem implementation 
+vnode contains pointer parent vfs pointer mounted vfs 
+means node filesystem tree mount point filesystem 
+root operation provided vfs return root vnode mounted filesystem 
+pathname traversal routines kernel bridge mount points 
+root operation keeping pointer root vnode mounted filesystem released 
+vfs mounted filesystem contains pointer back vnode mounted pathnames include traversed mount points 
+addition vfs vnode operations filesystem type provide mount mount root operations mount normal root filesystems 
+operations defined filesystem interface 
+arguments results vp pointer vnode pointer directory vnode pointer device vnode 
+filesystem operations mount varies system call mount filesystem network server routines rpc xdr system calls vnode vfs mount root mount filesystem root vfs operations vfs filesystem root vfs returns vnode return vnode filesystem root vfs returns return filesystem statistics sync vfs flush delayed write blocks vnode operations open vp flags mark file open close vp flags mark file closed vp uio flags read write file ioctl vp cmd data control operation select vp select getattr vp returns attr return file attributes setattr vp attr set file attributes access vp mode check access permission lookup name returns vp look file name directory create name attr excl mode returns vp create file remove name remove file name directory link vp link file rename name rename file mkdir name attr returns create directory rmdir name remove directory readdir returns entries read directory entries symlink name attr create symbolic link readlink vp returns data read value symbolic link fsync vp flush dirty blocks file inactive vp mark vnode inactive clean vp blk returns map block number strategy bp read write filesystem blocks bread vp returns buf read block vp bp release block buffer notice vnode procedures map nfs protocol procedures unix dependent procedures open close ioctl 
+strategy bread procedures reading writing buffer cache 
+pathname traversal done kernel breaking path directory components doing lookup call vnode component 
+glance waste time pass component call passing path receiving back target vnode 
+main reason component path mount point filesystem mount information kept vnode implementation level 
+nfs filesystem passing pathnames force server keep track mount points clients order determine break pathname violate server 
+inefficiency looking component time alleviated cache directory vnodes 
+implementation implementation nfs started march 
+step implementation modification kernel include filesystem interface 
+june vnode kernel running 
+benchmarks test amount overhead added extra interface 
+turned cases difference measurable worst case kernel slowed 
+adding new interface finding fixing places kernel inodes directly code contained implicit knowledge inodes disk layout 
+filesystem routines kernel completely rewritten vnodes 
+namei routine pathname lookup changed vnode lookup operation cleaned doesn global state 
+routine adds new directory entries create rename fixed depended global state namei 
+modified directory locking directory rename operations inode locking longer available level vnodes locked 
+avoid having fixed upper limit number active vnode vfs structures added memory allocator kernel structures allocated freed dynamically 
+memory allocator kernel rpc implementation 
+new system call added read directory entries different types filesystems 
+readdir library routine modified programs rewritten 
+change mean programs readdir relinked 
+march user level rpc xdr libraries ported user level library kernel able kernel user kernel kernel rpc calls june 
+worked rpc performance month round trip time kernel kernel null rpc call milliseconds sun 
+performance tuning included speed ups udp ip code kernel 
+rpc vnode kernel place implementation nfs simply matter writing xdr routines nfs protocol implementing rpc server nfs procedures kernel implementing filesystem interface translates vnode operations nfs remote procedure calls 
+nfs kernel running mid august 
+point modifications vnode interface allow nfs server synchronous write operations 
+necessary unwritten blocks server buffer cache part client state 
+implementation mount protocol built nfs protocol 
+wasn broke mount protocol separate user level rpc service 
+mount server user level daemon started automatically mount request 
+checks file exports contains list exported filesystems clients import see appendix 
+client import permission mount daemon system call convert pathname imported fhandle returned client 
+client side mount command modified take additional arguments including filesystem type options string 
+filesystem type allows mount command mount type filesystem 
+options string pass optional flags different filesystem types mount time 
+example nfs allows flavors mount soft hard 
+hard mounted filesystem retry nfs requests forever server goes soft mount gives returns error 
+problem soft mounts unix programs checking return status system calls get strange behavior servers go 
+hard mounted filesystem hand fail due server crash may cause processes hang data lost 
+allow automatic mounting boot time keep track currently mounted filesystems file formats changed common ascii format similar format berkeley addition type options field 
+type field specify filesystem type nfs pc options field comma separated list option strings rw hard see appendix 
+addition mount server added nfs server daemons 
+user level processes system call kernel return 
+provide user context kernel nfs server allows server sleep 
+similarly block daemon client side user level process lives kernel services asynchronous block requests 
+rpc requests block user context necessary wait read ahead write requests complete 
+daemons provide temporary solution problem handling parallel synchronous requests kernel 
+hope light weight process mechanism kernel handle requests started nfs sun september spent months working performance enhancements administrative tools nfs easier install 
+advantages nfs immediately obvious df output diskless machine access gigabyte disk 
+filesystem kbytes avail capacity mounted dev nd dev ndp pub panic usr usr fiat usr src usr src panic usr panic usr panic galaxy usr galaxy usr galaxy mercury usr mercury usr mercury usr usr hard issues hard design issues resolved development nfs 
+deciding wanted nfs 
+lots flexibility lead lots confusion 
+filesystem naming servers export filesystems clients mount sub directory remote filesystem top local filesystem top remote filesystem 
+fact remote filesystem mounted mounted copy 
+means clients different names filesystems mounting different places 
+alleviate confusion set basic mounted filesystems machine users add filesystems top 
+remember policy mechanism nfs enforce 
+user home directories mounted usr 
+may violation goals hostnames part pathnames fact directories called usr usr server names just convenience 
+scheme nfs clients look timesharing terminals user log machine home directory 
+tilde expansion username expanded user home directory shell network machines 
+avoid problems loop detection dynamic filesystem access checking servers cross mount points remote lookup requests 
+means order see filesystem layout server client remote mount server exported filesystems 
+credentials authentication security nfs uses unix style permission checking server client unix users see little difference remote local files 
+rpc allows different authentication parameters plugged message header able nfs unix flavor authenticator pass uid gid groups call 
+server uses authentication parameters permission checking user making call doing operation locally 
+problem authentication method mapping uid gid user server client 
+implies flat uid gid space local network 
+acceptable long run working network authentication method allows users login network provide network wide identity user regardless user identity particular machine 
+mean time developed rpc service called yellow pages yp provide simple replicated database lookup service letting yp handle hosts passwd group flat uid space easier administer 
+issue related client authentication super user access remote files 
+clear super user machine root access files server machine nfs 
+solve problem server map user root uid user uid checking access permission 
+solves problem unfortunately causes strange behavior users logged root root may fewer access rights remote file normal user 
+concurrent access file locking nfs support remote file locking 
+purposely include part protocol find set file locking facilities agrees correct 
+separate rpc file locking facility 
+file locking inherently stateful service lock service depends rpc service called status monitor status monitor keeps track state machines network lock server free locked resources crashed machine 
+status monitor important stateful services provides common view state network 
+related problem file locking concurrent access remote files multiple clients 
+local filesystem file modifications locked inode level 
+prevents processes writing file data single write 
+nfs server maintains locks requests write may span rpc requests clients writing remote file may get intermixed data long writes 
+unix open file semantics tried hard nfs client obey unix filesystem semantics modifying server protocol 
+cases hard 
+example unix allows removal open files 
+process open file remove directory entry file name filesystem read write file 
+bit unix just going support turns programs didn want fix csh sendmail temporary files 
+open file removal remote files check client vfs remove operation file open rename removing 
+sort invisible client allows reading writing 
+client kernel removes new name vnode inactive 
+call solution client crashes rename remove garbage file left server 
+entry cron added clean server practice necessary 
+problem associated remote open files access permission file change file open 
+local case access permission checked file opened remote case permission checked nfs call 
+means client program opens file changes permission bits longer read permission subsequent read request fail 
+get problem save client credentials file table open time file access requests 
+unix open file semantics preserved interactions clients remote file controlled single client 
+example client opens file client removes file client read request fail file open 
+time skew time skew clients client server cause times associated file inconsistent 
+example saves current time library entry ld checks modify time library time saved library 
+run remote file modify time comes server current time gets saved library comes client 
+server time far ahead client looks ld library date 
+programs affected ls emacs fixed 
+time skew potential problem program compares system time file modification time 
+plan fix limiting time skew machines time synchronization protocol 
+performance final hard issue interested performance 
+development time nfs spent improving performance 
+goal nfs comparable speed small local disk speed interested raw throughput long takes normal 
+track improvements set benchmarks include small compile tbl large compile compile bubble sort matrix inversion pipeline 
+improve performance nfs implemented usual read ahead write buffer caches client server sides 
+added caches client side file attributes directory names 
+increase speed read write requests increased maximum size udp packets bytes bytes 
+cut number times data copied implementing new xdr type xdr translation directly mbufs kernel 
+improvements diskless sun mhz 
+sun server fujitsu eagle disk runs benchmarks faster sun local fujitsu mega byte disk scsi interface 
+remaining problem areas getattr write 
+reason stat ing files causes rpc call server file 
+local case inodes directory buffer cache stat just memory 
+write operation slow synchronous server 
+fortunately number write calls normal small calls server see appendix noticeable client writes large remote file 
+nfs scsi eagle release performance show benchmark results comparing nfs local scsi disk performance current sun software release 
+scale left numbers 
+provided comparison easier 
+people base performance estimates raw transfer speed measured 
+current numbers raw transfer speed kilobytes second read cp dev null kilobytes second write sun sun server 
+remote filesystems may ask need nfs locus newcastle connection rfs ibis efs cases answer simple nfs designed handle non homogeneous machines operating systems fast get today 
+locus system provides file replication crash recovery remote filesystems similar 
+rfs vs nfs remote filesystem rfs demonstrated usenix conferences released provide functionality nfs 
+allows clients mount filesystems remote server access files transparent way 
+differences stem basic design philosophies 
+nfs provides general network service rfs provides distributed unix filesystem difference philosophy shows different areas designs 
+networking rfs standard network transport protocols udp ip 
+uses special purpose transport protocol published implementations generally available 
+protocol easily replaced rfs depends properties transport virtual circuit determine machine crashed 
+nfs uses rpc layer hide underlying protocols easy support different transport protocols having change nfs protocols 
+rfs remote procedure call mechanism extends semantics unix system calls system call accesses remote file goes network continues execution server 
+system call finished results returned client 
+protocol complicated fact client server interrupt remote system call 
+addition system calls deal filenames modified handle partial lookup server client mount point encountered pathname 
+case server looks part name returns control client look rest 
+non homogeneous machines operating systems nfs currently runs different vendors hardware berkeley sun os dec ultrix system vms ms dos rfs run system unix systems 
+nfs design assumption installations different types machines network machines run widely varying systems 
+rfs protocol includes canonical format data help support different machine architectures attempt support operating systems system 
+nfs design try predict 
+includes flexibility support evolving software hardware protocols 
+flexibility rfs built proprietary protocols unix semantics built hard imagine protocols different operating systems 
+nfs hand provides flexibility rpc layer 
+rpc allows different transport protocols authentication methods server versions supported single implementation 
+allows example encrypted authentication method maximum security workstations allowing access pc simpler authentication method 
+protocol evolution easier clients servers support different versions rpc protocols simultaneously 
+rfs uses streams hide details underlying protocols 
+easy plug new transport protocols 
+unfortunately rfs uses virtual circuit connection transport protocol detect server client crashes 
+means reliable byte stream protocol tcp ip plugged tcp connections go away crashes data flowing time crash 
+crash recovery rfs uses stateful protocol 
+server maintain information current mount points clients open files directories devices held clients state client requests progress 
+difficult costly client rebuild server state server crash rfs server crash recovery 
+server client crash detected protocol connection fails point operations progress machine aborted 
+rfs server crashes roughly equivalent client point view losing local disk 
+server crashes rare events doing recovery acceptable keep mind network delays breaks overloading usually distinguished machine crash 
+networks grow possibility network failures increases connectivity network increases chance client server crash 
+decided early design process nfs recover gracefully machine network problems 
+nfs need crash recovery server server maintains state clients 
+similarly client recovers server crash simply resending request 
+administration major differences administration nfs rfs 
+uid mapping table rfs servers removes need uniform uid user mapping network 
+nfs assumes uniform uid space provide yellow pages service distribution central administration system databases passwd group easier 
+nfs mount rpc service machine acting server 
+exported filesystem information maintained machine available service 
+rfs uses centralized name service running machine network keep track advertised filesystems servers 
+centralized name service acceptable nfs forces clients servers protocol exchanging mount information 
+having separate protocol mount service support different filesystem access checking different operating system dependent features mount operation 
+unix semantics nfs support semantics unix filesystems client 
+removing open file append mode writes file locking fully implemented nfs 
+rfs implement unix filesystem semantics 
+server crashes filesystem taken service client applications see error conditions normally happen due disk failure 
+error condition severe usually means system failed applications try recover 
+availability nfs product year 
+source support nfs berkeley bsd available sun mt system associates instruction set 
+rfs released 
+exclusive transport properties drive session semantics common design flaw applications 
+small network machines running system rfs obvious choice remote access files come implements unix semantics 
+large network network mixed protocols machine types operating systems nfs better choice 
+understood nfs rfs mutually exclusive 
+possible run single machine 
+porting experience ports nfs foreign hardware systems places additions protocol helpful 
+ibm pc client side port done exclusively protocol specification simple user level server implemented specification 
+nfs ported different operating systems unix different types machines 
+port interesting problems 
+port nfs vax running berkeley bsd 
+easiest port code unix 
+modifying kernel vnode vfs interface time consuming part porting effort 
+vnode vfs interface nfs rpc code pretty just dropped 
+libraries updated programs read directories recompiled 
+port took man weeks complete 
+port distribution source ports 
+system port done joint effort associates instruction set vax 
+order avoid having port berkeley networking code system kernel board 
+board handles ethernet ip udp layers 
+new rpc transport layer implemented interface board 
+adding vnode vfs interface system kernel hardest part port 
+port ibm pc done geoff arnold kim kinnear sun complicated need add redirector layer ms dos catch system calls redirect 
+implementation udp ip added rpc ported 
+nfs client side implementation written assembler occupies bytes space 
+currently remote read operations faster local hard disk access remote write operations slower 
+performance remote local access 
+dec ported nfs ultrix microvax ii 
+port harder port ultrix release berkeley beta 
+time consuming part port installing vnode vfs interface 
+complicated fact berkeley changes kernel code deals inodes 
+interesting port different operating system data general mv port 
+dg machine runs system berkeley networking filesystem added 
+rpc vnode vfs part port easy 
+hard part xdr 
+mv word addressed architecture character pointers handled differently word pointers 
+places code especially xdr routines assumed char int 
+aid porting implemented user level version nfs server 
+uses standard rpc xdr libraries system calls handle remote procedure call requests 
+ported non unix operating systems changing system calls library routines 
+benchmarks show performance kernel nfs server single client server 
+vms implementation server side 
+basic port done dave sri 
+started user level nfs server unix emulation libraries handle unix system calls 
+rpc layer ported version berkeley networking code runs vms 
+caching added libraries speed system call emulation perform mapping unix permission checking vms permission checking 
+conference february completed nfs ports demonstrated 
+different vendors different operating systems sharing files ethernet 
+ibm officially announced risc workstation product rt 
+announcement nfs ported rt berkeley bsd mike brown university 
+think nfs protocols rpc xdr provide flexible method remote file access available today 
+encourage nfs sun public protocols associated nfs 
+addition published source code user level implementation rpc xdr libraries 
+people sun involved nfs development effort 
+bob lyon led nfs group helped protocol issues steve kleiman implemented filesystem interface kernel bill joy original design russel sandberg ported rpc kernel implemented nfs virtual filesystem tom lyon designed protocol provided far sighted inputs design david goldberg worked user level programs paul weiss implemented yellow pages dan walsh performance nfs 
+nfs consulting group headed steve isaac done amazing job getting nfs world 
+lyon sun remote procedure call specification sun microsystems technical report 
+sandberg sun network filesystem protocol specification sun microsystems technical report 
+lyon sun external data representation specification sun microsystems technical report 
+lightweight processes unix implementation applications usenix 
+weiss yellow pages protocol specification sun microsystems technical report 
+chang usenix 
+presotto ritchie interprocess communication eighth edition unix system usenix conference proceedings june 
+weinberger version network file system usenix conference proceedings june 
+hatch rfs sun nfs comparison heterogeneous distributed file systems unix world december 
+cole implementation extended file system unix usenix conference proceedings june 
+taylor protocol compiler rpc sun microsystems technical report december 
+taylor secure network authentication method rpc sun microsystems technical report november 
+kleiman architecture multiple file systems sun unix sun microsystems technical report october 
+popek locus distributed operating system operating systems review acm october 
+newcastle connection world unite software practice experience 
+tichy distributed file system usenix conference proceedings june 
+appendix format format filesystem database files changed include type options fields 
+type field specifies filesystem type line refers options field specifies mount run time options 
+options field list comma separated strings 
+allows new options added example new filesystem type created having change library routines parse files 
+example file diskless machine 
+filesystem mount point type options dev nd rw dev ndp pub ro speed usr mc usr nfs ro hard usr usr nfs rw hard speed usr mc speed usr speed nfs rw hard panic usr src usr src nfs rw soft bg titan usr usr nfs ro soft bg panic usr panic usr panic nfs rw soft bg panic usr games usr games nfs ro soft bg wizard arch alpha arch nfs ro soft bg sun usr spool news usr spool news nfs ro soft bg krypton usr release usr release nfs ro soft bg usr man usr man nfs soft bg usr local usr local nfs ro soft bg topaz mc db release usr db nfs ro soft bg eureka usr usr ops nfs soft bg wells pe pe nfs mount access permission exports file file exports server mount protocol daemon check client access filesystems 
+format file filesystem access list 
+access list empty filesystem exported 
+access list consists machine names 
+mail aliases single name refers group machines 
+database accessed yellow pages 
+example exports file server 
+filesystem access list usr argon krypton usr release usr misc usr local usr krypton argon krypton phoenix usr usr src systems usr src pe pe users appendix server nfs rpc statistics collected typical server sun 
+statistics collected automatically night command sent list system administrators 
+statistics useful load balancing detecting network problems 
+note calls day calls hour calls second average hours server 
+server rpc calls server nfs calls null getattr setattr root lookup readlink read write create remove rename link symlink mkdir rmdir readdir appendix sun protocols iso open systems interconnect model application presentation session transport network data link physical sun native architecture additions mail ftp tcp ip ethernet ethernet tcp rcp nfs yp xdr rpc rpc ip internetwork point point point point rlogin udp rsh telnet point ieee point point ieee point 

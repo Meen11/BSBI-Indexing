@@ -1,0 +1,591 @@
+hoard scalable memory allocator multithreaded applications emery berger kathryn mckinley robert blumofe paul wilson department computer sciences university texas austin austin texas emery rdb wilson cs utexas edu parallel multithreaded programs web servers database managers news servers scientific applications increasingly prevalent 
+applications memory allocator bottleneck severely limits program performance scalability multiprocessor systems 
+previous allocators suffer problems include poor performance scalability heap organizations introduce false sharing 
+worse allocators exhibit dramatic increase memory consumption confronted producer consumer pattern object allocation freeing 
+increase memory consumption range factor number processors unbounded memory consumption 
+introduces hoard fast highly scalable allocator largely avoids false sharing memory efficient 
+hoard allocator simultaneously solve problems 
+hoard combines global heap processor heaps novel discipline provably bounds memory consumption low synchronization costs common case 
+results eleven programs demonstrate hoard yields low average fragmentation improves program performance standard solaris allocator factor processors factor best allocator tested 
+
+parallel multithreaded programs increasingly prevalent 
+applications include web servers database managers news servers traditional parallel applications scientific applications 
+applications high performance critical 
+generally written run efficiently modern shared memory multiprocessor supported part defense advanced research projects agency darpa air force research laboratory 
+kathryn mckinley supported darpa nsf eia nsf career award ccr 
+addition emery berger supported novell fellowship 
+multiprocessor computing facilities provided generous donation sun microsystems 
+permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+asplos cambridge ma usa copyright acm department computer science university massachusetts amherst massachusetts mckinley cs umass edu servers 
+applications intensive dynamic memory allocation 
+unfortunately memory allocator bottleneck severely limits program scalability multiprocessor systems 
+existing serial memory allocators scale multithreaded applications existing concurrent allocators provide features needed order attain scalable memory efficient allocator performance speed 
+memory allocator perform memory operations malloc free fast state art serial memory allocator 
+feature guarantees allocator performance multithreaded program executes single processor 
+scalability 
+number processors system grows performance allocator scale linearly number processors ensure scalable application performance 
+false sharing avoidance 
+allocator introduce false sharing cache lines threads distinct processors inadvertently share data cache line 
+low fragmentation 
+define fragmentation maximum amount memory allocated operating system divided maximum amount memory required application 
+excessive fragmentation degrade performance causing poor data locality leading paging 
+certain classes memory allocators described section exhibit special kind fragmentation call blowup 
+intuitively blowup increase memory consumption caused concurrent allocator reclaims memory freed program fails satisfy memory requests 
+define blowup maximum amount memory allocated allocator divided maximum amount memory allocated ideal uniprocessor allocator 
+show section common producer consumer programming idiom cause blowup 
+allocators blowup ranges factor number processors unbounded memory consumption longer program runs memory consumes 
+pathological increase memory consumption catastrophic resulting premature application termination due exhaustion swap space 
+contribution introduce hoard allocator show enables parallel multithreaded programs achieve scalable performance shared memory multiprocessors 
+hoard achieves result simultaneously solving problems 
+particular hoard solves blowup false sharing problems far know addressed literature 
+demonstrate hoard achieves nearly zero synchronization costs practice 
+hoard maintains processor heaps global heap 
+processor heap usage drops certain fraction hoard transfers large fixed size chunk memory processor heap global heap available reuse processor 
+show algorithm bounds blowup synchronization costs constant factor 
+algorithm avoids false sharing ensuring processor reuses repeatedly cache line 
+results eleven programs demonstrate hoard scales linearly number processors grows fragmentation costs low 
+processors hoard improves performance standard solaris allocator factor factor best allocator tested 
+features led incorporation number high performance commercial applications including twister breeze cyclone chat usenet servers high performance scientific code 
+rest organized follows 
+section explain detail issues blowup allocator induced false sharing 
+section motivate describe detail algorithms hoard simultaneously solve problems 
+sketch proofs bounds blowup contention section 
+demonstrate hoard speed scalability false sharing avoidance low fragmentation empirically section including comparisons serial concurrent memory allocators 
+show hoard robust respect changes key parameter 
+classify previous taxonomy memory allocators section focusing speed scalability false sharing fragmentation problems described 
+discuss directions research section conclude section 
+motivation section focus special attention issues false sharing heap objects blowup motivate 
+issues addressed achieve efficient memory allocation scalable multithreaded applications neglected memory allocation literature 
+allocator induced false sharing heap objects false sharing occurs multiple processors share words cache line sharing data notorious cause poor performance parallel applications 
+allocators cause false sharing heap objects dividing cache lines number small objects distinct processors write 
+program may introduce false sharing allocating number objects cache line passing object different thread 
+impossible completely avoid false sharing heap objects allocator pads memory request size cache line 
+allocator know pads memory requests size cache line reason padding cause dramatic increase memory consumption instance objects padded multiple bytes sparc significantly degrade spatial locality cache utilization 
+unfortunately allocator actively induce false sharing objects program pass different threads 
+active false sharing due malloc satisfying memory requests different threads cache line 
+instance allocators give threads parts cache line 
+allocator may divide cache line byte chunks 
+multiple threads request byte objects allocator may give thread byte object turn 
+splitting cache lines lead false sharing 
+allocators may passively induce false sharing 
+passive false sharing occurs free allows malloc produce false sharing 
+program introduces false sharing spreading pieces cache line processors allocator may passively induce false sharing free letting processor reuse pieces freed lead false sharing 
+blowup previous allocators suffer blowup 
+show section hoard keeps blowup constant factor existing concurrent allocators unbounded blowup cilk stl allocators memory consumption grows bound memory required fixed memory consumption grow linearly number processors ptmalloc 
+important note worst cases just theoretical 
+threads producer consumer relationship common programming idiom may induce blowup 
+best knowledge papers literature address problem 
+example consider program producer thread repeatedly allocates block memory gives consumer thread frees 
+memory freed consumer unavailable producer program consumes memory runs 
+unbounded memory consumption plainly unacceptable fold increase memory consumption cause concern 
+scheduling multithreaded programs cause require memory run multiple processors run processor 
+consider program threads 
+thread calls malloc free 
+threads serialized total memory required execute processors call malloc may run parallel increasing memory requirement allocator multiplies consumption factor memory consumption increases 
+hoard memory allocator section describes hoard detail 
+hoard viewed allocator generally avoids false sharing trades increased bounded memory consumption reduced synchronization costs 
+hoard augments processor heaps global heap thread may access similar vee hsu 
+thread access heap global heap 
+designate heap global heap heaps processor heaps 
+implementation heaps altering analytical results order decrease probability concurrently executing threads heap simple hash function map thread id processor heaps result collisions 
+need mapping function general correspondence threads processors threads reassigned processors 
+solaris able avoid collisions heap assignments threads hashing light weight process lwp id number lwp usually set number processors heap generally lwp 
+hoard maintains usage statistics heap 
+statistics ui amount memory live heap ai amount memory allocated hoard operating system held heap hoard allocates memory system chunks call superblocks 
+superblock array number blocks objects contains free list available blocks maintained lifo order improve locality 
+superblocks malloc global heap heap global heap heap heap free heap free global heap heap global heap heap heap free heap allocation freeing hoard 
+see section details 
+size multiple system page size 
+objects larger half size superblock managed directly virtual memory system allocated mmap freed 
+blocks superblock size class 
+size classes power apart greater rounding requested size nearest size class bound worst case internal fragmentation block factor order reduce external fragmentation recycle completely empty superblocks re size class 
+clarity exposition assume single size class discussion 
+bounding blowup heap owns number superblocks 
+memory available superblock thread heap hoard obtains superblock global heap available 
+global heap empty hoard creates new superblock requesting virtual memory operating system adds thread heap 
+hoard currently return empty superblocks operating system 
+superblocks available reuse 
+hoard moves superblocks processor heap global heap processor heap crosses emptiness threshold empty fraction blocks ui ai number superblocks worth free memory heap ui ai 
+long heap empty fewer superblocks hoard move superblocks processor heap global heap 
+processor heap cross emptiness threshold hoard transfers superblocks empty global heap 
+removing superblock cross emptiness threshold main tains invariant processor heaps ui ai ui ai 
+remove superblock reduce ui reduce ai restoring invariant 
+maintaining invariant bounds blowup constant factor show section 
+hoard finds empty superblocks constant time dividing superblocks number bins call fullness groups 
+bin contains doubly linked list superblocks fullness range superblocks completely empty bin 
+hoard moves superblocks group appropriate allocates nearly full superblocks 
+improve locality order superblocks fullness group move front heuristic 
+free block superblock move superblock front fullness group 
+need allocate block reuse superblock memory maintain free blocks lifo order reuse block cache 
+example illustrates simplified form hoard manages superblocks 
+simplicity assume threads heaps thread maps heap 
+example reads top left top right bottom left bottom right empty fraction 
+thread executes code written left hand side diagram prefixed thread executes code right hand side prefixed 
+initially global heap empty heap superblocks partially full empty heap completely full superblock 
+top left diagram shows heaps thread heap 
+hoard selects fullest superblock heap allocation 
+top right diagram thread superblock heap owns 
+heap full hoard remove superblock 
+bottom left diagram thread frees superblock owned heap 
+free cause heap cross emptiness threshold free 
+hoard moves completely free superblock heap global heap 
+avoiding false sharing hoard uses combination superblocks multiple heaps described avoid active passive false sharing 
+thread may allocate superblock superblock owned exactly heap time 
+multiple threads simultaneous requests memory requests satisfied different superblocks avoiding actively induced false sharing 
+program deallocates block memory hoard returns block superblock 
+coalescing prevents multiple threads reusing pieces cache lines passed threads user program avoiding passively induced false sharing 
+strategy greatly reduce allocator induced false sharing completely avoid 
+hoard may move superblocks heap possible heaps share cache lines 
+fortunately superblock transfer relatively infrequent event occurring processor heap dropped emptiness threshold 
+observed practice superblocks released global heap completely empty eliminating possibility false sharing 
+released superblocks guaranteed empty opportunity false sharing lines superblock reduced 
+shows hoard generally avoids false sharing 
+notice thread hoard returns memory malloc sz 
+sz allocate superblock os return 
+
+hash current thread 
+
+lock heap 
+scan heap list superblocks full size class corresponding sz 
+
+superblock free space 
+check heap global heap superblock 
+
+
+allocate bytes superblock set owner heap 
+
+transfer superblock heap 
+
+ui ui 
+
+ai ai 
+ui ui sz 
+
+sz 
+
+unlock heap 
+return block superblock 
+free ptr 
+block large 
+free superblock operating system return 
+
+find superblock block comes lock 
+
+lock heap superblock owner 
+
+deallocate block superblock 
+
+ui ui block size 
+
+block size 
+
+unlock heap superblock return 
+
+ui ai ui ai 
+transfer empty superblock heap global heap 
+
+ui ui 
+ai ai 
+unlock heap superblock 
+pseudo code hoard malloc free 
+superblock thread heap 
+hoard uses heap satisfy memory allocation requests thread thread reuse memory 
+hoard avoids active passive false sharing superblocks 
+algorithms section describe hoard memory allocation deallocation algorithms detail 
+pseudo code algorithms 
+clarity exposition omit discussion management fullness groups superblock recycling 
+allocation hoard directly allocates large objects size virtual memory system 
+thread processor calls malloc small objects hoard locks heap gets block superblock free space heap line 
+hoard checks global heap heap superblock 
+hoard transfers heap adding number bytes superblock ui total number bytes superblock ai lines 
+superblocks heap heap hoard allocates new superblock inserts heap line 
+hoard chooses single block superblock free space marks allocated returns pointer block 
+deallocation superblock owner processor heap 
+processor frees block hoard finds superblock pointer block header 
+block large hoard immediately frees superblock operating system 
+locks superblock locks owner heap 
+hoard returns block superblock decrements ui 
+heap empty ui ai ui ai hoard transfers superblock empty global heap lines 
+hoard unlocks heap superblock 
+
+analytical results section sketch proofs bounds blowup synchronization 
+define useful notation 
+number heaps global heap processor heaps 
+adopt convention capital letters denote maxima lower case letters denote current values 
+denote maximum amount memory allocated program live memory memory operation denote current amount memory allocated program memory operation add subscript particular heap ui add denote sum heaps global heap 
+bounds blowup formally define blowup allocator worstcase memory consumption divided ideal worst case memory consumption serial memory allocator constant factor times maximum memory required definition 
+blowup 
+prove theorem bounds hoard worstcase memory consumption 
+show maximum amount memory global heaps maximum allocated processor heaps 
+lemma proof straightforward somewhat lengthy proof may technical report 
+lemma 
+
+intuitively lemma holds quantities maxima memory global heap originally allocated processor heap 
+prove bounded memory consumption theorem theorem 
+
+proof 
+restate invariant section maintain processor heaps ai ui ai ui 
+inequality sufficient prove theorem 
+summing processor heaps gives ui def 
+def 
+lemma 
+number size classes constant theorem holds size classes 
+definition blowup assuming hoard blowup 
+result shows hoard worst case memory consumption worst constant factor overhead grow amount memory required program 
+discipline empty fraction enables proof clearly key parameter hoard 
+reasons describe validate experimental results section hoard performance robust respect choice bounds synchronization section analyze hoard worst case discuss expected synchronization costs 
+synchronization costs come flavors contention processor heap acquisition global heap lock 
+argue form contention scalability concern second form rare 
+common program behavior synchronization costs low program lifetime 
+processor heap contention worst case contention hoard arises thread allocates memory heap number threads free contending heap lock case particularly interesting 
+application allocates memory manner amount allocations low heap contention issue application fundamentally unscalable 
+heap access completely independent application achieve fold speedup matter processors available 
+concerned providing scalable allocator scalable applications bound hoard worst case applications occurs pairs threads exhibit behavior described 
+malloc free serialized 
+modulo context switch costs pattern results fold slowdown 
+slowdown desirable scalable grow number processors allocators heap protected single lock 
+difficult establish expected case processor heap contention 
+multithreaded applications memory exclusive allocating thread small fraction allocated memory freed thread expect processor heap contention quite low 
+global heap contention global heap contention arises superblocks created superblocks transferred global heap blocks freed superblocks held global heap 
+simply count number times global heap lock acquired thread upper bound contention 
+analyze cases growing phase shrinking phase 
+show worst case synchronization growing phases inversely proportional superblock size empty fraction show worst case shrinking phase expensive pathological case occur practice 
+empirical evidence section suggests programs hoard incur low synchronization costs program execution 
+key parameters control worst case global heap contention processor heap growing empty fraction size superblock 
+processor heap growing thread acquire global heap lock times memory operations empty fraction superblock size object size 
+heap empty thread lock global heap obtain superblock free blocks 
+thread calls malloc times exhaust heap acquire global heap lock times 
+processor heap shrinking thread acquire global heap lock release threshold crossed 
+release threshold crossed single call free superblock exactly empty 
+completely freeing superblock turn cause superblock released global heap subsequent free block superblock acquire global heap lock 
+luckily pathological case highly occur requires improbable sequence operations program systematically free superblock free block superblock time 
+common case hoard incur low contention costs memory operation 
+situation holds amount live memory remains empty fraction maximum amount memory allocated frees local 
+johnstone show empirical studies allocation behavior nearly program analyzed memory tends vary range fraction total memory currently amount grows steadily 
+steady state case hoard incurs contention gradual growth hoard incurs low contention 
+
+experimental results section describe experimental results 
+performed experiments uniprocessors multiprocessors demonstrate hoard speed scalability false sharing avoidance low fragmentation 
+show results robust respect choice empty fraction 
+platform dedicated processor sun enterprise gb ram mhz mb level cache running solaris 
+barnes hut benchmark programs including allocators compiled gnu compiler highest possible optimization level 
+gnu vendor compiler sun workshop compiler version encountered errors high optimization levels 
+experiments cited size superblock empty fraction number superblocks free superblocks released base exponential size classes bounding internal fragmentation 
+compare hoard version single multiple heap memory allocators solaris default allocator provided solaris ptmalloc linux allocator included gnu library extends traditional allocator multiple heaps multiple heap allocator included solaris multithreaded parallel applications 
+section includes extensive discussion ptmalloc concurrent allocators 
+concurrent allocators aware solaris platform example microsoft proprietary 
+solaris allocator baseline calculating speedups 
+single threaded applications wilson johnstone grunwald zorn espresso optimizer programmable logic arrays ghostscript postscript interpreter locality analyzer pascal translator 
+chose programs allocation intensive single threaded benchmarks espresso optimizer programmable logic arrays ghostscript postscript interpreter locality analyzer pascal translator multithreaded benchmarks thread repeatedly allocates deallocates objects thread allocates randomly frees random sized objects larson simulates server thread allocates deallocates objects transfers objects threads freed active false tests active false sharing avoidance passive false tests passive false sharing avoidance object oriented pde solver barnes hut body particle solver table single multithreaded benchmarks 
+widely varying memory usage patterns 
+inputs programs wilson johnstone 
+standard suite benchmarks evaluating multithreaded allocators 
+know benchmarks specifically stress multithreaded performance server applications web servers database managers 
+chose benchmarks described papers published larson benchmark larson krishnan benchmark multithreaded applications include benchmarks barnes hut wrote microbenchmarks stress different aspects memory allocation performance active false passive false 
+table describes benchmarks 
+table includes allocation behavior fragmentation maximum memory allocated total memory requested number objects requested average object size 
+speed table lists uniprocessor runtimes applications linked hoard solaris allocator average runs variation runs negligible 
+average hoard causes slight increase runtime applications loss primarily due performance 
+hoard performs poorly uses wide range size classes allocates little memory see section details 
+longest running application runs faster hoard 
+hoard performs faster solaris allocator allocates memory benchmarks nearly mb 
+scalability section experiments measure scalability 
+measure speedup respect solaris allocator 
+applications vigorously exercise allocators revealed memory allocation bottleneck pages served dynamically generated jim davidson personal communication 
+unfortunately specweb benchmark performs requests completely dynamically generated pages web servers exercise dynamic memory allocation generating dynamic content 
+program runtime sec change solaris hoard single threaded benchmarks espresso ghostscript multithreaded benchmarks active false passive false barnes hut average table uniprocessor runtimes single multithreaded benchmarks 
+large difference maximum total memory requested see table 
+shows hoard matches outperforms allocators tested 
+solaris allocator performs poorly serial single heap allocators scale 
+suffers centralized bottleneck 
+ptmalloc scales memory operations fairly infrequent barnes hut benchmark scaling peaks processors 
+discuss benchmark turn 
+threads repeatedly allocate deallocate byte objects threads synchronize share objects 
+seen hoard exhibits linear speedup solaris allocators exhibit severe slowdown 
+processors hoard version runs faster ptmalloc version 
+ptmalloc uses linkedlist heaps hoard suffer scalability bottleneck caused centralized data structure 
+benchmark available website shipped smp product 
+benchmark essentially stress test realistic simulation application behavior 
+thread repeatedly allocates frees number randomly sized blocks random order total allocated blocks 
+graphs show hoard scales quite approaching linear speedup number threads increases 
+slope speedup line ideal large number different size classes hurts hoard raw performance 
+processors hoard version runs faster best allocator ptmalloc 
+memory usage remains empty fraction entire run hoard incurs low synchronization costs ptmalloc runs scalability bottleneck 
+intent larson benchmark due larson krishnan simulate workload server 
+number threads repeatedly spawned allocate free blocks ranging bytes random order 
+number blocks left freed subsequent thread 
+larson krishnan observe behavior call bleeding actual server applications benchmark simulates effect 
+benchmark runs seconds reports number memory operations second 
+shows hoard scales linearly attaining nearly ideal speedup 
+processors hoard version runs times faster best allocator ptmalloc version 
+initial start phase larson speedup speedup speedup hoard ptmalloc solaris speedup number processors benchmark 
+hoard ptmalloc solaris larson speedup number processors speedup larson benchmark 
+hoard ptmalloc solaris speedup number processors speedup 
+linking caused exception raised 
+speedup speedup speedup speedup graphs 
+hoard ptmalloc solaris speedup number processors benchmark 
+hoard ptmalloc solaris barnes hut speedup hoard ptmalloc solaris number processors barnes hut speedup 
+speedup solver number processors speedup system solver 
+remains empty fraction rest run dropping times second run hoard incurs low synchronization costs 
+despite fact larson transfers objects thread hoard performs quite 
+allocators fail scale running slower processors processor 
+barnes hut hierarchical body particle solver included hood user level multiprocessor threads library run particles rounds 
+application performs small amount dynamic memory allocation tree building phase 
+processors multiple heap allocators provide performance improvement increasing speedup application just see 
+hoard performs slightly better ptmalloc case program exercise allocator 
+hoard performance probably somewhat better simply barnes hut drops empty fraction execution 
+benchmark uses solver engine coyote systems field solver solve electrostatic thermal systems 
+report speedup parallel parts code equation registration preconditioner creation solver 
+shows hoard provides significant runtime advantage ptmalloc solaris allocator caused application raise fatal exception 
+phases program program memory usage dropped empty fraction times seconds leading low synchronization overhead 
+application causes ptmalloc exhibit pathological behavior understand suspect derives false sharing 
+execution solver phase computation seen contention allocator issue hoard solaris allocator perform equally 
+false sharing avoidance active false benchmark tests allocator avoids actively inducing false sharing 
+thread allocates small object writes number times frees 
+rate memory allocation low compared amount done benchmark tests contention caused cache coherence mechanism cache ping allocator contention 
+hoard scales linearly showing avoids actively inducing false sharing ptmalloc scale processors actively induce false sharing 
+solaris allocator scale actively induces false sharing nearly cache line 
+passive false benchmark tests allocator avoids passive active false sharing allocating number small objects giving thread immediately frees object 
+benchmark continues way active false benchmark 
+allocator coalesce pieces cache line initially distributed various threads passively induces false sharing 
+shows hoard scales nearly linearly gradual slowdown processors due program induced bus traffic 
+ptmalloc avoid false sharing cause active passive false sharing 
+table measurements multithreaded benchmarks number objects responsible allocator induced false sharing objects superblock acquired global heap 
+case processor heap acquired superblocks global heap program falsely shared objects larson barnes hut table possible falsely shared objects processors 
+superblocks empty 
+results demonstrate hoard successfully avoids allocator induced false sharing 
+fragmentation showed section hoard bounded blowup 
+section measure hoard average case fragmentation 
+number single multithreaded applications evaluate hoard average case fragmentation 
+collecting fragmentation information multithreaded applications problematic fragmentation global property 
+updating maximum memory maximum memory allocated serialize memory operations seriously perturb allocation behavior 
+simply maximum memory serial execution parallel execution program may lead require memory serial execution 
+solve problem collecting traces memory operations processing traces line 
+modified hoard collecting traces processor heap records memory operation timestamp sparc highresolution timers memory mapped buffer writes trace disk program termination 
+merge traces timestamp order build complete trace memory operations process resulting trace compute maximum memory allocated required 
+collecting traces results nearly threefold slowdown memory operations excessively disturb parallelism believe traces faithful representation fragmentation induced hoard 
+single threaded applications measured fragmentation single threaded benchmarks 
+follow wilson johnstone report memory allocated counting overhead object headers focus allocation policy mechanism 
+hoard fragmentation applications espresso consumes memory requires 
+espresso unusual program uses large number different size classes small amount memory required behavior leads hoard waste space superblock 
+multithreaded applications table shows fragmentation results multithreaded benchmarks generally quite ranging nearly fragmentation 
+anomaly 
+benchmark uses large range object sizes randomly chosen objects remain live duration program maximum objects remain run cited 
+objects randomly scattered superblocks making impossible recycle different size classes 
+extremely random behavior representative real programs show hoard method maintaining size class speedup hoard ptmalloc solaris active false speedup number processors speedup active false benchmark fails scale memory allocators actively induce false sharing 
+speedup hoard ptmalloc solaris passive false speedup number processors speedup passive false benchmark fails scale memory allocators passively actively induce false sharing 
+speedup graphs exhibit effect allocator induced false sharing 
+benchmark hoard fragmentation max max allocated total memory objects average applications requested requested object size single threaded benchmarks espresso ghostscript multithreaded benchmarks larson barnes hut table hoard fragmentation results application memory statistics 
+report fragmentation statistics processor runs multithreaded programs 
+units bytes 
+superblock yield poor memory efficiency certain behaviors hoard attains scalable performance application see 
+sensitivity study examined effect changing empty fraction runtime fragmentation multithreaded benchmarks 
+superblocks returned global heap reuse threads heap crosses emptiness threshold empty fraction affects synchronization fragmentation 
+varied empty fraction saw little change runtime fragmentation 
+chose range exercise tension increased worst case fragmentation synchronization costs 
+benchmark substantially affected changes empty fraction larson benchmark fragmentation increases empty fraction 
+table presents runtime programs processors report number memory operations second larson benchmark runs seconds table presents fragmentation results 
+hoard runtime robust respect changes empty fraction programs tend reach steady state memory usage stay small empty fraction described section 
+related program runtime sec barnes hut throughput memory ops sec larson table runtime processors hoard different empty fractions 
+dynamic storage allocation studied topics computer science relatively little concurrent memory allocators 
+section place past taxonomy memory allocator algorithms 
+address blowup allocator induced false sharing characteristics algorithms compare hoard 
+program fragmentation larson barnes hut table fragmentation processors hoard different empty fractions 
+taxonomy memory allocator algorithms taxonomy consists categories serial single heap 
+processor may access heap time solaris windows nt 
+concurrent single heap 
+processors may simultaneously operate shared heap 
+pure private heaps 
+processor heap stl cilk 
+private heaps ownership 
+processor heap memory returned owner processor ptmalloc 
+private heaps thresholds 
+processor heap hold limited amount free memory kernel allocator vee hsu hoard 
+discuss single multiple heap algorithms focusing false sharing blowup characteristics 
+single heap allocation serial single heap allocators exhibit extremely low fragmentation wide range real programs quite fast 
+typically protect heap single lock serializes memory operations introduces contention inappropriate parallel multithreaded programs 
+multithreaded programs contention lock prevents allocator performance scaling number processors 
+modern operating systems provide memory allocators default library including solaris irix 
+windows nt uses bit atomic operations locks unscalable head freelist central bottleneck allocators actively induce false sharing 
+concurrent single heap allocation implements heap concurrent data structure concurrent tree freelist locks free block 
+approach reduces serial single heap common case allocations small number object sizes 
+johnstone wilson show program examined vast majority objects allocated sizes 
+memory operation structures requires time linear number free blocks log time number size classes allocated objects 
+size class range object sizes grouped objects bytes treated byte objects 
+serial single heaps allocators actively induce false sharing 
+problem allocators locks windows allocator iyengar allocators freelist object size range sizes atomic update operations compare swap quite expensive 
+state art serial allocators engineered memory operations involve handful instructions 
+lock acquire release accounts half total runtime memory operations 
+order competitive memory allocator acquire release locks common case incur atomic operations 
+hoard requires lock malloc free memory operation takes constant amortized time see section 
+multiple heap allocation describe categories allocators 
+allocators assign threads heaps assigning heap thread thread specific data currently unused heap collection heaps round robin heap assignment provided solaris replacement allocator multithreaded applications providing mapping function maps threads collection heaps hoard 
+simplicity exposition assume exactly thread bound processor heap threads 
+stl standard template library pthread alloc cilk ad hoc allocators pure private heaps allocation 
+processor processor heap uses memory operation allocator heap frees heap 
+processor heap purely private processor accesses heap memory operation 
+thread allocates object second thread free pure private heaps allocators memory placed second thread heap 
+parts cache line may placed multiple heaps pure private heaps allocators passively induce false sharing 
+worse pure private heaps allocators exhibit unbounded memory consumption producer consumer allocation pattern described section 
+hoard avoids problem returning freed blocks heap owns superblocks belong 
+private heaps ownership returns free blocks heap allocated 
+algorithm ptmalloc yields blowup hoard blowup 
+consider round robin style producer consumer program processor allocates blocks processor frees 
+program requires blocks allocator allocate blocks heaps 
+ptmalloc actively induce false sharing different threads may allocate heap 
+permanent assignment large regions memory processors immediate return freed blocks regions leading blowup advantage eliminating allocator induced false sharing authors explicitly address issue 
+hoard explicitly takes steps reduce false sharing avoid altogether maintaining blowup 
+ptmalloc suffer scalability bottlenecks 
+ptmalloc malloc chooses heap currently caching resulting choice attempt 
+heap selection strategy causes substantial bus traffic limits ptmalloc scalability processors show section 
+performs round robin heap assignment maintaining global variable updated call malloc 
+variable source contention unscalable actively induces false sharing 
+hoard centralized bottlenecks global heap allocator algorithm fast 
+scalable 
+avoids blowup false sharing 
+serial single heap concurrent single heap pure private heaps unbounded private heaps ownership ptmalloc private heaps thresholds vee hsu hoard table taxonomy memory allocation algorithms discussed 
+frequent source contention reasons described section 
+kernel memory allocator mckenney single object size allocator vee hsu employ private heaps thresholds algorithm 
+allocators efficient scalable move large blocks memory hierarchy processor heaps heaps shared multiple processors 
+processor heap certain amount free memory threshold portion free memory moved shared heap 
+strategy bounds blowup constant factor heap may hold fixed amount free memory 
+mechanisms control motion units memory moved vee hsu allocators differ significantly hoard 
+hoard allocators passively induce false sharing making easy pieces cache line recycled 
+long amount free memory exceed threshold pieces cache line spread processors repeatedly reused satisfy memory requests 
+allocators forced synchronize time threshold amount memory allocated freed hoard avoid synchronization altogether emptiness processor heaps empty fraction 
+hand allocators avoid fold slowdown occur worst case described hoard section 
+table presents summary allocator algorithms speed scalability false sharing blowup characteristics 
+seen table algorithms closest hoard vee hsu 
+fail avoid passively induced false sharing forced synchronize global heap threshold amount memory consumed freed hoard avoids false sharing required synchronize emptiness threshold crossed heap sufficient memory 
+similar synchronization behavior hoard avoids allocator induced false sharing blowup 
+
+hashing method far proven effective mechanism assigning threads heaps plan develop efficient method adapt situation concurrently executing threads map heap 
+believe hoard improves program locality various ways quantitatively measure effect 
+plan cache page level measurement tools evaluate improve hoard effect program level locality 
+looking ways remove size class superblock restriction 
+restriction responsible increased fragmentation decline performance programs allocate objects wide range size classes espresso 
+investigating ways improving performance hoard cc numa architectures 
+unit cache coherence architectures entire page hoard mechanism coalescing page sized superblocks appears important scalability 
+preliminary results sgi origin show hoard scales substantially larger number processors plan report results 
+
+introduced hoard memory allocator 
+hoard improves previous memory allocators simultaneously providing features important scalable application performance speed scalability false sharing avoidance low fragmentation 
+hoard novel organization processor global heaps discipline moving superblocks heaps enables hoard achieve features key contribution 
+analysis shows hoard provably bounded blowup low expected case synchronization 
+experimental results eleven programs demonstrate practice hoard low fragmentation avoids false sharing scales 
+addition show hoard performance fragmentation robust respect primary parameter empty fraction 
+scalable application performance clearly requires scalable architecture runtime system support hoard takes key step direction 
+
+rich scott kaplan greg plaxton yannis smaragdakis valuable discussions course input writing 
+martin robert fleischman john paul larson kevin mills ganesan contributions helping improve port hoard ben zorn anonymous reviewers helping improve 
+hoard publicly available www hoard org variety platforms including solaris irix aix linux windows nt 
+
+berger blumofe papadopoulos 
+hood threads library multiprogrammed multiprocessors 
+www cs utexas edu users hood sept 
+barnes hut 
+hierarchical log force calculation algorithm 
+nature 
+com www com 
+berger blumofe 
+hoard fast scalable memory efficient allocator shared memory multiprocessors 
+technical report tr university texas austin 
+allan 
+parallel dynamic storage allocation 
+international conference parallel processing pages 
+blumofe leiserson 
+scheduling multithreaded computations stealing 
+proceedings th annual symposium foundations computer science focs pages santa fe new mexico nov 
+coyote systems www com 
+ellis olson 
+algorithms parallel memory allocation 
+international journal parallel programming 
+
+dynamic memory allocator implementations linux system libraries 
+www dent med uni muenchen de malloc slides html 
+gottlieb wilson 
+buddy system concurrent memory allocation 
+technical report system software note courant institute 
+gottlieb wilson 
+parallelizing usual buddy algorithm 
+technical report system software note courant institute 
+grunwald zorn henderson 
+improving cache locality memory allocation 
+cartwright editor proceedings conference programming language design implementation pages new york ny usa june 
+acm press 
+iyengar 
+dynamic storage allocation multiprocessor 
+phd thesis mit 
+mit laboratory computer science technical report mit lcs tr 
+iyengar 
+parallel dynamic storage allocation algorithms 
+fifth ieee symposium parallel distributed processing 
+ieee press 
+eggers 
+reducing false sharing shared memory multiprocessors compile time data transformations 
+acm symposium principles practice parallel programming pages july 
+johnson 
+concurrent fast fits memory manager 
+technical report tr university florida department cis 
+johnson davis 
+space efficient parallel buddy memory management 
+technical report tr university florida department cis 
+johnstone 
+non compacting memory allocation real time garbage collection 
+phd thesis university texas austin dec 
+johnstone wilson 
+memory fragmentation problem solved 
+ismm vancouver canada 
+kennedy mckinley 
+optimizing parallelism data locality 
+proceedings sixth international conference supercomputing pages distributed computing july 
+krishnan 
+heap pains 
+microsoft developer newsletter feb 
+larson krishnan 
+memory allocation long running server applications 
+ismm vancouver canada 
+lea 
+memory allocator 
+edu dl html malloc html 
+lewis comp programming threads faq 
+www com newsgroup faq html 
+mckenney 
+efficient kernel memory allocation shared memory multiprocessor 
+usenix association editor proceedings winter usenix conference january san diego california usa pages berkeley ca usa winter 
+usenix 
+www com 
+mysql mysql database manager 
+www mysql org 
+blelloch 
+space efficient scheduling nested parallelism 
+acm transactions programming languages systems january 
+robson 
+worst case fragmentation fit best fit storage allocation strategies 
+acm computer journal aug 
+sgi 
+standard template library allocators 
+www sgi com technology stl allocators html 
+standard performance evaluation 
+specweb 
+www spec org osg web 
+
+properties age automatic memory reclamation algorithms 
+phd thesis department computer science university massachusetts amherst massachusetts dec 
+stein shah 
+implementing lightweight threads 
+proceedings usenix summer conference pages 
+stone 
+parallel memory allocation fetch add instruction 
+technical report rc ibm watson research center nov 
+time warner aol 
+www com 
+torrellas lam hennessy 
+false sharing spatial locality multiprocessor caches 
+ieee transactions computers 
+
+vee 
+hsu 
+scalable efficient storage allocator shared memory multiprocessors 
+international symposium parallel architectures algorithms networks span pages western australia june 

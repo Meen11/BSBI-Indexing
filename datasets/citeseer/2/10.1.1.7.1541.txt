@@ -1,0 +1,518 @@
+proc 
+fifth symposium operating systems design implementation osdi dec 
+received best award 
+memory resource management vmware esx server vmware esx server thin software layer designed multiplex hardware resources efficiently virtual machines running unmodified commodity operating systems 
+introduces novel esx server mechanisms policies managing memory 
+ballooning technique reclaims pages considered valuable operating system running virtual machine 
+idle memory tax achieves efficient memory utilization maintaining performance isolation guarantees 
+content page sharing hot page remapping exploit transparent page remapping eliminate redundancy reduce copying overheads 
+techniques combined efficiently support virtual machine workloads memory 
+industry trends server consolidation proliferation inexpensive shared memory multiprocessors fueled resurgence interest server virtualization techniques 
+virtual machines particularly attractive server virtualization 
+virtual machine vm illusion dedicated physical machine fully protected isolated virtual machines 
+virtual machines convenient abstractions server workloads cleanly encapsulate entire state running system including user level applications operating system services 
+computing environments individual servers underutilized allowing consolidated virtual machines single physical server little performance penalty 
+similarly small servers consolidated fewer larger machines simplify management reduce costs 
+ideally system administrators able flexibly memory processor resources order reap benefits statistical multiplexing providing resource guarantees vms varying importance 
+carl waldspurger vmware palo alto ca usa carl vmware com virtual machines decades allow multiple copies potentially different operating systems run concurrently single hardware platform 
+virtual machine monitor vmm software layer virtualizes hardware resources exporting virtual hardware interface reflects underlying machine architecture 
+example influential vm virtual machine system supported multiple concurrent virtual machines believed running natively ibm system hardware architecture 
+research exemplified disco focused virtual machines provide scalability fault containment commodity operating systems running large scale sharedmemory multiprocessors :10.1.1.103.714
+vmware esx server thin software layer designed multiplex hardware resources efficiently virtual machines 
+current system virtualizes intel ia architecture 
+production servers running multiple instances unmodified operating systems microsoft windows advanced server red hat linux 
+design esx server differs significantly vmware workstation uses hosted virtual machine architecture takes advantage pre existing operating system portable device support 
+example linux hosted vmm intercepts attempts vm read sectors virtual disk issues system call underlying linux host os retrieve corresponding data 
+contrast esx server manages system hardware directly providing significantly higher performance complete control resource management 
+need run existing operating systems modification number interesting challenges 
+ibm mainframe division unable influence design guest operating systems running virtual machines 
+disco prototypes designed run unmodified operating systems resorted minor modifications irix kernel sources :10.1.1.103.714:10.1.1.103.714
+introduces novel mechanisms policies esx server uses manage memory 
+high level resource management policies compute target memory allocation vm specified parameters system load 
+allocations achieved invoking lower level mechanisms reclaim memory virtual machines 
+addition background activity exploits opportunities share identical pages vms reducing memory pressure system 
+sections key aspects memory resource management bottom approach describing low level mechanisms discussing high level algorithms policies coordinate 
+section describes low level memory virtualization 
+section discusses mechanisms reclaiming memory support dynamic resizing virtual machines 
+general technique conserving memory sharing identical pages vms section 
+section discusses integration working set estimates proportional share allocation algorithm 
+section describes high level allocation policy coordinates techniques 
+section presents remapping optimization reduces copying overheads large memory systems 
+section examines related 
+summarize highlight opportunities section 
+memory virtualization guest operating system executes virtual machine expects zero physical address space provided real hardware 
+esx server gives vm illusion virtualizing physical memory adding extra level address translation 
+borrowing terminology disco machine address refers actual hardware memory physical address software abstraction provide illusion hardware memory virtual machine :10.1.1.103.714
+physical quotes highlight deviation usual meaning 
+esx server maintains pmap data structure vm translate physical page numbers machine page numbers 
+vm instructions manipulate guest os page tables tlb contents intercepted preventing updates actual mmu state 
+separate shadow page tables contain virtual page mappings maintained processor kept consistent physical machine mappings pmap 
+approach permits ordinary memory execute additional overhead hardware tlb cache direct virtual machine address translations read shadow page table 
+extra level indirection memory system extremely powerful 
+server remap physical page changing ppn mpn mapping manner completely transparent vm 
+server may monitor interpose guest memory accesses 
+reclamation mechanisms esx server supports memory facilitate higher degree server consolidation possible simple static partitioning 
+means total size configured running virtual machines exceeds total amount actual machine memory 
+system manages allocation memory vms automatically configuration parameters system load 
+virtual machine illusion having fixed amount physical memory 
+max size configuration parameter represents maximum amount machine memory allocated 
+commodity operating systems support dynamic changes physical memory sizes size remains constant booting guest os 
+vm allocated maximum size memory 
+page replacement issues memory esx server employ mechanism reclaim space virtual machines 
+standard approach earlier virtual machine systems introduce level paging moving vm physical pages swap area disk 
+unfortunately extra level paging requires meta level page replacement policy virtual machine system choose vm revoke memory particular pages reclaim 
+general meta level page replacement policy relatively uninformed resource management decisions 
+best information pages ia architecture hardware mechanisms walk inmemory page tables reload tlb 
+valuable known guest operating system vm 
+shortage clever page replacement algorithms crux problem 
+sophisticated meta level policy introduce performance anomalies due unintended interactions native memory management policies guest operating systems 
+situation exacerbated diverse undocumented guest os policies may vary os versions may depend performance hints applications 
+fact paging transparent guest os result double paging problem meta level policy able select page native guest os policy choose 
+suppose meta level policy selects page reclaim pages 
+guest os memory pressure may choose page write virtual paging device 
+cause page contents faulted system paging device immediately written virtual paging device 
+ballooning ideally vm memory reclaimed perform configured memory 
+esx server uses ballooning technique achieve predictable performance guest os cooperating possible 
+process depicted 
+small balloon module loaded guest os pseudo device driver kernel service 
+external interface guest communicates esx server private channel 
+server wants reclaim memory instructs driver inflate allocating pinned physical pages vm appropriate native interfaces 
+similarly server may deflate balloon instructing deallocate previously allocated pages 
+inflating balloon increases memory pressure guest os causing invoke native memory management algorithms 
+memory plentiful guest os return memory free list 
+memory scarce reclaim space satisfy driver allocation request 
+guest os decides particular pages reclaim necessary pages virtual disk 
+balloon driver communicates physical page number allocated page esx server may reclaim corresponding machine page 
+balloon frees guest memory balloon 
+inflate deflate guest memory balloon 
+guest memory balloon may page may page ballooning 
+esx server controls balloon module running guest directing allocate guest pages pin physical memory 
+machine pages backing memory reclaimed esx server 
+inflating balloon increases memory pressure forcing guest os invoke memory management algorithms 
+guest os may page virtual disk memory scarce 
+balloon decreases pressure freeing guest memory 
+memory general guest os 
+guest os touch physical memory allocates driver esx server depend property correctness 
+guest ppn system annotates pmap entry deallocates associated mpn 
+subsequent attempt access ppn generate fault handled server situation rare result complete guest failure reboot crash 
+server effectively pops balloon interaction instance guest driver reset state 
+fault handled allocating new mpn back ppn just page touched time 
+balloon drivers linux freebsd windows operating systems poll server second obtain target balloon size limit allocation rates adaptively avoid stressing guest os 
+standard kernel interfaces allocate physical pages get free page linux pages windows 
+guest os support hot pluggable memory cards enable additional form coarse grained ballooning 
+virtual memory cards inserted esx server zeroes contents newly allocated machine pages avoid leaking information vms 
+allocation respects cache coloring guest os possible distinct ppn colors mapped distinct mpn colors 
+throughput mb sec vm size mb balloon performance 
+throughput single linux vm running clients 
+black bars plot performance vm configured main memory sizes ranging mb mb 
+gray bars plot performance vm configured mb specified size 
+removed vm order rapidly adjust physical memory size 
+demonstrate effectiveness ballooning synthetic benchmark simulate fileserver performance load clients 
+workload benefits significantly additional memory larger buffer cache absorb disk traffic 
+experiment esx server running dell precision configured execute vm running red hat linux single mhz pentium iii cpu 
+presents throughput function vm size average consecutive runs data point 
+vm tracks performance closely observed overhead ranging mb mb balloon mb mb balloon 
+overhead primarily due guest os data structures sized amount physical memory linux kernel uses space mb system mb system 
+mb vm mb slightly free space vm configured exactly mb 
+despite advantages ballooning limitations 
+balloon driver may disabled explicitly unavailable guest os booting temporarily unable reclaim memory quickly satisfy current system demands 
+upper bounds reasonable balloon sizes may imposed various guest os limitations 
+demand paging esx server preferentially uses ballooning reclaim memory treating common case optimization 
+ballooning possible insufficient system falls back paging mechanism 
+memory reclaimed paging esx server swap area disk guest involvement 
+esx server swap daemon receives information target swap levels vm higherlevel policy module 
+manages selection candidate pages coordinates asynchronous page outs swap area disk 
+conventional optimizations maintain free slots cluster disk writes 
+randomized page replacement policy prevent types pathological interference native guest os memory management algorithms described section 
+choice guided expectation paging fairly uncommon operation 
+investigating sophisticated page replacement algorithms policies may customized vm basis 
+sharing memory server consolidation presents numerous opportunities sharing memory virtual machines 
+example vms may running instances guest os applications components loaded contain common data 
+esx server exploits sharing opportunities server workloads running vms single machine consume memory running separate physical machines 
+result higher levels supported efficiently 
+transparent page sharing disco introduced transparent page sharing method eliminating redundant copies pages code read data virtual machines :10.1.1.103.714
+copies identified multiple guest physical pages mapped machine page marked write 
+writing shared page causes fault generates private copy 
+unfortunately disco required guest os modifications identify redundant copies created 
+example bcopy routine hooked enable file buffer cache sharing virtual machines 
+sharing required non standard restricted interfaces 
+special network interface support large packets facilitated sharing data communicated vms virtual subnet 
+interposition disk accesses allowed data shared disks shared multiple guests 
+content page sharing modifications guest operating system internals possible environment changes application programming interfaces acceptable esx server takes completely different approach page sharing 
+basic idea identify page copies contents 
+pages identical contents shared regardless contents generated 
+general purpose approach key advantages 
+eliminates need modify hook understand guest os code 
+second identify opportunities sharing definition potentially shareable pages identified contents 
+cost unobtrusive generality performed scan sharing opportunities 
+clearly comparing contents page page system prohibitively expensive naive matching require page comparisons 
+hashing identify pages potentially identical contents efficiently 
+hash value summarizes page contents lookup key hash table containing entries pages marked copy cow 
+hash value new page matches existing entry pages identical false matches possible 
+successful match followed full comparison page contents verify pages identical 
+match existing shared page standard copy write technique share pages redundant copy reclaimed 
+subsequent attempt write shared page generate fault transparently creating private copy page writer 
+match option mark page cow anticipation match 
+simplistic approach undesirable side effect marking scanned page copy write incurring unnecessary overhead subsequent writes 
+op vm vm vm machine memory ppn mpn hash contents hint frame hash af mpn vm ppn hash mpn refs shared frame bd af hash table content page sharing 
+esx server scans sharing opportunities hashing contents candidate ppn vm 
+hash index table containing scanned pages match hint frame associated ppn vm 
+full comparison confirms pages identical ppn mpn mapping ppn vm changed mpn mpn marked cow redundant mpn reclaimed 
+timization unshared page marked cow tagged special hint entry 
+match page contents hint page 
+hash changed hint page modified stale hint removed 
+hash valid full comparison performed pages shared succeeds 
+higher level page sharing policies control scan copies 
+simple option scan pages incrementally fixed rate 
+pages considered sequentially randomly heuristics focus promising candidates pages marked read guest os pages code executed 
+various policies limit cpu overhead scanning wasted idle cycles 
+implementation esx server implementation content page sharing illustrated 
+single global hash table contains frames scanned pages chaining handle collisions 
+frame encoded compactly bytes 
+shared frame consists hash value machine page number mpn shared page count link chaining 
+hint frame similar encodes truncated hash value room back corresponding guest page consisting vm identifier physical page number ppn 
+total space overhead page sharing system memory 
+disco page sharing implementation maintained shared page esx server uses simple count 
+small bit count stored frame separate overflow table store extended frames larger counts 
+allows highly shared pages represented compactly 
+example empty zero page filled completely zero bytes typically shared large count 
+similar overflow technique large counts save space early virtual memory system 
+fast high quality hash function generate bit hash value scanned page 
+chance encountering false match due hash aliasing incredibly small system simplifying assumption shared pages unique hash values 
+page happens yield false match considered ineligible sharing 
+current esx server page sharing implementation scans guest pages randomly 
+sophisticated approaches possible policy simple effective 
+configuration options control maximum vm system wide page scanning rates 
+typically values set ensure page sharing incurs negligible cpu overhead 
+additional optimization system attempts share page paging disk 
+evaluate esx server page sharing implementation conducted experiments quantify effectiveness reclaiming memory overhead system performance 
+analyze best case workload consisting homogeneous vms order demonstrate esx server able reclaim large fraction memory potential sharing exists 
+additional data collected production deployments serving real users 
+performed series controlled experiments identically configured virtual machines running red hat linux mb physical memory 
+experiment consisted assuming page contents randomly mapped bit hash values probability single collision doesn exceed approximately distinct pages hashed 
+static snapshot largest possible ia memory configuration pages gb collision probability 
+memory mb vm memory vm memory shared cow reclaimed zero pages shared cow reclaimed shared reclaimed number vms page sharing performance 
+sharing metrics series experiments consisting identical linux vms running spec benchmarks 
+top graph indicates absolute amounts memory shared saved increase smoothly number concurrent vms 
+bottom graph plots metrics percentage aggregate vm memory 
+large numbers vms sharing approaches nearly vm memory reclaimed 
+concurrent vms running spec benchmarks minutes 
+experiments esx server running dell sc multiprocessor mhz pentium iii cpus 
+presents sharing metrics plotted function number concurrent vms 
+surprisingly sharing achieved single vm 
+nearly mb memory reclaimed single vm due shared copies zero page 
+top graph shows initial jump sharing second vms total amount memory shared increases linearly number vms expected 
+little sharing attributed zero pages indicating sharing due redundant code read data pages 
+bottom graph plots metrics percentage aggregate vm memory 
+number vms increases sharing level approaches revealing overlap approximately thirds memory vms 
+amount memory required contain single copy common shared page labelled shared reclaimed remains nearly constant decreasing percentage vm memory 
+total shared reclaimed guest types mb mb mb linux linux real world page sharing 
+sharing metrics production deployments esx server 
+windows nt vms serving users fortune running variety database oracle sql server web iis websphere development java vb applications 
+linux vms serving large user community nonprofit organization executing mix web apache mail postfix pop imap servers 
+linux vms providing web proxy squid mail postfix rav remote access ssh services vmware employees 
+cpu overhead due page sharing negligible 
+ran identical set experiments page sharing disabled measured significant difference aggregate throughput reported cpu bound benchmarks running vms 
+runs aggregate throughput higher page sharing enabled ranged lower higher 
+effect generally small page sharing improve memory locality may increase hit rates physically indexed caches 
+experiments demonstrate esx server able exploit sharing opportunities effectively 
+course diverse workloads typically exhibit lower degrees sharing 
+real world server consolidation workloads consist numerous vms running guest os similar applications 
+amount memory reclaimed page sharing workload dependent collected memory sharing statistics esx server systems production 
+presents page sharing metrics collected different production deployments esx server 
+workload corporate department fortune consists windows nt vms running wide variety database web servers 
+page sharing reclaimed nearly third vm memory saving mb 
+workload nonprofit organization internet server consists linux vms ranging size mb mb running mix mail web servers 
+case page sharing able reclaim vm memory saving mb mb attributed zero pages 
+workload vmware department provides web proxy mail remote access services employees linux vms ranging size mb mb 
+page sharing reclaimed vm memory savings mb mb due zero pages 
+shares vs working sets traditional operating systems adjust memory allocations improve aggregate system wide performance metric 
+usually desirable goal conflicts need provide quality ofservice guarantees clients varying importance 
+guarantees critical server consolidation vm may entitled different amounts resources factors importance ownership administrative domains amount money paid service provider executing vm 
+cases preferable penalize important vm vm derive largest performance benefit additional memory 
+esx server employs new allocation algorithm able achieve efficient memory utilization maintaining memory performance isolation guarantees 
+addition explicit parameter introduced allows system administrators control relative importance conflicting goals 
+share allocation proportional share frameworks resource rights encapsulated shares owned clients consume resources 
+client entitled consume resources proportional share allocation guaranteed minimum resource fraction equal fraction total shares system 
+shares represent relative resource rights depend total number shares contending resource 
+client allocations degrade gracefully overload situations clients proportionally benefit extra resources allocations underutilized 
+randomized deterministic algorithms proposed proportional share allocation space shared resources 
+dynamic min funding revocation algorithm simple effective 
+client demands space replacement algorithm selects victim client relinquishes previously allocated space 
+memory revoked shares alternatively referred tickets weights literature 
+term clients abstractly refer entities threads processes vms users groups 
+client owns fewest shares allocated page 
+economic analogy shares page ratio interpreted price revocation memory away clients paying lower price willing pay higher price 
+reclaiming idle memory significant limitation pure proportional share algorithms incorporate information active memory usage working sets 
+memory effectively partitioned maintain specified ratios 
+idle clients shares hoard memory active clients shares suffer severe memory pressure 
+general goals performance isolation efficient memory utilization conflict 
+previous attempts cross apply techniques proportional share cpu resource management compensate idleness successful 
+esx server resolves problem introducing idle memory tax 
+basic idea charge client idle page actively 
+memory scarce pages reclaimed preferentially clients actively full allocations 
+tax rate specifies maximum fraction idle pages may reclaimed client 
+client starts larger portion allocated memory allocation increase full share 
+min funding revocation extended adjusted shares page ratio 
+client shares allocation pages fraction active adjusted shares page ratio idle page cost tax rate tax rate provides explicit control desired policy reclaiming idle memory 
+extreme specifies pure share isolation 
+specifies policy allows client idle memory reclaimed productive uses 
+esx server idle memory tax rate configurable parameter defaults 
+allows idle memory system reclaimed providing buffer rapid working set increases masking latency system reclamation activity ballooning swapping 
+measuring idle memory idle memory tax effective server needs efficient mechanism estimate fraction memory active virtual machine 
+specific active idle pages need identified individually 
+option extract information native interfaces guest os 
+impractical diverse activity metrics various guests metrics tend focus process working sets 
+guest os monitoring typically relies access bits associated page table entries bypassed dma device esx server uses statistical sampling approach obtain aggregate vm working set estimates directly guest involvement 
+vm sampled independently configurable sampling period defined units vm execution time 
+start sampling period small number virtual machine physical pages selected randomly uniform distribution 
+sampled page tracked invalidating cached mappings associated ppn hardware tlb entries virtualized mmu state 
+guest access sampled page intercepted re establish mappings time touched page count incremented 
+sampling period statistical estimate fraction memory actively accessed vm sampling rate may controlled tradeoff overhead accuracy 
+default esx server samples pages second period 
+results minor page faults period incurring negligible overhead producing reasonably accurate working set estimates 
+estimates smoothed multiple sampling periods 
+inspired balancing stability agility networking domain maintain separate exponentially weighted moving averages different gain parameters 
+slow moving average produce smooth stable estimate 
+fast moving average configured tax rate applies uniformly vms 
+underlying implementation supports separate vm tax rates capability currently exposed users 
+customized graduated tax rates may useful sophisticated control relative allocations responsiveness 
+memory mb slow fast max time min active memory sampling 
+windows vm executes simple memory application 
+solid black line indicates amount memory repeatedly touched varied time 
+dotted black line sampling statistical estimate vm memory usage including background windows activities 
+estimate computed max fast gray dashed line slow gray dotted line moving averages 
+spike labelled due windows zero page thread adapts quickly working set changes 
+version fast average incorporates counts current sampling period updated incrementally reflect rapid intra period changes 
+server uses maximum values estimate amount memory actively guest 
+causes system respond rapidly increases memory usage gradually decreases memory usage desired behavior 
+vm idle starts memory allowed ramp share allocation quickly vm active decreases working set idle memory reclaimed slowly idle memory tax 
+experimental results section presents quantitative experiments demonstrate effectiveness memory sampling idle memory taxation 
+memory sampling estimate fraction memory actively vm 
+estimates incorporated idle memory tax computations performed share memory allocation algorithm 
+presents results experiment designed illustrate memory sampling technique 
+experiment esx server running dell precision configured execute memory mb vm alloc vm vm alloc vm time min idle memory tax 
+vms identical share allocations configured mb system 
+vm gray runs windows remains idle booting 
+vm black executes memory intensive linux workload 
+vm esx server allocations plotted solid lines estimated memory usage indicated dotted lines 
+initial tax rate vms converge mb allocation 
+tax rate increased idle memory reclaimed vm reallocated vm boosting performance 
+vm running windows advanced server single mhz pentium iii cpu 
+user level application allocates repeatedly accesses controlled amount memory varied mb mb 
+additional mb accessed standard windows background activities 
+expected statistical estimate active memory usage responds quickly memory touched tracking fast moving average slowly memory touched tracking slow moving average 
+originally surprised unexpected spike immediately application terminates effect occur experiment run linux 
+caused windows zero page thread runs threads runnable clearing contents pages moves free page list zeroed page list 
+presents experimental results demonstrate effectiveness imposing tax idle memory 
+experiment esx server running dell precision multiprocessor mhz pentium iii cpus mb ram approximately mb available executing vms 
+memory required vm virtualization overheads discussed section 
+additional memory required esx server smallest recommended configuration mb 
+vms identical share allocations configured mb physical memory 
+vm powers runs windows advanced server remains idle booting 
+minutes second vm started running workload red hat linux 
+initial tax rate set resulting pure share allocation 
+despite large difference actual memory usage vm receives mb allocation esx server 
+middle experiment tax rate increased causing memory reclaimed idle windows vm reallocated active linux vm running 
+workload benefits significantly additional memory increasing throughput tax rate change 
+allocation policies esx server computes target memory allocation vm share entitlement estimate working set algorithm section 
+targets achieved ballooning paging mechanisms section 
+page sharing runs additional background activity reduces memory pressure system 
+section describes various mechanisms coordinated response specified allocation parameters system load 
+parameters system administrators basic parameters control allocation memory vm min size max size memory shares 
+min size guaranteed lower bound amount memory allocated vm memory 
+max size amount physical memory configured guest os running vm 
+memory vms allocated max size 
+memory shares vm fraction physical memory proportional share allocation policy 
+example vm twice shares generally entitled consume twice memory subject respective min max constraints provided actively allocated memory 
+admission control admission control policy ensures sufficient memory server swap space available vm allowed power 
+machine memory reserved guaranteed min size additional overhead memory required virtualization total min overhead 
+overhead memory includes space vm graphics frame buffer various virtualization data structures pmap shadow page tables see section 
+typical vms reserve mb overhead mb devoted frame buffer remainder contains implementation specific data structures 
+additional memory required vms larger gb 
+disk swap space reserved remaining vm memory max min 
+reservation ensures system able preserve vm memory circumstances practice small fraction disk space typically 
+similarly memory reservations admission control actual memory allocations vary dynamically unused reservations wasted 
+dynamic reallocation esx server recomputes memory allocations dynamically response various events changes systemwide vm allocation parameters system administrator addition removal vm system changes amount free memory cross predefined thresholds 
+additional rebalancing performed periodically reflect changes idle memory estimates vm 
+operating systems attempt maintain minimum amount free memory 
+example bsd unix normally starts reclaiming memory percentage free memory drops continues reclaiming free memory percentage reaches 
+esx server employs similar approach uses thresholds reflect different reclamation states high soft hard low default system memory respectively 
+high state free memory sufficient reclamation performed 
+soft state system reclaims memory ballooning resorts paging cases ballooning possible 
+hard state system relies paging forcibly reclaim memory 
+rare event free memory transiently falls low threshold system con reclaim memory paging additionally blocks execution vms target allocations 
+memory reclamation states system computes target allocations vms drive aggregate amount free space high threshold 
+transition lower reclamation state occurs amount free memory drops lower threshold 
+reclaiming memory system transitions back higher state significantly exceeding higher threshold hysteresis prevents rapid state fluctuations 
+demonstrate dynamic reallocation ran workload consisting virtual machines 
+pair vms executed microsoft exchange benchmark vm ran exchange server windows server second vm ran load generator client windows professional 
+different pair executed benchmark vm ran server windows advanced server second vm ran load generator client windows server 
+final vm executed database queries microsoft sql server windows advanced server 
+exchange vms configured mb memory vms configured mb 
+min size vm set half configured max size memory shares allocated proportional max size vm 
+experiment esx server running ibm multiprocessor mhz pentium iii cpus 
+facilitate demonstrating effects memory pressure machine memory deliberately limited gb available executing vms 
+aggregate vm workload configured total mb additional mb required overhead memory memory 
+presents esx server allocation states experiment 
+brief transitions early run nearly time spent high soft states 
+plots allocation metrics time 
+experiment started vms boot concurrently 
+windows zeroes contents pages physical memory booting 
+causes system immediately vm accesses memory 
+windows balloon drivers started late boot sequence esx server forced start paging disk 
+fortunately share swap optimization described section effective mb zero pages alloc state memory mb memory mb memory mb high soft hard low state transitions vms alloc active balloon shared server sql server time min dynamic reallocation 
+memory allocation metrics time consolidated workload consisting windows vms microsoft exchange separate server client load generator vms separate server client load generator vms microsoft sql server 
+esx server allocation state transitions 
+aggregate allocation metrics summed vms 
+allocation metrics server vm 
+allocation metrics sql server vm 
+reclaimed page sharing mb non zero data written disk 
+result sharing aggregate allocation vms approaches mb exceeding total amount machine memory 
+soon booting vms start executing application benchmarks amount shared memory drops rapidly esx server compensates ballooning reclaim memory 
+page sharing continues exploit sharing opportunities run saving approximately mb 
+figures show memory allocation data server vm microsoft sql server vm respectively 
+server allocation tracks active memory usage grows slowly time page sharing reduces memory pressure 
+sql server allocation starts high processes queries drops mb lower bound imposed min size 
+long running query issued active memory increases rapidly memory quickly reallocated vms 
+page remapping modern ia processors support physical address extension pae mode allows hardware address gb memory bit addresses 
+devices dma transfers address subset memory 
+example network interface cards bit pci interfaces address lowest gb memory 
+high systems provide hardware support remap memory data transfers separate mmu 
+commonly support involving high memory gb boundary involves copying data temporary bounce buffer low memory 
+unfortunately copying impose significant overhead resulting increased latency reduced throughput increased cpu load 
+problem exacerbated virtualization pages virtual machines configured gb physical memory may mapped machine pages residing high memory 
+fortunately level indirection virtualized memory system exploited transparently remap guest pages high low memory 
+peak amount memory paged disk entire run 
+avoid clutter paging metrics omitted graphs amount data swapped disk mb remainder experiment 
+esx server maintains statistics track hot pages high memory involved repeated operations 
+example software cache machine page mappings ppn mpn associated network transmits augmented count number times page copied 
+count exceeds specified threshold page transparently remapped low memory 
+scheme proved effective guest operating systems limited number pages network buffers 
+network intensive workloads number pages copied reduced orders magnitude 
+decision remap page low memory increases demand low pages may scarce resource 
+may desirable remap low pages high memory order free sufficient low pages remapping pages currently hot currently exploring various techniques ranging simple random replacement adaptive approaches cost benefit tradeoffs 
+related virtual machines numerous research projects commercial products past decades 
+esx server inspired disco cellular disco virtualized shared memory multiprocessor servers run multiple instances irix 
+esx server uses virtualization techniques vmware products 
+key distinction vmware workstation uses hosted architecture maximum portability diverse desktop systems esx server manages server hardware directly complete control resource management improved performance 
+mechanisms policies developed motivated need run existing commodity operating systems modifications 
+enables esx server run proprietary operating systems microsoft windows standard distributions open source systems linux 
+ballooning implicitly guest os reclaiming memory native page replacement algorithms 
+similarity self paging technique nemesis system requires applications handle virtual memory operations including revocation 
+applications capable making page replacement decisions applications modified participate explicit revocation protocol 
+contrast guest operating systems implement page replacement algorithms oblivious ballooning details 
+operate different levels ballooning self paging allowing applications decisions response reclamation requests originate higher level 
+content page sharing directly influenced transparent page sharing disco 
+content approach esx server avoids need modify hook understand guest os code 
+exploits opportunities sharing missed disco standard copy techniques conventional operating systems 
+ibm memory compression technology achieves substantial memory savings server workloads provided additional motivation page sharing 
+hardware approach eliminates redundancy sub page granularity gains compression large zero filled regions patterns achieved page sharing 
+esx server exploits ability transparently remap physical pages page sharing page remapping 
+disco employed similar techniques replication migration improve locality fault containment numa multiprocessors :10.1.1.103.714:10.1.1.103.714
+general page remapping known approach commonly change virtual physical mappings systems extra level virtualized physical addressing 
+example remapping page coloring improve cache performance isolation 
+esx server mechanism working set estimation related earlier uses page faults maintain page bits software architectures lacking direct hardware support 
+combine technique unique statistical sampling approach 
+tracking pages individually aggregate estimate idleness computed sampling small subset 
+allocation algorithm extends previous research proportional share allocation space shared resources 
+tax idle memory solves significant known problem pure approaches enabling efficient memory utilization maintaining share isolation 
+economic metaphors related explicit market approaches designed facilitate decentralized application level optimization 
+core mechanisms policies manage memory resources esx server commercially available product 
+contributions include novel techniques algorithms allocating memory virtual machines running unmodified commodity operating systems 
+new ballooning technique reclaims memory vm implicitly causing guest os invoke memory management routines 
+idle memory tax introduced solve open problem share management space shared resources enabling performance isolation efficient memory utilization 
+idleness measured statistical working set estimator 
+content transparent page sharing exploits sharing opportunities vms guest os involvement 
+page remapping leveraged reduce copying overheads large memory systems 
+higher level dynamic reallocation policy coordinates diverse techniques efficiently support virtual machine workloads memory 
+currently exploring variety issues related memory management virtual machine systems 
+transparent page remapping exploited improve locality fault containment numa hardware manage allocation cache memory vms controlling page colors :10.1.1.103.714
+additional focused higher level grouping abstractions multi resource tradeoffs adaptive feedback driven workload management techniques 
+mahesh patil designed implemented esx server paging mechanism 
+mike nelson helped develop hot page remapping technique 
+vikram mahesh patil provided invaluable assistance quantitative experiments 
+keith adams ole agesen jennifer anderson ed bugnion andrew beng hong lim tim mann michael paige parsons mendel rosenblum jeff john subrahmanyam thekkath wallach john anonymous reviewers comments helpful suggestions 
+vmware esx server trademarks vmware windows windows nt trademarks microsoft pentium trademark intel marks names mentioned may trademarks respective companies 
+andrea arpaci dusseau arpaci dusseau 
+information control gray box systems proc 
+symposium operating system principles october 
+babaoglu william joy 
+converting swap system paging architecture lacking page bits proc 
+symposium operating system principles december 
+edouard bugnion scott devine mendel rosenblum 
+disco running commodity operating systems scalable multiprocessors acm transactions computer systems november 
+pei cao edward felten kai li 
+implementation performance application controlled file caching proc 
+symposium operating system design implementation november 
+jeffrey chase darrell anderson amin vahdat 
+managing energy server resources hosting centers proc 
+symposium operating system principles october 
+
+origin vm time sharing system ibm journal research development september 
+bryan ford mike hibler jay lepreau patrick back stephen 
+microkernels meet recursive virtual machines proc 
+symposium operating system design implementation october 
+robert goldberg 
+survey virtual machine research ieee computer june 
+dan huang mendel rosenblum 
+cellular disco resource management virtual clusters shared memory multiprocessors proc 
+symposium operating system principles december 
+peter gum 
+system extended architecture facilities virtual machines ibm journal research development november 
+steven hand 
+self paging nemesis operating system proc 
+symposium operating systems design implementation february 
+david cheriton 
+application controlled physical memory external page cache management proc 
+fifth international conference architectural support programming languages operating systems october 
+intel 
+ia intel architecture software developer manual 
+volumes ii iii 
+bob jenkins 
+algorithm dr journal september 
+source code available net bob hash ted 
+virtual memory object oriented language byte august 
+kim brian noble 
+mobile network estimation proc 
+seventh annual international conference mobile computing networking july 
+jochen liedtke hermann michael 
+os controlled cache predictability real time systems proc 
+third ieee real time technology applications symposium june 
+marshall mckusick keith bostic michael karels john 
+design implementation bsd operating system addison wesley 
+theodore romer dennis lee brian bershad bradley chen 
+dynamic page mapping policies cache conflict resolution standard hardware proc 
+symposium operating system design implementation november 
+
+vm study multiplicity usefulness ibm systems journal 
+timothy sherwood brad calder joel emer 
+reducing cache misses hardware software page placement proc 
+international conference supercomputing june 
+david solomon mark russinovich 
+inside microsoft windows third ed microsoft press 
+jeremy ganesh beng hong lim 
+virtualizing devices vmware workstation hosted virtual machine monitor proc 
+usenix annual technical conference june 
+david sullivan robert haas margo seltzer 
+tickets currencies revisited extensions multi resource lottery scheduling proc 
+seventh workshop hot topics operating systems march 
+david sullivan margo seltzer 
+isolation flexibility resource management framework central servers proc 
+usenix annual technical conference june 
+andrew tanenbaum 
+modern operating systems prentice hall 
+robinson schulz smith 
+ibm memory expansion technology ibm journal research development march 
+andrew tridgell 
+benchmark 
+available ftp samba org pub september 
+vmware vmware esx server user manual version palo alto ca april 
+carl waldspurger william weihl 
+lottery scheduling flexible proportional share resource management proc 
+symposium operating system design implementation november 
+carl waldspurger 
+lottery stride scheduling flexible proportional share resource management ph thesis technical report mit lcs tr september 
+carl waldspurger william weihl 
+object oriented framework modular resource management proc 
+fifth workshop object orientation operating systems october 

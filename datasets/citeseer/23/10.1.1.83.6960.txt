@@ -1,0 +1,382 @@
+performance characterization freebsd network stack kim scott department computer science rice university houston tx rice edu analyzes behavior high performance web servers axes packet rate number connections communication latency 
+modern high performance servers spend significant fraction time executing network stack operating system time web server 
+servers handle increasing packet rates increasing numbers connections long round trip times internet 
+low overhead non statistical profiling shows large number connections long latencies degrade instruction throughput operating system network stack significantly 
+degradation results dramatic increase cache capacity misses working set size connection data structures grows proportion number connections reuse decreases communication latency increases 
+instance cache misses increase number cycles spent executing tcp layer network stack cycles packet 
+obvious solutions increasing cache size prefetching reduce number misses surprisingly ineffective 
+keywords web tcp performance profile cache modern high performance web server spends time network stack op erating system 
+performance network stack influences performance modern web servers 
+network stack behavior different popular benchmarks typically measure processor performance 
+example machine network stack achieves instructions cycle spec cpu integer benchmarks achieve instructions cycle 
+order understand drop efficiency necessary profile network stack 
+traditional pro include operating system invoked asynchronously external events interact asynchronous events perturb timing system 
+perturbations result significant changes behavior system 
+low overhead profiler utilizes processor performance counters needed maintain behavior web server accurately monitoring behavior 
+presents analysis behavior web servers axes packet rate number connections communication latency 
+low overhead profiler developed examine effects dimensions web server performance 
+experimental results show system performance largely unaffected packet rate individual connection 
+number connections communication latency connections significant impact server performance 
+number connections communication latency increase cycles consumed network stack packet increases instruction counts remain roughly 
+performance degradation occurs increased number cache misses occur accessing connection data structures 
+modern dram latencies hundreds processor cycles cache misses significantly reduce processor instruction throughput 
+detailed profiles indicate low achieved instruction throughput entirely due cache misses 
+rest organized follows 
+section describes operation modern web servers network stack 
+section describes experimental testbed 
+sections analysis performance web server network stack respectively 
+section discusses impact caches performance shows increasing cache size software prefetching ineffective 
+section describes related section concludes 
+socket layer tcp layer ip layer ethernet layer device driver layer hardware timer retransmit timer read data send buffer user application write enqueue data send buffer generate packets append header determine route append header schedule packet transmission read dequeue data receive buffer generate ack enqueue data receive buffer strip header demultiplex packet strip header demultiplex packet check errors nic interrupt process packet packet arrival tasks performed network subsystem operating systems assuming layered implementation network stack 
+arrows show flow data operating system 
+numbered steps flow distinct prefix initiator 
+show flows initiated hardware timer interrupts synchronous system calls write hardware interrupts nic respectively 
+important tasks data flow occur shown 
+modern web servers web server relies operating system handle messaging functions 
+typically web server performs operations satisfy user request static content image file 
+accept new connection client 
+
+receive request connection 
+
+parse request 
+
+locate requested file 
+
+generate appropriate header 
+
+send header file connection 
+
+close connection 
+conceptually steps quite simple request dynamic content simply require execution program script generate response locating file 
+web server able handle large number incoming requests simultaneously 
+furthermore operations require operating system services sending receiving data belong network subsystem operating system 
+shows layered implementation network subsystem network stack op erating system provide messaging services application web server tcp ip protocol 
+description freebsd operating system apply imple bsd network stack implementation 
+shows layers network stack 
+socket layer interface user application provides buffers hold data sent network data received network 
+tcp ip layers implement tcp ip reliability flow control routing protocols 
+ethernet layer implements protocols ethernet medium 
+device driver communicates directly network interface 
+types events system calls nic interrupts timer interrupts trigger actions network stack 
+shows network stack responds events 
+middle shows operating system responds write read system calls assuming non blocking sockets 
+system call web server application send response data network 
+case data copied send buffer socket layer 
+tcp layer generate tcp packets pass packets ip layer 
+ip layer append ip header packet determine route send packets 
+ethernet layer add ethernet header including mac address node route packet pass packets device driver 
+device driver notify nic new packets need sent network 
+system call alternative system call zero copy sends 
+takes file descriptor actual data data enqueued socket buffer simply referring file cache copying 
+steps remain 
+system call similarly web server application read request data network 
+call dequeues data receive buffer socket layer tcp layer may generate packet notify client changes receive buffer 
+data exists buffer call return doing 
+web server application accepts new connections calling accept system call 
+tcp layer establishes connection response client request limit way handshake sequence independently application 
+call usually involves modifying operating system data structures locally generate packets 
+packet arrives network nic normally interrupts cpu order notify os new packet available 
+right portion shows operating system responds interrupts 
+device driver checks errors may occurred reception packet translates driver specific data structures hold information packet packet length operating system specific data structures 
+device driver passes packet ethernet layer strips ethernet header determines protocol send packet ip arp passes corresponding layer 
+ip packet ip layer similarly strips ip header determines protocol tcp udp passes packet corresponding layer 
+tcp packet contains valid data tcp layer processes packet determine destination enqueues data receive buffer socket layer 
+response receiving new data tcp layer generates acknowledgment ack packet 
+acknowledgment packet sent ip layer outgoing tcp packet 
+application access data enqueued receive buffer socket layer read system call previously described 
+packet contains ack tcp layer removes acknowledged data send buffer may send new packets buffer pending data 
+tcp reliable protocol packet acknowledged specified time period sender retransmit packet 
+operating system uses hardware timer interrupts determine unacknowledged packets need retransmitted shown left side 
+tcp layer original packets data send buffer 
+new packets sent ip layer outgoing tcp packets 
+experimental testbed measurements taken testbed consists pc server client machines 
+server includes single amd athlon xp cpu gb ddr sdram gb ide disk stores programs gb scsi disk stores web files intel pro mt server adapters gigabit ethernet pci interface bit mhz pci bus 
+intel nic implements tcp udp checksum offload outgoing incoming packets 
+client machine single amd athlon xp cpu gb ram single gb ide disk intel pro mt desktop adapters 
+machines connected isolated gigabit ethernet switches machine subnets interfaces 
+amd athlon xp cpu server unified cache separate instruction data caches 
+cache way set associative kb cache byte lines 
+unified cache way set associative kb cache byte lines 
+machines testbed run freebsd operating system 
+server runs flash web server software 
+flash multi threaded event driven web server 
+flash uses zero copy kqueue scalable event notification helper threads disk kqueue efficient scalable mechanism notify application send socket buffers space available writing receive socket buffers data available read 
+kqueue mechanism efficient system call enabling flash handle larger number simultaneous connections 
+client machine runs instances synthetic web client program replays web access log 
+instance connects server different subnet 
+client program opens multiple connections server simulate multiple web clients generates web requests fast server handle order determine maximum sustainable server throughput 
+traces split equally replayers 
+web logs experiments ibm web site ibm nasa web site nasa rice university computer science department web site cs world cup web site wc 
+nasa wc traces available internet traffic archive 
+requests client identified ip address arrive fifteen second period issued single persistent connection 
+addition web traces specweb specweb 
+synthetic clients described specweb clients try enforce fixed bandwidth connection kb scheduling requests appropriately working set size files requested clients grows number connections increases 
+specweb results runs include default mix requests static content dynamic content result connection achieving default minimum required bandwidth kb noted 
+dummynet increase latency communication clients server 
+internet orders magnitude longer communication delays systems sharing single switch important simulate delays mechanism dummynet 
+tcp delayed ack feature disabled sent segment immediately acknowledged receiver equal number sent tcp segments received ack packets 
+delayed ack enabled receiver may delay generation ack certain period hope ack piggybacked data segment 
+ratio sent segments received ack packets vary depending conditions 
+disabling feature allows consistent performance analysis fixed ratio regardless workloads 
+content throughput mb connections cs ibm nasa specweb wc content throughput web server achieved varying number connections web traces specweb 
+content throughput mb way latency ms cs ibm nasa specweb wc content throughput web server achieved varying network latencies web traces specweb 
+profiler developed study measures execution time processor performance statistics individual kernel functions groups kernel functions 
+provides cycle accurate measure function execution time processor timestamp register incremented clock cycle 
+manner sim ilar digital continuous profiling infrastructure dcpi processor performance statistics measured hardware performance counters 
+performance counters count occurrence events retired instructions data cache misses 
+profiler aims accurately measure statistics minimally perturbing system behavior 
+profiler achieves computing measures online dynamic control flow account 
+achieves profiling functions specified user 
+workloads impact profiling system behavior small 
+content throughputs achieved profiling enabled lower achieved profiling disabled 
+profiling increases decreases number various performance counter events cache misses tlb misses packet instruction counts 
+profiling requires instructions packet regardless workload 
+profiling disabled performance counter events simply read start ex periment 
+difference total events occurred experiment 
+profiling enabled events accumulated profiled region total events experiment equals sum events profiled regions 
+profiles shown code regions categories 
+code regions driver ethernet ip tcp system call 
+driver device driver nic 
+ethernet consists functions perform tasks related ethernet layer 
+likewise ip tcp consist functions perform ip tcp related tasks respectively 
+system call consists system call entries 
+consists functions 
+web server performance performance modern web server influenced number simultaneous requests respond round trip time connections 
+figures show performance flash web server number simultaneous connections network latency varied 
+shows number connections increases server throughput increases rapidly starts decreasing slowly 
+specweb throughput increases slower rate throughput web traces specweb maintains fixed bandwidth connection 
+maximum throughput specweb reached connections 
+connections results connections achieving minimum required bandwidth 
+shows increasing network latencies results similar effect 
+web traces connections 
+specweb connections see impact network latencies highest throughput achieved artificial network delays 
+determined experimentally realizable bandwidth connection drops minimum required bandwidth kb network latencies increase ms 
+specweb runs result connections achieving minimum required bandwidth 
+previous study wide area network web server performance shows similar trends 
+server throughput degrades processor spends progressively cycles packet instruction counts remain roughly constant shown table 
+result instruction throughput deteriorates 
+table shows profiles wc trace traces yield similar results 
+table shows modern web server spend significant fraction execution time operating system 
+processor efficiency measured instructions cycle ipc quite low 
+average ipc network stack wc connections ms latency tcp ip ethernet driver 
+similarly average ipc network stack specweb connections ms latency tcp ip ethernet user system call tcp ip ethernet driver stack wc cycles cycles instructions cycles cycles instructions cycles cycles instructions cycles cycles instructions specweb cycles cycles instructions cycles cycles instructions cycles cycles instructions cycles cycles instructions table profiles web server execution wc trace specweb 
+cycles instructions show counts packet 
+show number connections latencies milliseconds respectively 
+means network latency altered artificially 
+stack accounts regions user 
+driver 
+compare poorly ipcs achieved spec cpu integer benchmarks measured machine vortex gzip eon crafty 
+furthermore better conditions network stack able achieve higher ipcs tcp shown 
+network stack inefficiently utilizes processor number connections latency connections increase 
+performance analysis network stack important understand cause inefficiency discovered previous section order improve system performance 
+section analyzes impacts packet rates connections network latencies network stack performance 
+instructions packet system call tcp ip ethernet driver bandwidth mb cycles packet system call tcp ip ethernet driver bandwidth mb instructions packet left cycles packet right network stack different network bandwidths single connection 
+packet rates shows achieved bandwidth single connection affects number instructions cycles packet network stack 
+data collected microbenchmark opens single tcp connection machine sends maximum sized byte tcp segments different rates 
+shows little change number instructions executed packet sent connection bandwidth changes 
+tcp layer instruction count increases bandwidth increases mb mb instruction count packet rest network stack remains close constant 
+cycle count packet increase slightly connection bandwidth increased 
+mb ipcs system call tcp ip layers respectively layers incur cache misses 
+ipcs ethernet driver layers respectively incur cache misses 
+connection bandwidth increased mb ipc number cache misses remain largely unchanged layers 
+bandwidth increased mb close line rate network cycle count packet network stack increases 
+anomalous jump cycle count mb occurs largely difficulty precisely throttling bandwidth single connection 
+note bandwidth levels ipcs achieved network stack microbenchmark higher ipcs achieved network stack running web server shown section 
+instructions packet system call tcp ip ethernet driver connections cycles packet system call tcp ip ethernet driver connections instructions packet left cycles packet right network stack different numbers connections constant total bandwidth mb connection bandwidth appear significant impact network stack performance 
+connections shows number connections affects number instructions cycles packet network stack 
+data collected microbenchmark opens specified number tcp connections machine sends maximum sized tcp segments constant rate mb divided equally connections 
+amount data sent number acknowledgments received regardless number connections 
+low rate mb chosen ensure machine drops packets 
+shows little change number instructions executed packet number connections increases 
+tcp layer instruction count increases slightly number connections increases 
+instruction count packet rest network stack remains close constant 
+number connections increases cycles packet system call tcp layers increase dramatically connections 
+cycles packet increase slowly driver layer number connections increases 
+increase cycle count number connections increases caused cache misses 
+result misses ipcs system call tcp layers drop connections instructions packet system call tcp ip ethernet driver way latency milliseconds cycles packet system call tcp ip ethernet driver way latency milliseconds instructions packet left cycles packet right network stack network latency increases fixed number connections constant bandwidth mb 
+ms latency means latency regulated artificially 
+connections 
+average number cache misses packet increase interval 
+results increase cycles packet tcp layer increase cycles packet system call layer 
+latencies shows network latency affects number instructions cycles packet network stack 
+data collected microbenchmark section connections constant bandwidth mb spread evenly connections 
+receiver machine dummynet add arbitrary latency communication systems 
+axes graphs show way latency identical direction 
+cases dummynet add additional communication latency number executed packet network stack remains constant driver 
+increased latencies device driver sees lower interrupt rates changes behavior driver 
+network latency increases ipc tcp drops ms dummynet ms cache misses increase 
+interval cycle count tcp doubles 
+cycles packet rest network stack remains fairly constant network latency increased 
+discussion impact cache misses operating system keep track connection involves file socket including socket buffer generic protocol control block tcp control block 
+order send receive packet described network stack examines data structures takes necessary actions updates structures reflect latest state connection 
+working set network stack grows proportion number connections cause degradation ipcs response increasing number connections cache capacity misses 
+similarly cause degradation ipcs response increasing latency cache misses due reduced locality access connection data structures 
+non intuitive communication latencies affect reuse connection data structures 
+client sends ack packet server receiving tcp segments connection 
+time server sends tcp segment receives ack packet particular connection round trip time server may send receive packets connections 
+communication latency dictates reuse distance connection measured number connections server handles round trip time 
+large number active connections increasing communication latency increases reuse distance 
+main memory latency server system collect data consisting ghz amd athlon processor ddr sdram nanoseconds measured lmbench 
+translates processor cycles small number main memory accesses caused cache misses devastating impact processor performance 
+order confirm cache misses significant problem network stack shows processor statistics may account degrading ipc shown number connections increases 
+measured machine benchmark program generate 
+shown statistics change little number connections increase cache misses system call tcp layers 
+remember cycles packet regions increase connections sharply connections 
+shows cache misses packet jump connections cache misses packet remain events packet connections connections connections connections dt dt dt dt dt system call tcp ip ethernet driver statistics cycles instructions packet shown 
+benchmark 
+dt show cache misses cache misses instruction fetch misses data tlb misses instruction tlb misses branch mispredictions packet respectively 
+
+system call layer cache misses rise connections connections cache misses increase 
+tcp layer shows similar results 
+cache misses increase cache misses increase 
+number connection increases cache misses increase slightly cache misses increase dramatically 
+cache misses increase system call tcp connections system call tcp connections 
+results indicate connections cache longer store significant fraction connection data structures connections cache capacity small store connection data structures dramatic increase cycles packet seen connections due surge cache misses 
+inferred main memory accesses due cache misses biggest contributor degrading processor ipc 
+cache size increasing cache size common approach general purpose processors order reduce cache misses 
+larger cache certainly able store connection data structures 
+instance consider throughput profile web server far amd athlon xp cpu amd athlon xp cpu 
+kb cache kb cache 
+cpus run frequency ghz 
+table compares user system call tcp ip ethernet driver stack cycles instructions cache misses cycles instructions cache misses cycles instructions cache misses cycles instructions cache misses table effect doubling cache size kb vs kb keeping clock rate 
+web server amd athlon xp kb cache 
+web server amd athlon xp kb cache configuration amd athlon xp 
+profiles taken execution wc trace 
+cycles instructions cache misses show respective counts packet 
+show number connections latencies milliseconds respectively 
+means network latency altered artificially 
+stack accounts regions user 
+profiles systems 
+connections incurs misses packet network stack opposed misses packet 
+accordingly lower cycles packet vs higher content throughput mb vs mb 
+improvement larger cache marginal 
+increasing number connections network latencies similar effects systems 
+connections millisecond way latency cycles cache misses packet increase incurs cache misses 
+content throughput decreases mb mb 
+improvement larger cache marginal 
+results indicate simply increasing cache size inefficient solution improve network stack performance server needs handle increasing number connections long round trip times internet 
+software prefetching caching ineffective software prefetching reduce memory access latencies 
+order determine prefetching reduce impact cache misses network stack software prefetch instructions manually inserted network stack code 
+device driver user sys 
+call tcp ip ethernet driver prefetching cycles mb instructions cache misses prefetching cycles mb instructions cache misses tcp ethernet fetch explicit fetch cycles instructions cache misses table profile web server execution wc trace prefetching 
+cycles instructions cache misses show counts packet 
+mb numbers show content throughput achieved trace 
+accounts regions user 
+cases server handles connections client machines impose millisecond latency way 
+explicit fetch shows profile code regions targeted prefetching prefetch targets fetched regular loads separate function fetch 
+single prefetch instruction fetch headers received packet processes received packet 
+tcp layer prefetch instructions fetch protocol control block socket processes received packets 
+system call layer prefetch instructions fetch socket protocol control block sends data tcp layer 
+instructions available amd athlon xp cpu 
+instructions inserted far advance actual target data possible modifying code structure 
+inserted function call ahead actual target data 
+table shows effects prefetching web server performance 
+brevity table shows results wc trace traces result similar behavior 
+expected cycles packet ethernet tcp layers decrease cycles respectively 
+cache misses regions show reductions 
+caches misses ethernet drop close zero reduction tcp smaller 
+indicates prefetches useless early 
+prefetching increases cycles packet system call driver cycles respectively 
+increases due resource contention web server fully utilizes cpu network interfaces cpu compete memory bandwidth 
+prefetching reduces cycles packet network stack cycles improves content throughput wc trace 
+order find prefetches early useless prefetch targets tcp ethernet explicitly fetched explicit fetch separate function named fetch 
+data explicitly fetched ahead cycles cache misses tcp ethernet represent mini mum achievable prefetching 
+cycles cache misses packet ethernet prefetching close explicit fetch showing prefetch device driver early 
+explicit fetch yields lower cycles cache misses packet tcp prefetching 
+prefetching potentially eliminate cache misses executes earlier 
+remaining misses mean prefetching target misses occur tcp 
+fetch incurs cache misses packet tcp ethernet combined reduce caches misses packet 
+useless prefetches rare 
+software prefetching potentially eliminate remaining cache misses tcp improve server throughput 
+difficult execute prefetch early completely eliminate misses 
+addition prefetching may attempt increase spatial locality data structures span mul tiple cache lines rearranging fields 
+rearranging fields connection control block structures tcp control block protocol independent control block frequently accessed order results measurable impact system performance 
+access frequencies gathered functional full system simulator functional nature caused access patterns significantly different real systems 
+related reported caches big impact network protocol performance measured latency 
+specifically show larger higher associative caches reduce latency protocol performance scale processor performance long caches provide data necessary protocol processing 
+findings study agree 
+larger caches necessarily improve performance number connections considered 
+section shows working set network stack grows proportionally number connections 
+server handles increasing number clients connections simply increasing cache size limited benefits 
+study performed iyer real machine reports cache misses significantly affect network stack performance 
+ignore impact large number connections long latencies servers experience consequently investigate negative impact performance 
+luo evaluated number server workloads including specweb different real systems 
+show web servers spend large fraction time executing kernel general achieve lower ipcs spec cpu integer benchmarks 
+report frequent cache misses web servers noticeable impact ipc 
+compare different cache sizes kb mb mb show large caches able capture working sets 
+findings generally agree results 
+relates number connections communication latencies server performance identifies connection data structures major cause cache misses 
+researchers full system simulator commercial workloads web servers cause frequent cache misses 
+digital continuous profiling infrastructure dcpi performance counters profiling 
+dcpi statistical system wide profiler 
+profile user operating system code accurately attribute counter events cache misses instructions cause 
+reportedly incurs low overhead suitable profiling operating system 
+supports tru operating system running alpha processors led authors develop profiler purpose study 
+dcpi number profilers appeared performance counters 
+include intel various profilers performance application programming interface papi 
+primarily target application profiling unclear suitable profiling operating system level detail significantly disrupting system behavior 
+analyzes web server performance axes packet rate number connections communication latency 
+experimental results microbenchmarks web server loads reveal key findings 
+packet rate connection negligible effect formance network stack average number cycles packet network stack remain somewhat constant 
+second increasing number connections increases number cache misses network stack 
+increases number cycles packet decreases achieved ipc 
+highest ipc achieved single connection 
+third increasing network latency increases number cache misses 
+increases number cycles packet decreases achieved ipc 
+increase cache misses caused increased working set size connection data struc tures including tcp control blocks socket structures 
+high network latencies decreases reuse structures 
+cache misses increase time spent tcp layer network stack resulting decrease achieved ipc 
+increasing size cache prefetching connection data structures network stack result significant performance improvements conditions 
+inefficient working set size large number connections easily exceed largest caches available today megabytes 
+ineffective prefetching data hundreds processor cycles ahead order overlap computation memory access latency difficult 
+new solutions needed order improve performance modern web servers 
+advanced micro devices 
+amd athlon processor code optimization guide feb 
+revision xu harper martin hill wood 
+evaluating non deterministic multi threaded commercial workloads 
+proceedings th workshop computer architecture evaluation commercial workloads feb 
+anderson dean ghemawat henzinger 
+leung sites vandevoorde waldspurger weihl 
+continuous profiling cycles gone 
+proceedings th acm symposium operating systems principles pages 
+acm press 
+browne dongarra garner ho 
+portable programming interface performance evaluation modern processors 
+international journal high performance computing applications 
+callahan kennedy porterfield 
+software prefetching 
+proceedings th international conference architectural support programming languages operating systems pages 
+acm press 
+intel 
+ia intel architecture software developer manual 
+lemon 
+kqueue generic scalable event notification facility 
+proceedings freenix track usenix annual technical conference june 
+luo rubio john seshadri 
+benchmarking internet servers superscalar machines 
+computer feb 
+magnusson larsson werner 
+full system simulation platform 
+computer 
+iyer 
+architectural characterization tcp ip packet processing pentium microprocessor 
+proceedings th international symposium high performance computer architecture pages feb 
+mcvoy staelin 
+lmbench portable tools performance analysis 
+proceedings usenix technical conference pages january 
+yates kurose towsley 
+cache behavior network protocols 
+proceedings acm sigmetrics international conference measurement modeling computer systems pages 
+acm press 
+
+rosu seshan almeida 
+effects wide area conditions www server performance 
+proceedings acm sigmetrics international conference measurement modeling computer systems pages 
+acm press 
+pai druschel zwaenepoel 
+flash efficient portable web server 
+proceedings usenix annual technical conference pages june 
+rizzo 
+dummynet simple approach evaluation network protocols 
+acm sigcomm computer communication review 
+

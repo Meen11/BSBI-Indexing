@@ -1,0 +1,429 @@
+packet filter efficient mechanism user level network code jeffrey mogul digital equipment western research lab richard rashid michael accetta department computer science carnegie mellon university november western research laboratory hamilton avenue palo alto california usa code implement network protocols inside kernel operating system user level processes 
+kernel resident code hard develop debug maintain user level implementations typically incur significant overhead perform poorly 
+performance user level network code depends mechanism demultiplex received packets 
+demultiplexing user level process increases rate context switches system calls resulting poor performance 
+demultiplexing kernel eliminates unnecessary overhead 
+describes packet filter kernel resident packet demultiplexer 
+individual user processes great flexibility selecting packets receive 
+protocol implementations packet filter perform quite production years 
+essentially form originally published proceedings th symposium operating systems principles acm sigops austin texas november 
+permission copy fee part material granted provided copies distributed direct commercial advantage acm copyright notice title publication date appear notice copying permission association computing machinery 
+copy republish requires fee specific permission 
+
+appropriate implement networking protocols inside kernel operating system 
+kernel resident network code outperform user level implementation usually harder implement maintain portable 
+optimal performance primary goal protocol implementation prefer implement outside kernel 
+unfortunately operating systems user level network code doomed terrible performance 
+show possible get adequate performance user level protocol implementation retaining features user level programming far pleasant kernel programming 
+key performance mechanism demultiplex received packets appropriate user process 
+demultiplexing done kernel user level switching process 
+user mode demultiplexing allows flexible control packets distributed expensive normally involves context switches system calls received packet 
+kernel demultiplexing efficient existing systems criteria distinguish packets crude 
+describes packet filter facility combines performance flexibility 
+packet filter part operating system kernel delivers packets minimum system calls context switches able distinguish packets arbitrary dynamically variable user specified criteria 
+result reasonably efficient easy abstraction developing running network applications 
+facility describe design evolutionary result experience 
+packet filter sites years development production wide variety applications insulated applications substantial changes underlying operating system 
+clear practical value 
+section discuss greater detail motivation packet filter 
+describe interface section briefly sketch implementation section 
+illustrate section uses packet filter put section discuss performance 
+packet filter 
+motivation software support networking protocols tremendously important result lan technology workstations 
+sheer bulk software indication may overwhelming ability create reliable efficient code example bsd unix kernel source tops version kernel source system kernel source devoted networking 
+development network software slow seldom yields finished systems debugging may continue long software put operation 
+continual debugging production code results deficiencies original code inevitable evolution protocols changes network environment 
+operating systems network code resides kernel 
+harder write debug time bug kernel recompiled rebooted 
+bugs kernel code cause system crashes 
+functionally independent kernel modules may complex interactions shared resources 
+kernel code debugging done normal timesharing single user time scheduled resulting inconvenience timesharing users odd hours system programmers 
+sophisticated debugging monitoring facilities available developing userlevel programs may available developing kernel code 
+kernel source code available 
+spite drawbacks network code usually put kernel drawbacks putting outside kernel worse 
+single user level process demultiplexing packets received packet system switch demultiplexing process notify process packet switch demultiplexing process transfers packet appropriate destination process 
+depicts costs associated approach 
+context switching inter process communication usually expensive clearly efficient immediately deliver packet ultimate destination process 
+shows approach reduces costs 
+requires kernel able determine process packet go problem allow user level processes specify packets want 
+simple mechanism kernel specific packet field key user process registers kernel field value packets wants receive 
+kernel know structure higher layer protocol headers discriminant field lowest layer ethernet type field 
+solution 
+example environments ethernet type field serves identify small set protocol families packets discriminated protocol specific field 
+kernel demultiplex type field user level switching process attendant high cost 
+packet filter demux process destination process kernel network costs demultiplexing user process destination process network kernel costs demultiplexing kernel packet filter flexible kernel resident demultiplexer 
+user process specifies arbitrary predicate select packets wants protocol specific knowledge program receives packets 
+need modify kernel support new protocol 
+mechanism evolved ethernet data link layers similar datagram networks 
+packet filter isolates kernel details specific protocols insulates protocol code details kernel implementation 
+packet filter strongly tied particular system unix implementation cleanly separated kernel facilities novel part user level interface specific unix 
+protocol code lives outside kernel modified useful wide variety kernel implementations 
+systems context switching inexpensive performance advantage kernel demultiplexing reduced packet filter may model user level demultiplexer emulate 
+addition cost inconvenience demultiplexing cost domain crossing control crosses kernel user domains discouraged implementation protocol code user processes 
+protocols far packets exchanged lower levels seen higher levels include control duplicate packet filter packets 
+kernel resident implementation confines overhead packets kernel greatly reduces domain crossing depicted 
+packet filter mechanism eliminate problem reduce careful implementation batching domain crossing events see section 
+ack ack data data destination process network kernel kernel resident protocols reduce domain crossing user level access data link layer universally regarded thing 
+suggested user programs need access explicit network communication argue networking done transport protocol ip iso transport protocol demultiplexing done transport layer code 
+arguments implicitly assume homogeneous networking environment heterogeneity fact life machines different manufacturers speak various transport protocols research new protocol designs data link level profitable 
+packet filter allows rapid development networking programs relatively inexperienced programmers disrupting users timesharing system 
+places constraints protocols may implemented spite flexibility performs uses 
+
+historical background far aware idea name packet filter arose xerox alto 
+alto operating system shared single address space processes security important filters simply procedures userlevel programs procedures called packet demultiplexing mechanism 
+unix implementation packet filter done 
+
+user level interface abstraction shows packet filter related parts system 
+packets received network passed packet filter distributed user processes code implement protocols lives process 
+shows contrast networking done packet filter vanilla bsd unix protocols implemented inside kernel data buffers passed protocol code user processes 
+shows models coexist programs may means access network 
+packet filter device driver user processes pup vmtp network monitor kernel network relationship packet filter system components programmer interface packet filter major components packet transmission packet reception control status information 
+describe context bsd unix implementation 
+packet transmission simple user presents buffer containing complete packet including data link header kernel normal unix write system call control returns user packet queued transmission 
+transmission unreliable data link unreliable user discover transmission failure lack response explicit error 
+device driver user processes tcp udp ip kernel network bsd networking model packet reception complicated 
+packet filter manages number ports may opened unix program character special device 
+associated port filter user specified predicate received packets 
+filter accepts packet packet queued delivery associated port 
+filter specified small language push arbitrary constants words received packet packet filter device driver user processes tcp udp vmtp pup packet filter ip kernel network packet filter coexisting bsd networking model apply binary operations top stack 
+filter language discussed detail section 
+process binds filter port ioctl system call new filter bound time cost comparable receiving packet practice filters replaced 
+processes implementing different communication streams protocol specify slightly different predicates packets delivered appropriately 
+example program implementing pup protocol include test pup destination socket number part predicate 
+layering protocol architecture necessarily reflected filter predicate may examine packet fields layers 
+program performs read system call file descriptor corresponding packet filter port queued packets returned 
+entire packet including data link layer header returned user programs may implement protocols depend header information 
+program may ask pending packets returned batch useful high volume communications amortize overhead performing system call packets 
+depicts packet overheads batching shows reduced batching 
+packets queued read system call blocks packet available packet arrives timeout period read call terminates reports error 
+simple programs written write read timeout retry necessary paradigm 
+elaborate programs may take advantage sophisticated synchronization mechanisms bsd select system call interrupt facility unix signals allows non blocking network packet filter read read read destination process network kernel delivery received packet batching read destination process network kernel delivery received packet batching packet filter 
+filter language details heart packet filter interpreter language shown 
+filter data structure including array bit words 
+word normally interpreted instruction fields stack action field binary operation field 
+stack action may cause word received packet constant pushed stack 
+binary operation pops top words stack pushes result 
+filter programs evaluate logical expression composed tests values various fields received packet 
+filter normally evaluated program exhausted 
+value remaining top stack non zero filter deemed accepted packet 
+possible avoid evaluating entire filter deciding accept packet 
+especially important performance busy system dozen filters may applied incoming packet accepted 
+filter language includes short circuit binary logical operations evaluated push result allow program continue terminate program return appropriate boolean 
+shows example simple filter program shows example filter program short circuit operations 
+pup packets mbit sec 
+experimental ethernet data link header bytes words long packet type second word see 
+normal filters directly constructed programmer compiled run time library procedure 
+design filter language result careful analysis embodies accidents history bias bit fields 
+evolved years particular short circuit operations added analysis showed reduce cost interpreting filter predicates 
+imagine alternatives stack language structure example predicate array field offset expected value pairs predicate satisfied specified fields specified values 
+additional flexibility stack language proved useful constructing efficient filters 
+instruction set implemented software hardware execution time penalty associated supporting broad range operations 
+
+access control normally packet accepted delivery process submitted filters processes 
+possible determine filters accept overlapping sets packets need way prevent process inappropriately diverting packets meant process 
+associated filter priority filters applied order decreasing priority filters accept packet goes higher priority 
+priority purpose priorities assigned proportional likelihood filter accept packet average packet match filters tested consequently reducing amount filter interpretation overhead 
+filters priority order application unspecified interpreter may occasionally reorder filters place ones cases take care ensure filters accept disjoint sets packets 
+packet filter second word word literal constant bits binary operator bits bits stack action second word stack action instruction format stack action effect stack instruction word pushed constant zero pushed constant pushed constant pushed constant xff pushed push ff constant ff pushed nth word packet pushed binary operations nop remove words top stack push result word 
+table follows original top stack abbreviated word result logical operations xor value interpreted true non zero 
+binary operation result stack eq true false neq true false lt true le true gt true false ge true false xor xor nop effect stack short circuit binary operations evaluate push result stack 
+return immediately specified conditions program continues 
+binary returns operation immediately result cor true true cand false false false true true false packet filter language summary packet filter ethernet header data hopcount bits pup header format pup packet header mb ethernet filter accepts pup packets pup types 
+pup type field byte field masked appropriate word packet 
+struct priority length eq packet type pup push ff mask low byte gt push ff mask low byte le packet type pup example filter program filter accepts pup packets pup field 
+field occupies words filter test words combine operation 
+field checked packet type field packets match short circuit operation exit immediately 
+struct priority length cand low word socket cand high word socket eq packet type pup example filter program short circuit operations packet filter optionally process may specify packets accepted filter submitted lower priority filters multiple copies packets may delivered 
+useful implementing monitoring facilities disturbing processes monitored group communication packet may multicast processes host possible filter precisely kernel 
+access control mechanism protect malicious erroneous processes attempting divert packets works processes play rules 
+research environment packet filter developed problem especially ways eavesdrop ethernet 
+earlier version packet filter provide security restricting high priority filters certain users allowing users rights packets mechanism went unused 
+typical networks easily tapped proposals secure communication rely encryption protect eavesdropping 
+packets encrypted header fields transmitted cleartext allow demultiplexing peculiar packet filter especially encryption process basis 
+
+control status information user control packet filter action variety ways specifying filter associated packet filter port timeout duration blocking reads optionally immediate return indefinite blocking signal delivered packet reception maximum length port input queue 
+information provided packet filter programs includes type underlying data link layer lengths data link layer address data link layer header maximum packet size data link data link address incoming packets address data link layer broadcasts exists 
+user ask received packet marked timestamp count number packets lost due queue overflows network interface kernel 
+packet filter 
+implementation packet filter implemented bsd unix character special device driver 
+just unix terminal driver layered communications device drivers provide uniform abstraction packet filter layered network interface device drivers 
+character device driver called user code open close read write ioctl system calls 
+packet filter called network interface drivers receipt packets destined kernel resident protocols 
+complexity implementation involved bookkeeping managing asynchrony 
+packet received checked filter order decreasing priority accepted filters rejected see 
+filter interpreter straightforward carefully coded inner loop quite busy 
+simply iterates instruction words filter branch instructions evaluating filter predicate small stack 
+reaches filter short circuit conditional satisfied error detected returns predicate value indicate acceptance rejection packet 
+accepted false priority downto priority priority apply filter rcvd pkt match deliver port rcvd pkt accepted true accepted drop rcvd pkt pseudo code filter application loop packet filter module lines heavily commented source code bytes vax machine code network interface device drivers modified dozen lines linkage code 
+aside packet filter requires modification unix kernel 
+isolated rest kernel easily ported different unix implementations 
+ports sun microsystems operating system internally quite similar bsd ridge operating system ros ridge computers ros message operating system inexpensive processes internal structure distinctly different unix 
+packet filter ported pyramid technology unix system minor modification multi processor 
+appears relatively easy port packet filter variety operating systems turn possible port user level networking code kernel modifications 
+packet filter 
+uses packet filter packet filter successful provides useful facility adequate performance 
+section provides quantitative measures performance section consider qualitative utility 
+primary goal packet filter simplify development improvement networking software protocols 
+networking software continual state development speeds debugging modification reduces mismatch software networking environment 
+especially important experimental development new protocols 
+similarly operating systems continually changing decoupling network code rest system reduces risk software rot 
+remainder section describes examples demonstrating packet filter practical 
+
+pup protocols pup protocol suite includes variety applications datagram stream transport protocols 
+stanford pup protocols implemented unix entirely packet filter 
+pup experimental architecture notable flaws years implementation served primary link stanford unix systems campus hosts workstations 
+pup relatively heavy number organizations stanford implementation 
+experience pup shown value decoupling networking implementation unix kernel 
+possible develop pup code effort kernel debugging possible modify kernel having worry integrity pup code 
+years new release berkeley unix kernel available sufficed re install kernel module implementing packet filter 
+pup code run recompilation new operating system 
+initial port packet filter code bsd bsd took comparison took programmer months port bbn tcp implementation bsd bsd 
+bbn tcp code kernel resident undoubtedly contributed time took port 
+
+system protocols system message distributed operating system 
+ongoing research project continual development revision 
+architects system chosen design protocols obtain high performance multicast feature ethernet hardware 
+system primarily collection workstations servers running kernel unix hosts integrated distributed system provide disk storage compute cycles mail service amenities available new operating system 
+unix hosts taught speak system inter kernel protocol ikp 
+fortunately packet filter available basis user level ikp server process 
+packet filter ikp simple protocol put unix kernel 
+required researchers learn details unix kernel participate maintenance kernel re install ikp implementation new release operating system 
+able devote attention research topics interested 
+result research vmtp protocol replacement ikp 
+kernel resident implementation vmtp bsd implementation packet filter 
+user level implementation allowed rapid development protocol specification experimentation easily modified code 
+section contrasts performance differences vmtp implementations 
+
+reverse address resolution protocol designed allow workstations determine internet protocol ip addresses relying local stable storage 
+issue definition protocol layer ip parallel layer 
+leads chicken egg dilemma cleaner raised question implementability bsd 
+packet filter implementation easy done weeks student experience network programming need learn modify unix kernel 
+
+network monitoring developer maintainer network software tool valuable network monitor 
+network monitor captures displays traces packets flowing hosts packet trace easier understand hosts unable communicate performance par 
+commercially available network monitors including network general sniffer communications machinery stand units dedicated monitoring specific protocols 
+network monitor closely integrated general purpose operating system running workstation important advantages dedicated monitor tools workstation available manipulating analyzing packet traces 
+user write new monitoring programs display data novel ways monitor new unusual protocols 
+packet filter microvax ii workstation basis variety experimental network monitoring tools 
+system sufficient performance record packets flowing moderately busy ethernet rare lapses sufficient performance capture packets pair communicating hosts 
+easily write arbitrarily elaborate programs analyze trace data substantial analysis real time integrated network monitor appears far useful dedicated 
+sun microsystems program example integrated network monitor 
+sun network interface tap nit facility similar packet filter allows filtering single packet field 
+sun expects include packet filtering mechanism release nit 
+packet filter 
+performance measured performance packet filter ways 
+determined amount processor time spent packet filter routines measured throughput protocol implementations packet filter 
+compared measurements kernel resident implementations similar protocols practice packet protocol implementations perform fairly 
+measurements vax processors running bsd bsd unix mbit sec mbit sec ethernet 
+note packet filter protocol implementations affecting performance 
+
+kernel packet processing time indication packet filter cost kernel cpu time required process average received packet 
+measured time packet filter analogous functions kernel resident protocols 
+bsd unix kernel configured collect cpu time spent number calls kernel subroutine 
+profiled kernel run hours timesharing vax gprof format data 
+profiling period system handled packets 
+packets processed packet filter remainder ip packets arp packets 
+packet processing times reported average packets typical filter predicates 
+processing times transmitted packets packet filter kernel resident ip implementation takes msec send datagram 
+packet filter slight edge need choose route datagram compute checksum 
+packet filter packet filter spends average msec processing packet 
+time spent evaluating filter predicates average packet tested predicates 
+derived crude estimate time process packet msec number predicates tested msec 
+average number predicates tested normally somewhat half number active ports priority mechanism described section cause filters tested 
+kernel resident ip implementation average time required process received ip packet msec 
+includes protocol processing tcp udp layers ip layer processing counted average packet requires msec 
+means kernel resident ip layer times faster packet filter processing average packet 
+
+total packet processing time kernel profile account entire cost handling packets 
+measured actual packet rates user processes microvax ii running ultrix synthetic load 
+results packet reception included tables section 
+sending datagrams packet filter costs sending udp datagram size see table estimate twice cost packet filter kernel send datagram 
+packets carry useful data example user level protocol implementations pay additional penalty 
+elapsed time packet elapsed time packet total packet size sent packet filter sent udp bytes msec msec bytes msec msec table cost sending packets 
+vmtp performance interesting protocol packet filter implementation kernel resident implementation vmtp 
+provides basis direct measurement cost user level implementation minor differences actual protocols implemented implementations precisely equal quality follow essentially pattern packet transport 
+measurements noted carried microvax ii processors bsd unix mbit sec ethernet 
+case ends transfer identical protocol implementations 
+measured cost minimal round trip operation reading zero bytes file 
+results shown table indicate penalty user level implementation exactly factor 
+measurement unix kernel implementation vmtp quite close kernel implementation indicating obvious inefficiency unix kernel implementation 
+vmtp implementation elapsed time operation packet filter msec unix kernel msec kernel msec table relative performance vmtp small messages kernel unix kernel packet filter relative performance vmtp small messages measured cost transferring bulk data vmtp 
+done repeatedly reading segment file stayed file system buffer packet filter cache consequently measured rates nearly independent disk speed 
+trial mb transferred 
+measured tcp performance comparison note tcp checksums data implementations 
+results shown table show case penalty user level implementation vmtp exactly factor 
+implementation rate packet filter kbytes sec unix kernel vmtp kbytes sec kernel vmtp kbytes sec unix kernel tcp kbytes sec table relative performance vmtp bulk data transfer kernel vmtp unix kernel vmtp packet filter vmtp bsd kernel tcp packet filter pup bsp relative performance vmtp bulk data transfer packet filter implementation measured table uses received packet batching 
+table shows batching improves throughput identical code reads just packet system call difference entirely due decreased system call overhead may reflect reductions context switching dropped packets 
+batching rate kbytes sec kbytes sec table effect received packet batching performance packet filter packet filter batching user level demultiplexing packet filter batching effect received packet batching user level demultiplexing performance tried measure cost user level demultiplexing process simulating client implementation 
+done extra process receive packets passed actual vmtp process unix pipe 
+case server process modified 
+table figures shows user level demultiplexing small cost greater latency short messages decreases bulk throughput factor attributable poor ipc facilities bsd 
+elapsed time demultiplexing done minimal operation bulk rate kernel kbytes sec user process kbytes sec table effect user level demultiplexing performance packet filter user level demultiplexing effect user level demultiplexing small vmtp messages 
+byte stream throughput compared performance pup bsp byte stream protocol implementation packet filter ip tcp implementation bsd kernel 
+measurements carried microvax ii processors bsd unix mbit sec ethernet 
+packet filter table shows rates implementations transfer bulk data process process 
+tcp faster factor 
+implement file transfer protocol ftp tcp slows factor source data disk file bsp throughput remains unchanged indicating network performance rate limiting factor bsp file transfer 
+implementation rate packet filter bsp kbytes sec unix kernel tcp kbytes sec table relative performance stream protocol implementations pup bsp allows maximum packet size bytes tcp bsd uses byte packets sends half tcp forced smaller packet size performance cut half 
+correction tcp throughput times bsp difference attributable cost bsp user level implementation 
+consistent factor difference measured vmtp 
+measured performance telnet remote terminal access program server host vax prints characters transmitted network displayed user host 
+results shown table 
+output rate column shows throughput characters second configuration 
+telnet network output protocol bandwidth rate pup bsp mbit sec ip tcp mbit sec pup bsp mbit sec ip tcp mbit sec table relative performance telnet rows table show throughput mc workstation capable displaying characters second 
+achieved throughput half varying slightly tcp bsp packet filter 
+rows measured characters displayed baud terminal show difference bsp tcp performance 
+output rates clearly limited display terminal network performance 
+summary kernel resident implementation stream protocol vmtp bsp appears times fast implementation packet filter 
+applications actual performance difference may smaller packet filter implementation vmtp slower kernel resident tcp file transfer 
+vmtp bsp implementations quite useful practice disks terminals serious bottlenecks packet filter 
+test done bsd 
+packet filter 
+costs demultiplexing outside kernel asserted section user level process demultiplex received packets processes result poor performance 
+section showed appears true especially bulk data transfer 
+section analyze additional cost measurements ultrix measurements inspired mckusick karels leffler 
+
+analytical model demultiplexing process received packet results context switches demultiplexing process receiving process system active processes additional context switch unrelated process may occur receiving process blocks waiting packet 
+direct delivery received packets best case receiving process suspended context switches take place 
+worst case active processes received packet cause context switches 
+mechanism requires data transfer kernel process 
+unix support memory sharing demultiplexing process requires additional data transfers get packet final receiving process 
+
+cost overhead operations benchmarks indicate microvax ii running ultrix requires msec cpu time switch processes msec cpu time transfer short packet kernel process 
+predict receiving short packet demultiplexing process take msec packet filter overhead costs may low msec packet difference increases longer packets data copying requires msec kbyte 
+
+measured costs costs ones associated receiving packet ones affected user level demultiplexing 
+measured actual elapsed time required receive packets various sizes demultiplexing process receives packets network passes second process unix pipe 
+results shown table 
+additional cost user level demultiplexing agrees fairly closely predication 
+elapsed time demultiplexing elapsed time demultiplexing packet size done kernel done user process bytes msec msec bytes msec msec table packet cost user level demultiplexing assume batching packets takes place assumption breaks packets arrive faster system switch contexts 
+packet filter received packet batching saw section amortize costs packets repeated measurements batching enabled batch size hard control results packets batch 
+results shown table batching clearly reduces penalty associated user level demultiplexing difference remains significant 
+elapsed time demultiplexing elapsed time demultiplexing packet size done kernel done user process bytes msec msec bytes msec msec table packet cost user level demultiplexing received packet batching measurements tables real decision making part demultiplexer 
+user level demultiplexing basis high overhead show cost interpreting packet filters kernel dwarf benefit avoiding context switches presumably user level demultiplexer decisions efficiently possibly 
+measured cost interpreting filter programs various lengths results shown table 
+batching enabled packets bytes long 
+usually takes filter instructions test packet field long filters instructions additional cost filter interpretation cost user level demultiplexing long filters applied incoming packet filter accepts 
+filter length instructions elapsed time packet msec msec msec msec table cost interpreting packet filters filters short circuit conditionals break point closer average filters acceptance occur filters active 
+means assumes zero cost decision making user level demultiplexer break point comes different processes network 
+packets longer bytes break point comes active processes 
+summary kernel demultiplexing performs significantly better user level demultiplexing wide range situations 
+advantage disappears large number processes receiving packets 
+packet filter 
+problems possible improvements beginnings early packet filter revised support additional applications provide better performance 
+room improvement 
+filter language described section allows user specify packet fields constant offsets packet 
+adequate protocols headers pup network protocols allow variable format headers 
+example ip header may include optional fields fields higher layer protocol headers constant offsets 
+current packet filter handle non constant offsets considerable awkwardness inefficiency filter language needs extended include indirect push operator arithmetic operators assist addressing unit conversions 
+current filter mechanism deals bit values requiring multiple filter instructions load packet fields wider narrower 
+possible direct support field sizes improve filter evaluation efficiency 
+existing read batching mechanism clearly improves performance bulk data transfer write batching option send packets system call improve performance 
+addition problems may regarded deficiencies interface room improvement existing implementation 
+evaluation filter instruction interpreter verifies instruction valid doesn overflow underflow evaluation stack doesn refer field outside current packet 
+filter language include branching instructions tests performed ahead time indirect push instructions significantly speed filter evaluation 
+speed gained compiling filters machine code cost greatly increased implementation complexity 
+redesigned filter language possible compile set active filters decision table provide best possible performance 
+idiosyncrasies bsd kernel create inefficiencies 
+example bsd network interface drivers strip data link layer header incoming packets packet filter may spending significant amount time restore headers 
+order mark packet unique timestamp packet filter calls kernel subroutine called vax costs usec probably timestamp worth 
+
+summary performance packet filter clearly better user level demultiplexer performance protocol code packet filter clearly worse kernel resident protocol code 
+packet filter just flexible user level demultiplexer believe systems context switching substantial cost right basis implementing network code outside kernel 
+advantages user level network code packet filter worth extra cost 
+experience convinced cases performance code quite acceptable greatly eases task developing protocols implementations 
+packet filter appears put just mechanism kernel provide decent performance retaining flexibility user level demultiplexer 
+packet filter acknowledgments people worked packet filter implementation years support comments nearly useful especially notable ported code operating systems jon ridge computers glenn skinner sun microsystems charles rutgers university ported pyramid technology system 
+steve deering ross finlayson stanford vmtp measurements possible 
+program committee student reviewers comments 
+packet filter packet filter ed 
+ridge operating system high performance message passing virtual memory 
+proceedings st international conference computer workstations pages 
+ieee november 
+david boggs john edward taft robert metcalfe 
+pup internetwork architecture 
+ieee transactions communications com april 
+david boggs edward taft 
+private communication 
+
+david cheriton 
+kernel software base distributed systems 
+ieee software april 
+david cheriton 
+vmtp transport protocol generation communication systems 
+proceedings sigcomm symposium communications architectures protocols pages 
+acm sigcomm stowe vt august 
+david cheriton willy zwaenepoel 
+distributed process groups kernel 
+acm transactions computer systems may 
+communications machinery 
+ethernet monitor user guide th edition communications machinery santa barbara california 
+computer systems research group 
+unix programmer manual berkeley software distribution virtual vax version computer science division university california berkeley 
+ethernet local area network data link layer physical layer specifications version digital equipment intel xerox 
+tops user guide digital equipment maynard ma 
+form 
+aa tm 
+ex ethernet network analyzer user manual revision edition san jose california 
+ross finlayson timothy mann jeffrey mogul marvin theimer 
+reverse address resolution protocol 
+rfc network information center sri international june 
+packet filter susan graham peter kessler marshall mckusick 
+gprof call graph execution profiler 
+proceedings acm sigplan symposium compiler construction pages 
+acm sigplan june 
+robert 
+private communication 
+
+iso 
+iso transport protocol specification iso dp 
+rfc network information center sri international april 
+kirk mckusick mike karels sam leffler 
+performance improvements functional enhancements bsd 
+proc 
+summer usenix conference pages 
+june 
+robert 
+metcalfe david 
+boggs 
+ethernet distributed packet switching local computer networks 
+communications acm july 
+sniffer operation manual network general sunnyvale california 
+jon postel 
+internet protocol 
+rfc network information center sri international september 
+jon postel 
+transmission control protocol 
+rfc network information center sri international september 
+ritchie thompson 
+unix timesharing system 
+bell system technical journal july august 
+sun microsystems unix interface manual sun microsystems mountain view california 
+revision brent welch 
+sprite remote procedure call system 
+ucb csd department electrical engineering computer science university california berkeley june 
+packet filter ii packet filter table contents 
+
+motivation 
+historical background 
+user level interface abstraction 
+filter language details 
+access control 
+control status information 
+implementation 
+uses packet filter 
+pup protocols 
+system protocols 
+
+network monitoring 
+performance 
+kernel packet processing time 
+total packet processing time 
+vmtp performance 
+byte stream throughput 
+costs demultiplexing outside kernel 
+analytical model 
+cost overhead operations 
+measured costs 
+problems possible improvements 
+summary acknowledgments iii packet filter iv packet filter list figures costs demultiplexing user process costs demultiplexing kernel kernel resident protocols reduce domain crossing relationship packet filter system components bsd networking model packet filter coexisting bsd networking model delivery received packet batching delivery received packet batching packet filter language summary format pup packet header mb ethernet example filter program example filter program short circuit operations pseudo code filter application loop relative performance vmtp small messages relative performance vmtp bulk data transfer effect received packet batching user level demultiplexing performance effect user level demultiplexing small vmtp messages packet filter vi packet filter list tables table cost sending packets table relative performance vmtp small messages table relative performance vmtp bulk data transfer table effect received packet batching performance table effect user level demultiplexing performance table relative performance stream protocol implementations table relative performance telnet table packet cost user level demultiplexing table packet cost user level demultiplexing received packet batching table cost interpreting packet filters vii 

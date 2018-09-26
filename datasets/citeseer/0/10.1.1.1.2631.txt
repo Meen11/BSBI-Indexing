@@ -1,0 +1,641 @@
+fab building distributed enterprise disk arrays commodity components yasushi saito fr lund alistair veitch merchant susan spence hewlett packard laboratories firstname lastname hp com describes design implementation evaluation federated array bricks fab distributed disk array provides reliability traditional enterprise arrays lower cost better scalability 
+fab built collection bricks small storage appliances containing commodity disks cpu nvram network interface cards 
+fab deploys new majority algorithm replicate erasure code logical blocks bricks reconfiguration algorithm move data background bricks added 
+argue voting practical necessary reliable high throughput storage systems fab 
+implemented fab prototype node linux cluster 
+prototype sustains mb second throughput database workload mb second bulk read workload 
+addition outperform traditional replication performance decoupling handle brick failures recoveries smoothly disturbing client requests 
+categories subject descriptors software operating systems reliability computer system implementation servers information storage retrieval systems software distributed systems general terms algorithms management performance reliability keywords storage disk array replication erasure coding voting consensus 
+federated array bricks fab distributed disk array provides reliable accesses logical volumes commodity hardware 
+solves problems scalability cost associated traditional monolithic disk arrays 
+traditional disk arrays drive collections disks centralized controllers 
+achieve reliability highly customized permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+asplos october boston massachusetts usa 
+copyright acm 
+redundant hot swappable hardware components 
+scale high front cost minimally configured array single system grow limited size 
+limitations force manufacturers develop multiple products different system scales multiplies engineering efforts required 
+issues coupled relatively low manufacturing volumes drive cost high arrays retail millions dollars times price consumer class systems equivalent capacity 
+fab consists collection bricks small rack mounted computers built commodity disks cpu nvram connected standard networks ethernet 
+bricks autonomously distribute data functionality system highly available set logical volumes clients standard interfaces iscsi 
+fab scale incrementally starting just bricks adding bricks demand grows bricks 
+cheaper traditional arrays due economies scale inherent high volume production brick disks gb nvram built total system cost traditional arrays way replication 
+commodity hardware course far reliable enterprise counterparts 
+reliability figures reported expect mean time failures typical network switch years typical brick years depending quality disks internal disk organization raid reliable raid 
+fab inevitably faces frequent changes system including brick failures additions network partitioning 
+fab project tries achieve goals environments 
+fab provide continuous service masking failures transparently ensuring stable performance diverse workloads 
+second ensure high reliability comparable today high disk arrays mean years data loss tolerating failures disks cpus networks 
+key idea fab achieve goals replication erasure coding voting 
+acting behalf client read write request coordinator communicates subset quorum bricks store data 
+voting allows fab tolerate failed bricks network partitioning safely blocking 
+enables performance decoupling tolerating overloaded bricks simply ignoring long responsive 
+especially effective systems fab brick response times fluctuate due randomness inherent disk head mechanisms 
+voting replication new seen little high throughput systems concerns inefficiency reading data involve multiple remote nodes 
+show voting practical necessary reliable high throughput storage systems 
+specifically contributions new replication erasure coding algorithms asynchronous voting algorithms ensure strictly linearizable accesses replicated erasure coded data 
+handle non byzantine failures including brick failures network partitioning slow bricks 
+existing algorithms contrast lack erasure coding support break consistency brick coordinates request crashes middle 
+new dynamic quorum reconfiguration algorithm fab adjust quorum configurations dynamically allowing requests clients proceed 
+improves reliability allowing system tolerate failures system fixed quorum voting adding new brick brick 
+efficient implementation evaluation fab techniques improve efficiency algorithms implement fab 
+implemented fab prototype node linux cluster 
+show section prototype sustains mb second throughput database workload mb second bulk read workload 
+addition outperform traditional replication performance decoupling handle brick failures recoveries smoothly disturbing client requests 
+
+related today standard solution building reliable storage systems centralized disk arrays employing raid emc hitachi lightning hp eva ibm ess 
+ensure reliability systems incorporate tightly synchronized redundancy layer functionality including processing cache disk controllers raid control 
+reviewed previous section architecture limits capacity throughput availability 
+fab distributes functionality array controllers bricks maintaining consistency semantics single disk 
+idea distributed composable disk arrays pioneered petal 
+petal uses master slave replication protocol tolerate network partitioning 
+addition period seconds unavailability fail cause clients take disruptive recovery actions database log file system scanning 
+contrast fab mask failures safely instantaneously voting supports reed solomon erasure coding addition replication 
+lefthand networks ibm proposed fab storage systems details published 
+network attached secure disks nasd clients access network attached disks directly safely 
+fab nasd try build scalable distributed storage different emphases fab focuses availability reliability redundancy nasd focuses safety access control mechanisms 
+systems complement 
+ability voting algorithms tolerate failures slow nodes led adoption storage systems 
+farsite distributed serverless file system uses voting algorithms tolerate byzantine failures 
+self serverless file system uses voting erasure coding algorithms 
+oceanstore wide area file system uses voting file db servers 
+fab bricks 
+admin frontend iscsi frontend paxos volume layouts coordinator rpc status monitor disks buffer cache storage handler amps disk map frontend core backend structure fab system 
+bricks connected clients commodity networks 
+bricks run set software modules shown right hand picture 
+volume layouts disk data structures normally cached memory 
+buffer cache timestamp table stored nvram 
+tolerate byzantine failures erasure coding long term data storage 
+systems fab designed high throughput local area storage system 
+tolerates stopping failures ensures consistent data accesses changing clients exploiting file system semantics 
+ling huang voting build high throughput storage system support replication single client accesses require special protocol run client 
+consistent reconfiguration studied replication uses phase commits update data paxos transition views 
+proposed idea concurrent active views background state synchronization 
+idea fab single register logical block emulation fab runs efficient voting algorithms multiple logical blocks 
+
+overview shows structure fab system 
+fab symmetrically distributed system brick runs set software modules manages types data structures 
+fab clients usually file database servers iscsi reading writing logical blocks proprietary protocol administrative tasks creating deleting logical volumes 
+high level read write request processed follows 
+client sends iscsi request form volume id offset length coordinator brick acts gateway request 
+fab symmetric structure client choose brick coordinator access logical volume 
+different requests client coordinated different bricks 
+practice client uses hard wired knowledge protocol isns name service iscsi pick coordinator 
+
+coordinator finds set bricks store requested blocks 
+storage bricks request 
+
+coordinator runs replication erasure coding protocol storage bricks passing tuple volume id offset length 
+
+storage brick converts tuple volume id offset length physical disk offsets accesses requested data 
+key data structures software modules steps described carried key data structures volume layout maps logical offset seggroup segment granularity volume 
+segment set mb unit data distribution 
+seggroup describes layout segment including set bricks store segment 
+volume layout step locate set storage bricks request 
+seggroup unit reconfiguration discuss section 
+maps logical offset tuple disk number page granularity logical volume 
+page set mb unit disk allocation 
+contents unique brick 
+step 
+timestamp table stores timestamp information modified blocks 
+contents table unique brick 
+data structure steps access replicated erasure coded blocks consistent fashion 
+discuss fab replication erasure coding algorithms timestamp tables detail section 
+shows example request processing 
+volume layouts called global metadata replicated brick read request coordinator 
+approach pioneered petal paxos atomic broadcast protocol maintain consistency global metadata bricks 
+paxos allows bricks receive exactly sequence metadata updates updates issued concurrently bricks fail recover 
+letting bricks initially boot empty global metadata paxos updates keep metadata consistent 
+discussed section fab designed withstand stale global metadata long bricks eventually receive metadata updates 
+reading global metadata done directly local copy 
+data structures managed software modules roughly divided groups 
+frontend receives requests clients step 
+core contains modules needed locate logical blocks maintain data consistency steps 
+particular coordinator module responsible communicating backend modules remote bricks access blocks consistently 
+status monitor keeps track disk usage load bricks 
+assign utilized segment groups volumes creating volumes section pick brick quorum reads data disk section 
+currently deploys mechanisms 
+status information piggybacked message exchanged bricks gives timely view status small set bricks 
+second variation gossip failure detector advertise status random brick seconds gives older comprehensive view system 
+backend modules responsible managing accessing nvram physical disks step 
+data layout load balancing segments assigned seggroup redundancy policy replication degree erasure coding layout 
+fab policy create redundancy policy average contain specific brick 
+logical volume segments assigned volume created favoring containing bricks utilized disks status monitor consulted purpose 
+assignment physical disk blocks pages done randomly brick page written time 
+choice number brick reveals tension load balancing reliability 
+brick fails read requests normally handled served bricks belongs 
+volume id volume id volume table table mb mb mb mb mb 
+volume layout seggroup mb mb mb mb mb 
+disk map offset 
+disk ef mb mb mb mb mb locally managed example locating logical kb block offset mb volume 
+client sends request form volume id mb kb random coordinator 
+top half diagram coordinator locates volume layout local copy global metadata finds seggroup offset mb 
+seggroup shows data stored bricks coordinator executes replication erasure coding protocol bricks bottom half diagram bricks consult local convert offset mb disk addresses 
+years replication erasure coding erasure coding segment groups brick mean time data loss fab systems tb logical capacity 
+brick evenly extra load spread 
+creating reduces system reliability increases number combinations brick failures lead data loss 
+shows reliability changes number brick 
+analysis markov model assuming bricks twelve gb disks 
+failures assumed independent 
+assume disk mean time failure mttf years manufacturers specifications brick enclosure mttf years data 
+time repair failure depends failure type time required copy data spare space assume spare space available 
+pick average brick meets goal year allowing load spread evenly 
+choice segment page sizes involves trade offs 
+larger segment size reduces global metadata management overhead cost storage allocation freedom bricks seggroup store segments 
+page chosen smaller segment reduce storage waste erasure coded volumes section logical volumes size segment aligned 
+small page size hurt performance increasing disk head movement 
+find current setting mb segments mb pages offers balance years bricks tb raw capacity tb logical volumes system size global metadata mb mb respectively 
+
+voting replication era sure coding fab provides redundancy mechanisms replication 
+idea voting request progress receiving replies random quorum storage bricks 
+protocols require persistent state request coordinator 
+feature allows brick act coordinator helps fab truly decentralized changing clients 
+section describes basic replication protocol single logical block section describes extended erasure coding 
+multi block requests logically handled running multiple instances algorithms parallel practice batch run efficiently single block requests 
+discuss implementation related issues sections 
+replication task request coordinator straightforward theory writing generates new unique timestamp writes new block value timestamp majority storage bricks reading reads majority returns value newest timestamp 
+challenge lies handling failure participants middle write request new value may minority bricks 
+storage system ensure strict linearizability single global ordering successful failed requests coordinated different bricks 
+put way write coordinator fails read requests block return old block value return new value block overwritten newer write request 
+prior approaches gifford phase commits ensure quick fail ling consistency checking conflicts goal leaving client interface iscsi unchanged 
+fab takes alternative approach performing recovery lazily client tries read block incomplete write 
+shows pseudocode fab algorithm 
+replicated block keeps persistent timestamps timestamp block currently stored timestamp newest ongoing write request 
+incomplete write request indicated brick 
+write runs phases 
+order phase replicas update indicate new ongoing update ensure request older timestamp accepted 
+second write phase replicas update actual disk block 
+read request usually runs phase takes additional phases detects incomplete past write coordinator discovers value newest timestamp majority writes value back majority timestamp greater previous writes 
+protocol write request tries write bricks seggroup coordinator just wait replies 
+read recovery phase usually happens actual failure 
+shows example os algorithm 
+unusual feature protocol request may abort encounters concurrent request newer timestamp 
+case client coordinator retry 
+practice abortion rare protocols ntp synchronize coordinator code 
+proc write val ts send order ts bricks seggroup majority reply send write val ts bricks seggroup majority reply return ok return aborted proc read send read bricks seggroup majority reply timestamps equal return val reply 
+ts slow recover path starts send order ts bricks seggroup majority reply val value highest replies send write val ts bricks seggroup majority reply return val return aborted storage handler code 
+variable val stores block contents 
+receive read status reply status val receive order targets ts status ts max status ts targets block targets reply val status reply status receive write newval ts status ts ts status val newval ts reply status fab replication algorithm single logical block 
+function generates locally monotonically increasing timestamp combining real time clock value brick id tie breaker 
+clocks sub millisecond precision 
+able abort requests offers benefits 
+allows efficient protocol read request complete single round opposed previous algorithms skipping round discover latest timestamp 
+second abortion enables strict linearizability aborting requests algorithm properly linearize requests coordinators crash middle 
+theoretical treatment issue appears separate papers 
+erasure coding fab supports generic reed solomon erasure coding 
+reed solomon codes characteristics 
+generate parity blocks data blocks reconstruct original data blocks blocks 
+second provide simple function call delta enables incremental update parity blocks 
+function writing logical block new value parity block computed xor old parity delta old new old parity block value old new old new values block shows data access algorithm erasure coded volumes 
+supporting erasure coded data requires key changes basic replication protocol segment layout quorum size update logging 
+currently entire segment erasure code chunk shown typical raid systems smaller chunk sizes kb 
+chose layout lets large logical sequential request translated large sequential replicas coordinators order failure free execution write read order recovery coordinator failure write read timeline order write logical block replicated bricks steps coordinator writes block rounds 
+coordinator reads discovers timestamps consistent finishes practice reads block value replica section 
+steps show write needs rounds 
+tries write crashes sending write trying read discovers partial write observing discovers newest value step writes back majority fact step requests read value 
+different scenario contact step find write back old value 
+causes problem write fails client assume outcome 
+seggroup mb mb logical volume data brick mb data brick parity brick strip example erasure coded segment 
+erasure coding scheme splits segment equal size chunks adds parity chunks 
+horizontal block size height slice called strip 
+bricks seggroup maintain set timestamps update log strip 
+example kb logical block rd strip segment occupy regions kb kb kb kb segment 
+disk brick 
+downside may abort writes spuriously blocks happen strip updated concurrently 
+database transaction workload section conflict rate measured consider benefits outweigh 
+replication request contacts subset bricks store segment 
+erasure coding coordinator collect replies bricks intersection quorums contain bricks able reconstruct strip value read 
+call quorum system quorum 
+instance quorum size erasure code erasure code 
+final change involves need strip recovery 
+suppose write coordinator crashes writing new value bricks second round 
+subsequent read request recover old value impossible write request simply blocks common setting 
+solve situation update logging storage brick merely logs new value second round write 
+read request recovering old value scans log quorum bricks finds newest strip value fully reconstructed 
+write coordinator replies client instructs bricks overwrite old block value compress log asynchronous commit phase 
+practice log implemented brick nvram cache third round replacing block value log entry performed simply modifying cache coordinator code 
+idx block number strip 
+proc write val idx ts send order idx ts bricks seggroup quorum reply idx th brick replies oldval delta delta oldval val idx send write ec val ts idx th brick 
+send write ec null ts data bricks 
+send write ec delta ts parity bricks quorum reply send commit ts bricks seggroup return ok return aborted proc read idx send read bricks seggroup quorum idx reply timestamps equal return val returned idx th brick 
+ts slow recovery path begins send order ts bricks seggroup ts pick largest timestamp appears replies 
+strip reconstruct original strip ts send write strip ts th brick seggroup quorum returns send commit ts bricks seggroup return strip idx return aborted storage handler code receive write ec newval ts status ts ts status brick parity add xor newval val ts log 
+elseif newval null add newval ts log 
+add val ts log reply status receive order ts status ts max reply status log entries receive commit ts wait reject requests stale timestamps 
+log entry ts val associated log value 
+remove log entries timestamps ts smaller 
+erasure coding algorithm single strip 
+procedure write invoked coordinator write idx th block strip 
+procedure read reads idx th block strip 
+index 
+logging create additional disk memory copying traffic common case brick fails request processing 
+reducing overhead timestamp management challenge fab timestamp management overhead tb data byte timestamps recorded block gb space required timestamps 
+information kept persistently amount nvram infeasible 
+employ techniques reduce overhead timestamp management 
+observe timestamps disambiguate concurrent updates recover previous failures 
+replicas logical block functional timestamps discarded acknowledged update 
+replies client soon majority replicas acknowledged update 
+coordinator background sends gc garbage collect message bricks bricks seggroup reply erasure coded volumes message piggy backed commit message possible 
+recipient message removes corresponding entry timestamp table waiting short period seconds just long detect order requests older timestamps 
+period conservatively chosen larger maximum clock skew plus maximum possible scheduling delay brick 
+improvement observing single write request usually updates multiple blocks blocks affected timestamp 
+organize timestamp table ordered tree set timestamps kept range blocks block 
+new request arrives part existing range timestamp table split range replace part overwritten new request 
+combination techniques reduce timestamp overhead substantially 
+non failure case brick needs keep timestamps blocks actively updated 
+steadystate size timestamp table brick measured kb easily kept nvram 
+brick fails timestamps need kept reconfiguration protocol removes segment group usually hour section 
+simulation results real workloads show timestamp table size increases mb brick hour brick failure 
+extremely number timestamps exceed brick store memory 
+improving efficiency voting criticisms majority voting inefficiency read requests contact multiple remote nodes 
+problem apply fab reasons 
+apply optimistic read technique common case scenario reading logical block consistent 
+coordinator reads actual block contents val idle live replica reads timestamps quorum 
+technique effect reduces number disk accesses read request timestamps kept nvram 
+second fab naturally disk bound system cpu spends time waiting disk os complete cpu overhead timestamp processing slow system 
+handling coordinator failures coordinator fails client connect different coordinator retry 
+enterprise class storage clients fail capability 
+fab strict linearizability guarantee client fail quickly wishes fact allows single client multiple coordinators concurrently round robin fashion 
+
+reconfiguration fab reconfiguration protocol changes quorum configuration segment groups 
+activated example brick failure recovery addition detected 
+protocol data access protocol complement data access protocol enables transparent masking failures slow bricks reconfiguration protocol enables longterm improvement system reliability allowing system tolerate failures possible fixed quorum algorithm 
+example shows way replicated seggroup handle failures time reconfiguration protocol 
+protocol runs independently seggroup system 
+list live bricks agreed members quorums dynamic voting crashes sync ensure blocks written old view written crashes dynamic voting recovers joins sync needed quorum contained ensure values written old view written reconfiguration example 
+seggroup initially replicates data bricks witnesses participating view transition 
+top set active quorums formed moment shown 
+crash able form singleton view help witnesses 
+recovers added ensure store values written seggroup removing old view 
+seggroup form view view changes read write requests happen view contact quorum bricks view 
+overviews reconfiguration protocol 
+view agreement protocol lets bricks agree new view brick failure addition step 
+new view superposed existing view step forcing new requests collect replies quorum old new views 
+old view removed ensuring values written old view written quorum bricks new view state synchronization steps 
+rare event views formed short period removed fifo order 
+decoupling view formation state synchronization foreground request processing fab allows client requests processed 
+sections describe steps detail 
+view agreement dynamic voting fab view agreement protocol lets bricks seggroup agree single sequence primary views ensures disjoint concurrent views split brain situation happen 
+dynamic voting protocol similar paxos optimized view agreement purpose 
+participants dynamic voting protocol set bricks store blocks seggroup plus additional witness bricks participate view agreement protocol witnesses chosen randomly seggroup created 
+witnesses allow seggroup transition views safely particular storage bricks view 
+phrase vote view refer extended set bricks distinguish view subset contains storage bricks 
+protocol consists phases 
+brick detects failure recovery brick leader computes new candidate vote view 
+fab uses round membership protocol settles new view quickly alternatives pairwise heartbeats 
+rest protocol ensures candidate view ensures global total order 
+done having brick keep list ambiguous views attempted fully formed 
+second phase leader proposes candidate view caution dynamic voting protocol unrelated fab voting data access protocols 
+members 
+recipient accepts view majority current view ambiguous views 
+recipient adds candidate view ambiguous view list 
+receiving acceptance bricks candidate view leader sends message update current view empty ambiguous views lists 
+leader participant dies process brick leader re runs protocol 
+logical block synchronization just forming new view sufficient ensure consistent accesses volumes 
+removing old view bricks perform state synchronization 
+consider seggroup replicated bricks witnesses immaterial scenario 
+initial view contains bricks 
+write request completes storing value bricks 
+bricks fail simultaneously new view formed 
+value written majority new view old view discarded 
+read request contact shows basic state synchronization algorithm due space constraints show replicated volumes 
+protocol resembles recovery read runs incomplete write difference leaves unchanged phase operation need linearized 
+change avoids aborting new requests clients 
+state synchronization finishes reconfiguration leader sends message bricks discard old view 
+reconfiguration leader dies state synchronization brick restart view agreement protocol 
+blocks synchronized leader need re synchronized total amount synchronization needed failure stays constant protocol restarts 
+coordinator learns list active views seggroup initially assuming bricks seggroup alive 
+storage brick notices coordinator knowledge views stale piggybacks view list reply 
+coordinator updates active view list transitively receives replies request quorum view list 
+streamlining synchronization basic algorithm described far fact vastly optimized common situations 
+describe techniques fab 
+exploiting quorum containment property quorum containment happens quorum old view superset quorum new view 
+skip block synchronization altogether condition satisfied 
+happens particular brick fails brick view exemplified step 
+embedding respondents timestamp table piggyback additional information optional third background phase write request section storage brick remember set bricks successfully executed second write phase 
+set stored timestamp table line timestamps block 
+information distinguish blocks times proc synchronize newview blocks foreach block blocks send block bricks wait quorum reply maxval pick maximum corresponding value replies pick maximum replies 
+send block maxval bricks newview wait quorum newview reply 
+proc send bricks wait quorum reply return union blocks replies receive block return val block receive newval val newval receive return block numbers timestamp table seggroup 
+state synchronization view change 
+protocol runs independently segment group system 
+table need synchronized old view removed called blocks blocks wait may blocks 
+specifically phase brick returns block quorum new view 
+set quorum superset new view block returned may may block synchronized bricks remove entries timestamp tables section 
+block need synchronized 
+technique allows system remove old view quickly synchronize may blocks speed 
+examine effect technique section 
+handling permanent changes mechanisms described previous section remove bricks permanently add bricks system 
+handle events system administrator chooses random brick reconfiguration leader informs failed brick hope recovering 
+affected seggroup leader runs dynamic voting protocol creates new view excludes dead brick adds new brick 
+old view removed leader issues paxos update change seggroup entry global metadata 
+newly added brick performs seggroup synchronization copying block just timestamp tables 
+
+choosing right redundancy schemes main trade offs replication erasure coding involve reliability capacity efficiency performance 
+compares expected mean time data loss cluster composed bricks tb capacity 
+order achieve goal years need bricks logical block replication 
+primary reasons system requires high degree replication failure prone commodity components size system 
+fab years replication replication erasure coding logical capacity tb mean time data loss storage systems way replication way replication erasure coding 
+way replication adequate small systems drops rapidly system size grows 
+way replication erasure coding similar lines superposed 
+provide adequate reliability commercial 
+system tb logical capacity bricks number combinations brick failures lead data loss increases number bricks 
+erasure coding gain higher capacity efficiency replication erasure coding provides reliability similar way replication 
+example system erasure coding provides similar reliability way replication uses raw capacity way replication 
+capacity efficiency erasure coding systems comes cost performance main reasons 
+reed solomon encoding decoding consumes cpu cycles 
+second fewer disk spindles logical capacity 
+third small strip write engenders disk os erasure coding opposed os comparable way replication 
+fourth request collect replies quorum latency determined slowest bricks quorum 
+quantify erasure coding overhead section 
+
+evaluation implemented fab linux 
+prototype consists lines code lines core replication erasure coding reconfiguration protocols 
+global metadata tables implemented memory tables backed berkeley db 
+emulate nvram memory mapped file 
+simulated nvram purposes timestamp table section write back buffer cache 
+buffer cache size set mb 
+fab user space single threaded program 
+uses non blocking poll scsi generic driver multiplex low level network disk requests 
+design control resource usage precisely say kernel threads 
+particular run lottery scheduler disk request queue management ensure potentially bursty state synchronization traffic uses fraction disk throughput 
+hardware fab disk bound ensuring fair share accesses disks suffices ensure fair share different classes traffic 
+examine effect mechanism section 
+system configurations cluster pcs bricks 
+machine equipped ghz pentium cpus gb memory seagate cheetah gb scsi disks rpm ms average seek time intel gigabit ethernet interfaces 
+run debian linux kernel 
+brick gb disk host linux file system remaining gb cpu brick actively evaluation fab single threaded 
+fab data 
+machines fab bricks additional machines generate workloads 
+application performance examine fab baseline performance running applications single client different storage platforms 
+run benchmark consists phases linux source code mb size target ext file system bulk write tar files back local file system bulk read compile linux target file system mix computation reads writes 
+exclude effect client side buffer cache target volume step latency included numbers 
+table shows results 
+performance fab way replication comparable iscsi raw disk proving fab extra protocol processing adds marginal overhead performance 
+erasure coded volumes slower replication reasons discussed section 
+code slower code cost erasure encoding decoding raid code simple bitwise xor code involves gf arithmetic requires multiple table lookups byte 
+hardware encoding decoding kb erasure coded blocks consumes cpu time 
+bulk reading tar iscsi significantly slower local disks 
+believe iscsi client linux cisco iscsi initiator prefetch data aggressively keep reading disks sequentially 
+tar compile local disk local raid iscsi raw disk fab way repl 
+fab erasure code fab erasure code fab way repl cache table latency application programs 
+numbers average runs 
+local disk local raid disks locally attached client 
+iscsi raw disk uses remote iscsi server accessing local raw disk 
+fab accesses data fab iscsi gateway 
+fab cache shows fab nvram buffer cache turned 
+scalability study fab throughput grows size ran types synthetic workloads real world applications exert stress fab 
+workload db modeled spc simulates database transaction workload 
+db uses volumes 
+data volumes receive uniformly random database kb reads writes 
+third volume size receives sequential log writes size kb kb 
+db issues requests read write ratio average size kb 
+scaled total logical volume size gb number bricks cluster brick cluster data volumes gb primary difference db spc spc defines open queue workload fixed request arrival rate 
+db changes run closed queue zero think time stress system 
+throughput mb second number bricks aggregate throughput fab clusters db workload 
+means way replication means erasure coding 
+throughput mb second number bricks throughput fab random large read write workload 
+numbers parentheses show redundancy policy 
+log volume gb 
+workloads random kb read write requests volume size 
+request size kb taken spc proposed data mining video demand workloads 
+workload generated total threads running closed queue zero think time client machines 
+figures show results 
+expected fab throughput scales linearly cluster size 
+exception kb random reads hit ceiling due capacity limits ethernet switches 
+erasure coded volumes sustain lower throughput replicated counterparts reasons discussed section 
+performance decoupling section compares replication protocol protocol traditional method replicating data network 
+built variation fab runs protocol similar petal 
+protocol dynamic voting protocol bricks agree single master seggroup 
+coordinator forwards request master 
+read requests master simply reads local disk returns data coordinator 
+write requests master broadcasts new value replicas current view waits replies returns control back coordinator 
+freed timestamp maintenance protocol far simpler fab shows throughput systems brick cluster way replication 
+interestingly db kb random write workloads fab outperforms master slave protocol 
+due performance decoupling effect voting protocols specifically fab ignore slow bricks collecting replies majority 
+performance decoupling especially effective disk bound system fab disk accesses especially nvram flushing generate bursty disk traffic slows brick short period time 
+performance decoupling effect visible especially smaller clusters single overloaded brick large im relative throughput number bricks db throughput master slave protocol way replication 
+fab protocol normalized 
+percentage fab fab milliseconds cdf request latency high load db workload 
+master slave protocol experiences high latency write requests 
+pact performance 
+hand read workloads master slave protocol slightly outperforms fab large cluster due simplicity offset fab ability read blocks idle bricks section 
+effects observed latency distribution shown 
+handling changes section studies fab handles changes system 
+start brick cluster way replication run db workload artificially introduce brick failures recoveries 
+shows throughput transition brick fails recovers minutes 
+brick failure causes reconfiguration protocol run causes bricks affected seggroup scan timestamp tables 
+cpu overhead timestamp table scan reason small drop throughput 
+state synchronization required seggroup affected failure bricks form new view consistent 
+system throughput decrease noticeably crash period db write intensive workload remaining brick handles amount write traffic request 
+recovery timestamp table scan happens 
+virtually blocks section write requests issued crash period affected seggroup written remaining form quorum new full view 
+old view removal happens nearly instantaneously recovery 
+synchronization may blocks copying blocks written crash period recovered block happens slowly background minutes due lottery scheduling 
+client visible error happens run 
+note current client software handle session termination gracefully experiments section set clients failed brick coordinators 
+contrast shows scenario master slave replication protocol 
+failure recovery throughput mb second crash recovery sync write read time minutes brick fails recovers brick fab cluster running way quorum replication protocol db workload 
+fab mask failure causing errors 
+throughput mb second crash recovery sync write read error time minutes brick fails recovers brick fab cluster running way master slave replication protocol 
+error marks show number megabytes errors encountered clients 
+throughput drops timestamp scanning write requests contain failed brick abort new view formed seconds 
+evident error marks graph 
+performance drop suppressed graph db workload generator initiate recovery activities device resetting database log recovery usually happen failures clients simply retry waiting second 
+shows double failure scenario fab quorum protocol 
+bricks fail minutes recover 
+second failure single seggroup system view size changes 
+causes requests seggroup abort new view formed quorum size brick view 
+recovery causes little disruption amount state needs synchronized doubles 
+minutes state synchronization finishes throughput restored back original level 
+shows fab reaction permanent failures 
+brick fails declared permanently dead minutes 
+seggroup includes dead brick brick replaces dead 
+newly added bricks need copy existing data consumes steady portion disk traffic 
+errors occur scenario 
+db running full speed picture takes hours fully bring new bricks date 
+foreground traffic disk synchronization finishes minutes 
+
+described design implementation evaluation fab 
+fab achieves key requirements enterprise storage systems stable continuous service high reliability errors second throughput mb second crash crash recovery recovery sync write read error time minutes handling double failures brick fab cluster 
+second failure causes error segment group contains failed bricks 
+new view settles segment groups continue handling requests remaining brick 
+throughput mb second crash reconfigure start sync write read time minutes brick fails minutes declared dead affected segment groups re balanced surviving bricks 
+ing new mechanisms 
+uses voting protocol guarantee linearizable accesses replicated erasure coded logical blocks 
+protocol transparently masks failures offers better throughput traditional master slave replication masking temporary overload conditions 
+second fab deploys dynamic quorum reconfiguration protocol allow system react brick additions disrupting clients 
+marcos aguilera ji beth craig soules john wilkes help input project 
+
+atul adya william bolosky miguel castro gerald john douceur jon howell jacob lorch marvin theimer roger wattenhofer 
+farsite federated available reliable storage incompletely trusted environment 
+th symp 
+op 
+sys 
+design impl 
+osdi pages boston ma usa december 
+marcos aguilera fr lund 
+strict linearizability power aborting 
+technical report hpl hp labs december 
+dave anderson john erik riedel 
+interface scsi vs ata 
+usenix conf 
+file storage technologies fast pages san francisco ca march 
+satoshi 
+reducing cost system administration disk storage system built commodity components 
+errors second phd thesis university california berkeley may 
+tech 
+report 
+ucb csd 
+attiya bar noy danny dolev 
+sharing memory robustly message passing systems 
+journal acm jacm 
+pei cao boon lin shivakumar venkataraman john wilkes 
+parallel raid architecture 
+acm trans 
+comp 
+sys 
+tocs 
+peter chen edward lee garth gibson randy katz david patterson 
+raid high performance reliable secondary storage 
+acm computing surveys 
+christian frank schmuck 
+agreeing processor group membership asynchronous distributed systems 
+technical report cse uc san diego 
+storage performance council 
+spc benchmark specification 
+www org 
+fr lund merchant saito spence veitch 
+fab enterprise storage systems 
+th workshop hot topics operating systems hotos viii pages kauai hi usa may 
+fr lund merchant yasushi saito susan spence alistair veitch 
+decentralized algorithm erasure coded virtual disks 
+int 
+conf 
+dependable systems networks dsn pages florence italy june 
+gregory ganger john strunk andrew 
+self storage brick storage automated administration 
+technical report cmu cs carnegie mellon university august 
+garth gibson david nagle khalil amiri jeff butler fay chang howard gobioff charles hardin erik riedel david jim zelenka 
+cost effective high bandwidth storage architecture 
+th int 
+conf 
+arch 
+support prog 
+lang 
+op 
+sys 
+asplos viii pages san jose ca usa october 
+david gifford 
+weighted voting replicated data 
+th symp 
+op 
+sys 
+principles sosp pages pacific grove ca usa december 
+douglas gilbert 
+linux scsi generic howto 
+www torque net sg sg ho html 
+garth goodson jay wylie gregory ganger michael reiter 
+efficient consistency erasure coded data versioning servers 
+technical report cmu cs carnegie mellon university april 
+maurice herlihy jeannette wing 
+linearizability correctness condition concurrent objects 
+acm trans 
+prog 
+lang 
+sys 
+toplas july 
+andy huang armando fox 
+self managing crash persistent hash table 
+stanford edu public projects 
+ibm 
+storage server internet age 
+www almaden ibm com cs 
+leslie lamport 
+part time parliament 
+acm trans 
+comp 
+sys 
+tocs 
+leslie lamport 
+paxos simple 
+acm sigact news december 
+edward lee thekkath 
+petal distributed virtual disks 
+th int 
+conf 
+arch 
+support prog 
+lang 
+op 
+sys 
+asplos vii pages cambridge ma usa october 
+lefthand networks 
+ip storage area networks 
+www com downloads ip san wp pdf 
+benjamin ling armando fox 
+session state soft state 
+st symp 
+network sys 
+design impl 
+nsdi pages san francisco ca usa march 
+barbara liskov shrira john wroclawski 
+efficient messages synchronized clocks 
+acm trans 
+comp 
+sys 
+tocs 
+esti lotem keidar danny dolev 
+dynamic voting consistent primary components 
+th symp 
+princ 
+distr 
+comp 
+podc pages santa barbara ca usa august 
+nancy lynch alex shvartsman 
+reconfigurable atomic memory service dynamic networks 
+th int 
+conf 
+dist computing disc pages toulouse france october 
+david mills 
+improved algorithms synchronizing computer network clocks 
+acm sigcomm pages london united kingdom september 
+brian oki barbara liskov 
+replication new primary copy method support highly available systems 
+th symp 
+princ 
+distr 
+comp 
+podc pages toronto canada august 
+james plank 
+tutorial reed solomon coding fault tolerance raid systems 
+software practice experience 
+sean patrik eaton dennis geels hakim weatherspoon ben zhao john kubiatowicz 
+pond oceanstore prototype 
+usenix conf 
+file storage technologies fast pages san francisco ca march 
+julian kalman meth constantine 
+rfc internet small computer systems interface iscsi 
+www faqs org rfcs rfc html 
+josh tseng kevin gibbons franco du joe souza 
+internet storage name service isns draft version 
+www com reading room standards html march 
+robbert van renesse yaron minsky mark hayden 
+gossip style failure detection service 
+ifip int 
+conf 
+dist sys 
+platforms open dist 
+middleware pages september 
+carl waldspurger william weihl 
+lottery scheduling flexible share resource management 
+st symp 
+op 
+sys 
+design impl 
+osdi pages monterey ca usa november 
+wool 
+quorum systems replicated databases science fiction 
+bull 
+ieee technical committee data engineering december 

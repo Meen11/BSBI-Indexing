@@ -1,0 +1,510 @@
+appears th symposium operating systems design implementation osd boston ma december farsite federated available reliable storage incompletely trusted environment atul adya william bolosky miguel castro gerald john douceur jon howell jacob lorch marvin theimer roger wattenhofer microsoft research redmond wa adya bolosky howell lorch theimer microsoft com 
+ethz ch farsite secure scalable file system logically functions centralized file server physically distributed set computers 
+farsite provides file availability reliability randomized replicated storage ensures secrecy file contents cryptographic techniques maintains integrity file directory data byzantine fault tolerant protocol designed scalable distributed hint mechanism delegation certificates pathname translations achieves performance locally caching file data lazily propagating file updates varying duration granularity content leases 
+report design farsite lessons learned implementing design 
+
+describes farsite serverless distributed file system logically functions centralized file server physical realization dispersed network desktop workstations 
+farsite intended provide benefits central file server shared namespace access reliable data storage benefits local desktop file systems low cost privacy resistance geographically localized faults 
+farsite replaces physical security server locked room virtual security cryptography randomized replication byzantine fault tolerance 
+farsite designed support typical desktop file workloads academic corporate environments highperformance scientific applications largescale write sharing database applications 
+requires minimal administrative effort initially configure practically central administration maintain 
+notable exceptions crash recovery interaction multiple byzantine fault tolerant groups nearly design describe implemented 
+traditionally file service workstations provided local file system ffs remote server file system nfs afs 
+server file systems provide shared namespace users offer greater file reliability local file systems better maintained superior quality highly components 
+servers afford greater physical security personal workstations offices 
+server systems carry direct cost equipment physical plant personnel sunk desktop infrastructure commonly modem companies institutions 
+server requires dedicated administrative staff competence reliability depends trustworthiness security depends 
+physically centralized servers vulnerable geographically localized faults store increasingly sensitive valuable information attractive concentrated targets subversion data theft contrast inherent decentralization desktop workstations 
+designing farsite goal harness collective resources loosely coupled insecure unreliable machines provide logically centralized secure reliable file storage service 
+system protects preserves file data directory metadata primarily techniques cryptography replication 
+file data large opaque system techniques encryption way hashing raw replication provide means ensure privacy integrity durability respectively 
+contrast directory metadata relatively small comprehensible revisable directly system maintained byzantine replicated state machines specialized cryptographic techniques permit syntax enforcement compromising privacy 
+farsite key design objectives provide benefits byzantine fault tolerance avoiding cost full byzantine agreement common case signed dated certificates cache authorization granted byzantine operations 
+farsite intended workload expected machine characteristics typically observed desktop machines academic corporate settings 
+workloads exhibit high access locality low persistent update rate pattern read write sharing usually sequential rarely concurrent :10.1.1.12.448
+expected machine characteristics include high fail rate just user turning machine low significant rate malicious subversion 
+design analysis evaluation discussion focus environment note corporate administrators choose supplement farsite reliability security adding machines system running entirely machines locked rooms 
+farsite requires central administration needed initially configure minimal system authenticate new users machines join system 
+administration mainly issue signing certificates machine certificates bind machines public keys user certificates bind users public keys namespace certificates bind namespace roots managing machines 
+initially signing namespace certificate subsequently signing certificates new machines users effort required central administrator 
+directions explored farsite design space chosen 
+farsite high speed parallel system sgi xfs efficiently support large scale write sharing files 
+farsite intended emulate behavior traditional local file system particular introduces new user visible semantics object model interface transactional support versioning file importance coda hooks application specific conflict resolvers support concurrent file updates disconnected operation 
+implemented design described 
+exceptions mainly relate scalability crash recovery section identified text term farsite design indicating mechanism designed implemented 
+section presents detailed overview system 
+section bulk describes mechanisms provide farsite key features 
+section describes prototype implementation 
+section presents analytical arguments show farsite design scalable presents empirical measurements show prototype performance acceptable 
+discuss section related section section 
+system overview section begins presenting assumptions technology trends underlie farsite design 
+introduces design explaining fundamental concept namespace roots describing trust model certification mechanisms outlining system architecture describing necessary semantic differences farsite local file system 
+design assumptions design assumptions stem fact farsite intended run desktop workstations large university 
+assume maximum scale machines dedicated servers interconnected high bandwidth low latency network topology ignored 
+machine availability assumed lower dedicated servers higher hosts internet specifically expect majority machines accessible majority time 
+assume machine generally uncorrelated permanent machine failures independent 
+farsite tolerates large scale read sharing small scale read write sharing assume files read users frequently updated user 
+empirical data corroborates set assumptions 
+assume small significant fraction users maliciously attempt destroy corrupt file data metadata reasonable assumption target environment unreasonably optimistic open internet 
+assume large fraction users may independently opportunistically attempt read file data metadata granted access 
+machine assumed control immediate user party malicious users subvert machines owned members party 
+assume local machine user trusted perform correctly user data persists user system reboot 
+assumption known false technique crypto paging employed commodity operating system including windows platform prototype 
+enabling technology trends technology trends fundamental rendering farsite design practical general increase unused disk capacity decrease computational cost cryptographic operations relative large fraction disk space desktop workstations unused disk capacity increasing faster rate disk usage 
+measurements desktop workstations microsoft showed disk space unused 
+measured unused portions 
+computation speed increased moore law cost cryptographic operations fallen relative cost operations file system 
+measured modem workstation symmetric encryption bandwidth mb way hashing bandwidth mb exceed disk bandwidth mb encrypting decrypting kb data adds roughly millisecond latency file read write path 
+computing rsa signature bit key takes milliseconds rotation time rpm disk 
+large amount unused disk capacity enables replication reliability relatively low cost strong cryptography enables distributed security 
+namespace roots primary construct established file system hierarchical directory namespace logical repository files 
+namespace hierarchy tree root 
+single namespace root collection machines form farsite system chosen allow flexibility multiple roots regarded name virtual file server collaboratively created participating machines 
+administrator creates namespace root simply specifying unique administrator root name designating set machines manage root 
+machines form byzantine fault tolerant group see subsection crucial select specially protected set machines manage root 
+trust certification security distributed system essentially issue managing trust 
+users need trust authority machines offer data metadata 
+machines need trust validity requests remote users modify file contents regions namespace 
+security components rely redundancy need trust apparently distinct set machines truly distinct single malicious machine pretending potentially devastating attack known sybil attack 
+farsite manages trust public key cryptographic certificates 
+certificate semantically meaningful data structure signed private key 
+principal types certificates namespace certificates user certificates machine certificates 
+namespace certificate associates root filesystem namespace set machines manage root metadata 
+user certificate associates user personal public key user identity validated access control 
+machine certificate associates machine public key establishing validity machine physically unique resource 
+trust bootstrapped fiat machines instructed accept authorization certificate validated particular public keys 
+corresponding private keys known certification authorities cas 
+consider central certification department generates public private key pair function ca 
+employee generates public private key pair ca signs certificate associating employee public key 
+small set machines ca generates public private key pairs embeds public keys namespace certificate designates machines managers namespace root 
+ca performs operations machine machine generate public private key pair sign certificate associating machine public key install machine certificate root namespace certificate machine instruct machine accept certificate signed ca 
+farsite certification model general paragraph suggests machine certificates signed directly cas signed users certificates designate authorized certify machines akin windows model domain administration 
+generalization allows separate responsibilities authenticating users machines hr departments 
+single machine participate multiple ca domains responsibility granted ca delegated machines authorized ca 
+machine private key stored machine 
+farsite design user private key encrypted symmetric key derived user password stored globally readable directory farsite accessed login 
+ca private keys kept entire security farsite installation rests secrecy 
+user machine keys revoked issuing ca standard techniques signed revocation lists periodically posted prominent highly replicated location 
+certificates include expiration date allows revocation lists garbage collected 
+system architecture high level overview farsite architecture simplified system subsequently introducing farsite key aspects 
+basic system machine farsite may perform roles client member directory group afi host initially ignore 
+client machine directly interacts user 
+directory group set machines collectively manage file information byzantine fault tolerant protocol member group stores replica information group receives client requests member processes requests deterministically updates replica sends replies client 
+byzantine protocol guarantees data consistency long fewer third machines misbehave 
+consider system includes clients directory group 
+moment imagine directory group manages file system data metadata storing redundantly machines group 
+client wishes read file sends message directory group replies contents requested file 
+client updates file sends update directory group 
+client tries open file client open directory group evaluates specified sharing semantics requested clients determine second client access 
+system enhancements described system provides reliability data integrity byzantine replication 
+may performance problems file system requests involve remote byzantine operations provide data privacy users physical access directory group members means enforce user access control consumes large amount storage space files replicated directory group member scale 
+farsite enhances basic system ways 
+adds local caching file content client improve read performance 
+farsite directory groups issue leases files clients granting access files specified period time client active lease cached copy file perform operations entirely locally 
+farsite delays pushing updates directory group file writes deleted overwritten shortly occur 
+protect user privacy provide read access control clients encrypt written file data public keys authorized readers directory group enforces write access control cryptographically validating requests users accepting updates 
+byzantine groups fail progress third members fail directory groups require high replication factor 
+vast majority file system data opaque file content offload storage content smaller number machines file hosts level indirection 
+keeping cryptographically secure hash content directory group putative file content returned file host validated directory group preventing file host corrupting data 
+farsite tolerate failure machine set file hosts allowing far lower replication factor lion share file system data 
+machines users join farsite system volume file system metadata grow 
+point storage operation load overwhelm directory group manages namespace 
+farsite design addresses problem allowing directory group delegate portion namespace directory group 
+specifically group randomly selects machines knows set machines instructs form new directory group 
+group collectively signs new namespace certificate delegating authority portion namespace newly formed group 
+group delegate portion region namespace 
+file system namespace forms hierarchical tree directory group delegate sub subtree subtree manages involving extant directory groups 
+enhanced system client wishes read file sends message directory group manages file metadata 
+group prove client authority directory presenting namespace certificate signed parent group certificate signed parent parent root namespace certificate signed ca client regards authoritative 
+group replies namespace certificates lease file way hash file contents list file hosts store encrypted replicas file 
+client retrieves replica file host validates contents way hash 
+user client machine read access file private key decrypt file 
+client updates file delay sends updated hash directory group 
+directory group verifies user permission write file instructs file hosts retrieve copies new data client 
+client tries open file client active lease directory group may need contact client see file group may recall lease satisfy new request 
+semantic differences despite goal emulating local file system closely possible performance behavioral issues occasionally motivated semantics farsite diverge 
+clients hold file open concurrently load consistency management querying possibly recalling leases excessive reducing system performance 
+prevent farsite design places hard limit number clients file open concurrent writing soft limit number file open concurrent reading 
+additional attempts open file writing fail sharing violation 
+additional attempts open file reading receive handle file receive handle snapshot file taken time open request 
+snapshot change reflect updates remote writers may stale 
+open snapshot handle prevent client opening file exclusive access real file handle 
+application query farsite client fmd snapshot handle true file handle part semantics 
+allow directory renamed open handle file directory descendents 
+system machines open handle file namespace semantics effectively prevent directory near root tree renamed 
+implement semantics name locking open file path 
+results directory rename operations propagated synchronously descendent directory groups rename operation unacceptably rename operation particularly directories near root namespace tree 
+propagated lazily immediately visible clients 
+windows applications register informed changes occur directories directory subtrees 
+notification specified best effort support issuing read leases 
+reasons scalability support notification single directories subtrees 
+
+file system features section describes mechanisms farsite key features include reliability availability security durability consistency scalability efficiency manageability 
+reliability availability farsite achieves reliability long term data persistence availability immediate accessibility file data requested mainly replication 
+directory metadata replicated members directory group file data replicated multiple file hosts 
+directory groups employ byzantine fault tolerant replication file hosts employ raw replication 
+redundantly storing file data farsite erasure coding scheme raw replication 
+chose part simpler part concerns additional latency introduced fragment reassembly erasure coded data file reads 
+empirical data suggests performance concerns overly pessimistic may revisit decision 
+file replication subsystem readily separable component architecture implementation straightforward replace decide 
+regard reliability replication guards permanent death individual machines including data loss failures head crashes explicit user 
+regard availability replication guards transient individual machines including system crashes network partitions explicit 
+directory group rd members metadata preserved accessible rd machines die 
+files replicated rf file hosts file data preserved accessible file host remains alive 
+farsite design machine unavailable extended period time functions migrate machines replicas file data directory metadata regenerate data metadata replacement machines 
+data lost permanently machines fail small time window permit regeneration 
+volume directory data smaller file data directory migration performed aggressively file host migration directory group member inaccessible short time members group select replacement randomly set accessible machines know 
+low availability machines definition smaller fraction time high availability machines state migrated machine accessible target migration machine 
+factors bias membership highly available machines introducing security impairing non randomness member selection 
+bias desirable byzantine agreement possible thirds replicas operational 
+increase light workload high availability machines compensated small decrease heavy file storage replication workload 
+farsite improves global file availability continuously relocating file replicas sustainable background rate 
+mean file uptime maximized achieving equitable distribution file availability low availability files degrade mean file uptime high availability files improve 
+farsite successively swaps machine locations replicas high availability files files progressively equalizes file availability 
+simulation experiments driven actual measurements desktop machine availability show farsite needs swap file replicas day compensate changes machine availability 
+file availability improved caching file data client disks 
+caches fixed size hold file content specified interval called cache retention period roughly week 
+security access control farsite uses different mechanisms enforce write read access controls 
+directory groups modify shared state byzantine fault tolerant protocol trust group incorrect update directory metadata 
+metadata includes access control list acl public keys users authorized writers directory files 
+client establishes cryptographically authenticated channels directory group members channel establishment protocol involves user private key authenticating messages channel originating specific user 
+directory group validates authorization user update request accepting update 
+single compromised directory group member inappropriately disclose information farsite enforces read access control strong cryptography described subsection 
+privacy file content user sensitive metadata meaning file directory names encrypted privacy 
+client creates new file randomly generates symmetric file key encrypts file 
+encrypts file key public keys authorized readers file stores file key encryptions file user corresponding private key decrypt file key file 
+level indirection need identify coalesce identical files see subsection encrypted different user keys client computes way hash block file hash key encrypting block 
+file key encrypt hashes encrypt file blocks directly 
+call technique convergent encryption identical file plaintext converges identical ciphertext irrespective user keys 
+performing encryption block level enables client write individual block having rewrite entire file 
+enables client read individual blocks having wait download entire file file host 
+prevent members directory group viewing file directory names encrypted clients sent group symmetric key encrypted public keys authorized directory readers stored directory metadata 
+prevent malicious client encrypting syntactically illegal name farsite design uses technique called exclusive encryption augments cryptosystem way guarantees decryption produce legal names matter bit string putative ciphertext 
+integrity long fewer third members directory group faulty malicious integrity directory metadata maintained tolerant protocol 
+integrity file data ensured computing merkle hash tree file data blocks storing copy tree file keeping copy root hash directory group manages file metadata 
+tree cost place file block update logarithmic linear file size 
+hash tree enables client validate file block logarithmic time waiting download entire file 
+time validate entire file linear file size log linear count internal hash nodes proportional count leaf content nodes 
+durability application creates modifies renames deletes file directory updates metadata committed client local disk byzantine operation directory group due high cost 
+updates written log coda compressed possible techniques removing matching create delete operation pairs 
+log pushed back directory group periodically lease recalled described subsection 
+client machines fully trusted directory group verifies legality log entry performing update operation specifies 
+client machine reboots crash needs send committed updates directory group group accept validly originating user 
+obvious ways accomplishing unacceptable private key signing committed update prohibitively expensive roughly disk seek time holding user private key client crash open security hole 
+contacting directory group client generates random authenticator key splits secret shares distributes members directory group 
+key stored client local disk unavailable attacker crash modulo lack crypto paging underlying operating system see subsection 
+key client signs committed update message authentication code mac 
+symmetric key macs faster public key signatures 
+recovering crash client sends mac directory group locally committed updates 
+single transaction group members batch set updates jointly reconstruct authenticator key validate batch updates discard key 
+key reconstructed updates accepted 
+recovery phase process implemented 
+modifying file creating renaming deleting affects file metadata file content 
+necessary update content atomically metadata may left inconsistent state crash file content 
+rare cases existing block overwritten new content logged metadata file updated partial write rolled forward log 
+client appends new block file content need logged sufficient atomically update file length content hash writing new block 
+crash leaves partially written block rolled backward empty block 
+consistency ultimate responsibility consistency file data directory metadata lies directory group manages file directory 
+temporary post hoc verifiable control client machines lease mechanism 
+classes leases farsite content leases name leases mode leases access leases 
+described subsections 
+data consistency content leases govern client machines currently control file content 
+content lease types read write read support single writer multi reader semantics 
+read lease assures client file data sees stale 
+read write lease client perform write operations local copy file 
+applications aware clients hold content leases 
+application opens file client requests content lease directory group manages file 
+application closes file client immediately cancel lease may soon need open file 
+client valid request new content lease client holds conflicting lease directory group recall lease client 
+client returns lease push logged updates directory group 
+group apply updates issuing new content lease client maintaining consistency 
+read write write write file sharing workstations usually sequential efficient ping pong leases clients alternate file accesses :10.1.1.12.448
+performance optimization farsite design includes mechanism similar sprite redirecting concurrent non read accesses single client machine 
+approach scalable farsite designed large scale write sharing 
+determined appropriate policy concurrent non read accesses switch lease ping pong single client serialization 
+content leases variable granularity lease may cover single file may cover entire directory files similar volume lease afs 
+directory groups may issue broader leases requested client clients conflicting accesses broader set files 
+clients fail disconnected may unable respond lease recall 
+prevent situation rendering file permanently inaccessible leases include expiration times 
+lease time varies depending type lease readonly leases longer read write leases observed degree sharing file 
+directory group treats lease expiration identically client closing file making updates 
+options handling lease expiration disconnected client pessimistic strategy close handles file drop logged updates may possible apply updates file modified client lease expires 
+save logged updates file changed apply re establishing communications directory group 
+may wish keep file handles open read access potentially stale data optimistically allow updates able apply 
+explored space implemented mechanisms 
+windows directory listing functions specified best effort support snapshot directory contents lease 
+described subsection number leases issued file limited performance reasons 
+namespace consistency shared file system namespaces commonly contain regions private particular users 
+allow clients modify regions having frequently contact directory group manages region farsite introduces concept name leases 
+name leases govern client machine currently control name directory namespace 
+type name lease different meanings depending directory file name exists extant name name lease client create file directory name 
+directory name exists name lease client create files subdirectories directory non extant name 
+dual meaning implies client uses name lease create new directory immediately create files subdirectories directory 
+rename file directory client obtain name lease target name 
+content leases name leases recalled client wants create name falls scope name lease issued client 
+discussion regarding expiration content leases applies name leases 
+
+windows file sharing semantics windows supports application level consistency providing explicit control file sharing semantics 
+application opens file specifies parameters access mode types access wants sharing mode types access willing concurrently allow 
+different access modes perspective distributed system distilled finer distinctions enforced locally client read access write access delete access 
+sharing modes read sharing write sharing delete sharing permit applications open file read access write access delete access respectively 
+example application tries open file read access mode open fail application file open read sharing mode 
+conversely application tries open file read sharing mode open fail application file open read access mode 
+support semantics farsite employs types mode leases read write delete exclude read exclude write exclude delete 
+client opens file farsite translates requested access share modes corresponding mode lease types access mode implies need corresponding mode lease lack sharing mode implies need corresponding exclude lease 
+example application opens file read access client request read mode lease open allows read sharing request exclude write exclude delete mode leases 
+directory group processes client open request determines issue requested leases conflicting extant mode leases file 
+contacts client clients hold conflicting mode leases see willing leases revoked downgraded may applications longer open handles file 
+mode lease conflicts obvious ones read conflicts exclude read write exclude write delete exclude delete 
+windows deletion semantics windows surprisingly complex deletion semantics file deleted opening marking deletion closing 
+may multiple handles open file file truly deleted handle deletion marked file closed 
+file marked deletion new handles may opened file application open delete access handle clear deletion mark canceling deletion permitting new handles file opened 
+support semantics farsite design employs types access leases public protected private 
+public access lease indicates lease holder file open 
+protected lease includes meaning public lease indicates client granted access contacting lease holder 
+private lease includes meaning protected lease indicates client access lease file 
+client opens file managing directory group checks see issued private protected access lease client 
+lease public lease forcing metadata described subsection issuing access lease new client 
+mark file deletion client obtain private protected access lease file 
+directory group receives different client request open file downgrading access lease public lease force metadata informing directory group client delete marked file 
+file marked directory group deny open request 
+client private access lease file guaranteed client open handle delete file entirely local operation 
+scalability farsite design uses main mechanisms keep node computation communication storage growing system size hint pathname translation delayed directory change notification 
+directory group overloaded rd rd members sign certificate delegates part namespace group 
+client attempts open file directory particular pathname needs determine group machines responsible name 
+basis mechanism contact successive directory groups responsible group 
+search begins group manages root namespace contacted group provides delegation certificate indicates group contact 
+basis approach clearly scale pathname translations require contacting root directory group 
+perform translations scalable fashion farsite design uses hint scheme tolerates corrupt directory group members group membership changes stale delegations client maintains cache pathnames mappings directory groups similar prefix tables sprite 
+client translates path finding longest matching prefix cache contacting indicated directory group 
+cases access locality common case contacted group manages pathname 
+group manages path prefix name replies delegation certificates client adds hint cache 
+group manage path prefix name informs client removes stale hint led incorrect group 
+cases client finds longest matching prefix repeats steps 
+signed delegation certificates part protocol requires byzantine operations 
+step removes old information adds new information pathname component translation terminates twice number components path translated 
+directory change notification windows mechanism allows applications register callbacks changes occur specified directory 
+archetypal example windows explorer registers notification directory currently displayed 
+windows specifies notification best effort farsite design supports delayed manner directory notification registered directory group packages complete directory information signs authenticate contents sends registered clients 
+transmission divided members directory group clients application level multicast 
+farsite clients automatically register notification user lists directory repeat listings need multiple remote requests 
+efficiency space efficiency file directory replication dramatically increase storage requirements system 
+room additional storage farsite reclaims space incidentally duplicated files workgroup shared documents multiple copies common applications 
+measurements desktop file systems microsoft show half occupied disk space reclaimed eliminating duplicates 
+farsite design detects files duplicate content storing file content hashes scalable distributed faulttolerant database 
+locates replicas identical files set file hosts coalesced windows single instance store 
+
+time efficiency performance mechanisms described designed part effect system performance 
+caching encrypted file content client disks improves file availability file read performance improved caching decrypted file content memory 
+farsite various lease mechanisms hint pathname translation reduce load directory groups eliminate latency network round trips 
+performance primary motivation limiting count leases file merkle trees data integrity mac logging metadata updates clients 
+addition farsite inserts delay creation update file replication new file content providing opportunity abort replication operation motivated superseded 
+majority file creations updates followed deletions updates shortly delay permits dramatic reduction network file replication traffic 
+manageability 
+local machine administration farsite requires little central administration users may occasionally need want perform administrative tasks hardware upgrades software upgrades backup private data 
+local file system upgrading machine hardware replacing disk replacing entire machine necessitates copying file system structure content old disk new 
+farsite file data metadata replicated machines reliability removing old disk old machine merely special case hardware failure 
+capacities file host directory group member machine functions migrated capacity client hint cache content cache gradually refill 
+users replace machines far frequently machines fail farsite reliability substantially improved providing users means indicate intention machine disk preemptive migration machine functions 
+address need upgrades bug fixes farsite supports interoperation machines running different versions software including major minor version numbers connection establishment messages 
+minor version changes ignored versions software send understand earlier major versions messages 
+backward compatibility permits users self pace upgrades suggestion model similar windows update 
+updated executables need sourced centrally signed private key public counterpart baked farsite code upgrades obtained machine running version farsite code 
+backup processes commonly purposes reliability archiving 
+farsite little need multiple line copies file independent machines reliable single extra copy backup tape quality rarely verified 
+archival purposes automatic online versioning valuable system addition manual line backup 
+users wish backup regions namespace existing backup utilities fme problems pollution local cache weakening privacy storing decrypted data tape 
+address problem exploit flag windows backup utilities indicate purpose opening files farsite respond flag locally caching file 
+second problem outside farsite domain addressed encrypting backup utility 
+
+autonomic system operation farsite distributed byzantine fault tolerant fashion 
+self administration tasks lazy follow ups scheduled client initiated operations continual background tasks performed periodically 
+details tasks file replication replica relocation directory migration namespace delegation duplicate file identification coalescing described section describe substrate semantic extensions conventional model byzantine fault tolerance timed byzantine operations byzantine 
+standard conception byzantine fault tolerant distributed systems operation initiated single machine performed byzantine replica group 
+modifies shared state group members returns result initiator 
+lazy periodic tasks replica relocation directory groups need initiate operations response timer response client request 
+complicated byzantine replicas perform operations lock step clocks group members perfectly synchronized 
+farsite supports timed byzantine operations mechanism byzantine replicated state includes member time values associated machines group 
+kth largest member time rz regarded group time 
+machine local time indicates timed operation performed invokes byzantine protocol update replicated member time machine local time 
+modifying member times update may change group time case group performs operations scheduled occur new group time 
+self administration tasks invert standard model byzantine fault tolerance directory group invokes operation instruction create file replica single remote machine sends reply back group 
+perform byzantine hint scheme byzantine operation updates replicated state enqueue request remote machine 
+members directory group acting individuals send hint messages remote machine suggesting invoke byzantine operation see directory group 
+machine invokes byzantine operation request dequeued returned invoking machine 
+hint messages staggered time common case member sends hint message remote machine dequeues request preventing members sending redundant hints 
+machine needs reply group invoking byzantine operation 
+
+implementation farsite implemented components user level service daemon kernel level driver 
+driver implements operations functionality performance necessitates placement kernel exporting file system interface interacting cache manager encrypting decrypting file content 
+functions implemented user level managing local file cache fetching files remote machines validating file content replicating relocating files issuing leases managing metadata executing byzantine fault tolerant protocol 
+windows native remote file system rdr srv pair file system drivers communicate cifs protocol 
+rdr lives driver provides general framework implementing network file systems 
+rdr accepts file system calls applications redirects network srv running machine communicates satisfy request 
+took advantage framework implementing farsite kernel driver 
+farsite mini redirector fmr accepts file system calls interacts farsite user level component uses local persistent store performs encryption decryption file read write paths 
+user level component called farsite local manager flm 
+control channel flms different machines communicate encrypted authenticated connection established top tcp 
+data channel encrypted file content retrieved machines cifs connection established rdr srv components machines 
+architecture illustrated fig 
+
+flm application application kernel cifs tcp fig 
+farsite components system context 
+evaluation subsections evaluate farsite scalability calculating expected central loads certification directory access path translation function system size evaluate farsite performance benchmarking prototype 
+scalability analysis farsite scalability target machines 
+scale potentially limited points centralization certification authorities root directory groups 
+farsite certification authorities sign certificates interactively processing verifications online 
+workload determined number private key signatures perform greater number verifications required 
+issues machine user certificates month lifetime system machines users ca sign certificates month 
+rsa private key signature takes ms cpu time total computational workload cpu hour month 
+load directory group categorized general classes direct load accesses updates metadata manages indirect load performing pathname translations directory groups manage directories lower hierarchy 
+farsite installation grows count client machines system concurrently access directory grows 
+count files directory independent system scale direct load bounded limiting number outstanding leases file see subsection distributing transmission directory change notifications see subsection applicationlevel multicast demonstrably efficient batch update processes 
+indirect load directory group due pathname translations heavily reduced hint caching mechanism described subsection 
+new client joins system file access contacts root directory group 
+machines mean lifetime year system machines see roughly new machines day placing trivial translation load root group initial requests 
+group responds delegation certificates client need contact root group 
+directory group delegation certificates expire issues new certificates expiration dates passes hierarchy clients 
+performance measurements performance evaluation configured farsite system ghz machines mb memory gb maxtor drives mbps intel nic interconnected cisco ws network switch 
+machines served file hosts members directory group machine served client 
+collected hour file system trace developer machine research group 
+trace collected am noon pdt september includes file system operations temporal frequency type breakdown closely representative file system workload machine working hours measured period 
+replayed trace farsite client machine comparison replayed local partition remote machine cifs 
+fig 
+shows cdfs operation timings experiments 
+operations short durations farsite faster primarily due shorter code path 
+nearly half operations category 
+remainder slowest operations farsite speed cifs 
+broke operation timings operation type types took time 
+farsite mean operation durations times long reads writes closes times long opens times long file attribute directory queries 
+entire trace farsite displayed times file latency 
+slowdown due making kernel user crossings fmr flm due untuned code 
+relative cifs farsite mean operation durations times long writes times long reads times long queries 
+farsite displayed times file latency cifs 
+operation timing milliseconds log scale farsite 
+farsite delay cifs fig 
+cdf trace replay operation timings table andrew benchmark timings seconds farsite evaluate farsite sensitivity network latency inserted second delay network transmissions 
+vast majority farsite operations performed entirely locally effect log scaled cdf merely stretch thin upper tail right nearly invisible fig 
+delay add farsite total file latency 
+primarily customary ran version andrew benchmark modified windows scaled orders magnitude 
+performs successive phases creating directories copying files listing metadata processing file content compiling file system code phase footprint gb 
+table shows total run times andrew benchmark results reflect realistic workload 
+particular farsite performs directory creation phase nearly twice fast largely inefficient creating batch millions directories 
+
+implemented farsite design significant components remain mainly concerned scalability namespace delegation distributed pathname translation directory change notification concerned crash recovery directory group membership change tom write repair 
+mechanism distributed duplicate detection operational integrated rest system 
+smaller components completed including exclusive encryption filenames serializing multiple writers single machine supporting lease expirations clients full support windows deletion semantics 
+farsite requires additional mechanisms developed designs 
+prevent single user consuming available space system need mechanism enforce user space quotas intent limit user storage space consumption amount proportional user machines storage space contribution expected proportionality constant near unity 
+second farsite relocates file replicas machines measured availability machines requires mechanism measure machine availability 
+farsite design assumptions mechanisms scalable decentralized fault tolerant secure making design demanding initially presume 
+
+related farsite history network file systems 
+nfs provides server file storage diskless clients 
+afs improves performance availability disk enabled workstations leases client side file caching 
+sprite clients prefix tables searching file namespace 
+coda replicates files multiple servers improve availability 
+xfs file system file storage service set trusted workstations frangipani file system running top petal distributed virtual disk 
+systems rely trusted machines decentralized systems xfs frangipani maintain client state proportional system size 
+important area distributed file systems research orthogonal farsite disconnected operation 
+coda ficus bayou systems researched area extensively farsite adopt established solution applicationspecific resolvers concurrent update conflicts 
+earlier networked file systems addressed aspects security 
+blaze cryptographic file system encrypts single user files client machine stores encrypted files server 
+bfs replaces single nfs server byzantine faulttolerant replica group 
+guarantees file privacy integrity consistency despite potentially malicious server placing trust client machines farsite requires user trust client machine directly 
+sfs constructs self certifying pathnames embedding hashes public keys file names defending read data compromised servers compromised networks 
+number distributed storage systems attempt address issue scalability 
+inspired peer topeer file sharing applications napster gnutella freenet storage systems cfs past employ scalable distributed algorithms routing storing data 
+widespread data distribution employed eternity service replication system archival intermemory erasure coding mechanism prevent data loss despite attack powerful adversaries pasis additionally employs secret sharing data security 
+oceanstore designed store world data bytes trans distributed byzantine fault tolerant replica groups provide consistency semantics 
+systems flat namespaces export file system interfaces exception oceanstore designed publishing archiving data interactively updating data 
+
+farsite scalable decentralized network file system loosely coupled collection insecure unreliable machines collaboratively establish virtual file server secure reliable 
+farsite provides shared namespace location transparent access reliable data storage central file server low cost decentralized security privacy desktop workstations 
+requires central administrative effort apart signing user machine certificates 
+farsite core architecture collection interacting byzantine fault tolerant replica groups arranged tree overlays file system namespace hierarchy 
+vast majority file system data opaque file content farsite maintains indirection pointers cryptographic checksums data part byzantine replicated state 
+actual content encrypted stored raw non byzantine replication architecture alternatively employ erasure coded replication improve storage efficiency 
+farsite designed support file workload desktop computers large 
+provides availability reliability replication privacy authentication cryptography integrity byzantine fault tolerance techniques consistency leases variable granularity duration scalability namespace delegation reasonable performance client caching pathname translation lazy update commit 
+large part farsite design careful synthesis techniques known systems security communities including replication tolerance cryptography certificates leases client caching secret sharing 
+developed new techniques address issues arisen farsite design convergent encryption permits identifying coalescing duplicate files encrypted different users keys 
+exclusive encryption enforces filename syntax maintaining filename privacy 
+scalable distributed fault tolerant database supports distributed duplicate file detection 
+novel combination secret sharing message authentication codes logging enable secure crash recovery 
+timed byzantine operations byzantine supplement conventional model byzantine fault tolerance permit directory groups perform autonomous maintenance functions 
+analysis suggests design able scale target machines 
+experiments demonstrate prototype provides tolerable performance relative local file system performs significantly better remote file access cifs 
+anderson dahlin neefe patterson roselli wang 
+serverless network file systems 
+th sosp dec 
+anderson eternity service crypt publishing sep oct 
+blahut theory practice error control codes addison wesley 
+baker hartman kupfer ousterhout 
+measurements distributed file system 
+th sosp oct 
+blaze cryptographic file system unix ist computer comm 
+security acm nov 
+bolosky douceur ely theimer feasibility serverless distributed file system deployed existing set desktop pcs sigmetrics acm jun 
+bolosky goebel douceur 
+single instance storage windows 
+th usenix windows system symposium aug 
+castro liskov practical byzantine fault tolerance rd osdi usenix feb 
+clarke sandberg wiley hong freenet distributed anonymous information storage retrieval system icsi workshop design issues anonymity jul 
+karger morris stoica wide area cooperative storage cfs sosp oct 
+douceur sybil attack st iptps mar 
+douceur adya bolosky simon theimer reclaiming space duplicate files serverless distributed file system icdcs jul 
+douceur bolosky large scale study file system contents sigmetrics may 
+douceur wattenhofer optimizing file availability secure serverless distributed file system th srds ieee oct 
+douceur adya benaloh bolosky yuval secure directory service exclusive encryption appear th acsac dec 
+gemmell schooler gray multicast file distribution tune download drop internet multimedia systems applications 
+gnutella wego com 
+goldberg yianilos archival intermemory international forum research technology advances digital libraries apr 
+gray 
+computers done th srds jan 
+gray reuter transaction concepts techniques 
+morgan kaufmann 
+howard kazar menees nichols satyanarayanan sidebotham west scale performance distributed file system tocs feb 
+kistler satyanarayanan 
+disconnected operation coda file system 
+tocs feb 
+kubiatowicz oceanstore architecture global scale persistent storage th asplos acm nov 
+lee thekkath 
+petal distributed virtual disks 
+th asplos oct 
+luby benchmark comparisons erasure codes www icsi berkeley edu luby erasure kaminsky witchel separating key management file system security sosp dec 
+shasha don trust file server th hotos may 
+mckusick joy leffler fabry 
+fast file system unix 
+tocs aug 
+menezes van oorschot vanstone 
+handbook applied cryptography 
+crc press 
+merkle protocols public key cryptosystems ieee symposium security privacy 
+microsoft file name conventions msdn apr 
+microsoft windows update com en asp napster www napster com 
+nemeth snyder hein unix system administration handbook prentice hall 
+ousterhout douglis nelson welch sprite network operating system ieee computer group magazine 
+pease shostak lamport reaching agreement presence faults jacm apr 
+guy page heidemann replication ficus distributed file systems ieee workshop management replicated data 
+rowstron druschel 
+storage management caching past large scale persistent peer topeer storage utility sosp oct 
+sandberg goldberg kleiman walsh lyon 
+design implementation sun network file system 
+summer 
+feeley hutchinson veitch deciding forget elephant file system th sosp dec 
+shafer enemy red herring jan 
+solomon russinovich inside microsoft windows third edition microsoft press 
+hu anderson peck scalability xfs file system usenix 
+terry theimer petersen demers managing update conflicts bayou weakly connected replicated storage system th sosp 
+thekkath mann lee 
+frangipani scalable distributed file system 
+th sosp dec 
+tompa woll share secret cheaters journal cryptology 
+abrams operator hell plan publishing apr 
+vogels 
+file system usage windows nt 
+th sosp dec 
+wylie strunk ganger khosla information storage systems ieee computer aug 
+yee tygar secure coprocessors electronic commerce applications usenix 
+

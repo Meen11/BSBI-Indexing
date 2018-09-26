@@ -1,0 +1,477 @@
+preemption adaptivity time published queue spin locks william scherer iii michael scott technical report department computer science university rochester rochester ny usa scherer scott cs rochester edu may proliferation multiprocessor servers multithreaded applications increased demand high performance synchronization 
+traditional scheduler locks incur overhead full context switch threads unacceptably slow applications 
+spin locks offer low overhead scale poorly large scale smps test set style locks behave poorly presence preemption queue locks 
+previous shown build preemption tolerant locks extended kernel interface locks portable compatible operating systems 
+propose time publishing heuristic thread periodically records current timestamp shared memory location 
+high resolution roughly synchronized clocks modern processors convention allows threads guess accurately peers active currency timestamps 
+implement locks mcs tp clh tp evaluate performance relative traditional spin locks preemption safe locks processor ibm multiprocessor 
+experimental results indicate time published locks feasible time queue spin locks multiprogrammed systems standard kernel interface 
+historically spin locks operating systems dedicated servers entire machine dedicated task locks protecting 
+fortunate spin locks typically don handle preemption thread holds lock suspended releasing processor time waiting threads wasted fruitless spinning 
+years seen marked trend multithreaded user level programs databases line servers 
+large multiprocessors increasingly shared supported part nsf numbers ccr eia ccr cns financial equipment sun microsystems laboratories ibm shared university research 
+multiple multithreaded programs 
+result modern applications general count specific number processors spawning thread processor suffice avoid preemption 
+multithreaded servers high cost context switches scheduler locking unattractive implementors increasingly turning spin locks gain performance 
+unfortunately solution comes hidden drawbacks queue locks highly vulnerable preemption test set locks scale modest number processors 
+heuristic strategies reduce wasted spinning time multiprogrammed systems usually rely non queue locks 
+goal combine efficiency scalability queue spin locks preemption tolerance scheduler approach 
+related approach avoiding excessive wait times locks called try locks thread times fails acquire lock specified patience interval 
+timeout prevents thread blocked preempted peer improve system wide throughput lock squarely application critical path 
+timeout sequence requires cooperation neighboring threads queue opens window preemption vulnerability 
+known approaches avoiding window result unbounded worst case space overhead high base time overhead 
+alternative approach adopt nonblocking synchronization eliminating locks 
+unfortunately excellent nonblocking implementations exist important data structures room cite general purpose mechanisms remain elusive 
+groups including working topic nonblocking synchronization displace locks entirely soon :10.1.1.5.9270
+researchers suggested operating system mechanisms provide user applications limited degree control scheduling allowing avoid recover preemption :10.1.1.13.9310:10.1.1.119.4904
+commercial support mechanisms universal consistent 
+assuming locks remain important systems provide os level solution hope leverage fairness scalability queue spin locks multithreaded user level programs 
+answer question new queue spin locks combine fair scalable performance preemption tolerance mcs time published lock mcs tp clh time published clh tp lock 
+context term time published mean contending threads periodically write wall clock timestamp shared memory order able estimate runtime states 
+particular low overhead hardware timer bounded skew processors memory bus handles requests bounded time typically available modern multiprocessors guess high accuracy thread preempted current system time exceeds thread latest timestamp appropriate threshold 
+ability selectively pass lock active threads 
+doesn solve preemption problem completely threads preempted holding lock heuristic suffers race condition read value just written thread immediately preempted experimental results sections confirm approach suffices lock mcs tp clh tp link structure queue linked head tail queue linked tail head lock handoff lock holder explicitly lock lock holder marks lock available waiter leaves queue claims lock timeout preci strict adherence patience bounded delay removing preempted predecessors queue lock holder removes timed concurrent removal waiting management preempted nodes handoff threads space semi dynamic allocation may rein dynamic allocation separate node management habit abandoned nodes removed queue acquisition attempt comparison mcs clh time published locks 
+locks preemption adaptive free practice virtually preemption induced performance loss 
+algorithms section presenting common features time published tp locks sections cover algorithm specific details 
+tp locks variants known mcs clh queue spin locks 
+acquire functions return success failure indicate thread acquired lock patience interval specified parameter 
+locks maintain linked list queue head node corresponds thread holds lock 
+queue locks ways preemption interfere throughput 
+lock thread preempted critical section block competitors 
+second thread preempted waiting queue block reaches head strict fifo ordering generally disadvantage face preemption 
+third timeout protocol requires explicit handshaking neighboring threads block timed thread neighbors active 
+third case avoided nonblocking timeout protocols guarantee waiting thread abandon acquisition attempt bounded number time steps 
+address remaining cases timestamp heuristic 
+waiting thread periodically writes current system time shared location 
+thread finds stale timestamp thread assumes preempted removes node queue 
+time fails acquire lock checks critical section entry time recorded current lock holder 
+time sufficiently far past farther longest plausible critical section time exact value critical yields processor hope suspended lock holder resume 
+wide design space time published locks begun explore 
+initial algorithms described subsections designed fast common case timeout uncommon 
+reflect attempt adopt straightforward strategies consistent head tail tail head linking mcs clh locks respectively 
+strategies summarized 
+time space bounds considered appendix new attempt rejoin queue position new attempt waiting lock holder passes lock available lock holder sees inactive time removed driven self driven lock holder critical section attempt failed left lock holder removes node queue 
+abort acquisition attempt removed path reusing space state transitions mcs tp queue nodes 
+mcs time published lock algorithm adapted mellor crummey scott mcs lock 
+original mcs algorithm contending thread atomically swaps pointer queue node queue tail 
+swap returns nil acquired lock return value predecessor updates pointer spins explicitly changes state 
+release lock reads pointer find successor node 
+successor atomically updates queue tail pointer 
+mcs tp lock uses head tail linking mcs adds additional states left 
+waiting thread times acquiring lock marks node left returns leaving node queue 
+node reaches head queue appears owned preempted thread stale timestamp lock holder marks removed follows pointer find new candidate lock recipient repeating necessary 
+shows state transitions mcs tp queue nodes 
+source code appendix mcs tp algorithm allows thread node lock 
+thread calls acquire finds node reverts state resuming place line 
+begins fresh attempt tail queue 
+threads timeout retry indistinguishable execution thread waiting 
+guarantee bounded time lock handoff avoid pathological case waiting threads repeatedly time nodes removed rejoin queue time obtaining lock 
+scenario lock holder see endless treadmill abandoned nodes able release lock 
+arrange lock holder remove abandoned nodes encounters scans list reaches finds viable successor 
+mark scanned nodes removed 
+scanned node owner comes back waiting marked removed eventually see removed state quit failed attempt 
+skipped nodes owners reclaim existing bypassed spots line length queue bounded total number threads process guaranteed terminate steps 
+practice observed worst case lock holders typically find viable successor nodes 
+new attempt waiting transient driven self holding left removed return success critical section available return failure finish critical section reclaimed driven successor reclaimed reclaimed return failure state transitions clh tp queue nodes 
+clh time published lock second time published lock clh lock craig landin 
+original clh lock mcs contending thread atomically swaps pointer queue node queue tail 
+swap returns pointer node inserted predecessor time dummy node created initialization time 
+updates prev pointer spins state available 
+note contrast mcs links point tail queue head thread spins node inserted predecessor 
+release lock thread marks node takes node inserted predecessor acquisition attempt 
+thread choose location going spin clh lock requires cache coherent hardware order bound contention inducing remote memory operations 
+clh tp retains link structure clh lock adds non blocking timeout removal nodes inserted preempted threads 
+mcs tp clh tp allows thread remove node inserted preempted predecessor removal reserved lock holder 
+middle queue removal adds significant complexity clh tp experience earlier locks suggests difficult add mcs tp 
+source code clh tp lock appendix control flow graph lock acquisition 
+low order bits clh tp node prev pointer store node state allowing modify state pointer atomically 
+prev valid pointer lowest order bits specify states waiting transient 
+alternatively prev nil pointer low order bits set indicate states available holding 
+shows state transition diagram clh tp queue nodes 
+lock acquisition attempt thread dynamically allocates new node links predecessor 
+waiting handles events 
+simplest occurs state changes atomically updates state claim lock 
+int cas waiting node volatile addr unsigned long unsigned long node volatile unsigned long tmp ll addr needed add member barrier ensure read order addr tmp waiting return sc addr return conditional updates clh tp second event occurs believes preempted timed 
+performs step removal sequence unlink node queue 
+atomically changes state prevent acquiring lock reclaiming reusing removed queue successor 
+second removes queue simultaneously verifying state prev pointer state share word single compare swap 
+longer visible threads queue spins predecessor node 
+marks safe reclamation changing state 
+third event occurs times notices 
+case attempts atomically change state 
+attempt compare swap succeeds delegated responsibility reclamation successor 
+removed queue reclaim node 
+cases whichever successor notice removed queue handles memory reclamation simplifies memory management 
+corner case occurs marks transient successor thread removes queue 
+case leaves clean recognizes case finding 
+need state derives race condition decides remove queue preempted doing 
+running successor may remove queue may reuse node queue 
+resumes running ensure modify new instance transient state allows update state verify single atomic operation 
+custom atomic construction shown implements operation assuming availability load linked store conditional 
+removed modifying reads state changes value read state changed 
+changed store conditional force 
+alternative solutions rely tracing garbage collector decline recycle long manual tracking methodologies 
+scheduling preemption tp locks publish timestamps enable heuristic guesses lock holder waiting thread preempted 
+heuristic admits race condition thread timestamp polled just 
+case poller mistakenly assume thread active 
+practice see section timing window narrow noticeable impact performance 
+instructive consider modified tp locks stronger scheduler interface completely eliminate preemption vulnerabilities 
+extending previous distinguish levels apis user level feedback kernel scheduler implementation critical section protection csp apis bracket block code request thread preempted executing 
+ii runtime state check apis allow inquiries thread currently preempted 
+iii directed preemption avoidance threads ask scheduler preempt 
+commercial operating systems including aix provide level apis 
+level ii iii apis generally confined research systems :10.1.1.13.9310:10.1.1.119.4904
+mach scheduler provides variant level iii api includes directed yield processor specified thread 
+test set tas locks preemption safe variants need level api avoid preemption critical section lock holder 
+comparison thread contending non queue lock sensitive preemption additional timing windows windows addressed preemption adaptivity mcs tp clh tp locks 
+window occurs swapping node queue tail connecting links remainder queue 
+second occurs thread granted lock starts lock 
+say lock preemption safe provably prevents timing windows 
+previous proposed algorithms preemption safe mcs variants handshaking locks 
+require level api prevent preemption critical section linking window described 
+second lock passing window lock holder handshaking lock exchanges messages successor confirm invoked level api 
+practice transaction undesirably high overhead additional remote coherence misses critical path employs level ii iii apis replace 
+characterize preemption safety handshaking lock heuristic sense thread guesses status successor speed response may err side withholding lock example successor processor momentarily busy handling interrupt 
+contrast preemption safety lock precise 
+mcs tp lock uses way handoff transaction similar simpler faster handshaking lock 
+reduced communication lock preemption safe level api 
+contrast preemption safe clh variant built efficiently clh tp lock 
+tail head direction linking eliminates preemption window 
+second readily addressed thread invokes level api sees lock available updating state grab lock 
+lock holder lock preempted thread active waiter remove inactive nodes queue head get lock 
+call clock clh csp critical section protection 
+handshaking lock heuristically preemption safe 
+precise preemption safety level ii api preemption monitoring clh pm 
+note tas locks require level api precise preemption safety 
+properties various lock variants summarized 
+differences table lists minimum requirements nb pa ps capabilities implementations 
+handshaking locks 
+csp indicates level api critical section protection pm indicates preemption monitoring level ii api try indicates lock 
+nb non blocking pa preemption adaptive ps preemption safe unnecessary 
+support tas mcs clh atomic instructions pa nb try tas yield standard lock mcs standard lock clh nb timeout algorithms nb try mcs nb nb try clh nb tp algorithms pa nb try mcs tp pa nb try clh tp level api precise ps tas csp heuristic ps heuristic ps clh csp handshaking level ii api precise ps clh pm level iii api precise ps families locks 
+families tas mcs clh stem mainly style lock transfer 
+tas locks opportunity acquire available lock extended 
+mcs locks current lock holder determine lock holder 
+clh locks waiting threads pass preempted peers grab available lock bypass active peers 
+microbenchmark results test tp locks ibm multiprocessor 
+comparison purposes include range user level spin locks tas mcs clh mcs nb clh nb 
+tas test test set lock tuned randomized exponential backoff 
+mcs nb clh nb queue locks non blocking timeout 
+test yield variants lock threads yield processors exceeding wait threshold 
+test preemption safe locks dependent scheduling control apis clh csp tas csp handshaking clh pm 
+tas csp clh csp tas clh locks augmented critical section protection level api discussed section 
+handshaking lock uses csp 
+clh pm adds level ii preemption monitoring api assess preemptive state threads 
+lock uses api levels 
+ghz power processors running aix 
+aix provides scheduling control apis implemented synthetic scheduler similar 
+scheduler runs dedicated processor sends unix signals threads processors mark ms quantum 
+receiving thread preemptable thread signal handler spins idle loop simulate execution compute bound thread application preemption deferred thread preemptable 
+synthetic scheduler implements levels scheduling control apis 
+microbenchmark application thread repeatedly attempt acquire lock 
+simulate critical sections cs updating variable number cache lines simulate noncritical sections ncs varying time spent spinning idle loop acquisitions 
+measure total throughput lock acquisitions count successful unsuccessful acquisition attempts threads second averaging results runs 
+locks retry unsuccessful acquisitions immediately executing non critical section 
+fixed patience 
+single thread performance results 
+user level locks cache line update critical section cs non critical section ncs 
+critical section service time left success rate right single thread performance low overhead crucial locks real systems assess measuring throughput absent contention thread empty critical non critical sections 
+organize results lock family 
+expected tas variants efficient thread absent contention 
+mcs nb compare swap base mcs lock appears single thread overhead 
+similarly differences locks trace back operations methods 
+note time publishing functionality adds little overhead locks 
+single thread atomic update takes ns 
+adding additional threads introduces delays memory processor interconnect bus traffic contention cache coherence overhead transferring cache line processors 
+measured overheads atomic update ns threads 
+comparison user level locks high contention serialization critical sections causes application performance depend primarily overhead handing lock thread overheads typically subsumed waiting 
+typical configurations critical non critical section lengths 
+user level locks cache line cs ncs 
+critical section service time left success rate right configuration simulates contention small critical section cache critical section non critical section 
+plots performance userlevel locks generic kernel interface scheduler control api 
+threads machine size queue locks outperform tas tp tas locks maintain throughput presence preemption 
+mcs tp overhead increases number preempted threads relies lock holder remove nodes 
+contrast clh tp distributes cleanup active threads keeps throughput steady 
+right hand graph shows percentage successful lock acquisition attempts locks 
+mcs tp increasing handoff time forces success rate clh tp thread count increases 
+clh nb mcs nb drop nearly zero due preemption waiting queue 
+second configuration uses cache line update critical sections non critical sections 
+models larger longer operations preemption lock holder 
+shows behavior user level locks configuration 
+tp locks outperform tas demonstrates utility cooperative yielding preemption recovery 
+clh tp mcs tp performance gap smaller configuration relative importance removing inactive queue nodes goes compared recovering preemption critical section 
+success rates locks drop threads 
+critical section takes patience just thread sit predecessors 
+tp locks adapt better insufficient patience 
+expect spin yield policy allow locks match tp locks preemption adaptivity 
+test hypothesis spinning time threshold cache line critical section 
+settings produce similar results 
+yielding improves throughput non tp queue locks run top graph 
+tas benefits competitive mcs tp clh tp outperforms 
+results confirm targeted removal inactive queue nodes valuable simple yielding processor 
+spin yield variants cache line cs ncs 
+critical section service time right left load processors 
+left curves mcs tp overlap clh csp clh pm overlap 
+right curves close suggests similar adaptivity preemption 
+preemption safe locks cache line cs ncs 
+comparison preemption safe locks section synthetic scheduler compare tp preemption safe locks 
+results short critical sections shown multiprogrammed mode dedicated mode external load 
+tp locks competitive preemption safe locks 
+modest increase performance gained locks high levels scheduling control comparatively minor 
+dedicated mode clh tp slower preemption safe clh variants performs comparably multiprogrammed mode 
+mcs tp closely matches mcs modes 
+tp locks clearly outperform handshaking lock 
+dedicated mode clh tp incurs additional overhead reading publishing timestamps 
+multiprogrammed mode overhead preemption recovery mechanisms dominates 
+clh variants handle preemption removing inactive predecessor nodes queue performance similar 
+preemption safe locks clh pm slightly outperforms clh csp accurately assess threads preempted 
+significantly outperforms hand varying patience tp locks cache line cs ncs 
+shaking lock due costly roundtrip handshakes timeouts confirm preemption 
+sensitivity patience timeout patience important parameter locks 
+insufficient patience yields low success rates long average critical section service times 
+conversely excessive patience delay lock response bad scenarios 
+experiments show tp locks highly robust changes patience 
+shows case large critical section smaller critical sections performance better 
+tp locks far sensitive tuning patience locks low patience self timeout removal behaviors locks help maintain critical section service time acquisition rate 
+time space bounds final experiment measure time overhead removing inactive node 
+power calculate mcs tp lock holder needs ns delete node 
+similarly waiting thread clh tp needs ns delete predecessor node 
+combining values worst case analysis number inactive nodes lock queues appendix estimate upper bound delay lock handoff holder preempted 
+analysis space bounds clh tp lock appendix show worstcase bound quadratic number threads claim expected linear value 
+final tests maximize space consumption gather empirical evidence expected case 
+test maximizes contention empty critical non critical sections 
+attacks concurrent timeouts removals lock held contending thread times 
+ran tests times second runs 
+find space consumption stable time getting equivalent results test lengths 
+patience short test consumed queue nodes threads nodes threads 
+second test nodes threads 
+allocator creates minimum nodes optimal 
+results far closer expected linear worst case quadratic space bound 
+configuration means application threads external threads way smp 
+parallel execution times raytrace barnes processor machine application results final set tests measure performance tp locks raytrace barnes benchmarks splash suite :10.1.1.104.6469
+applications subject 
+application features raytrace barnes spend time synchronization 
+raytrace uses barriers features high contention small number locks 
+barnes uses limited barriers test input numerous locks 
+offer reasonable parallel speedup 
+experimental setup test locks section plus mutex averaging results runs 
+choose inputs large execute seconds raytrace particles barnes 
+limit testing threads due applications limited scalability 
+external threads running idle loops generate load force preemption 
+raytrace left side shows results preemption adaptive locks mcs tp clh tp 
+spin locks give similar performance absent preemption preemption non tp queue locks yield performance figures 
+mutex lock scales badly high lock contention spend time kernel mode 
+running raytrace input size took hours threads 
+barnes preemption adaptivity important raytrace barnes distributes synchronization large number locks greatly reducing impact preemption 
+demonstrate including highly preemption sensitive lock mcs preemption adaptive locks right side mcs doubles execution time heavy preemption 
+benchmarks find tp locks maintain throughput adapt preemption 
+raytrace mcs tp particular yields improvement yielding tas lock threads 
+barnes dependent lock performance different locks similar performance 
+demonstrated published timestamps provide effective heuristic thread accurately guess running state peers support nonstandard scheduler api 
+published time heuristic implement preemption adaptive versions standard mcs clh queue locks 
+empirical tests confirm locks combine scalability strong tolerance preemption low observed space overhead throughput high best previously known solutions 
+existence time day register low system wide skew results feasible time queue locks multiprogrammed systems standard kernel interface 
+cache coherent machines recommend clh tp preemption frequent strong worst case performance needed 
+mcs tp gives better performance common case 
+unbounded clock skew slow system clock access small number processors recommend tas style lock exponential backoff combined spin yield mechanism 
+non cache coherent cray machines recommend mcs tp clock registers support best choice mcs nb try lock 
+conjecture time improve thread interaction areas preemption tolerant barriers priority lock queueing dynamic adjustment worker pool bag task applications contention management nonblocking concurrent algorithms 
+note examined points design space tp locks variations may merit consideration 
+anderson bershad lazowska levy 
+scheduler activations effective kernel support user level management parallelism 
+acm trans 
+computer systems feb 
+black 
+scheduling support concurrency parallelism mach operating system 
+ieee computer 
+craig 
+building fifo priority queueing spin locks atomic swap 
+technical report tr department computer science univ washington feb 
+schonberg 
+process management highly parallel unix systems 
+proc 
+usenix workshop unix supercomputers pages pittsburgh pa sept 
+franke kirkwood 
+fuss fast userlevel locking linux 
+ottawa linux symp june 
+harris fraser 
+language support lightweight transactions 
+proc 
+th annual acm conf 
+object oriented programming systems languages applications pages oct 
+scherer iii scott 
+preemption adaptivity time published queue spin locks 
+technical report university rochester may 
+herlihy 
+wait free synchronization 
+acm trans 
+programming languages systems jan 
+herlihy moir 
+repeat problem mechanism supporting dynamic sized lock free data structures 
+proc 
+th conf 
+distributed computing toulouse france oct 
+herlihy moir scherer iii 
+software transactional memory dynamic sized data structures 
+proc 
+nd annual symp 
+principles distributed computing pages 
+ibm 
+aix differences guide version 
+
+adaptive efficient mutual exclusion 
+proc 
+annual acm symp 
+principles distributed computing pages boston ma 
+karlin li manasse owicki 
+empirical studies competitive spinning shared memory multiprocessor 
+proc 
+th acm symp 
+operating systems principles pages pacific grove ca 
+wisniewski scott 
+scheduler conscious synchronization 
+acm trans 
+computer systems feb 
+kumar jiang chandra singh 
+evaluating synchronization shared address space multiprocessors methodology performance 
+measurement modeling computer systems pages 
+
+lim agarwal 
+reactive synchronization algorithms multiprocessors 
+proc 
+th intl 
+conf 
+architectural support programming languages operating systems pages oct 
+magnusson landin 
+queue locks cache coherent multiprocessors 
+proc 
+th intl 
+symp 
+parallel processing pages 
+ieee computer society 
+marathe scherer iii scott 
+design tradeoffs modern software transactional memory systems 
+proc 
+th workshop languages compilers run time support scalable systems oct 
+marsh scott leblanc markatos 
+class user level threads 
+proc 
+th acm symp 
+operating systems principles pages pacific grove ca 
+mellor crummey scott 
+algorithms scalable synchronization shared memory multiprocessors 
+acm trans 
+computer systems 
+michael 
+high performance dynamic lock free hash tables list sets 
+proc 
+th symp 
+parallel algorithms architectures pages mb canada aug 
+michael 
+hazard pointers safe memory reclamation lock free objects 
+ieee trans 
+parallel distributed systems aug 
+michael 
+scalable lock free dynamic memory allocation 
+proc 
+sigplan symp 
+programming language design implementation pages washington dc june 
+michael scott 
+nonblocking algorithms preemption safe locking multiprogrammed shared memory multiprocessors 
+journal parallel distributed computing 
+ousterhout 
+scheduling techniques concurrent systems 
+proc 
+rd intl 
+conf 
+distributed computing systems 
+scherer iii scott 
+advanced contention management dynamic software transactional memory 
+proc 
+th acm symp 
+principles distributed computing jul 
+scott 
+non blocking timeout scalable queue spin locks 
+proc 
+st annual symp 
+principles distributed computing pages 
+scott scherer iii 
+scalable queue spin locks timeout 
+proc 
+th acm sigplan symp 
+principles practice parallel programming pages 
+
+noble non blocking inter process communication library 
+proc 
+th workshop languages compilers run time support scalable systems washington dc mar 
+
+fast lock free concurrent priority queues multi thread systems 
+proc 
+intl 
+parallel distributed processing symp nice france apr 
+
+novel approach multiprogrammed multiprocessor synchronization real time kernels 
+th ieee real time systems symp pages 
+woo singh gupta :10.1.1.104.6469
+splash programs characterization methodological considerations 
+proc 
+nd annual intl 
+symp 
+computer architecture pages 
+acm press 
+zheng 
+swap scheduler automatic process dependency detection 
+networked systems design implementation 
+time space bounds appendix provides informal analysis time space requirements mcs tp clh tp locks 
+provides overview summary worst expected case processor time steps timing lock handoff lock queue length total memory requirements 
+mcs tp bounds consider space management mcs tp 
+thread node queue queue length trivially linear number threads thread reuse node lock node removed previous lock queue 
+gives worst case space consumption locks 
+lock holders clean timed nodes lock handoff thread rarely small constant number allocated nodes gives expected space requirement 
+time waiting thread update node state 
+reclaim node removed queue lock holder 
+operations require constant number steps time requirement leaving 
+discussed section mcs tp lock holder removes nodes queue switching scan 
+removal step scan done time worst case lock holder removes nodes scans timed nodes reaching queue 
+marks queue empty re traverses queue remove node total steps 
+expected case thread immediate successor preempted allowing handoff steps 
+clh tp bounds implementation clh tp lock uses timeout protocol stops publishing updated timestamps patience elapsed staleness bound deciding thread preempted 
+long thread node thread continues remove timed preempted predecessors 
+particular thread checks see timed predecessor active 
+consequence approach thread time successor chance remove inactivity 
+preempted successor active rescheduled remove node remove node rescheduled 
+turn implies pair nodes queue abandoned thread node belongs thread timed 
+worst case nodes precede suspended live waiter precede total total nodes queue 
+mcs tp removing single predecessor performed steps 
+queue length bounded timeout sequence 
+mcs tp successors responsible actively claiming lock lock holder simply updates state show longer lock clearly operation 
+waiting threads concurrently remove inactive nodes inactive node remain queue long 
+common case queue length close total number threads currently contending lock 
+thread contend best performance greater round trip time memory bus interconnect transaction target machine plus maximal pairwise clock skew observable processors 
+worst case common case mcs tp clh tp locks timeout lock handoff queue length total space time space bounds contending threads locks 
+lock time expect average case space 
+similarly average timeout delay nodes queue actively waiting 
+mcs tp lock algorithm data structures typedef struct qnode lock lock lock ptr timeout attempt 
+volatile time node owner published timestamp volatile qnode status status struct qnode volatile qnode typedef struct lock qnode volatile tail volatile cs start time lock lock routines global constants subroutines maximum cs time estimated maximum length critical section 
+thread holding lock longer period assumed preempted 
+help lock holder rescheduled threads time whilst waiting yield processors 
+constant estimated waiting threads may yield lock holder preempted 
+overestimated waiting threads reactive preemption critical section 
+returns latest processor time swap ptr new atomic old ptr ptr new return old start time returns true current time passed deadline start time cas bool ptr oldval newval compare swap return true successful atomic ptr oldval return false ptr newval return true main acquire routine int acquire lock qnode input lock pointer queue node lock patience wait queue cpu ticks output attempt successful attempt failed possibly preempted queue node safe reclaim attempt timed queue node remains enqueued qnode pred start time status timeout cas waiting just start new try status timeout lock cas bool status timeout waiting queue 
+initialize enqueue status waiting pred swap tail pred lock free cs start time return pred endif loop status available cs start time return elif status failed cs start time maximum cs time sched yield endif lock return endif status waiting lock holder hasn changed time start time continue endif cas bool status waiting timeout break endif cs start time maximum cs time sched yield endif return endwhile endloop unlock routine global constants subroutines max thread num approximate maximum number threads system 
+handling pathological treadmill case 
+estimate introduce delay aborting inactive acquisition attempts 
+estimate force lock holder scan nodes pathological case 
+update delay approximate length time takes process see timestamp published thread including potential skew system clocks 
+main routine void release lock qnode input lock pointer queue node lock qnode succ qnode scanned queue head null int scanned nodes ptr currently scanned node case successor fix global tail ptr return case successor inactive grab ptr fail attempt case successor active set available 
+loop succ succ cas bool tail status failed return line 
+endif succ succ endwhile endif scanned nodes max thread num status failed elif scanned queue head scanned queue head handle treadmill case endif succ status waiting succ time succ time succ time update delay cas bool succ status waiting available queue head set status failed nodes scan queue head endif return endif endif succ endloop new attempt allocate node insert lock queue update time reload pred status switch get status pred reclaim exit reclaim pred pred active 
+failure exit failure exit timeout exit failure exit reclaim pred am patient 
+return success pred prev timeout exit failure exit reclaim exit status node status pred node compare swap reclaim control flow graph clh tp locking clh tp lock algorithm provides overview control flow clh tp algorithm 
+data structures typedef struct clhtp qnode volatile time char padding struct clhtp qnode volatile prev clhtp qnode typedef clhtp qnode volatile clhtp qnode ptr typedef struct clhtp lock clhtp qnode ptr tail clhtp qnode ptr lock holder volatile cs start time clhtp lock lock routine global constants subroutines define update delay bit tags define waiting define transient define left define define yield processor legend compare swap pred status status available waiting transient holding left removed waiting status pred ptr waiting status pred pred ptr cs active 
+return failure value tags define initial void define holding void xb define available void define void removed define get ptr unsigned long ptr define get ptr clhtp qnode unsigned long define replace tag ptr tag unsigned long ptr tag define tagged ptr tag unsigned long ptr tag bool clhtp swap set clhtp qnode volatile swap addr clhtp qnode new ptr clhtp qnode volatile set addr atomic operation saves old value swap addr set addr swaps new ptr swap addr 
+unsigned long pred repeat pred ll swap addr set addr clhtp qnode pred sc swap addr new ptr return clhtp qnode pred bool clhtp tag cas bool clhtp qnode volatile unsigned long unsigned long atomic compare swap tag pointer 
+unsigned long repeat ll get return false endif replace tag sc return true bool clhtp bool clhtp qnode volatile clhtp qnode volatile ptr clhtp qnode unsigned long unsigned long unsigned long repeat unsigned long tmp ll ptr get waiting return false endif tmp return true endif sc ptr return true void clhtp failure epilogue clhtp lock clhtp qnode prev clhtp tag cas bool prev free clhtp qnode endif void clhtp success epilogue clhtp lock clhtp qnode clhtp qnode pred lock holder cs start time free clhtp qnode pred main routines main locking routine clhtp acquire 
+bool clhtp acquire clhtp lock clhtp qnode alloc qnode clhtp qnode pred time pred swap set tail prev pred prev available cas bool prev pred holding clhtp success epilogue pred return true clhtp failure epilogue cs start time maximum sched yield endif return false endif endif lock occupied set local time variables go waiting 
+bool result clhtp acquire slow path pred result cs start time maximum sched yield endif endif return result bool clhtp acquire slow path clhtp lock clhtp qnode clhtp qnode pred start time current pred time start time time pred time pred time true clhtp qnode pred pred current time current pred pred pred prev pred pred available cas bool prev pred holding goto label success goto label failure endif elif pred pred goto label self rc elif pred pred holding initial goto check self initial prev write may haven propagated processors tail propagate 
+clhtp qnode pp ptr unsigned int pred tag pred tag get pred pred pp ptr get ptr pred pred pred tag cas bool prev pred pp ptr goto label failure endif free clhtp qnode pred pred pp ptr pred time pred time continue elif pred tag cas bool prev pred pp ptr goto label failure endif cas bool pred prev pred pred free clhtp qnode pred endif pred pp ptr pred time pred time continue elif pred tag waiting pred time current update delay pred time pred time pred time pred time continue elif clhtp bool prev pred prev pred pred tagged pred pred continue endif endif endif check self unsigned int tag pred prev pred goto label self rc endif tag get pred tag goto label failure elif tag waiting start time current goto label self timeout endif endif endwhile label success clhtp success epilogue pred return true label failure label self rc clhtp failure epilogue return false label self timeout cas bool prev pred tagged pred clhtp failure epilogue return false unlock routine void clhtp try release clhtp lock clhtp qnode lock holder prev available 

@@ -1,0 +1,537 @@
+th acm symposium operating system principles sosp th th december asheville north carolina improving ipc kernel design jochen liedtke german national research center computer science gmd jochen liedtke gmd de inter process communication ipc fast ective programmers remote procedure calls rpc multithreading multitasking adequately 
+ipc performance vital modern operating systems especially kernel ones 
+surprisingly kernels exhibit poor ipc performance typically requiring short message transfer modern processor running mhz clock rate 
+contrast achieve improvement 
+describes methods principles starting architectural design going coding level 
+single trick obtaining high performance synergetic approach design implementation levels needed 
+methods synergy illustrated applying concrete example kernel industrial quality operating system daily sites 
+main ideas guide complete kernel design ipc requirements heavy concept virtual address space inside kernel 
+experiment shows signi cant performance gains possible compared mach range factor byte messages kbyte messages 
+hardware speci details uence design implementation techniques applicable class conventional general gmd rs birlinghoven sankt augustin germany permission copy fee part material granted provided copies distributed direct commercial advantage acm copyright notice title publication date appear notice copying permission association computing machinery 
+republish requires fee speci permission 
+sigops usa acm 
+purpose von neumann processors supporting virtual addresses 
+furthermore ort required reasonably small example dedicated parts kernel concentrated single medium sized module 
+ipc dilemma inter process communication ipc message passing central paradigms kernel client server architectures 
+helps increase modularity exibility security scalability key distributed systems applications 
+gain acceptance programmers users ipc cient basic mechanism 
+surprisingly ipc implementations perform poorly 
+dependent processor speed transferring short message takes lot ort invested improving ipc performance che sch ber dra led real breakthrough 
+ipc kernel approach widely regarded nice concept debated perceived lack ciency 
+consequence programmers try circumvent ipc ber 
+overcome ipc dilemma carefully constructing kernel achieves aim tenfold improvement ipc performance comparable systems 
+related comparable message kernels amoeba mul birlix hr chorus gui mach acc 
+ipc improvement addressed earlier cheriton che registers short messages 
+strictly rpc bir oriented ipc system implemented dec fire workstation sch src rpc 
+paid special attention performance machine rpc special path scheduler rpc context switching message bu ers shared domains trading safety performance 
+bershad constructed faster method called lrpc ber implemented fire achieves performance times faster src rpc mainly simple stubs direct context switching shared message bu ers 
+lrpc restricted synchronous communication blocking timeouts constraints concerning security message structure message size number clients see technique supports mach long structured messages true ipc semantics performs signi cantly faster lrpc see table 
+workbench kernel operating system built gmd lie bey lie years production system business education 
+date systems shipped users 
+daily variety industrial commercial contexts 
+kernel machine implementing data type task 
+task consists threads memory objects called address space mapped 
+mach paging done default external pager tasks 
+interactions tasks outside world inter process communication ipc 
+ipc model quite straightforward 
+active components threads communicate messages consist strings memory objects 
+message sent directly sending receiving thread 
+communication channels links global thread task identi ers uids unique time 
+server usually concludes uid message sender requested action permitted client 
+integrity messages conjunction autonomy tasks basis higher level protection 
+ipc mechanism heavily inside logical physical device drivers implemented user level tasks communicating exclusively ipc 
+hardware interrupts integrated concept transforming interrupt messages delivered kernel appropriate thread 
+important aspects persistence data threads lie model lie permitting message redirection 
+due limited space additional implications concepts cient ipc implementation discussed 
+principles methods orts improve optimizations give poor results decided approach problem opposite direction 
+opportunity kernel redesign aim really high performance reconstructing process control communication related sections scratch 
+paradigms basic architecture tasks threads ipc address spaces pager prede ned versions free change implementation methods binary interfaces 
+principles adopted internal redesign ipc performance master 
+may lead higher ipc performance discussed 
+case doubt decisions favour ipc 
+performance security qualities components seriously impacted 
+design decisions require discussion 
+initially realistic models validated 
+performs poorly look new techniques 
+synergetic ects taken consideration 
+combining methods may lead reinforcement 
+especially new method may require new methods proper ciency 
+design cover levels architecture coding 
+design basis 
+important discuss di erent levels dependency design process 
+results totally depend speci hardware general nature adaptable concrete design 
+design aim concrete performance goal 
+essential determining weaknesses poor techniques 
+concrete design section describes concrete construction discusses internal design decisions taken implementing version kernel hardware 
+demonstrates practical application principles 
+illustration intel dx processor 
+running mhz clock rate contains onchip cache kbyte typical instructions take cycles assuming cache hits 
+memory management unit mmu translates bit virtual addresses kbyte pages 
+page access rights read read write kernel user kernel 
+address translation supported way set associative translation lookaside bu er tlb holding entries 
+tlb ushed switching address space 
+performance objective considering di erent models algorithms essential idea achievable performance 
+assume simple scenario thread sends null message thread ready receive 
+threads run user level reside di erent address spaces 
+primary interest lower bound time needed looking minimal sequence essential basic actions thread user mode kernel thread user mode load id set msg length call kernel access thread switch stack pointer switch address space load id return user inspect received msg operations concerning parameter passing testing scheduling actions necessary transfer non null messages omitted 
+scenario realistic allows rough best case estimation 
+assembled minimal necessary 
+instructions basic actions mentioned see table 
+assuming complete absence write code prefetch delays cache misses execution cycles sum 
+cycles consumed entering leaving kernel mode extremely expensive 
+mmu ushed changing address space tlb misses occur consuming cycles 
+results minimum cycles lower bound ipc 
+starting experiment decided aim performance cycles short message transfer 
+fact achieved cycles 
+value denoted scale discussing optimizations 
+architectural level system calls system calls expensive simply entering leaving kernel mode costs 
+ipc require system calls possible 
+client server systems operate synchronously introducing system calls call reply receive non blocking send receive call permits implementation system calls rpc ipc 
+systems contain similar optimizations src rpc sch 
+call reply receive combine sending outgoing message waiting incoming message single primitive client server protocols simpler server sure client ready receive reply need scheduling handle replies di erently requests 
+messages costs system calls address space switches suggest need support complex messages away sequence send operations combined single intermediate reply required 
+higher ciency results simpler communication protocols 
+message may contain direct string mandatory indirect strings optional memory objects optional see gure 
+complex message direct indirect strings copied strictly memory objects lazily similar mach outline message 
+transfer memory objects includes mapping usually pager activity ciency discussed comparable equivalent actions mach 
+indirect strings help avoid copy operations user level 
+example text sent screen driver message obviously contain operation code coordinates text string compiler 
+message contain operation code coordinates direct string text indirect value speci ed address length 
+simplify user level programming receive bu ers structured way part receives direct string ones speci ed address length parameters receive operation indirect strings ones memory object identi ers 
+way complex messages may transfer values directly sender program variables receiver program variables gure 
+pq pq sending complex message similar multi part messages qnx hil di ers mach outline message transfer mach receiver specify bu ers outline messages 
+furthermore mach outline transfer primarily designed larger messages expensive unaligned data 
+direct transfer temporary mapping basic problem inter process communication transfer messages address spaces 
+kernels solve problem copy user space kernel space user space 
+message copied twice address space model consists user accessible part xed kernel accessible part shared address spaces see gure 
+user parts distinct messages transferred kernel part 
+user user qs kernel twofold message copy extra cost message bu ered kernel 
+modern multithreaded client server system rpc operate synchronously client blocks gets reply timeout message bu ering super uous 
+copying byte message costs cycles plus additional tlb cache misses 
+transferring byte message algorithm expensive single copy method 
+larger messages increasing cache misses ooding lead higher costs 
+non short messages transferred directly source destination address space 
+lrpc src rpc share user level memory client server transfer messages 
+copy sender shared bu er required 
+seriously ects security disadvantages multi level security dod penetrated shared communication bu ers hidden channels ipc system control 
+receiver check message legality may sender checking 
+second copy receiver private memory area solve problem eat copy bene 
+servers communicate clients messages long shared regions virtual address space may critical resource 
+shared regions require explicit opening communication channels 
+permits communication prior opening 
+shared bu ers application friendly allow direct transfer variable variable described 
+uses new method temporary mapping kernel determines target region destination address space maps temporarily communication window source address space copies message directly sender user space communication window 
+due aliasing message appears right place receiver address space 
+user ppp ppp ppp ppp pppp ppp ppp pppp pppp ppp ppp pppp kernel qs user direct message copy communication window kernel accessible kernel areas exists address space shared spaces 
+direct transfer avoids disadvantages user level shared communication bu ers temporary mapping done demand bu ers shared kernel level 
+sends message kernel user access receiver bu er user 
+problems implementing communication windows temporary mapping fast 
+di erent threads coexist address space 
+mmu uses level page table translating virtual addresses 
+rst level table called page directory holds entries pointing entry second level table 
+directory entry corresponds mb virtual address space 
+shown gure temporary mapping region requires word copied page directory page directory copy pq page table data page hj fast temporary mapping avoid region crossing problems restrict message string size mb may strings message map mb region receive bu er lower half 
+proper operation tlb hold page table entries relating communication window earlier concurrent operations 
+true call tlb window clean ushed tlb obviously window clean 
+window clean tlb ensured complete tlb temporary mapping quite expensive operation 
+processor allows complete tlb ushed just single pages cient mechanism ush intermediate sized regions address space 
+nd cient method rst look thread address space scenario 
+tlb window clean 
+
+immediately switching back thread tlb window clean 
+thread address space address space switch tlb 
+
+rst send operation starts window clean tlb 
+remains window clean transfer 
+
+address space switch operation takes place copying message tlb window clean ipc 
+tlb window clean 
+handling multiple threads address space complicated concurrent violate window clean constraint 
+allocating communication windows threads address space solve problem result intolerable restriction number threads address space 
+window problem multiple threads accessing concurrently solved 
+enforcing additional tlb ush thread switching change address space page directory entries related communication window 
+happens inter address space transfer interrupted timeslice exhaustion page fault hardware interrupt 
+ipcs happen space handled communication window 
+
+invalidating communication window entries page directory thread switch 
+control returned thread accessing communication window leads page fault page fault handler reestablish temporary mapping 
+multiprocessor window processor address space 
+additional lock unlock operations page directories needed 
+di erent processor method shown nice cases require additional actions necessary tlb ush free charge 
+assume tlb capable holding page table entries di erent address spaces parallel tlb ush normally required changing address space method expensive 
+avoid multiple spaces er cient ush operations larger address space regions 
+strict process orientation simplicity ciency threads temporarily running kernel mode handled way running user mode 
+natural allocate kernel stack thread 
+appears cient way interrupts including clock interrupts page faults ipc system calls save state information instruction counter ags user stack pointer actual kernel stack 
+continuations dra similar techniques reduce stacks require additional copy operations kernel stack continuation stack switching 
+methods induce additional tlb misses expensive stack switching copying 
+furthermore continuations cases require special programming support 
+practice continuations interfere optimizations lower levels thread control block addressing 
+real costs higher 
+kernel stack thread leads large number stacks minor problem stacks objects virtual memory see gure combined corresponding control blocks 
+control blocks virtual objects thread control blocks tcb hold hardware relevant thread speci data 
+includes registers state information kernel stack 
+cient way manage hold large virtual array see gure located shared part address spaces 
+course structure accessed 
+bene ts method permits fast tcb access 
+address array base tcb tcb size calculated 
+furthermore explicitly checking addressed tcb allocated swapped super uous 
+job shifted page fault handler deals unmapped tcb accessed 
+saves tlb misses ipc directly accessing destination tcb table kernel stacks sender receiver located corresponding tcb pages 
+locking thread done simply tcb 
+helps threads persistent 
+ipc implemented orthogonally independently memory management 
+page faults tcb swap outs message transfers invisible ipc system 
+user area kernel area window tcb kernel stack address space thread control blocks allocating thread kernel stack tcb permits faster access method matching tcb aligned simply stack pointer bit mask 
+similar mechanisms task control blocks page directories 
+recall rst level page tables accessed temporary mapping see gure 
+useful virtual array page directories inside address space xed location address space directory 
+temporary mapping reduces window dest bu er window dest bu er 
+multiprocessor destination tcb locked ipc multiprocessor system required sending tcb sender insert queue 
+due lazy scheduling see generally happens destination ready receive 
+multiprocessor system writing tcb state eld expensive requires locked write cache external memory 
+algorithmic level thread identi er mentioned previous section tcb address easily calculated thread number 
+user mode thread addressed unique identi er uid 
+uses bit wide thread uids containing thread number generation time uniqueness station number chief id 
+concept unique described lie 
+support calculation tcb address agiven uid uid contains thread number lower bits away anding bit mask adding tcb array base address necessary 
+index checking omitted valid tcb numbers range cycles required 
+uid speci es thread di erent station invalid algorithm accesses wrong tcb 
+tcb contains thread uid checked requested uid 
+usual case page fault uid matching costs cycles inter node ipc requires discussion 
+automatically covered clan concept 
+thread residing belong di erent clan ipc automatically redirected sender chief resides node 
+done tcb access inter node communication lead wrong tcb accesses 
+systems kernel check node communication tcb access manage discovering uid di erence 
+case may faster leads super uous tcb swap ins 
+kernel supports thread migration duplicate numbers threads residing node circumvented means proxies remaining threads original node 
+handling virtual queues kernel handles variety thread queues busy queue queue polling queue thread contains threads trying send message 
+cient implementation uses doubly linked lists links held 
+parsing ready queue getting sender actual thread polling queue lead page faults 
+tcb includes removal queues 
+chained virtual address space parsing chains inserting deleting lead page faults 
+timeouts timeouts speci ed ipc operation 
+timeout value means operation fails thread awakened message transfer started ms invoking operation 
+frequently values implemented easily real timeouts require queue 
+far ipc operations succeed fail due timeout insertion deletion wakeup queue fast 
+fastest method large array indexed thread number holding wakeup time thread sequentially parsing array clock interrupt far expensive entries ms needed chip cache 
+nally decided set unordered wakeup lists implemented doubly linked lists 
+thread entered wakeup time tcb linked list mod total threads contained wakeup lists scheduler inspect entries clock interrupt average 
+furthermore scheduler removes thread wakeup point far waiting seconds 
+threads held long time wakeup list wakeup time approaches reinserted normal wakeup lists 
+set unordered wakeup lists combines fast insert delete low bookkeeping costs moderate number active threads 
+lists wakeup granularity ms active threads lead inspected wakeup entries second processor spends cycles scheduling 
+note scenario requires ipc second cpu time pure ipc 
+practice quarters ipc operations timeouts requiring queue operations scenario probably require ipc operations second processor time 
+wakeup handling usually costs total ipc time 
+problem related representation time 
+ms time unit bit value denote days 
+system may run far longer su cient timeout intervals wakeup times 
+simply powering system clear wakeup queue 
+persistent survive power intervals 
+bit values expensive bit processor particularly occupy registers 
+base set represent time wakeup 
+base controlled kernel away actual time represented set furthermore timeouts restricted maximum ms days 
+calculated managed bit arithmetic register memory word 
+actual time set reaches ms hours kernel increases base updates sets wakeup lists 
+lazy scheduling conventionally ipc operation call reply receive requires scheduling actions 
+deleting sending thread ready queue 
+inserting waiting queue 
+deleting receiving thread waiting queue 
+inserting ready queue 
+insertion needs deletion load store operations 
+expected tlb misses take cycles 
+multiprocessor due need locking operations expensive system 
+method call lazy scheduling 
+ipc tries avoid queue manipulation changes thread state variable tcb ready waiting vice versa 
+invariants ready wakeup queues ready queue contains ready threads possibly current 
+wakeup queue contains threads waiting class 
+may threads ready queue waiting polling thread controlling processor may queue ready 
+furthermore threads may queues 
+thread really belongs queue deduced tcb state eld 
+queue parsed scheduler removes threads longer belong 
+delete operations mentioned omitted insert operations unnecessary thread enqueued earlier removed 
+theory idea wakeup lists 
+thread contained lists worst case entries inspected 
+practice seldom happens 
+furthermore insertion ready queue omitted call reply receive operations 
+ipc operations send block invoker 
+situations thread looses processor control remains ready timeslice hardware interrupt send 
+guarantee ready queue invariant cases current thread inserted ready queue necessary 
+worst case ipcs interval lazy scheduling comparable strict scheduling happily performs better better increasing ipc rate 
+system active user ipcs typically occur second peak values browsing le editor exceeding 
+ratio ipcs lazy queue update operations typically ranges high ipc rates lead ratio 
+direct process switch remote procedure call natural switch ow control directly called thread donating current timeslice lrpc cient method involves changing stack pointer address space 
+method replies non blocking send operations 
+sends reply thread waiting send message polling ipc immediately initiated continuing fairness discussed detail basic properties stated loosely di erence timing normal procedure call remote procedure call 
+threads playing pingpong punished scheduler 
+results mainly timeslice donation ready queue stability due lazy scheduling 
+multiple threads try send messages receiver get messages sequence ipc operations invoked sender may dominate receiver 
+recall messages bu ered kernel polling threads queued 
+short messages registers usually high proportion messages short frequently rpcs input output parameters 
+example ack error replies drivers short hardware initiated interrupt messages 
+system average messages contain bytes plus bytes sender id 
+direct transfer short messages cpu registers similar cheriton experiment che proposed karger kar may worthwhile 
+processor general registers needed sender id result code 
+available 
+ciently transferring byte messages required coding experiment 
+decide uncertain gain worth additional coding orts recall direct message transfer implemented anyway optimistic best case estimation costs temporary mapping see table suggested overhead cycles 
+succeeded coding transfer byte messages registers upper limit processor 
+fact achieved performance gain sor special treatment short messages permitted additional coding optimizations 
+di erent processor register transfer pays processor processors fewer registers mmu gives fewer tlb faults 
+case special treatment short messages permits optimizations coding level 
+interface level ipc performance determined algorithms user kernel interface 
+important support typical usage permit compilers optimize code 
+rpc stubs especially simple possible 
+ideally load registers issue system call check success 
+short permit compiler generate line 
+avoiding unnecessary copies described section messages may compound values composed direct strings indirect strings memory objects reduce number ipc calls avoid unnecessary copying 
+objects arbitrarily mixed message grouped types 
+permits cient kernel algorithms simpli es message parsing kernel user level 
+message manipulation tracing forwarding easier faster data send receive bu ers structured way 
+case unnecessary copies avoided variable receiving sending 
+course di erent variables call reply receive possible 
+avoids copying message constants orders replies 
+messages described dope vectors containing actual length maximum size message objects 
+parameter passing kernel ipc interface registers parameter passing possible 
+registers accessed far ciently user stack 
+input output parameters registers give compilers better opportunities code optimization 
+furthermore registers parameter passing de ned scratch 
+kernel restore code generator knows reconstruct old values ciently 
+register usage shown table 
+coding level reducing cache misses frequently kernel code short possible 
+short jumps registers memory short address displacements 
+instructions address memory means base index register byte displacements 
+consequently frequently accessed tcb data reached byte displacements 
+reduce data cache misses tcb tables organized frequently data concentrated cache lines data placed cache line 
+reduce delays cache misses cache line ll sequence match usual data access sequence 
+minimizing tlb misses tlb misses expensive tlb ushed address space switch ipc related kernel code placed page 
+equally processor internal tables accessed switching thread address space placed page possible frequently kernel data system clock 
+larger tables placed start page heavily entries located page 
+saved tlb misses technique sor note handling control blocks kernel stacks virtual objects see lazy scheduling see tlb misses saved sor segment registers segment register loading expensive cycles 
+preferred memory model uses complete address space 
+segment registers initialized descriptor segment new loads super uous 
+unfortunately user level software relies different models 
+kernel guaranteed maintain user segment registers load necessary descriptor cost cycles ipc 
+kernel checks entry segment registers contain descriptor guarantees contain returning user level 
+segment register loads avoided kernel user level memory model 
+case cycles required checking segment registers 
+general registers applying standard register usage optimization pay attention user kernel interface 
+register conventions uence coding possibilities kernel 
+special feature aliasing bit registers pairs bit registers 
+restricting direct strings bytes allowing indirect strings mb memory objects 
+consequence complete message dope ts bit register needs memory access counter directly accessed corresponding bit register 
+due segment support inherited descriptor tables idt tss context accessed hardware 
+avoiding jumps checks conditional jumps taken expensive taken cycles induce pipeline delays potentially lead worse cache utilization 
+basic code blocks arranged main stream executes jump instructions possible 
+illegal ipcs executed slowly essential parameter checks shifted seldom executed alternatives 
+example sending message sender illegal su cient destination ready receive 
+process switch cases process switch requires stack pointer address space change 
+additional actions necessary source thread processor debug registers numeric coprocessor 
+resources monitored kernel corresponding save restore actions invoked really necessary 
+case numeric coprocessor save restore handled lazily delayed di erent thread tries access coprocessor registers 
+sparc processor sparc processors large number registers propose experiment lazy schemes saving restoring register windows lie similar coprocessor handling mentioned 
+summary techniques add new system calls rich message structure symmetry send receive bu ers single copy temporary mapping kernel stack thread control blocks held virtual memory thread uid structure unlink queues optimized timeout bookkeeping lazy scheduling direct process switch pass short messages register reduce cache misses reduce tlb misses careful placement optimize segment registers best general registers avoid jumps checks minimize process switch activities ects optimizations easily quanti ed 
+table shows techniques additional time needed 
+better comparison time relative ipc times obtained 
+means removing optimization double ipc time 
+short messages valuable technique register transfer direct message transfer dominates optimizations messages longer 
+removed time increase byte ipc optimization short msg reg direct transfer lazy scheduling segm reg reply wait condensed tables virtual tcb due tlb misses reduced tlb ect table easily quanti able ects note table completely ignores synergetic ects 
+removal optimizations shown table increase byte ipc time far 
+unfortunately ects techniques described quanti ed easily 
+techniques unique alternative cases ects isolated 
+example alternative address space structure control blocks longer virtual objects lead strong dependencies ipc system memory management 
+ipc system avoid paging lock memory page accessing di er radically 
+relevance decisions uencing internal system structure interface demonstrated simple example 
+various hardware platforms operating systems ousterhout ous measured costs entering leaving os kernel executing trivial getpid call 
+times times times larger bare machine time calling kernel user level returning 
+mach mhz measured mach thread self call bare machine time user kernel user mach system call implementation increase byte ipc time 
+debug registers allow data code breakpoints 
+sparc trademark sun microsystems 
+results measurement pc containing intel dx running mhz kb external cache mb memory 
+user level threads running di erent address spaces repeatedly played pingpong message bytes net size sender receiver id 
+ping client uses call pong server operates reply receive 
+pingpong fact true synchronous rpc executed times average ipc time calculated dividing totally elapsed time short cross address space ipc user user takes measure cache usage cache rst ushed pingpong executed valid cache lines counted 
+code data bytes chip cache 
+cache penalty real user programs communicate short messages punished kernel ooding cache 
+worst case cache penalty short ipc measured cache ipc 
+longer ipcs transferring bytes take see table 
+illustrate relation conventional ipc timing measurements top mach norma mk kernel hardware 
+minimum series measurements taken ensure performance mach 
+chose mach typical kernel ipc paradigm highly optimized mach commercial systems 
+furthermore ipc functionality roughly comparable mach 
+compares ipc times larger messages mach enforced cache ush ipc bare processor data move time ns byte optimal cache write delay 
+su hits ipc takes cient cache larger increasing cache misses takes ns byte rate external cache memory system 
+contrast mach takes ipc time ipc time mach message size bytes dx versus mach ipc times 
+cache flush 
+move data 
+mach message size bytes dx versus mach ipc times ns byte rate shows ect copying message twice 
+apparently mach large basic overhead chip cache kernel user lose bene ts ipc 
+table summarizes systems ipc performance 
+strictly rpc oriented synchronous null rpc comparison 
+message systems implemented message transfers 
+system cpu mhz mips mips lrpc ff qnx src rpc ff src rpc ff vax ii amoeba mach mach mach dash table null rpc performance mach data measured remaining performance data taken ber hil sch ren dra 
+remarks introducing ports ipc operates directly thread thread question arises expensive ports 
+bu ering feature mach ports taken consideration extend ipc support indirection port rights 
+port link table address space holding links system global port table 
+tables accessible 
+user level ports represented indices identifying accessed port port table port link table port index access 
+port link port table access read write determines port link chosen 
+illegal accesses marked port link table special value pointing page 
+shifts port right checking code page fault handler legal port access requires checking overhead 
+global port table points related thread 
+uid state inspection necessary ipc replaced investigating port entry 
+performance point view relevant additional ipc overhead accessing port table 
+best case estimation see table gives cycles sor test implementation kernel led result 
+conclude principle port ipc implemented 
+dash message passing uses restricted virtual memory remapping passing longer messages pages achieve low latency high bandwidth 
+dash message consists pages located special part address space called ipc region 
+sending pages removed sender address space mapped virtual address receiver address space 
+implementation described anderson ipc region mb long resident memory 
+evaluate techniques applied speci type message passing implemented experimental purpose dash messages thel kernel 
+dash ipc takes transferring pages including access page receiver address space 
+running mhz corresponding time dash running sun takes 
+cache problem direct mapped caches thrashing arising multiple working set parts mapped cache line 
+collisions minimized adequate mapping virtual pages real memory frames bra nding link orders low collision rates gs 
+processors direct mapped caches similar techniques applied reduce cache collisions ipc system user programs 
+collision avoidance software minor relevance chip cache way associative 
+small cache working sets achieved important 
+ipc system cache ipc slowed ipc users 
+processor dependencies techniques described section applied general purpose von neumann processor provided supports virtual address spaces su cient size permits hierarchical mapping aliasing distinguishes kernel user modes 
+things di cult mmu support hierarchical mapping cache permit synonyms di erent virtual addresses mapped physical address 
+hardware thread processor applications 
+cases methods architectural algorithmic levels usable transfering short messages registers 
+di erent methods may required parameter passing interface level coding level techniques reducing tlb cache misses widely applicable 
+note entering leaving expensive compatible processors 
+results built segment system automatically loads checks segment descriptors switching user kernel mode 
+processors may pro burdened segments 
+compatible processor segment system saving cycles multi address space tlb saving cycles reduce time needed short ipc sto methods fairly general processor speci implementation required get really high performance 
+compilers far know permit interfaces speci ed register level basic block sequences optimized programmer supplied usage information hand coding critical ipc related parts 
+combined module kbytes lines commented code 
+shown fast cross address space ipc achieved applying principles performance reasoning hunting new techniques necessary consideration synergetic ects concreteness 
+needs variety methods levels architecture coding combined design aimed speci performance goal right 
+methods applicable kernels di erent hardware 
+achievable quantitative gain high times faster may count qualitative improvement 
+iwould hermann various helpful discussions martin measured mach means jewel ger performance measurement software 
+peter proofreading helpful comments 
+written atex top 
+acc accetta baron bolosky golub rashid tevanian young 
+mach new kernel foundation unix development 
+proceedings usenix summer conference 
+atlanta georgia june pp 
+
+ber bershad anderson lazowska levy 
+lightweight remote procedure call 
+proceedings th acm symposium operating principles eld park arizona december pp 
+
+ber bir bey bra che che dod bershad 
+increasing irrelevance ipc performance microkernel operating systems 
+proceeedings micro kernel kernel architectures usenix workshop seattle april pp 
+
+nelson 
+implementing remote procedure calls acm transactions computer systems 
+february pp 
+
+beyer liedtke 
+
+proceedings ismm international symposium mini microcomputers applications barcelona june pp 
+
+bray lynch flynn 
+page allocation reduce access time physical caches 
+stanford university technical report csl tr 
+november 
+cheriton 
+kernel software base distributed systems 
+ieee software april pp 
+
+cheriton 
+experiment registers message interprocess communication 
+operating systems review october pp 
+
+dod 
+trusted computer evaluation criteria 
+dod computer security center csc std 
+august 
+dra draves bershad rashid dean 
+continuations implement thread management communication operating systems 
+proceedings th acm symposium operating principles paci grove california october pp 
+
+gs 
+code reorganization instruction caches 
+proceedings th annual hawaii international conference system sciences 
+hawaii vol 
+pp 
+
+gui 
+chorus distributed operating system design implementation 
+proceedings acm international symposium local computer networks firenze april pp 
+
+
+anderson 
+performance message passing restricted virtual memory remapping 
+software practice experience vol 
+pp 
+march 
+hr 
+operating systems top persistent object systems birlix approach 
+proceedings th hawaii international conference systems sciences ieee press vol pp 
+
+hil 
+architectural overview qnx 
+proceeedings micro kernel kernel architectures usenix workshop seattle april pp 
+
+intel 
+processor programmer manual 
+santa clara kar karger 
+registers optimize cross domain call performance 
+proceedings rd conference architectural support programming languages operating systems 
+april pp 
+
+ger lange 
+jewel design implementation distributed measurement system 
+ieee transactions parallel distributed systems november 
+lie liedtke beyer szalay 
+years experience kernel os operating systems review april pp 
+
+lie lie lie liedtke 
+
+proceedings 
+gi itg von kiel ed springer verlag pp 
+
+liedtke 
+fast thread management communication continuations 
+proceeedings microkernel kernel architectures usenix workshop seattle april 
+liedtke 
+persistent system real experiences years 
+submitted international workshop object orientation operating systems 
+asheville north carolina december 
+lie liedtke 
+lazy context switching algorithms sparc processors 
+der gmd 
+st augustin 
+mul ous ren mullender amoeba distributed operating system selected papers 
+cwi tract 
+amsterdam 
+ousterhout 
+aren operating systems getting faster fast hardware 
+proceedings usenix summer conference 
+anaheim california pp 
+
+van renesse van staveren tanenbaum 
+performance world fastest distributed operating system 
+operating systems review october pp 
+
+sch schroeder burroughs 
+performance fire rpc 
+proceedings th acm symposium operating principles eld park arizona december pp 
+
+appendix action instruction cycles execution tlb load id ld set msg len ld call kernel int access cmp jmp load id ld switch stack st sp ld sp add st switch address ld space ush tlb return user inspect msg cmp jmp tlb thread control block ofb 
+sets new kernel stack bottom address 
+tlb kernel code 
+tlb new kernel stack built table 
+tlb user code 
+action instruction cycles execution tlb restrict port index load port link ld load port entry ld check empty cmp jmp enter reply st get reply index ld set reply link st tlb port table 
+tlb port link table 
+table minimal instructions port access table minimal instructions null ipc action instruction cycles execution tlb load rcv addr ld calc mb region ld shr load addr ld copy entries ld st ld st calc dest addr add move data startup input register output receive bu er addr eax result code send timeout ebx bytes 
+msg send message addr ecx bytes 
+msg destination thread id edx esi source thread id receive timeout edi scratch ebp scratch stack pointer esp stack pointer table register usage ipc parameters tlb page directory page directory tlb receive bu er table minimal instructions temporary mapping message size ipc worst case mach ipc cache penalty bytes table ipc timing mhz norma mk 

@@ -1,0 +1,368 @@
+design implementation evaluation adaptive recompilation stack replacement stephen fink ibm watson research center yorktown heights ny ibm com feng qian school computer science mcgill university montreal canada sable mcgill ca modern virtual machines maintain multiple compiled versions method 
+stack replacement osr mechanism enables virtual machine transfer execution compiled versions method runs 
+relying mechanism system exploit powerful techniques reduce compile time code space dynamically de optimize code invalidate speculative optimizations 
+presents new simple mechanism transfer execution compiled code 
+additionally enhancements analytic model recompilation exploit osr aggressive optimization 
+implemented techniques jikes rvm comprehensive evaluation including study fully automatic online profile driven deferred compilation 
+modern virtual machines vms maintain multiple compiled versions method 
+example state theart java vms employ adaptive strategies selectively compile recompile hot methods :10.1.1.36.4338
+vm easily transition new compiled version method modifying dispatch structures method invocations branch new compiled version 
+transition method currently executing thread stack presents harder engineering challenge 
+perform transition self programming language implementations pioneered stack replacement osr technology 
+osr technology enables fundamental vm enhancements including debugging optimized code de optimization deferred compilation im done intern ibm watson research center 
+prove compiler speed code quality online optimization activations containing long running loops optimization code generation speculative program invariants :10.1.1.30.1652
+despite benefits osr appeared production vms notable exception sun hotspot server compiler due perceived engineering complexity 
+pre existence transformations specifically enable limited forms optimizations enabled osr invalidation corresponding engineering headache 
+daunting osr engineering challenge concerns transition new compiled code 
+transition system construct new stack frame holds state expected new compiled code current program counter 
+optimized code may utilize stack frame complex protocols performed various compiler phases osr transition mechanism construct conforming target stack frame accordingly 
+worse performing osr inlined context system construct series stack frames inlined method context 
+new transition mechanism avoids problems leveraging target compiler set new stack frame 
+key insight system generate specialized source code set new stack frame continue execution desired program counter 
+source code expresses stack frame transition logic nearly unmodified target compiler reconcile state transition automatically implementing source code semantics preserving code sequence 
+furthermore target compiler exploit runtime state run time constants optimize specialized activation 
+new osr mechanism significantly reduces implementation complexity especially systems multiple compilers 
+exploiting osr technology self introduced deferred compilation technique compiler avoids generating code predicts uncommon 
+program traps reaching uncommon block invokes osr recompile transition new code 
+deferred compilation brings potential benefits 
+optimizer benefit improved dataflow eliminating control flow merges downstream uncommon blocks 
+second technique reduces compile time 
+research suggests potential gains deferred compilation java 
+previous studies relied offline profile data offline bytecode level transformations 
+building presents published evaluation completely automatic online profile driven deferred compilation 
+evaluate compile time code size code quality improvements multiple optimization levels considering ideal limit case complete implementation 
+compare deferred compilation perfect offline online profile data additionally evaluate impact deferred compilation adaptive recompilation activity driven analytic model 
+main contributions new simple relatively compiler independent mechanism transfer activation execution specialized optimized code enhancements analytic model drive recompilation account deferred compilation fly reoptimization knowledge comprehensive experimental evaluation automatic online profile driven deferred compilation 
+experimental results show ideal case profile driven deferred compilation improves compile time depending optimization level 
+code size reductions range 
+constraining optimization allow osr invalidation reduces benefits slightly 
+performance impact eliminating dataflow merges constraining optimization appears small ranging ideal case depending optimization level 
+osr enable class hierarchy unguarded inlining negligible benefit compared system default strategy 
+fully online implementation deferred compilation exploited model driven adaptive recompilation system improves performance run specjvm benchmarks average improvement individual benchmarks ranging 
+run individual benchmarks trigger osr events 
+remainder proceeds follows 
+section reviews jikes rvm background relevant study 
+section presents new osr transition mechanism discusses implementation details system 
+section presents policy allow adaptive optimization analytic model exploit osr mechanism decision making 
+section presents experimental evaluation 
+section reviews related section concludes 
+background review technical details jikes research virtual machine rvm pertain study 
+rvm provides execution engine java bytecodes complete java platform 
+rvm compile approach system compiles bytecode native code execution 
+system compilers baseline compiler optimizing compiler 
+baseline compiler generates code quickly implementing straightforward interpretation jvm stack architecture 
+resultant code quality naturally relatively poor 
+implementation baseline compiler architecture dependent system currently supports architectures ia powerpc 
+optimizing compiler provides full suite optimizations 
+implementation 
+study optimizing compiler provides levels optimization level consists mainly set optimizations performed fly translation bytecodes intermediate representation 
+currently compiler performs optimizations ir generation constant type non null copy propagation constant folding arithmetic simplification unreachable code elimination elimination redundant array store checks inlining tiny methods monomorphic call sites 
+level augments level additional local optimizations common subexpression elimination array bounds check elimination redundant load elimination 
+adds inlining static size heuristics global flow insensitive copy constant propagation global flow insensitive dead assignment elimination synchronization optimizations scalar replacement aggregates short arrays 
+level augments level ssa optimizations 
+addition traditional ssa optimizations scalar variables system uses heap array ssa form perform redundant compiler performs unguarded inlining final static methods guarded inlining non final virtual methods 
+addition compiler exploits safely perform unguarded inlining invocations non final virtual methods requiring stack frame rewriting invalidation 
+load elimination global code motion common subexpression elimination 
+adaptive optimization system drives recompilation decisions estimated cost benefit compiling method 
+system initially compiles method baseline compiler program runs may recompile method optimizing compiler 
+point program execution adaptive system controller consider method recompilation guided analytic model 
+suppose method currently optimized optimization level defining baseline compiled code optimization level 
+define expected time program spend executing method recompiled 
+cost recompiling method optimization level expected time program spend executing method recompiled level estimated values controller chooses recompilation level minimizes expected running time recompiled version chooses minimizes quantity controller decides recompile level decides recompile 
+controller estimates quantities offline profile data simple models compiler program behavior :10.1.1.36.4338
+osr mechanism osr transformation performs steps extract compiler independent state suspended thread generate new code suspended activation transfer execution suspended thread new compiled code 
+section presents mechanisms accomplish steps 
+jvm scope descriptor java define compiler independent state running activation scope descriptor stack java virtual machine architecture definition jvm scope descriptor method activation consists thread running activation program counter bytecode index values local variable stack location activation stack frame 
+show simple example java source bytecode respectively 
+shows jvm scope descriptor running activation method method sum 
+scope descriptor captures runtime snapshot jvm state sum bytecode index looping times 
+specialized code generation generate target code osr transition previous systems hotspot compile version target method version osr transitions method invocations 
+substantially different mechanism generate target code 
+recall jikes rvm multiple compiler implementations set implement osr minimal changes underlying compilers 
+design compiles specialized version method activation replaced new version invocations 
+design relatively compiler independent transition optimized code expressed bytecode handled normal compiler mechanisms 
+key insight underlying jikes rvm mechanism jvm scope descriptor method construct method bytecode sets new stack frame continues execution preserving semantics 
+prepend original bytecodes specialized prologue saves values locals loads values stack jumps current program counter 
+note express stack frame setup source language bytecode rely target compiler implement setup procedure sees fit 
+shows specialized bytecode generated jvm scope descriptor 
+construction executing specialized method semantics continuing execution interrupted activation code 
+osr happens inlined context recover jvm scope descriptor virtual inlined stack frame 
+generate specialized version inlined method constructed calling specialized root method inlined context restores replacement stack frames 
+prologue specialized root restores root method state immediately calls specialized version callee 
+specialized callee returns root method continues execution immediately call 
+shows simple example osr happens callee bar 
+caller foo restores execution state call site calls specialized bar prime continues instruction call site 
+naturally procedure applied recursively recover arbitrarily deep inlining 
+class static int sum int int int return simple example iconst istore iconst istore goto iload iload iadd istore iload iload iload ireturn bytecode sum running thread frame pointer program counter local variables stack expressions jvm scope descriptor activation sum ldc istore ldc istore ldc istore ldc ldc goto iconst 
+
+ireturn specialized version sum osr transition 
+example osr transition mechanism void foo bar void bar 
+
+source code 
+assume optimizing compiler inlines bar foo forces osr program point foo prime call bar prime goto bar bar prime goto 
+
+target code osr transition 
+example osr transition inlining 
+calling foo prime empty stack frame sets new stack frames foo bar 
+note previous self described special run time glue code reconstruct sequence inlined stack frames 
+contrast mechanism specialized compiled code recovered method executes initially empty stack frame 
+specialized methods set sequence target stack frames consequence execution code sequence target compiler chooses 
+aside note jikes rvm supports variable size stacks handles stack overflow resizing matter course 
+note osr arbitrary size new stack frame trigger stack resize overflow procedure handles transparently default system mechanisms 
+specialized method nearly legal java bytecode normal java execution engine interpreter compiler execute specialized method directly 
+furthermore optimizing compiler may find opportunities optimization prologue loads runtime constant values available original bytecode 
+practical compilations require modification target compiler 
+specialized version contains prologue absent original bytecode index original bytecode changed 
+compiler needs adjust bytecode indices specialized code order keep correct gc maps exception tables line number tables 
+defined new pseudo bytecode instructions specialized 
+parsing pseudo bytecodes requires extra lines code front compiler 
+define new bytecode instructions load literals avoid having insert new constants constant pools 
+second added special instruction load address bytecode index represent return address pushed stack jsr instruction 
+compared hotspot approach disadvantage jikes rvm usually compile versions code performing osr 
+performing osr de optimization jikes rvm baseline compiler cost insignificant 
+performing osr promotion optimization long running activation approach optimize long running activation exploiting constants stack frame 
+adaptive system promotes long running activations expected speedup optimization dominates expected cost compilation tradeoff justified 
+extracting jvm state straightforward recover jvm scope descriptor interpreter baseline compiled code 
+extracting state optimized code requires cooperation optimizing compiler generate mapping information 
+section review technical details process jikes rvm optimizing compiler 
+optimizing compiler compiles method determines distinguished safe points called osr points running activation may interrupted osr 
+compiler may generate unconditional osr points 
+hotspot uncommon traps conditional osr points 
+compiler represents osr point class operator compiler intermediate representation ir 
+ir models semantics osr point similar call instruction uses live variables needed recover jvm state 
+call instruction osr point constrain optimizations including dead code elimination load elimination store elimination code motion 
+call instruction osr point transfers control exit block merge back reachable code osr point 
+osr point required inlined method context instruction keeps alive state required recover entire inlined context 
+register allocation compiler maps state osr point instructions corresponding physical positions register number spilling offset maintaining type information 
+system encodes map table 
+compiler expands osr point instructions calls jikes rvm thread scheduler 
+called osr point thread system suspends calling thread 
+compiling code specialized activation runtime system emits memory barriers force smp memory consistency wakes thread transfers execution new compiled code 
+osr policy deferred compilation policy self implementation introduced deferred compilation referred uncommon branch extension partial method compilation technique reduce compile time potentially improve code quality 
+technique compiler avoids generating code predicts rarely execute 
+prediction fails compiler traps method performs osr transfer new code 
+previous policies predicting uncommon branches deferred compilation 
+self compiler predict types high confidence predict branches signal appearance types uncommon 
+example compiler predict variable array subscript expression concrete type integer 
+technique highly effective self pure object oriented language employs polymorphic types 
+hotspot server compiler similarly uses type prediction current class hierarchy inline currently monomorphic call sites traps class loading invalidate prediction 
+compiler predicts language features class initialization uncommon events 
+whaley studied profile directed deferred compilation predicting uncommon branches offline profile data 
+implemented deferred compilation combining policies whaley hotspot 
+implemented online version profile directed deferred compilation class hierarchy inlining traps hotspot 
+integration adaptive optimization system mentioned earlier jikes rvm includes sophisticated adaptive optimization system drives line compilation 
+modified controller evaluation algorithm account deferred compilation 
+described section adaptive optimization system method optimization level chosen minimize deferred compilation accelerate compilation adaptive recompilation afford aggressive 
+modified analytic model account reduced compile time 
+considering method recompilation system computes percentage source code profile data indicates dynamically reached 
+nearly optimizing compiler phases designed run linear time estimate cost optimizing analytic model accounts benefit deferred compilation method basis 
+reduce overhead system computes fraction method caches 
+result model outdated making decisions suspect effect small practice model compute method run time 
+addition deferred compilation implemented promotion system may optimize long running activation running baseline compiled code 
+normally adaptive optimization system considers optimizing method total time spent method past 
+reconcile promotion policy system optimizes method starts monitor time spent outdated versions code versions 
+consider promoting outdated activation system uses default analytic model estimates time time spent outdated code total time spent compiled versions method 
+experimental results implemented techniques jikes rvm 
+report experimental results specjvm benchmarks 
+results reported conform official spec run rules results directly indirectly represent spec metric 
+runs size inputs run distinct benchmark new vm instance 
+experiments ran dedicated ibm rs model mhz processors gb main memory running aix 
+jikes rvm run configuration virtual processor mb small object heap mb large object heap 
+offline data examine experimental results offline perfect profiles 
+gather profile data offline run program input 
+experiments reveal order upper bound gains possible line deferred compilation 
+runs configuration jikes rvm loads classes run program compilation activity factor reported performance results 
+consider deferred compilation policies edge counters defer compilation basic blocks profile data indicates executed profiling run 
+static heuristics defer compilation failed branch inline guard call site monomorphic loaded class hierarchy 
+note perfect profiles deferring compilation safe uncommon code executes 
+consider variants system ideal configuration defers compilation edge counters static heuristics 
+place uncommon code compiler inserts unconditional trap instruction keep program state live 
+ideal osr configuration defers compilation edge counters static heuristics 
+place uncommon code compiler inserts osr point keeps state live allow recovery jvm scope descriptor 
+static osr configuration defers compilation solely static heuristics 
+place uncommon code compiler inserts osr point 
+eager configuration default jikes rvm perform deferred compilation 
+offline experiments difference ideal ideal osr osr points constrain optimization 
+difference configurations quantifies cost constraints compared perfect oracle predict throw away code unconditionally 
+difference static osr ideal osr quantifies benefits performing deferred compilation profile data opposed simply osr class hierarchy inlining 
+clearly impact deferred compilation compiler speed code quality depends highly underlying compiler infrastructure 
+explore space report statistics optimizing compiler optimization levels 
+shows compiler speed bytecode bytes millisecond system configuration 
+results show average upper bound ideal improvement compiletime compared eager code generation optimization levels respectively 
+constraining optimization account potential invalidation ideal osr improvements drop respectively 
+constraining optimization significant effect compile time improvements especially higher optimization levels 
+board maintaining osr points statically predicted inline guard failures slightly decreases compiler speed compared simply generating eliminated call instruction 
+conclude maintaining osr point ir entails slightly maintaining call instruction 
+shows size resultant machine code machine code bytes byte code byte 
+results show average upper bound ideal improvement generated code size compared eager code generation optimization levels respectively 
+constraining optimization osr points improvements drop respectively 
+maintaining osr points inline guards negligible effect code size expected deferred compilation single call instruction associated setup 
+shows speed relative eager configuration resultant code configuration 
+difference ideal eager baseline configuration shows maximum speedup compiler hope obtain technique 
+results show average ideal deferred compilation improve generated code quality optimization levels respectively 
+naturally improved dataflow helps higher optimization levels 
+jess mtrt benchmarks see largest potential gain roughly 
+numbers show modest potential gain due improved dataflow 
+ideal osr configuration keeps osr data live average change performance 
+jess compress jess db javac mpegaudio mtrt jack mean compilation rate ms ideal ideal osr static osr eager compress jess db javac mpegaudio mtrt jack mean compilation rate ms ideal ideal osr static osr eager compress jess db javac mpegaudio mtrt jack mean compilation rate ms ideal ideal osr static osr eager 
+compiler speed offline perfect profile data optimization level 
+compress jess db javac mpegaudio mtrt jack mean machine code size mcb ideal ideal osr static osr eager compress jess db javac mpegaudio mtrt jack mean machine code size mcb ideal ideal osr static osr eager compress jess db javac mpegaudio mtrt jack mean machine code size mcb ideal ideal osr static osr eager 
+final optimized machine code size offline perfect profile data optimization level 
+compress jess db javac mpegaudio mtrt jack mean speed relative eager configuration ideal ideal osr static osr compress jess db javac mpegaudio mtrt jack mean speed relative eager configuration ideal ideal osr static osr compress jess db javac mpegaudio mtrt jack mean speed relative eager configuration ideal ideal osr static osr 
+speedup obtained bigger better compared default eager code generation strategy deferred compilation strategies optimization level 
+results offline perfect profile data 
+benchmark sees largest improvement 
+ideal mtrt gain vanishes producing degradation 
+jack sees substantial degradation 
+numbers indicate cost constraining optimization osr points roughly negates small benefit due improved dataflow variances individual benchmarks 
+compiler able approach ideal performance sinking code uncommon sections materialize state dead 
+whaley implemented specialized sinking transformation accomplish 
+currently working improvements rvm optimizer code motion effectively sink computation uncommon branch extensions 
+placing osr points static strategy negligible impact performance 
+indicates jikes rvm patch point guarded virtual inlining static splitting heuristics handle class hierarchy inlining effectively :10.1.1.30.1652
+online data examine performance deferred compilation fully automatic line adaptive optimization system 
+experiments baseline compiler inserts instrumentation method gather edge counter data 
+system inserts counters count number times branch taken taken 
+optimizing method optimizing compiler propagates information inserts osr point basic block counters indicate reached unoptimized code ran 
+naturally code optimized may traverse new path execute block previously executed 
+case system performs osr generate uncommon code needed 
+performing osr system immediately invalidates optimized code triggered deferred compilation 
+program enters invalidated method system re optimizes method deferred compilation 
+report performance wall clock time includes online profiling decision making recompilation invalidation osr transition activity 
+shows performance run specjvm benchmarks 
+results show average osr techniques improve performance run specjvm benchmark 
+static placement osr points inlining improves performance 
+compress benchmark shows significant improvement benchmark runs long running loops trigger osr promotion baseline optimized code 
+db javac benchmarks show improvements respectively pre compress jess db javac mpegaudio mtrt jack mean speedup relative eager configuration osr edge counts osr static compress jess db javac mpegaudio mtrt jack mean speedup relative eager configuration osr edge counts osr static 
+speedup obtained bigger better compared default eager code generation strategy multi level adaptive recompilation run 
+best run 
+due aggressive compilation 
+mtrt performance degrades 
+benchmark contains hot methods dominate performance short start phase 
+appears osr adaptive system aggressive compiling methods startup phase 
+delays time reach computationally intensive methods delays optimization methods hurting performance 
+remains open issue design adaptive recompilation strategy avoids pathological behavior 
+shows performance best runs benchmark osr techniques 
+performance compared eager compilation virtually unchanged individual benchmarks vary slightly 
+consistent data offline study 
+table shows compilation activity run benchmark osr techniques 
+columns reports number stack replacement events run benchmark 
+compress triggers promotion events 
+benchmarks trigger osr invalidations due deferred compilation 
+invalidations result incomplete code coverage profile data represent failed invalidated dynamic class loading 
+cases time adaptive system optimized method loaded classes affect inline guards 
+cases line profile data cover dynamically reached instructions causing invalidations 
+verified invalidation takes order microseconds causing small direct performance hit 
+remaining columns table show number methods adaptive controller chose compile optimization level 
+recall osr controller model compile aggressively estimates reduction compile time 
+general data bears system compiles methods osr heuristics 
+change compiler activity dramatic methods compiled earlier experiences analytic recompilation model relatively insensitive variances compiler performance 
+table shows interesting counter intuitive trend osr fewer methods rise highest optimization level 
+suspect controller cost benefit model assigns higher priority low level optimization method optimization gives greatest absolute gain 
+phenomenon exaggerated modified osr controller model causing lowlevel optimization indirectly delaying high level optimization 
+note short time scales behavior adaptive system depends complex non linear feedback loop varying substantially competing estimates costs benefits sample data 
+behavior appears relatively stable aggregate remains open problem better understand changes compiler performance code quality translate system performance 
+related stack replacement techniques originated self deferred compilation 
+self compiler defers generating code targets uncommon branches predicting branches types appearing normal code 
+case uncommon branch target executes system generates code demand uncommon branch extension 
+original motivation deferred compilation self reduce compile time avoid conservative dataflow merges 
+self osr improve performance adaptive recompilation transferring execution slow code faster code fly 
+self pioneered concept de optimization debug optimized code remains compelling applications osr 
+implemented application jikes rvm debugger framework immature unstable 
+current production java virtual machines hotspot server compiler reported osr technol osr osr benchmark promotions invalidations total total compress jess db javac mpegaudio mtrt jack total table 
+compilation activity jikes rvm adaptive optimization system run specjvm benchmark measured methods compiled 
+promotions represent transitions baseline optimized code long running activation 
+invalidations represent osr transitions due incorrectly predicted deferred compilation 
+remaining columns report number methods optimized optimization level 
+ogy 
+hotspot transitions interpreted code optimized code long running loops invocation loop counters 
+additionally hotspot compiler uses deferred compilation avoid generating code uncommon branches failed branch class hierarchy guarded inlining program points invoke class initializers 
+knowledge hotspot perform profile driven deferred compilation inline call sites profile data indicates dynamically monomorphic 
+whaley partial method compilation essentially applies self uncommon branch extension rare blocks determined heuristics profile data 
+results focus mainly compile time small improvements running time attributed better dataflow 
+methodology deferred compilation study differs whaley dimensions 
+particular experimental results whaley implemented method outlining bytecode level engineering osr optimizing jit 
+implications correctness discussed pseudo bytecodes quality generated code 
+furthermore whaley ibm dk black box run transformed code clear underlying jit inlines optimizes generated source code 
+contrast experimental results break impact osr points code quality due dataflow improvements optimization constraints 
+described literature systems drastically different adaptive recompilation strategies uses term stack replacement refer transfer execution interpreter jit compiled machine code deoptimization indicate transition optimized code interpreter :10.1.1.30.1652
+generalize term stack replacement refer class transitions 
+tal results incomparable 
+example whaley reported improvements compile time total execution time run suggesting compilation accounts total execution time 
+previously documented jikes rvm typically spends total time compiling scenarios due restraint enforced controller recompilation model :10.1.1.36.4338
+whaley proposed variants basic scheme implemented evaluated jikes rvm 
+discarded profile data initial warmup period leads apparent dynamically code 
+possible side effect invalidations 
+secondly implemented specialized sinking code motion transformation 
+plan achieve effect general code motion algorithm 
+whaley evaluated program escape analysis drive stack allocation represents aggressive transformation impractical dynamic class loading osr 
+class transformation represents exciting topic dynamic optimization 
+aware related integrated deferred compilation system model adaptive recompilation decisions 
+duesterwald explored alternative compilation units java 
+results suggest hot loops traces combination methods compilation units reduce compiled code size preserving acceptable coverage optimized code 
+detlefs agesen introduced pre existence method get benefits deferred compilation inlining current class hierarchy presence dynamic class loading 
+characterize pre existence optimizations osr restricted osr method entry replacing stack frame trivial 
+relatively simple mechanism comprehensive evaluation line profile directed deferred compilation promotion unoptimized code 
+results show implementation deferred compilation provides modest gains code quality compiler speed code space 
+showed integrate osr techniques model driven adaptive optimization system showed system responds aggressive compilation providing small performance improvement 
+production virtual machine implement stack replacement 
+experience osr mechanism enables implementation minimal disruption rest code base 
+ability debug optimized code de optimization may justify investment 
+regarding performance improvements results far show modest compelling improvement online profile directed deferred compilation 
+results indicate class hierarchy inlining handled effectively combination simpler techniques pre existence code patching static splitting 
+positive side osr protects bad performance due single long running loop pathology appears microbenchmarks 
+believe dramatic performance improvements come advanced program transformations 
+osr provides remarkably powerful invalidation mechanism optimizer rely implement invasive transformations object inlining draw optimistic conservative analysis fails 
+plan osr implementation publicly available jikes rvm release hope availability spur research direction 
+authors dave grove numerous productive discussions anonymous reviewers valuable feedback 
+arnold fink grove hind sweeney 
+adaptive optimization jalapeno jvm controller analytical model 
+rd acm workshop dynamic optimization dec 
+arnold grove fink hind sweeney :10.1.1.36.4338
+adaptive optimization jalapeno jvm 
+proceedings acm sigplan conference object oriented programming systems languages applications oopsla minneapolis mn oct 
+published acm sigplan notices volume number 
+duesterwald 
+exploring optimal compilation unit shapes embedded just time compiler 
+proceedings acm workshop feedback directed dynamic optimization dec 
+chambers :10.1.1.30.1652
+design implementation self compiler optimizing compiler object oriented programming languages 
+phd thesis stanford university mar 
+published technical report stan cs 
+chambers ungar 
+making pure object oriented languages practical 
+acm conference object oriented programming systems languages applications pages nov 
+cytron ferrante rosen wegman zadeck 
+efficient method computing static single assignment form control dependence graph 
+acm transactions programming languages systems 
+detlefs agesen 
+inlining virtual methods 
+th european conference object oriented programming june 
+fink knobe sarkar 
+unified analysis array object strongly typed languages 
+seventh international static analysis symposium june 
+holzle chambers ungar 
+debugging optimized code dynamic deoptimization 
+acm sigplan notices july 
+holzle ungar 
+third generation self implementation reconciling responsiveness performance 
+acm conference object oriented programming systems languages applications pages 
+lindholm yellin 
+java virtual machine specification second edition 
+java series 
+addison wesley 
+click 
+java hotspot tm server compiler 
+usenix java virtual machine research technology symposium pages apr 
+takeuchi komatsu nakatani 
+overview ibm java just time compiler 
+ibm systems journal 
+komatsu nakatani :10.1.1.30.1652
+dynamic optimization framework java just time compiler 
+acm conference objectoriented programming systems languages applications pages oct 
+standard performance evaluation 
+spec jvm benchmarks 
+www spec org osg jvm 
+whaley 
+partial method compilation dynamic profile information 
+acm conference object oriented programming systems languages applications oct 

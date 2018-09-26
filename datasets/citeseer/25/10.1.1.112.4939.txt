@@ -1,0 +1,710 @@
+systems research center lytton avenue palo alto california programming threads andrew birrell january programming threads andrew birrell provides writing concurrent programs threads 
+threads facility allows write programs multiple simultaneous points execution synchronizing shared memory 
+describes basic thread synchronization primitives primitive provides tutorial 
+tutorial sections provide advice best ways primitives give warnings go wrong offer hints avoid pitfalls 
+aimed experienced programmers want acquire practical expertise writing concurrent programs 
+cr categories subject descriptors programming techniques concurrent programming programming languages language constructs concurrent programming structures operating systems process management general terms design languages performance additional key words phrases threads concurrency multi processing synchronization contents 
+concurrency 
+design thread facility 
+mutex accessing shared data 
+condition variable scheduling shared resources 
+fork working parallel 
+alert diverting flow control 
+additional techniques 
+building program 
+concluding remarks 
+
+appendix thread designs 
+digital equipment may copied reproduced part commercial purpose 
+permission copy part payment fee granted non profit educational research purposes provided partial copies include notice copying permission systems research center digital equipment palo alto california authors individual contributors applicable portions copyright notice 
+copying reproducing republishing purpose shall require license payment fee systems research center 
+rights reserved 
+programming threads experimental operating systems commercial ones included support concurrent programming 
+popular mechanism provision allowing multiple lightweight threads single address space single program 
+programming threads introduces new difficulties experienced programmers 
+concurrent programming techniques pitfalls occur sequential programming 
+techniques obvious obvious hindsight 
+pitfalls comfortable example deadlock pleasant sort bug program stops evidence intact take form insidious performance penalties 
+purpose give programming techniques threads warn techniques interactions badly 
+provide experienced sequential programmer hints able build substantial multi threaded program works correctly efficiently minimum surprises 
+thread straightforward concept single sequential flow control 
+highlevel language normally program thread procedures procedure calls follow traditional stack discipline 
+single thread instant single point execution 
+programmer need learn new single thread 
+having multiple threads program means instant program multiple points execution threads 
+programmer view threads executing simultaneously computer endowed processors threads 
+programmer required decide create multiple threads accept decisions implementers existing library packages runtime systems 
+additionally programmer occasionally aware computer fact execute threads simultaneously 
+having threads execute single address space means computer addressing hardware configured permit threads read write memory locations 
+high level language usually corresponds fact stack global variables shared threads program 
+thread executes separate call stack separate local variables 
+programmer responsible synchronization mechanisms thread facility ensure shared memory accessed manner give correct answer 
+thread facilities advertised lightweight 
+means thread creation existence destruction synchronization primitives cheap programmer concurrency needs 
+please aware am presenting selective biased idiosyncratic collection techniques 
+selective exhaustive survey premature exhausting serve discussing important thread primitives omitting features thread context information 
+biased examples problems solutions context word process mean single flow control associated address space common usage word 
+programming threads particular set choices design threads facility choices topaz system digital systems research center src 
+idiosyncratic techniques derive personal experience programming threads years attempted represent colleagues different opinions programming techniques important 
+believe understanding ideas serve sound basis programming concurrent threads 
+examples written modula 
+readily understandable familiar algol pascal family languages 
+examples intended illustrate points concurrency synchronization don try actual algorithms real programs 
+threads tool automatic parallel decomposition compiler take visibly sequential program generate object code utilize multiple processors 
+entirely different art discuss 
+concurrency 
+life simpler didn need concurrency 
+variety forces pushing 
+advent multi processors 
+machines really multiple simultaneous points execution threads attractive tool allowing program take advantage available hardware 
+alternative conventional operating systems configure program multiple separate processes running separate address spaces 
+tends expensive set costs communicating address spaces high presence shared segments 
+lightweight multi threading facility programmer utilize processors cheaply 
+systems having processors processors 
+second area threads useful driving slow devices disks networks terminals printers 
+cases efficient program doing useful waiting device produce event completion disk transfer receipt packet network 
+see programmed quite easily threads adopting attitude device requests sequential suspend execution invoking thread request completes program threads 
+third source concurrency human users 
+humans quite doing things time get computer 
+threads convenient way programming 
+typical arrangement modern window system time user invokes action clicking button mouse example separate thread implement action 
+user invokes multiple actions multiple threads perform parallel 
+note implementation window system probably uses thread watch mouse actions mouse example slow device 
+final source concurrency appears building distributed system 
+frequently encounter shared network servers file server print server server willing service requests multiple clients 
+multiple threads allows server handle clients requests parallel artificially serializing creating server process client great expense 
+programming threads deliberately add concurrency program order reduce latency operations elapsed time calling procedure procedure returning 
+incurred procedure deferred affect result procedure 
+example add remove balanced tree happily return caller re balancing tree 
+threads achieve easily re balancing separate thread 
+separate thread scheduled lower priority done time busy example waiting user input 
+adding threads defer powerful technique uni processor 
+total done reducing latency improve responsiveness program 
+design thread facility discuss program threads agree primitives provided multi threading facility 
+various systems support threads offer quite similar facilities lot diversity details 
+general major mechanisms thread creation mutual exclusion waiting events arrangement getting thread unwanted long term wait 
+discussions rest organized particular primitives provided src thread facility describe detailed semantics 
+appendix describe corresponding parts thread facilities provided systems relate src facilities 
+thread creation thread created calling fork giving procedure argument record 
+effect fork create new thread start thread executing asynchronously invocation procedure arguments 
+procedure returns thread dies 
+usually fork returns caller handle newly created thread 
+handle join procedure 
+join waits thread terminate returns result thread initial procedure 
+src thread creation facilities follows 
+type thread type procedure procedure fork proc arg thread procedure join thread thread simple example program fragment executes procedure calls parallel assigns result calling variable 
+type means dynamically typed pointer garbage collected storage 
+programming threads var thread fork join practice join called src thread facilities provide join primitive 
+forked threads permanent mon threads results communicate results synchronization arrangement join 
+thread initial procedure returned subsequent call join thread quietly evaporates 
+mutual exclusion simplest way threads interact access shared memory 
+high level language usually expressed access global variables 
+threads running parallel programmer explicitly arrange avoid errors arising thread accessing shared variables 
+simplest tool doing primitive offers mutual exclusion called critical sections specifying particular region code thread execute time 
+src design achieved data type mutex language lock construct 
+type mutex lock mutex statements 
+mutex states locked unlocked initially unlocked 
+lock clause locks mutex executes contained statements unlocks mutex 
+thread executing inside lock clause said hold mutex 
+thread attempts lock mutex locked second thread blocks enqueued mutex mutex unlocked 
+programmer achieve mutual exclusion set variables associating mutex accessing variables thread holds mutex thread executing inside lock clause locked mutex 
+basis notion monitors described tony hoare 
+example fragment mutex associated global variable head lock clause provides mutual exclusion adding local variable linked list head head 
+type list ref record ch char list var thread mutex var head list lock head head simplest sort mutex global variable fragment case thread executing inside lock clause instant 
+programming threads mutex part data structure example field record 
+case variables protects part data structure example remaining fields record 
+express lock clause expression selecting mutex field record correct description thread execute mutex held 
+feature typically arrange thread access fields particular record multiple threads access different records parallel 
+examine usage detail section 
+condition variables view mutex simple kind resource scheduling mechanism 
+resource scheduled shared memory accessed inside lock clause scheduling policy thread time 
+programmer needs express complicated scheduling policies 
+requires mechanism allows thread block event happens 
+src design achieved condition variable 
+type condition procedure wait mutex condition procedure signal condition procedure broadcast condition condition variable associated particular mutex data protected mutex 
+general monitor consists data mutex zero condition variables 
+notice particular condition variable conjunction mutex data 
+wait operation atomically unlocks mutex blocks thread enqueued condition variable signal operation thread blocked condition variable case awakens blocked thread possibly 
+broadcast operation signal awakens threads currently blocked condition variable 
+thread inside wait blocking re locks mutex returns 
+note mutex available case thread block mutex available 
+mutex associated condition variable protects shared data scheduling decision 
+thread wants resource locks mutex examines shared data 
+resource available thread continues 
+thread unlocks mutex blocks calling wait 
+thread resource available awakens thread calling signal broadcast 
+example fragment allows thread block linked list head head empty remove top element list 
+var nonempty thread condition atomicity guarantee avoids problem known literature wake waiting race 
+programming threads lock head nil thread wait nonempty head head head fragment thread adding element head 
+lock head head thread signal nonempty alerts final aspect src thread facility mechanism interrupting particular thread causing back long term wait computation 
+exception alerted procedure alert thread procedure mutex condition procedure boolean state thread includes boolean known alert pending initially false 
+call behaves wait thread alert pending boolean true blocking sets alert pending false re locks raises exception alerted 
+don worry semantics modula exceptions think form non return code 
+call alert currently blocked condition variable inside call re locks mutex raises exception alerted 
+call alert blocked call happens boolean set true 
+call atomically tests clears thread alert pending boolean 
+example consider getchar routine blocks character available interactive keyboard input stream 
+attractive thread computation decides input longer interesting example user clicked cancel mouse thread return getchar 
+happen know condition variable getchar blocks waiting characters just signal condition variable hidden layers abstraction 
+situation thread interpreting cancel request achieve goal calling thread alert thread calling getchar 
+getchar contain fragment 
+programming threads try empty thread nonempty return thread alerted return alerts complicated produces complicated programs 
+discuss detail 
+mutex accessing shared data basic rule mutual exclusion straightforward multi threaded program shared mutable data protected associating mutex access data thread holding associated mutex thread executing lock clause locked mutex 
+unprotected data simplest bug related mutexes occurs fail protect mutable data access benefits synchronization 
+example consider code fragment 
+global variable table represents table filled values calling insert 
+procedure works inserting non nil argument index table incrementing 
+table initially empty nil 
+var table array var procedure insert nil table insert table nil consider happen thread calls insert concurrently thread calling insert 
+order execution happens thread executes thread executes thread executes thread executes confusion result 
+intended effect inserted table separate indexes final state correctly table lost 
+executed twice empty nil slot programming threads left orphaned table 
+errors prevented enclosing lock clause follows 
+procedure insert nil lock table insert lock clause enforces serialization threads actions thread executes statements inside lock clause thread executes 
+effects unsynchronized access mutable data bizarre depend precise timing relationship threads 
+environments timing relationship non deterministic real time effects page faults real time timer facilities actual asynchrony multi processor system 
+idea language system give help example syntax prevents accessing variables locked appropriate mutex 
+languages don offer 
+need programmer discipline careful searching browsing tools 
+problems arise simple coarse grain locking 
+example single mutex protect global state entire module 
+unfortunately cause problems described 
+best advice mutexes simple possible simpler 
+tempted elaborate arrangements entirely sure benefits worth risks just program looks nicer 
+invariants data protected mutex complicated programmers find convenient think mutex protecting invariant associated data 
+invariant boolean function data true mutex held 
+thread locks mutex knows starts invariant true 
+thread responsibility restore invariant releasing mutex 
+includes restoring invariant calling wait unlocks mutex 
+example code fragment inserting element table invariant index nil element table elements index nil 
+note variables mentioned invariant accessed mutex held 
+note invariant true assignment statement second guaranteed mutex held 
+frequently invariants simple barely think program benefit writing explicitly 
+complicated write re probably doing wrong 
+find programming threads best write invariants informally previous paragraph prefer formal specification language larch language specify src threads facility 
+generally idea clear writing program mutex protects data items 
+cheating rule mutex protect access global variables concurrency model actions threads arbitrarily interleaved 
+data protected mutex particularly simple example just integer just boolean programmers tempted skip mutex introduces significant overhead know variables accessed atomic instructions instructions interleaved 
+temptation carefully consider hardware program run 
+single integer variable word aligned running uni processor compiler generates obvious instruction sequences doesn slave variables registers probably get correct answer 
+circumstances get correct answer worse usually get correct answer occasionally get wrong answer 
+machine independent correct code absolutely synchronization technique approved programming language 
+cheating technique helpful unsynchronized access hint 
+context hint mean cheap way getting information correct causes invoke expensive correct way getting information 
+example want call initialization procedure exactly code 
+lock initialize true code correct assume initialized false reading mutex cause runtime error reading mutex value false give value false 
+doesn matter occasionally get false true just cause lock mutex get correct value 
+repeat verifying programming language guarantees validity assumptions 
+strong argument way programmer take advantage atomicity instructions avoid cost lock clause 
+difficult define feature efficient machine independent fashion 
+programming threads deadlocks involving mutexes simplest cases deadlock occur thread tries lock mutex holds systems explicitly allow thread continue 
+numerous elaborate cases deadlock involving mutexes example thread locks mutex thread locks mutex thread blocks trying lock thread blocks trying lock 
+effective rule avoiding deadlocks apply partial order acquisition mutexes program 
+words arrange pair mutexes thread needs hold simultaneously locks order example locked 
+rule completely avoids deadlocks involving mutexes see potential deadlocks program uses condition variables 
+technique easier achieve partial order 
+example thread probably wasn trying modify exactly set data thread frequently examine algorithm carefully partition data smaller pieces protected separate mutexes 
+example thread wanted lock wanting access data disjoint data thread accessing 
+case protect disjoint data separate mutex avoid deadlock 
+note just technique enable partial order mutexes example 
+remember pursue hint complicated locking unsynchronized access shared data 
+having program deadlock preferable risk having program give wrong answer 
+poor performance lock conflicts assuming arranged program mutexes data protected fine granularity deadlock remaining mutex problems worry performance problems 
+thread holding mutex potentially stopping thread making progress thread blocks mutex 
+thread machine resources probably fine 
+thread holding mutex ceases progress example blocking mutex page fault waiting device total throughput program degraded 
+problem worse multi processor single thread utilize entire machine cause thread block mean processor goes idle 
+general get performance arrange lock conflicts rare events 
+best way reduce lock conflicts lock finer granularity introduces complexity 
+way dilemma trade inherent concurrent computation 
+programming threads typical example locking granularity important module manages set objects example set open buffered files 
+simplest strategy single mutex operations open close read write forth 
+prevent multiple writes separate files proceeding parallel reason 
+better strategy lock operations global list open files lock open file operations affecting file 
+achieved associating mutex record representing open file 
+code look 
+type file ref record thread mutex 
+var thread mutex var procedure open name string file lock 
+access open procedure write file lock 
+access fields write complicated situations protect different parts record different mutexes 
+immutable fields record need protection 
+situations careful record laid memory 
+language allows pack fields records sufficiently tightly accessed atomic operations computer memory protect packed fields different mutexes get wrong answer 
+generated instructions modifying fields involve reading modifying register stack writing back 
+threads doing concurrently fields occupy memory word get wrong result 
+need especially conscious potential bug ride language default algorithm laying fields records 
+ideally programming language prevent bug probably won interaction mutexes thread scheduler produce particularly insidious performance problems 
+scheduler part thread implementation part operating system decides non blocked threads processor run 
+generally scheduler decision priority associated thread 
+depending details system priority fixed dynamic programmer assigned computed scheduler 
+algorithm deciding run specified 
+lock conflicts lead situation high priority thread progress programming threads despite fact high priority indicates urgent threads running 
+happen example scenario uni processor 
+thread high priority thread medium priority thread low priority 
+sequence events running blocked locks mutex wakes pre runs higher priority long computation wakes pre higher priority tries lock blocks processor back continues long computation 
+net effect high priority thread unable progress processor medium priority thread 
+state stable processor time available low priority thread complete unlock programmer avoid problem arranging raise priority locking quite inconvenient involves considering mutex thread priorities involved 
+real solution problem lies implementer threads facility 
+communicate scheduler blocked thread holding viewed having high priority unfortunately implementer probably failed don src implementation 
+releasing mutex lock clause times want unlock mutex region program nested inside lock clause 
+example want unlock mutex calling lower level abstraction block execute long time order avoid provoking delays threads want lock mutex 
+src system provides usage offering raw operations acquire release lower level advertised interface 
+exercise extra care take advantage 
+sure operations correctly bracketed presence exceptions 
+second prepared fact state monitor data changed mutex unlocked 
+tricky called release explicitly just lock clause imbedded flow control construct conditional clause 
+program counter depend previous state monitor data implicitly making decision longer valid 
+src discourages paradigm reduce tendency introduce quite subtle bugs 
+separate calls acquire release arises vicinity forking 
+executing mutex held want fork new thread continue working protected data original thread continues access data 
+words transfer holding programming threads mutex newly forked thread atomically 
+achieve locking mutex acquire lock calling release forked thread 
+tactic quite dangerous difficult verify correct functioning mutex 
+additionally thread facilities keep track thread holding mutex systems tactic probably 
+recommend don 
+condition variable scheduling shared resources condition variable programmer wants schedule way multiple threads access shared resource simple time mutual exclusion provided mutexes sufficient 
+consider example producer threads passing data consumers 
+data transferred unbounded buffer formed linked list head global variable head 
+linked list empty consumer blocks condition variable nonempty producer generates data 
+list condition variable protected mutex 
+var thread mutex var head list procedure consume list var list lock head nil thread wait nonempty head head head return consume procedure produce list lock head head thread signal nonempty produce fairly straightforward subtleties 
+notice consumer returns call wait action re locking mutex check linked list empty 
+example general pattern strongly recommend uses condition variables 
+expression thread wait programming threads think re testing expression redundant example producer list non empty calling signal 
+semantics signal guarantee thread lock mutex 
+possible consumer thread intervene lock mutex remove list element unlock mutex newly thread lock mutex 
+second reason re checking local src design decided permit implementation signal rarely awaken thread allowed generate efficient code wait signal primitives 
+main reason advocating pattern program obviously robustly correct 
+style immediately clear expression true statements executed 
+fact verified looking places signal condition variable 
+words programming convention allows verify correctness local inspection preferable global inspection 
+final advantage convention allows simple programming calls signal broadcast extra wake ups benign 
+carefully coding ensure correct threads performance question correctness course ensure correct threads 
+broadcast signal primitive useful know thread usefully 
+broadcast awakens threads called wait 
+program recommended style re checking expression return wait correctness program unaffected replace calls signal calls broadcast 
+broadcast want simplify program multiple threads know progress 
+allows careful separating different wait reasons different condition variables 
+trades slightly poorer performance greater simplicity 
+broadcast really need awaken multiple threads resource just available multiple threads 
+simple example broadcast useful scheduling policy known shared exclusive locking readers writers locking 
+commonly shared data read written various threads algorithm correct perform better allow multiple threads read data concurrently thread modifying data thread accessing data 
+procedures implement scheduling policy 
+thread wanting read data calls reads data calls 
+similarly thread wanting modify data calls modifies data calls 
+variable greater zero counts number active readers 
+negative active writer 
+condition variables described originally described hoare 
+hoare design provide sufficient guarantee re testing redundant 
+design appears preferable permits simpler implementation extra check usually expensive 
+programming threads zero thread data 
+potential reader inside finds zero block writer calls 
+var integer var thread mutex var thread condition procedure lock thread wait procedure lock thread wait procedure lock thread broadcast procedure lock thread signal broadcast convenient terminating writer need know readers able proceed 
+notice re code example just signal adding counter readers waiting calling signal times 
+broadcast facility just convenience advantage information available threads implementation 
+notice reason broadcast know blocked writer usefully progress 
+particular encoding shared exclusive locking exemplifies problems occur condition variables see programming threads sections 
+discuss problems revised encodings locking paradigm 
+spurious wake ups keep condition variables simple introduce possibility threads useful progress 
+happen broadcast signal sufficient threads waiting single condition variable multiple different reasons 
+example shared exclusive locking procedures shown earlier just condition variable readers writers 
+means call broadcast effect awaken classes blocked threads 
+reader lock mutex increment prevent potential writer making progress reader calls 
+cost extra time spent thread scheduler typically expensive place 
+problem spurious wake ups common scheduler unusually efficient probably separate blocked threads condition variables readers writers 
+terminating reader need signal writers condition variable terminating writer signal depending non empty 
+change procedures look follows 
+var integer var thread mutex var cr cw thread condition var integer procedure lock thread wait cw procedure lock thread wait cr programming threads procedure lock thread broadcast cr thread signal cw procedure lock thread signal cw spurious lock conflicts straightforward condition variables lead excessive scheduling overhead 
+reader writer example terminating reader inside calls signal mutex locked 
+uni processor problem multi processor effect liable potential writer awakened inside wait executes instructions blocks trying lock mutex held terminating reader executing concurrently 
+microseconds terminating reader unlocks mutex allowing writer continue 
+cost extra re schedule operations significant expense 
+common situation simple solution 
+terminating reader access data protected mutex call signal move call lock clause follows 
+notice accessing protected mutex 
+procedure var boolean lock thread signal cw complicated case spurious lock conflicts terminating writer calls broadcast 
+mutex held 
+waiting programming threads readers time lock mutex re check increment multiprocessor readers liable block trying lock mutex quite uni processor 
+necessary correct just reader calling signal broadcast having reader turn awaken follows 
+procedure lock thread wait cr thread signal cr starvation program making scheduling decisions worry fair decisions words threads equal favored 
+mutex consideration dealt threads implementation typically rule priority level 
+true condition variables 
+programmer involved 
+extreme form unfairness starvation thread progress 
+arise reader writer locking example course 
+system heavily loaded thread wanting reader existing code starve writers 
+occur pattern 
+thread calls thread calls thread calls thread calls thread calls active reader moment writer proceed potential writers remain blocked waiting reduce 
+load really problem need code complicated 
+example arrange new reader defer inside blocked potential writer 
+adding counter blocked writers follows 
+var integer procedure programming threads lock thread signal cw thread wait cr thread wait cr thread signal cr procedure lock thread wait cw limit complicated implementing elaborate scheduling policies 
+programmer exercise restraint add features really required actual load resource 
+complexity see worrying spurious wake ups lock conflicts starvation program complicated 
+solution reader writer problem showed lines inside procedure bodies final version lines quite subtle reasoning correctness 
+need consider case potential cost ignoring problem merit writing complex program 
+decision depend performance characteristics threads implementation multi processor expected load resource 
+particular resource performance effects problem adopt simplest coding style 
+usually find moving call signal lock clause easy worth trouble performance enhancements worth making 
+important ignore explicitly considering required particular situation 
+deadlock introduce deadlocks condition variables 
+example resources call sequence actions produces deadlock 
+programming threads thread acquires resource thread acquires resource thread wants waits condition variable thread wants waits condition variable 
+deadlocks significantly different ones discussed connection mutexes 
+arrange partial order resources managed condition variables thread wishing acquire multiple resources order 
+example decide ordered 
+thread permitted try acquire holding deadlock occur 
+interaction condition variables mutexes subtle source deadlock 
+consider procedures 
+var thread mutex var thread condition var ready boolean procedure get lock lock ready thread wait get procedure give lock lock ready true thread signal give ready false thread calls get block call wait 
+unlocks leaves locked 
+thread calls give intending cause call signal block trying lock program deadlocked 
+clearly example trivial mutex protect data potential deadlock quite apparent anyway pattern occur 
+problem occurs lock mutex abstraction level program call lower level unknown higher level blocks 
+block freed thread holding higher level mutex deadlock 
+generally risky call lower level abstraction holding mutexes understand fully circumstances called procedure block 
+solution explicitly unlock mutex calling lower level abstraction discussed earlier discussed programming threads solution dangers 
+better solution arrange lock clause calling 
+find discussions problem known nested monitor problem literature 
+fork working parallel discussed earlier classes situations want fork thread utilize multi processor useful waiting slow device satisfy human users working actions provide network service multiple clients simultaneously defer busy time 
+quite common find straightforward application programs threads 
+example thread doing main computation second thread writing output file third thread waiting responding interactive user input fourth thread running background clean data structures example re balancing tree 
+programs build src library packages fork threads internally 
+programming threads usually drive slow devices synchronous library calls suspend calling thread device action completes allow threads address space continue 
+find need older schemes asynchronous operation interrupts unix signals vms ast 
+don want wait result device interaction invoke separate thread 
+want multiple device requests outstanding simultaneously invoke multiple threads 
+operating system delivers asynchronous events older mechanisms runtime library supporting threads facility convert appropriate mechanisms 
+see example design topaz system calls exception trapping machinery included sun lightweight process library 
+program interacting human user usually want responsive working request 
+particularly true interfaces 
+particularly user interactive display goes dumb just database query long time 
+achieve responsiveness extra threads 
+designer window system done call program separate thread 
+times window system call program single thread synchronously user input event 
+case decide requested action short synchronously fork thread 
+complexity introduced forked threads need exercise lot care accessing data interactive interface example value current selection contents editable text areas values change start executing asynchronously 
+difficult design issue window system tackles differently 
+seen totally satisfactory design 
+network servers usually required service multiple clients concurrently 
+network communication rpc happen part server side rpc system invoke concurrent incoming call separate thread forking suitable number threads internally implementation 
+multiple threads communication paradigms 
+example traditional connection oriented protocol file transfer programming threads layered top tcp probably fork thread incoming connection 
+conversely writing client program don want wait reply network server invoke server separate thread 
+technique adding threads order defer quite valuable 
+variants scheme 
+simplest soon procedure done compute result fork thread remainder return caller original thread 
+reduces latency procedure elapsed time called returning hope deferred done cheaply example processor goes idle 
+disadvantage simplest approach create large numbers threads incurs cost calling fork time 
+preferable keep single housekeeping thread feed requests 
+better doesn need information main threads fact done 
+example true responsible maintaining data structure optimal form main threads get correct answer optimization 
+additional technique program merge similar requests single action restrict run chosen periodic interval 
+multi processor want fork order utilize processors 
+isn general advice give decisions fork problem specific 
+general technique pipelining discuss section 
+pipelining multi processor specialized additional threads particularly valuable 
+build chain producer consumer relationships known pipeline 
+example thread initiates action enqueue request buffer 
+thread takes action buffer performs part enqueues second buffer 
+thread takes rest 
+forms stage pipeline 
+threads operate parallel synchronize access buffers pipeline capable utilizing processors 
+best pipelining achieve linear speed fully utilize multi processor 
+pipeline useful uni processor thread encounter realtime delays page faults device handling network communication 
+example program fragment implements simple stage pipeline 
+action initiated calling 
+auxiliary thread executes painter 
+pipeline stages communicate unbounded buffers implemented linked lists elements 
+initial values tails dummy elements program simpler 
+type ref record ch char type ref record bitmap var var var thread mutex var thread condition programming threads procedure arg char var new ch arg nil enqueue request thread 
+lock thread signal return caller 
+procedure init var var init loop wait request dequeue 
+lock nil thread wait convert character bitmap 
+new bitmap font map ch nil enqueue request painter thread 
+lock thread signal procedure painter init var init loop wait request dequeue 
+lock nil thread wait programming threads paint bitmap 
+display bitmap painter new nil new nil thread fork thread fork painter problems pipelining 
+need careful gets done stage 
+ideal stages equal provide maximum throughput utilizing processors fully 
+achieving ideal requires hand tuning re tuning program changes 
+second number stages pipeline determines statically amount concurrency 
+know processors exactly real time delays occur fine 
+flexible portable environments problem 
+despite problems pipelining powerful technique wide applicability 
+impact environment design operating system runtime libraries affect extent desirable useful fork threads 
+operating system suspend entire address space just thread blocked request page fault 
+operating system libraries permit calls multiple threads parallel 
+generally designed environment supporting multi threaded programs find facilities operating system libraries available synchronous calls block calling thread 
+need know performance parameters threads implementation 
+cost creating thread 
+cost keeping blocked thread existence 
+cost context switch 
+cost lock clause mutex locked 
+knowing able decide extent feasible useful add extra threads program 
+potential problems adding threads need exercise little care adding threads find program runs slower faster 
+significantly threads ready run processors usually find performance degrades 
+partly thread schedulers quite slow making general re scheduling decisions 
+processor idle waiting thread scheduler probably get quite quickly 
+thread put queue swapped processor place thread expensive 
+second effect lots threads running conflict mutexes resources managed condition variables 
+add threads just improve program structure example driving slow devices responding mouse clicks rpc invocations programming threads encounter problem add threads performance purposes performing multiple actions parallel deferring utilizing multiprocessors need worry overloading system 
+stress warning applies threads ready run 
+expense having threads blocked condition variables usually significant just memory scheduler data structures thread stack 
+programs src quite large number blocked threads 
+uncommon application programs usually hundreds blocked inside operating system personal workstations 
+systems thread creation termination facilities cheap 
+threads implementation probably take care cache terminated thread don pay stack creation fork call fork probably incur total cost re scheduling decisions 
+shouldn fork small computation separate thread 
+useful measure threads implementation multi processor smallest computation profitable fork thread 
+despite aware experience src running multi threaded applications way multi processor programmers err creating threads creating 
+alert diverting flow control purpose alerts cause termination long running computation longterm wait 
+example multi processor useful fork multiple competing algorithms solve problem completes abort 
+embark long computation database query abort user clicks cancel button 
+programming convention src procedure public interface incur long computation long term wait 
+words long computation occasionally call long term waits calls wait 
+context long means long upset human user 
+attraction convention sure user regain control application program 
+disadvantage programs calling procedures prepared alerted exception come 
+convention rigorously applied single entry point occasionally causes long term wait 
+programming convention alert thread forked thread 
+example package alert caller thread happens executing inside package 
+convention allows view alert indication thread terminate completely 
+problem alerts form asynchronous interrupt mechanism apollo task signal nature intrusive 
+tend program structured 
+straightforward looking flow control thread suddenly diverted action initiated thread 
+example facility harder verify correctness piece program local inspection 
+alerts great restraint program unreadable incorrect 
+programming threads alternatives alerts 
+know condition variable thread blocked simply prod setting boolean flag signalling condition variable 
+package provide additional entry points purpose prod thread blocked inside package long term wait 
+alerts useful don know exactly going 
+example target thread blocked packages single package blocked condition variables 
+cases alert certainly best solution 
+alternatives available best alerts just single unified scheme provoking thread termination 
+consensus designers thread facilities tackle problem 
+designer solution solution far problems 
+additional techniques programming paradigms threads quite simple 
+described earlier discover gain experience 
+useful techniques obvious 
+section describes obvious ones 
+calls time programmers build programs layered abstractions 
+higher level abstractions call lower level ones abstractions level call 
+actions initiated top level 
+methodology carries quite world concurrency 
+arrange thread honor abstraction boundaries 
+permanent mon threads abstraction initiate calls lower levels higher levels 
+abstraction layering added benefit forms partial order order sufficient prevent deadlocks locking mutexes additional care programmer 
+purely top layering satisfactory actions affect high level abstractions initiated low layer system 
+frequently encountered example receiving side network communications 
+examples user input spontaneous state changes peripheral devices disks tapes 
+consider example communications package dealing incoming packets network 
+typically layers dispatch corresponding data link network transport layers osi terminology 
+try maintain top calling hierarchy find incur context switch layers 
+thread wishes receive data transport layer connection thread dispatches incoming ethernet packet ethernet packet belong different connection different protocol example udp tcp different protocol family altogether example ip 
+implementers tried maintain layering packet reception effect uniformly bad performance dominated cost context switches 
+alternative technique known calls 
+methodology maintain pool threads willing receive incoming data link layer ethernet programming threads packets 
+receiving thread dispatches ethernet protocol type calls network layer ip dispatches calls transport layer tcp final dispatch appropriate connection 
+systems call paradigm extends application 
+attraction high performance unnecessary context switches 
+top performing network implementations structured way 
+pay performance 
+usual programmer task complicated 
+partly layer call interface traditional call interface 
+synchronization problem delicate 
+purely top system fine hold layer mutex calling lower layer lower layer block condition variable cause sort nested monitor deadlock discussed earlier 
+presence calls easily provoke deadlock involving just mutexes calling thread holding lower level mutex needs lock higher level 
+words presence upcalls violate partial order rule locking mutexes 
+avoid generally avoid holding mutex making call easier said done 
+version stamps concurrency difficult cached information 
+happen separate thread executing lower level system invalidates information known thread currently executing higher level 
+example information disk volume change hardware problems volume removed replaced 
+calls invalidate cache structures higher level invalidate state held locally thread 
+extreme example thread obtain information cache call operation lower level 
+time information comes cache time call occurs information invalid 
+technique known version stamps useful 
+low level abstraction maintain counter associated true data 
+data changes increment counter 
+assume counter large overflow 
+copy data issued higher level accompanied current value counter 
+higher level code caching data caches associated counter value 
+call back lower level call parameters depend previously obtained data include associated value counter 
+low level receives call compares incoming value counter current truth value 
+different returns exception higher level knows re consider call 
+provide new data exception 
+incidentally technique useful maintaining cached data distributed system 
+crews situations best described embarrassment parallelism structure program vastly concurrency efficiently accommodated machine 
+example compiler implemented concurrency programming threads willing separate thread compile procedure statement 
+situations fork thread action create threads scheduler quite inefficient numerous lock conflicts run memory stacks 
+choice restrained forking abstraction control forking 
+abstraction described vandevoorde roberts 
+basic idea enqueue requests asynchronous activity fixed pool threads perform requests 
+complexity comes managing requests synchronizing coordinating results 
+see full description 
+alternative proposal src explored implement fork way defers creating new thread processor available run 
+call proposal lazy forking pursued 
+building program successful program useful correct live defined efficient 
+concurrency impact 
+discussed quite techniques previous sections help 
+know succeeded 
+answer clear section help discovering 
+place concurrency affect usefulness design interfaces library packages 
+design interfaces assumption callers multiple threads 
+means ensure entry points thread re entrant called multiple threads simultaneously means procedure immediately locks central mutex 
+return results shared global variables global statically allocated storage 
+calls synchronous returning results available caller wants threads 
+don presently multi threaded clients interface strongly recommend follow guidelines avoid problems 
+correct mean program eventually produces answer defined specification 
+programming environment provide help provides sequential programs 
+associating piece data mutex 
+don pay constant attention task hopeless 
+mutexes correctly condition variables recommended style retesting boolean expression returning wait go wrong 
+live mean program eventually produce answer 
+alternatives infinite loops deadlock 
+help infinite loops 
+believe hints preceding sections help avoid deadlocks 
+fail produce deadlock quite easy detect 
+major help analyzing deadlock come symbolic debugger 
+debugger provide minimal support threads enumerating existing threads looking thread stack 
+hopefully debugger provide filtering thread enumeration example finding threads stack frame particular programming threads module finding threads blocked particular mutex condition variable 
+nice feature facility determine thread holding particular mutex 
+efficient mean program available computer resources produce answer quickly 
+hints previous sections help avoid problem concurrency adversely affecting performance 
+programming environment needs give help 
+performance bugs insidious problems notice 
+sort information need obtain includes statistics lock conflicts example threads block mutex long wait concurrency levels example average number threads ready execute program percentage time threads ready 
+final warning don emphasize efficiency expense correctness 
+easier start correct program making efficient start efficient program making correct 
+concluding remarks writing concurrent programs reputation exotic difficult 
+believe 
+need system provides primitives suitable libraries need basic caution need useful techniques need know common pitfalls 
+hope helped sharing belief 
+butler lampson mike schroeder bob stewart bob taylor caused write 
+useful 
+
+accetta mach new kernel foundation unix development 
+proceedings summer usenix conference july 
+
+apollo computer concurrent programming support cps 
+order june 
+
+birrell nelson implementing remote procedure calls 
+acm trans 
+comput 
+syst 
+feb 
+
+birrell guttag horning levin synchronization primitives multiprocessor formal specification 
+proceedings th symposium operating system principles nov 
+
+clark structuring systems calls 
+proceedings th symposium operating system principles dec 
+
+cooper draves threads 
+technical report cmu cs carnegie mellon university 
+computer science department pittsburgh pa june 
+
+guttag horning wing larch family specification languages 
+ieee software sep 
+
+nested monitor calls 
+operating systems review oct 
+
+hoare monitors operating system structuring concept 
+commun 
+acm oct 
+programming threads 
+lampson redell experience processes monitors mesa 
+commun 
+acm feb 
+
+mcjones swart evolving unix system interface support multi threaded programs 
+proceedings winter usenix conference feb 
+
+extending modula build large integrated systems 
+ieee software nov 
+
+saltzer traffic control multiplexed computer system 
+th mac tr mit cambridge mass july 
+
+sun microsystems sun os manual nov section 
+
+sun microsystems system services overview may chapter 
+
+tevanian mach threads unix kernel battle control 
+proceedings summer usenix conference june 
+
+vandevoorde abstraction controlling parallelism 
+submitted publication copies available eric roberts src 
+programming threads appendix thread designs main body talking entirely terms src threads design 
+design quite similar publicly available designs 
+appendix compare designs src corresponding features designs differ src try give hints differences useful dangerous 
+descriptions assume reasonably familiar original documentation systems 
+please read documentation relying material appendix please accept apologies mis represented favorite system 
+design including src includes mechanisms haven discussed 
+example design facilities affecting scheduling decisions adjusting priorities giving hints pre emption useful src sun provide facilities associating context information thread system provides conditional lock operation mutex 
+limits time patience preclude exploring 
+bear mind systems including src equivalent sense reproduce system facilities programming top system solve concurrent programming problem systems 
+effect differences just programming paradigms ones bad ones easier harder 
+table summarizes approximate equivalence major src facilities apollo sun mach 
+absence entry means see reasonably equivalent facility documentation read 
+sections discuss ways facilities differ src src apollo domain cps sun release mach threads fork task create lwp create fork join task release join mutex task handle mon mutex lock mutex lock mon enter mutex lock 
+mutex unlock mon exit mutex unlock condition ec cv condition wait ec wait cv wait condition wait broadcast ec advance cv broadcast condition broadcast signal cv notify condition signal alert task signal apollo domain concurrent programming support cps apollo allows specify timeout calls mutex lock 
+reasons want 
+program alternative algorithm required mutex held long 
+technique useful lock conflicts common 
+generally arrange lock conflicts quite rare short duration 
+arranging locking fine grain mutex protecting data programming threads intend touch 
+achieve find timeout parameter useful 
+second timeout parameter detecting recovering deadlocks 
+discourage view deadlocks bugs detect debugger re program avoid 
+apollo level serve purpose src condition variables 
+simplest usage ec advance thread lock mutex inspect data decide needs block data changed thread 
+reading value ec read unlocking mutex calling ec wait block advanced 
+effect src wait broadcast 
+reading value mutex locked achieves atomicity src guarantees wait call 
+src implements atomicity 
+apollo equivalent src signal operation 
+apollo provide additional freedom explicitly tied mutex associated data 
+allows threads block wake synchronizing shared data 
+rarely want 
+reason know profitable awaken thread just changed data thread interested 
+take advantage extra flexibility careful prevent errors sequence actions 
+thread looks data decides block thread unlocks mutex thread locks mutex changes data thread calls ec advance thread calls ec read thread calls ec wait 
+sequence thread data wanting changed 
+intended sequence step happen step 
+guarantee thread execute 
+apollo allows wait multiple call ec wait 
+occasionally convenient 
+feature thread condition waiting 
+extra functionality apollo design introduce new problems 
+side additional complexity scope performance penalties threads implementation 
+apollo asynchronous fault facility provided task signal substitutes src facility alerting thread 
+src design provides target thread poll alerts calling apollo design produces fault arbitrary point target thread execution provided thread inhibited faults 
+important don interrupt thread executing mutex locked leave shared data unpredictable state 
+apollo enforces restriction inhibiting faults mutex locked 
+attraction polling model flow control program clearly visible source 
+attraction interrupting arbitrary point outside lock clauses easier sure computations terminated likelihood introduce bug forgetting call 
+attractions valid ideal design allow 
+programming threads sun lightweight process library sun version offers lightweight processes library 
+true threads address space lightweight processes executing time 
+creation synchronization facilities expect real threads 
+sun allows thread lock mutex recursively 
+words thread holding mutex call procedure recursion locks mutex 
+src design deadlock 
+preferable depends intent 
+careful restore monitor invariant making call recursively locks mutex fine 
+really bug forgot called procedure uses data get wrong answer 
+additionally take advantage feature remember introduce deadlock split computation multiple threads recursive acquisition mutex acquisition different thread 
+sun provide mechanism alerting thread 
+provide mechanism threads deal asynchronous unix signals calling agt create 
+signals serve purpose src alerts cases easy deal 
+remember alerts really fundamental part threads just added convenience 
+library includes facility passing messages threads 
+designers adopted view message passing alternative shared memory synchronization adjunct 
+don recommend mechanisms single program extent need sun message system handle asynchronous unix signals 
+threads mach procedures listed table come eric cooper library interface mach threads 
+interface quite similar src noticeable omission facility alerting thread 
+substantive differences 

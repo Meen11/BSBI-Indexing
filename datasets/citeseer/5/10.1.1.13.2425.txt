@@ -1,0 +1,518 @@
+citi technical report improving host security system call policies niels citi umich edu introduce system eliminates need run programs privileged process contexts 
+system programs run unprivileged may execute certain operations elevated privileges determined con gurable policy eliminating need suid binaries 
+design analysis systrace facility supports ne grained process con nement intrusion detection auditing privilege elevation 
+facilitates dicult process policy generation 
+systrace possible generate policies automatically training session generate interactively program execution 
+policies describe desired behavior services user applications system call level enforced prevent operations explicitly permitted 
+show systrace ecient impose signi cant performance penalties 
+november center information technology integration university michigan west william street ann arbor mi improving host security system call policies niels center information technology integration university michigan citi umich edu computer security increasing importance business conducted internet 
+despite decades research experience unable secure computer systems measure security 
+take granted applications contain exploitable bugs may lead unauthorized access 
+venues adversary may choose abuse vulnerabilities locally remotely 
+improve security computer system try layer di erent security mechanisms top hope able malicious attack 
+layers may include restrict network access operating system primitives non executable stacks application level protections privilege separation theory practice security increases number layers need circumvented attack successful 
+recover quickly security breach important detect intrusions keep audit trails post mortem analysis 
+intrusion detection systems analyse network trac host system activity infer attacks possible careful intruder evade :10.1.1.116.8880:10.1.1.119.399
+firewalls prevent remote login restrict access example web server 
+adversary successfully exploits bug web server gains privileges may possibly subsequent attacks gain privileges 
+local access system adversary may obtain root privileges exploiting setuid programs localhost network access special system calls 
+detecting intrusions may try con ne adversary limit damage cause 
+access control lists allow limit may read write les 
+acls versatile usual unix access model allow complete con nement adversary dicult con gure 
+observe way persistent changes system system calls 
+gateway privileged kernel operations 
+monitoring restricting system calls application may prevented causing harm 
+solutions system call interposition developed past :10.1.1.24.246
+system call interposition allows systems detect intrusions policy violations prevent happening 
+problem specifying accurate policy remains 
+presents systrace solution ciently con nes multiple applications supports multiple policies interactive policy generation intrusion detection prevention generate audit logs 
+furthermore novel approach called privilege elevation eliminates need setuid binaries 
+discuss design implementation systrace show extensible ecient solution host security problem 
+remainder organized follows 
+section discusses related 
+section provide motivation 
+section presents design systrace section discusses implementation 
+analysis system section 
+section detailed performance analysis system 
+conclude section 
+related capabilities access control lists extend traditional unix access model provide ner grained controls prevent untrusted applications causing damage 
+may mechanisms system call interception system call interposition prevent damage successful intrusions 
+janus goldberg rst system call interception tools :10.1.1.143.5553
+uses ptrace proc mechanisms 
+wagner states ptrace suitable interface system call interception race conditions interface allow adversary completely escape sandbox 
+original janus implementation drawbacks applications allowed change working directory call janus keep track application changed state 
+janus evolved signi cantly time latest version uses hybrid approach similar systrace get direct control system call processing operating system :10.1.1.12.198
+particularly dicult problem application con nement redirect lesystem access arbitrarily 
+gar introduces safe calling sequences follow 
+approach uses extension open system call speci linux operating system breaks application accesses containing 
+systrace solves problem normalization argument replacement 
+currently janus address intrusion detection auditing policy generation 
+jain sekar er fairly complete treatment system call interposition :10.1.1.24.246:10.1.1.24.246
+systems implementation ptrace suffers problems mentioned 
+furthermore address problem naming ambiguities may result policy 
+policy language creating comprehensive policies dicult 
+systrace hand supports automatic interactive policy generation allows create policies quickly complex environments 
+systems mechanisms system call interception 
+peterson general purpose system call api con nement untrusted programs 
+api exible provisions recording audit trails intrusion detection 
+furthermore specifying security policies labor intensive sandbox needs programmed applications 
+domain type enforcement kernel level approach restrict system access processes depending individual domains 
+complete implementation requires extensive changes operating system automatically extend new subsystems 
+policies locked system start users may create individual policies 
+contrast systrace domains di erentiate users 
+feel system call interposition ers higher exibility allows design create simple system addresses policy generation audit trails intrusion detection security architecture microkernel emphasizes policy exibility rejects system call interception mechanism claiming inherent limitations restrict policy exibility 
+system assigns security identi ers object employs security server policy decisions object server policy enforcement 
+consider application con nement provides support auditing intrusion detection 
+takes similar approach object labeling restrict access system 
+depending origin objects assigned sub user identi ers 
+process accesses object inherits sub user id corresponding restrictions 
+result process subverted malicious object may cause limited damage 
+practice applications subverted way enforcing security policies applications sucient prevent malicious data causing damage 
+forrest analyze system call sequences discriminate processes :10.1.1.47.6145
+extended achieve intrusion detection recording system calls application executes comparing recorded sequences database sequences 
+abnormal sequences indicate ongoing intrusion 
+training process collects system call sequences similar automatic policy generation systrace 
+analyzing system call sequences ective mechanism detect intrusions help prevent 
+research shows mimicry attacks evade intrusion detection system 
+systrace detects intrusions prevent limit damage cause 
+furthermore evasion attacks possible discuss section 
+motivation threat model applications run computer systems complex complicated trust web browsers name servers access source code dicult reason security applications 
+harbor malicious code contain bugs exploitable carefully crafted input 
+possible nd vulnerabilities assume existence programming errors known adversary gain unauthorized access system 
+aim limit impact adversary system restricting operations application allowed execute 
+observation security relevant changes performed system calls enforcement restrictions system call level natural choice 
+application con ned set restrictions expressed security policy 
+de ning correct policy dicult possible knowing possible code paths uncompromised application may take 
+require policy language intuitive expressive possible generate policies complete knowledge application 
+may security policy speci cation describes expected behavior application 
+monitoring operations application attempts execute deviation speci ed policy indicates security compromise 
+facilitate forensic analysis intrusion wish generate audit log previous operations related application 
+experience shows adversaries privileges abusing setuid programs 
+programs executed operating system di erent privileges user starting 
+increasing privileges necessary correct operation setuid model coarse grained 
+aim provide ne grained model eliminates need setuid binaries integrates method elevate privilege policy language 
+systrace realizes goals ective improvement host security limits damage adversary cause exploiting application vulnerabilities 
+section discusses design systrace 
+design approaches implementing system call interposition 
+may existing interception mechanisms create implementation completely user space may implement system entirely kernel level choose hybrid 
+user space implementation portable may su er larger performance impact 
+furthermore interception mechanism may provide required security guarantees dicult keep track operating system state processes exiting forking 
+notable exception slic mechanism create extensible operating systems system call interposition :10.1.1.143.5553
+unfortunately portable adds signi cant complexity operating system 
+hand implementation completely kernel level fast portable causes signi cant increase complexity operating system 
+choose hybrid approach implement small part system kernel level 
+kernel level part supports fast path system calls allowed denied 
+case incur performance require context switch ask user space policy daemon decision 
+control kernel allows system fail safe application escape sandbox unforeseen errors cause monitor terminate 
+sandboxing process terminates kernel terminates processes monitoring 
+additionally kernel keeps track new processes created processes exit 
+child processes inherit policy parents 
+kernel fast path system call needs ask policy daemon user space policy decision 
+case process blocked daemon returns answer permit system call deny certain error code 
+information exported kernel user space simple comprehensive interface 
+user space policy daemon uses interface kernel start monitoring processes get information pending policy decisions state changes 
+state changes may process creation processes exiting processes changing uid gid state changes 
+daemon may request information result system call 
+allows know example execve system call succeeded replacing current process image new application 
+event install new policy policy database 
+system call interception provide atomicity time policy decision time system call executed 
+result adversary change system call executed policy daemon inspected 
+example processes share parts address space may cooperate set system call arguments policy daemon kernel 
+kernel suspends rst process consult policy daemon second process running may change system call arguments rst process inspected daemon 
+lack atomicity may result execution unchecked arguments allowing adversary escape sandbox 
+avoid race conditions replacing system call arguments kernel arguments resolved evaluated systrace 
+ensures kernel executes system calls passed policy check 
+argument replacement possible change way application interacts operating system 
+changing arguments possible virtual lesystem layout application 
+may rewrite addresses application attempts access network 
+allows redirect network trac di erent hosts 
+detailed analysis feature subject 
+making policy decision system call arguments translated system independent human readable format 
+policy language operates translation need aware system call speci semantics 
+policy existing frameworks making policy decisions propose generic policy languages provide policy evaluation methods complex necessary case :10.1.1.44.6276
+ordered list policy statements system call 
+policy statement boolean expression combined action clause action 
+valid actions deny permit plus optional ags 
+boolean expression evaluates true speci ed action taken 
+variables xn boolean expression tuples form subject op data subject translated name system call argument data string argument op function boolean return value takes subject data arguments 
+set lists forms security policy 
+system call policy evaluation starts system call speci list terminates rst boolean expression true 
+action expression determines system call denied allowed 
+boolean expression true policy decision forwarded user application automatically denied depending con guration 
+section explains detail mechanism generate policies interactively automatically 
+denying system call possible specify error code passed monitored application 
+create comprehensive policies apply different users policy statements may carry predicates 
+policy statement evaluated predicate matches ignored 
+predicates possible restrict actions certain users permissive example system administrators 
+predicates appended policy statement form op data op equality inequality data user group name 
+log modi er may added policy statement record matching system calls 
+time system call matches policy statement operating system records information system call resulting policy decision 
+allows create arbitrarily ne grained audit trails 
+policy generation creating policies usually relegated user wishes sandbox applications 
+policy generation easy task policy languages resemble complicated programming languages :10.1.1.24.246:10.1.1.24.246
+languages expressive diculty creating policies increases complexity policy language 
+designed policy language simple stateless 
+policy statement evaluated possible extend policy appending new policy statements 
+major bene approach policy generated iteratively 
+create policies automatically running application recording system calls executes 
+translate system call arguments canonically transform policy statements corresponding system calls 
+application attempts execute system call training run checked existing policy covered new policy statement permits system call appended policy 
+subsequent runs application automatically created policy 
+applications create random le names necessary edit policies hand account nondeterminism 
+generating policies automatically assume application contain malicious code operates benign data 
+resulting policies permit undesirable actions 
+address cases assumptions hold impossible exercise code paths training run interactive policy generation 
+interactivity implies user needs policy decisions current policy cover attempted system call 
+policy decision required user graphical noti cation contains relevant information 
+policy usr named emulation native native permit native accept permit native bind match inet permit native break permit native chdir filename eq permit native chdir filename eq permit native filename eq var named permit native close permit native connect eq dev log permit 
+partial policy name daemon 
+policies improved iteratively appending new policy statements 
+policy statement bind allows daemon listen dns requests interface 
+improves current policy appending policy statement covers current system call terminates application 
+system assists user ering generic policy templates starting point 
+initial policy created policy noti cations appear attempted operation covered con gured policy 
+indicate new code path exercised security compromise happening 
+user may permit operation deny investigate 
+security policy application automatic policy enforcement may employed 
+case user asked policy decision application attempts execute system call covered policy 
+system call denied error code returned application 
+errant attempt logged operating system 
+privilege elevation restricting application expected behavior situations increase privileges 
+unix system services applications require root privileges operate 
+higher privileges required operations 
+running application special privileges extend policy language assign desired privileges single system call 
+kernel raises privileges just system call executed lowers directly 
+user may run policy daemon privilege elevation available systrace policy daemon runs root 
+possible adversary obtain unauthorized privileges creating policies 
+identifying privileged operations setuid applications allows create policies elevate privileges operations need run application privileged 
+result adversary manages seize control vulnerable application receives limited additional capabilities full privileges 
+ping program example setuid application requires special privileges operate correctly 
+send receive icmp packets ping creates raw socket privileged operation unix 
+privilege elevation execute ping special privileges policy contains statement granting ping privilege create raw socket 
+unix allows application discard privileges changing uid gid process 
+change permanent process recover privileges 
+application occasionally needs special privileges lifetime dropping privileges option 
+case privilege elevation especially useful 
+example daemon synchronizes system clock 
+changing system time privileged operation retains root privileges lifetime 
+remote root vulnerability prevented single system call privilege elevation :10.1.1.47.6145
+implementation give overview systrace implementation 
+systrace available linux netbsd openbsd concentrate openbsd implementation 
+help reason security implementation simplicity primary goals 
+keep implementation simple introducing abstractions kernel application system call system call gateway entry systrace kernel policy permit deny ask exit system call result systrace policy decision evaluate policy permit deny ask translate answer notification policy decision user sandbox overview system call interception policy decision 
+application executing sandbox system call gateway requests policy decision systrace system call 
+kernel policy provides fast path permit deny system calls checking arguments 
+complex policy decisions kernel consults user space policy daemon 
+policy daemon nd matching policy statement option request re ned policy user 
+separate di erent functionalities components 
+conceptual overview system call interception architecture shown 
+monitored application executes system call kernel consults small kernel policy database check system call denied permitted asking user space daemon 
+point policy decisions inspecting system call arguments 
+usually system calls read write permitted 
+kernel communicates dev systrace device request policy decisions daemon 
+processes may di erent policies initial policy system calls defers policy decisions corresponding user space daemon 
+kernel waiting answer suspends process requires policy decision 
+process awakened signal policy decision received kernel denies current system call returns error 
+enforce synchronization message kernel carries sequence number answers user space matched correct message 
+sequence number ensures user space policy decision applied system call caused message 
+user space policy daemon receives request decision looks policy associated process translates system call arguments 
+translate register translators argument system call 
+translation socket af inet sock raw icmp system call takes form socket af inet sock raw argument translators fairly simple translating complicated 
+filenames unix relative current working directory process 
+order translate unambiguous absolute path name need know current working directory monitored application working environment 
+additionally symbolic links components le name need resolved access restrictions imposed policy circumvented adversary 
+translators act argument 
+argument replacement framework replace original arguments translation 
+kernel sees normalized arguments adversary misleading arguments circumvent security policy 
+kernel installs rewritten arguments stack monitored process resuming execution system call 
+policy statement permits creation raw sockets look socket eq sock raw permit operators boolean expression translated human readable strings input arguments 
+currently support eq match re sub operators eq operator evaluates true system call argument matches text string policy statement exactly 
+match operator performs le name unix shell 
+match les directories le name arguments 
+re operator uses regular expressions match system call arguments 
+versatile expensive evaluate operators 
+sub operator evaluates true system call argument contains speci ed substring 
+evaluating policy current system call results deny permit policy daemon returns answer kernel awakens sleeping process 
+user monitoring applications asked policy decision 
+noti cation mechanism implemented independently rest system currently graphical user interface text prompt terminal 
+point user add new policy statements policy 
+policies system calls accessing tend similar 
+example access stat lstat system calls ful ll similar functionality 
+order avoid duplication policy introduce system call aliasing map system calls similar functionality single virtual system call policy evaluation 
+currently system calls read lesystem system calls cause change lesystem 
+open system call mapped depending kind lesystem access indicated arguments 
+system call aliasing reduces size policies simpli es policy generation 
+possible policies exible predicates 
+policy statements evaluated predicate matches 
+example prevent root access ssh daemon policy statement permits execution shell predicated applies non root users 
+order keep track process uid gid kernel sends informational messages policy daemon values change 
+execve system call treated specially 
+process executes application memory image replaced executed program 
+support ne grained policies set new policy process 
+policy obtained name executed application 
+result systrace daemon may concurrently enforce multiple policies multiple processes 
+policies di erent applications stored policy directory separate les 
+users may store policies user speci policy directory 
+system administrator may provide global policies users 
+analysis adversary takes control sandboxed application may try escape sandbox confusing policy enforcement tool allowing actions violate policy 
+sandboxing tools share common problems novel solutions discuss inherent limitations policy systems system call interposition 
+security analysis enforce security policies ectively system call interposition need resolve challenges incorrectly replicating os semantics resource aliasing lack atomicity side ects denying system calls 
+brie explain nature discuss address 
+sandboxing tool needs track operating system state order reach policy decisions 
+systrace example keep track process uids program binary monitored process executing 
+order avoid incorrectly replicating os semantics kernel level implementation informs systrace daemon relevant state changes 
+resource aliasing provides multiple means address access operating system resource 
+example unix systems possible gain access les communicating system service symbolic links lesystem create di erent names le 
+adversary may indirections circumvent policy obtain unauthorized access 
+system call interposition mechanism unaware system services allow proxy access operating system resources 
+creating policies allow sandboxed application contact system services need aware consequences 
+prevent aliasing symbolic links relative pathnames discussed 
+problem lack atomicity may cause mapping names resource change policy decision system call execution 
+adversary may cause state change allows process access di erent resource originally approved example cooperating process sharing memory may rewrite system call arguments policy check execution 
+systrace solves aliasing atomicity problems normalizing system call arguments 
+provide normalized values operating system way name resource mapping changed adversary 
+includes resolving symbolic links relative paths 
+side ects denying system calls need taken consideration system calls denied 
+assume correct security policy system calls denied application attempts 
+behavior applications depends error code returned specify error code part systrace policy 
+system call set valid return codes include 
+avoid confusing applications allow policies set error code xed value 
+example kernel return stat system call application think permitted access certain le 
+hand returning causes application think le exist 
+furthermore address secure process policy switching problems overlooked 
+application executes new program operating system replaces code process running executed program 
+new program trusted may wish monitoring process runs 
+hand new program implies new functionality con ned better di erent suitable policy 
+requested systrace reports return value system call indicate successfully executed 
+case execve success indicates monitored process running new program allow policy specify detach process allow di erent policy take ect 
+changes take ect execution process resumed 
+security system relies integrity lesystem assume secure 
+adversary control lesystem may modify policies determine permissible operations monitored applications replace trusted programs malicious code 
+may relax assumption security mechanisms place secure bootstrap architecture prevent adversary corrupting lesystem 
+audit trails may generated adding log modi er policy statements 
+example audit trail commands user executes su cient systrace shell log executions 
+bene privilege elevation reduction privileges application requires execution 
+applications required root privileges entire lifetime execute speci system calls elevated privileges 
+system calls executed privileges user invoked application 
+semantics setuid prevent user debugging privileged applications ptrace 
+apply semantics policy application privileges 
+policy generation policy generation neglected problem 
+order sandbox function correctly requires policy restricts application minimal set operations breaking functionality 
+facilitate policy generation policy language allows policies improved iteratively appending new policy statements 
+generate policies automatically executing applications recording normal behavior 
+time encounter system call part existing policy append new policy statement matches current translated system call 
+resulting policy covers executed code path application 
+applications randomize arguments post process policy independent arguments random components 
+example tmp creates le tmp automatic policy generation appends corresponding policy statement filename eq tmp permit post processing changes policy statement independent randomness applies subsequent executions application filename match tmp conf permit automatic policy generation process pro ling normal application behavior hofmeyr face similar problems 
+need sure abnormal behavior occurs policy training try exhaust possible code paths 
+interactive automatic policy generation go hand hand 
+require complete policy sandbox application may request policy decision user operation covered existing policy 
+feasibility approach demonstrated monkey org unix shell provider ann arbor uses systrace sandbox users 
+generated separate policies approximately applications 
+number system calls policy frequency analysis number system calls applications allowed execute 
+applications di erent system calls 
+average unix systems support system calls disallow execution system calls prevent adversary cause damage 
+note abscissa origin zero 
+analysis policies shows applications allowed call di erent system calls average see 
+usually unix systems support system calls 
+adversary gains control application may attempt obtain higher privileges possible system calls 
+limiting adversary system calls required application reduce potential cause damage 
+notice peaks system calls 
+rst peak caused policies standard unix utilities chmod cat rmdir di similar policies 
+second peak caused identical policies di erent utilities mh message system require system calls establishing network connections creating les lesystem 
+policy statements specify access lesystem control read access write access execution programs 
+intrusion detection prevention capability intrusion detection prevention follows automatically design 
+system calls violate policy denied recorded operating system 
+prevents adversary causing damage creates alert contains restricted operation 
+correct policy restricts application operations required functionality 
+prevents adversary harming operating system arbitrarily may abuse application functionality cause damage 
+employ audit trails log malicious activity prevented policy 
+limitations powerful policy enforcement system call level inherent limitations 
+monitoring sequence system calls give complete information application internal state 
+example system services change privileges process successful authentication deny extra privileges authentication fails 
+sandboxing tool system call level account state changes 
+possible enforce global restrictions example state root allowed login 
+possible restrictions depend application internal state 
+increase security authentication services ssh possible combination privilege separation system call policy enforcement 
+privilege separation majority application executed unprivileged process context 
+vulnerability unprivileged code path lead privilege escalation 
+unix system unprivileged process execute system calls allow local network access 
+systrace sandbox application prevent unprivileged process executing system calls necessary functionality 
+applications systrace may quality assurance injecting random faults running application 
+allows introduce error conditions normally triggered observe application recovers correctly 
+example may simulate resource starvation full lesystem memory conditions 
+performance determine performance impact systrace measured overhead execution time single system calls applications 
+measurements repeated times ghz pentium iii running openbsd 
+results displayed averages corresponding standard deviation 
+mode real time user time system time sec sec sec normal kernel user space microbenchmark compare overhead single system call process process con nement di erent policies 
+making policy decision kernel considerably faster requesting policy decision user space policy daemon 
+conduct microbenchmarks single system call repeating system call times measuring real system user time 
+execution time system call time average single iteration 
+baseline measure time single system call monitoring application 
+compare result execution times obtained running application systrace di erent policies 
+rst policy permits kernel policy table 
+second policy kernel consults user space policy daemon decision 
+see kernel policy evaluation increases execution time slightly time spent kernel 
+kernel ask user space daemon policy decision executing single system call takes longer due context switches required policy decision 
+results shown 
+open system call requires kernel 
+microbenchmark shows kernel evaluation policy increases execution time 
+execution time user space policy decision depends depth le directory tree 
+path component increase execution time fold 
+directory component path adds approximately microseconds execution time due normalization shown mode real time user time system time sec sec sec normal kernel deep deep deep deep microbenchmark compare overhead open system call 
+due normalization time policy decision user space depends number components 
+component adds sec 
+mode real time user time system time sec sec sec normal kernel microbenchmark compare overhead read system call reading kbyte bu er dev 
+case measurable performance kernel policy decision 
+
+microbenchmark measures overhead read system call read kbyte bu er dev outputs random data created fast stream cipher 
+noticeable di erence execution time system time increases kernel policy evaluation 
+omit measurement user space read requires user space policy decision 
+results shown 
+enforcing system call policies adds overhead application execution time increase small 
+compares runtime gzip di erent le sizes kbyte mbyte 
+gzip executes system calls second average read write 
+case execution time signi cantly ected systrace application spends time computing executes relatively system calls 
+assess performance applications frequently access lesystem created benchmark similar andrew benchmark 
+consists copying tar archive systrace sources running con gure compiling sources deleting les source code subdirectory 
+file size normal systrace increase mbyte percent comparing runtime gzip process gzip running systrace 
+benchmark computationally intensive policy enforcement add signi cant overhead 
+break close read open mmap sigaction stat fstat access wait gettimeofday write getpid exit fork system calls system call frequency histogram system call frequency compilation benchmark 
+performance impact application con nement depends number system calls require policy decision user space daemon 
+histogram shows frequent system calls handled kernel policy 
+benchmark application programs executed 
+systrace generate policies automatically improve policies result simple script 
+benchmark executes approximately system calls 
+decomposition frequent system calls shown 
+system call highest frequency break allocate memory 
+system calls access lesystem prominent 
+direct comparison execution times shown 
+systrace notice increase running time 
+number system calls increases approximately normalization requires function causes frequent calls lstat fstat 
+running benchmark netbsd shows signi cantly smaller increase system calls benchmark normal systrace increase sec sec percent compile crawler gzip overview di erent macrobenchmarks comparing execution time run execution time running systrace 
+compilation benchmark incurs highest performance 
+hand complex consisting applications shows acceptable performance 
+running benchmarks systrace incurs small performance penalties 
+implements system call 
+second measures runtime web crawler downloads les local web server 
+crawler retrieves approximately les average throughput megabytes second 
+running time systrace increases see 
+additional cost systrace noticeable prohibitive especially interactive applications web browsers observable performance decrease user 
+presents new approach application con nement supports automatic interactive policy generation auditing intrusion detection privilege elevation applies system services user applications 
+argued system call interception exible appropriate mechanism intrusion prevention 
+hybrid implementation enables fail safe operation low performance overhead maintaining portability 
+addresses important issues addressed previous research 
+translation system call arguments human readable strings allows design simple policy language 
+enables system generate ne grained policies automatically interactively 
+resulting policies restrict applications breaking functionality 
+privilege elevation conjunction application con nement allows reduce signi cantly privileges required system services 
+privilege elevation assign ne grained privileges applications requiring root user 
+retaining root privileges application lifetime application may run special privileges receives elevated privileges determined policy 
+security analysis discusses overcome problems common system call interception tools design allows functionality intrusion detection prevention 
+analyzed performance systrace showed additional performance overhead acceptable observable user sandboxed application 
+acknowledgments peter honeyman perry metzger terrence kelly jose careful reviews 
+perry metzger dug song markus watts marius eriksen helpful discussions topic 
+anurag acharya mandar 
+parameterized behavior classes con ne applications 
+proceedings th usenix security symposium august 
+albert alexandrov paul klaus schauser 
+con ned execution environment internet computations 
+william david farber jonathan smith 
+secure reliable bootstrap architecture 
+proceedings ieee symposium security privacy pages may 
+lee badger daniel david sherman kenneth walker sheila 
+domain type enforcement unix prototype 
+proceedings th usenix security symposium pages june 
+steven bellovin 
+computer security state 
+communications acm march 
+matt bishop 
+write setuid program 
+login 
+matt blaze joan feigenbaum john ioannidis angelos keromytis 
+keynote trust management system version 
+rfc september 
+matt blaze joan feigenbaum jack lacy 
+decentralized trust management 
+proceedings ieee symposium security privacy pages may 
+cert 
+openbsd contains bu er ow select call 
+vulnerability note vu august 
+www kb cert org id 
+hao chen david wagner drew dean 
+setuid ed 
+proceedings th usenix security symposium august 
+william cheswick steven bellovin 
+firewalls internet security repelling willy hacker 
+addison wesley publishing 
+coleman 
+framework playing reality software 
+org 
+
+system firewall mechanism 
+sourceforge net 
+fernandez allen 
+extending unix protection model access control lists 
+proceedings summer usenix conference pages 
+stephanie forrest steven hofmeyr anil somayaji thomas sense self unix processes :10.1.1.47.6145
+proceedings ieee symposium research security privacy pages 
+:10.1.1.47.6145
+remote bu er ow 
+bugtraq april 
+cve 
+tal gar :10.1.1.12.198
+traps pitfalls practical problems system call interposition security tools 
+proceedings isoc symposium network distributed system security 
+appear 
+douglas steven rodrigues david petrou thomas anderson :10.1.1.143.5553
+slic extensibility system commodity operating systems 
+proceedings usenix annual technical conference pages june 
+ian goldberg david wagner randi thomas eric brewer :10.1.1.143.5553
+secure environment untrusted helper applications 
+proceedings th usenix security symposium july 
+steven hofmeyr stephanie forrest anil somayaji 
+intrusion detection sequences system calls 
+journal computer security 
+howard kazar menees nichols satyanarayanan sidebotham west 
+scale performance distributed file system 
+acm transactions computer systems february 
+ioannidis steven bellovin jonathan smith 
+sub operating systems new approach application security 
+proceedings sigops european workshop september 
+jain sekar :10.1.1.24.246:10.1.1.24.246
+user level infrastructure system call interposition platform detection con nement 
+proceedings isoc symposium network distributed system security february 
+calvin ko george fink karl levitt 
+automated detection vulnerabilities privileged programs execution monitoring 
+proceedings th annual computer security applications conference pages december 
+henry levy 
+capability computer systems 
+digital press 
+www cs washington edu homes levy 
+vern paxson :10.1.1.116.8880
+bro system detecting network intruders real time 
+proceedings th usenix security symposium january 
+david peterson matt bishop pandey 
+flexible containment mechanism executing untrusted code 
+proceedings th usenix security symposium pages august 
+niels 
+preventing privilege escalation 
+technical report citi university michigan august 
+thomas timothy 
+insertion evasion denial service network intrusion detection 
+secure networks whitepaper august 
+jerome saltzer 
+protection control information multics 
+communications acm july 
+ray spencer stephen peter mike hibler david andersen jay lepreau 
+security architecture system support diverse security policies 
+proceedings th usenix security symposium pages august 
+david wagner paolo soto 
+mimicry attacks host intrusion detection systems 
+proceedings th acm conference computer communications security november 
+david wagner 
+janus approach con nement untrusted applications 
+technical report csd 
+kenneth walker daniel lee badger michael david karen 
+con ning root programs domain type enforcement 
+proceedings th usenix security symposium july 

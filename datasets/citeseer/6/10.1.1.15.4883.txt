@@ -1,0 +1,703 @@
+int digital object identifier doi development hipe system design experience report erik johansson mikael pettersson sagonas thomas lindgren computing science department uppsala university sweden mail csd uu se sweden mail com published online november springer verlag 
+concurrent functional programming language erlang designed ease development large scale distributed soft real time control applications 
+far quite successfully industry ericsson telecom designed developed companies 
+declarative language success story taken place despite fact erlang implementations slow compared implementations functional languages 
+wanting improve performance aspects publicly available erlang implementations hipe high performance erlang aim develop efficient just time native code compiler erlang called hipe system 
+start system gone various re design phases partly due implementation choices turn promising appeared mainly due changes ericsson erlang system hipe system built 
+article describe hipe system developed currently looks current performance 
+critically examine design decisions took main lessons learnt implementing 
+report experiences trying keep concurrent development ericsson base erlang system 
+article documents hipe system serve possible guidance wishing attempt similar feat 
+keywords programming language implementation concurrent programming functional programming erlang virtual machines compilation methods hacking correspondence erik johansson erlang strict dynamically typed functional programming language support concurrency communication distribution fault tolerance fly code reloading automatic memory management multiple platforms 
+designed aim easing programming large soft real time control systems commonly developed telecommunications industry 
+judging commercial applications written erlang consisting upwards half lines code language currently quite successful domain 
+success story taken place despite fact implementations erlang virtual machine emulators relatively slow compared implementations functional languages 
+respect erlang bears striking resemblance modern phenomenon java achieved initial success highperformance implementations faster compilers coming 
+spite erlang success far need speed pressing competitive telecommunications market 
+availability fast implementations means necessary condition programming language success helps maintaining interest language sustains continued development aids language adoption new projects industrial setting 
+furthermore developing highperformance compiler relevant language provides excellent opportunity transfer technology academia industry evaluate effect new optimization techniques real world applications toy programs 
+prompted reasons embarked advanced software technology project partly funded ericsson development goal de johansson development hipe system design experience report high performance implementation erlang 
+approach efficient execution erlang programs develop just time native code compiler add component unchanged open source erlang implementation 
+resulting system called hipe high performance erlang allows user selectively compile single functions modules native code combining performance characteristics native code compiler benefits emulator implementation 
+purpose article fully describe hipe design development process project sect 
+current architecture aspects implementation relevant applicable similar systems sect 
+performance compared current implementations erlang functional languages sect 
+
+addition documenting approach opportunity critically examine design choices sect 
+
+hope experience issues discussed interest programming language implementors want engage similar projects 
+brief review erlang characteristics 
+erlang language applications mentioned erlang dynamically typed strict concurrent functional language 
+erlang function closures typical erlang programs order 
+erlang basic data types atoms numbers floats arbitrary precision integers process identifiers compound data types lists tuples 
+destructive assignment variables data occurrence variable binding instance 
+function rule selection done pattern matching 
+erlang inherits ideas concurrent constraint logic programming languages flat guards function clauses 
+processes erlang extremely light weight number typical applications quite large memory requirements vary dynamically 
+erlang concurrency primitives spawn send receive allow process spawn new processes communicate processes asynchronous message passing 
+data value sent message processes may located machine 
+process mailbox essentially message queue message sent process arrive 
+message selection mailbox occurs pattern matching 
+shared memory processes distribution invisible erlang 
+support robust systems process register receive message terminates 
+erlang provides mechanisms allowing process timeout waiting messages named danish mathematician erlang 
+catch throw style exception mechanism error handling 
+programming large erlang comes module system 
+erlang module defines number functions 
+explicitly exported functions may called modules 
+calls functions different modules called remote calls done supplying name module called function 
+tail call optimization required feature erlang 
+functional languages memory management erlang automatic garbage collection 
+real time concerns language call bounded time garbage collection techniques see 
+practice garbage collection times usually small processes short lived small size 
+erlang nines high availability time available systems downtime required min year 
+systems taken upgraded restarted software patches upgrades arrive quickly exceed allowable downtime 
+perform system upgrading allowing continuous operation erlang system needs cater ability change code module system running called hot code loading 
+processes execute old code continue run expected eventually switch new version module issuing remote call invoke version module 
+old code longer old module unloaded 
+erlang language purposely designed small comes libraries containing large set built functions known 
+open telecom platform otp middleware erlang extended library standard solutions common requirements telecommunication applications realtime databases servers state machines process monitors load balancing standard interfaces corba standard communication protocols ftp 
+erlang currently ericsson telecom companies development high availability servers networking equipment 
+example products built erlang otp axd scalable atm switching system anx adsl delivery system switching hardware control system generation call center suite scalable internet servers 
+annual erlang user conference principal forum reporting done erlang provides record erlang evolving industrial additional information erlang applications obtained relevant pages www erlang org 
+account hipe development section describe history hipe briefly addressing implementation details johansson development hipe system design experience report rationale design decisions took 
+divide description parts corresponding major revisions hipe system 
+attempt written gave insight address problem efficiently implementing erlang showed considerable speedup achieved relatively simple methods 
+
+flexible easily extendible compiler design written erlang possible experiment different optimization techniques measure impact real world applications erlang 
+
+open source erlang distribution ericsson possible hipe publicly released get users input outside world 
+
+strong coupling hipe compiler ericsson erlang otp system underway 
+goal hipe standard component releases open source erlang 
+prototype starting point hipe system master thesis project summer 
+goal develop optimizing compiler called substantially improve performance erlang programs 
+approach briefly considered java virtual machine jvm back time java just starting popular language 
+soon realized architecture jvm suited dynamically typed language erlang 
+jvm provides support tagged data items example integers wrapped awkward get proper tail recursion crucial erlang programs 
+addition compiling jvm implies losing control efficiency light weight threads feature critical performance typical erlang applications see compares performance erlang processes java threads 
+consequently idea compile jvm quickly abandoned decided aim direct compilation native code 
+chosen architecture sparc ericsson common general purpose platform erlang applications time 
+wanted develop compiler worked erlang language just toy compiler subset erlang decided base compiler stable working erlang runtime system ericsson 
+time erlang systems concurrently developed ericsson jam older system stack machine 
+beam relatively new system register machine influenced warren machine wam prolog implementations 
+time beam system option compile erlang programs native code option robust removed 
+systems runtime system similar data representations 
+beam system quite complex really stable 
+addition time beam proven substantially faster jam 
+jam system hand quite stable significantly simpler byte code interpreted instructions 
+decided starting point compiler translate generated jam byte code internal intermediate representation optimize generating native code 
+source code jam version written provided ericsson signed agreement 
+order get tight integration compiler runtime system chose implement compiler entirely implementation issues compiler 
+ericsson implementations erlang smallest unit compilation module decided early user system able choose selectively compile single presumably time critical function time native code 
+way users combine compact representation emulated byte code efficiency usually larger native code 
+feature hipe potentially important large telecom applications typically small portion code time critical remaining code deals error correction maintenance 
+order help users decide functions compile native code hipe system provides simple profiling tools 
+measures number times emulated function called 
+recursion way implement loop erlang means simply counting number calls functions quickly identify program hot spots program points execution time spent compiled native code 
+feature easy build just intime hot spot compiler erlang 
+set trigger level number calls emulated functions automatically compiled native code 
+compiler implemented integrated runtime environment meant execution erlang code temporarily interrupted compilation took place 
+thorough measurements performance impact johansson development hipe system design experience report feature enabled interactive erlang shell notice degradation system responsiveness 
+translation jam code compiler intermediate address code done straightforward way left opportunities optimization 
+example jam stack machine push time variable referenced 
+push translated register copy unnecessary 
+order improve code quality compiler performed constant propagation constant folding unreachable code elimination dead code removal 
+compiler implemented simple delay slot filler looked basic block preceding branch suitable instructions 
+register allocation simple graph coloring algorithm spilling implemented 
+register interference graph colored function control flow graph large data flow analysis take long function remain emulated 
+calling conventions stack frames 
+jam instruction set simple instructions knowledge current frame size 
+pointers keep track local variables arguments stack top 
+pointers kept vars args jam registers 
+executing function call args vars need saved args points place caller 
+order provide descriptive error messages jam emulator maintains current call register cc points start current function byte codes 
+cc set entry function saved recursive function calls 
+leads jam stack frame words addition local variables arguments see fig 
+
+words return address points byte code instruction return cc belongs caller vars args pointers caller local variables arguments 
+values stack tagged including return address 
+jam version tags significant bits word tag frame zeroes 
+long system allocated code boundary return address automatically tagged frame 
+native code compiler passed arguments real machine registers 
+apart local variables return address saved stack 
+compiler knew format stack frame args vars registers needed 
+furthermore cc register needed current function identified program counter 
+format native stack frame shown fig 
+
+runtime system memory area native jam stacks stacking native frames jam frames see fig 
+top 
+small dummy frames placed args argument argument return address cc vars args vars variable variable fig 
+
+argument argument return address caller save caller save fig 
+
+native stack frame tween frames different types indicate transition emulated native code 
+bugs encountered originated emulated native code integration hairy stack ended 
+scheme abandoned see sect 
+
+backpatching 
+order facilitate hot code loading recompilation interactive system implemented scheme call sites patched target call updated 
+function kept list callers list call sites function destinations 
+function recompiled callers updated call new function old function removed functions called 
+performance compiler compiler performed quite small benchmark programs 
+frequently attaining factor speedup jam slightly faster beam beam generating native code gcc 
+hand problems scaling compile large systems tens thousands lines code difficult develop rapidly debug new optimizations 
+examining emitted code noticed importance low cost procedure calls optimized johansson development hipe system design experience report words 
+point confirmed measurements concurrent applications time spent running sequential code process communications 
+measurements indicated process communication start bottleneck applications system times faster 
+decided concentrate sequential optimizations 
+hipe system open source erlang master thesis finished compiler performance evaluated small programs natural step system robust add code optimizations compiler evaluate performance industrial applications small benchmarks 
+soon realized especially context academic project limited manpower optimizations wanted add easier develop erlang get flexible system allow easily add new optimizations decided rewrite compiler scratch erlang 
+time hipe coined name project system 
+hipe implementation issues starting scratch acquired latest erlang system ericsson version 
+erlang open source 
+erlang system configured jam beam system installation time 
+beam implementation matured point better compiler jam moving target proven faster jam 
+furthermore shown straightforward compilation native code faster beam 
+basing handle chose stay jam 
+runtime system 
+order minimize number bugs version hipe system decided put effort making interface emulated native code simple clean possible 
+performance measurements shown reducing mandatory words stack frames cf fig 
+gave performance improvement big impact dataflow optimizations compiler maintaining different types frames justified hand dealing memory area error prone 
+order technically compilers generate virtual machine code system emulator 
+avoid problems decided separate native code stack emulated code stack 
+way different stack frame formats emulated native code stack deal type stack frames 
+separate stacks special effort put maintaining tail call optimization required erlang see sect 
+
+garbage collector keep state variable indicating mode emulated native stack frame scanned frame check frame marked switch mode 
+separate stacks garbage collector scan stack quickly easily knowing find type frame stack 
+problem scheme exception handling mechanism implemented set catch frames linked stack meant links pointers stacks 
+causes slight complication stack needs relocated order expand shrink catch frame links stack updated 
+discuss integration emulated native code describe current system sect 
+compiler 
+rewriting hipe compiler erlang step making extendible 
+single intermediate format compiler intermediate representation levels introduced described detail sect 
+
+addition optimizations mentioned sect 
+hipe compiler optimized constant data structures data implemented spilling 
+erlang intermediate formats allowed experiment relatively easily incorporate compiler optimizations 
+hand implementing optimization algorithms erlang experienced performance problems hipe compiler 
+compiler frequently updated internal data structures written erlang updates implemented creating new versions data structures 
+spurred implement fast declarative arrays hash tables 
+data structures behaved ordinary immutable erlang values destructive updates internally gave considerable performance benefits 
+instrumentation hipe hipe runtime system enhanced performance instrumentation features selectively included excluded system installation 
+instrumentation features come forms 
+software counters counters keep track various operations interest performed 
+example counters keep track number times erlang code run runtime system stack calling primitive 
+johansson development hipe system design experience report erlang function called locally remotely meta call apply 
+count calls built functions times jam instruction executed times control passed emulated native code 
+
+performance instrumentation counters pics sun ultrasparc performance instrumentation facilities 
+pics accessible user built function typically measure time spent region code give hardware specific information example amount time lost due stalls cache misses 
+reason stall determined data cache instruction cache external cache branch misprediction 
+currently hipe uses pics measure time spent garbage collection built function native code time slice 
+instrumentation counts elapsed cycles issued instructions making possible determine cpi cycles instruction ratio 
+details instrumentation reader referred 
+benchmarking performance hipe slowly stable system time measure performance effect various compiler optimizations large industrial erlang applications 
+initially attempted obtain code mobility server ericsson product tracking users moving enterprise routing calls appropriate point 
+enjoy success probably due lack direct contact hipe mobility server development teams 
+luckily ericsson projects erlang axd scalable atm switch anx asymmetric digital subscriber line adsl system 
+medium large projects people involved software base consisted large amounts erlang code hundreds thousands lines 
+furthermore developers axd benchmarking conscious mainly due competitiveness atm switch market willing provide real data benchmarks hipe performance evaluation spend time explaining run programs 
+main problems benchmarking industrial erlang applications connected specific hardware software platform frequently proprietary probably situation similar embedded control software 
+practice means benchmarking conducted site problems entails 
+axd benchmark run stand workstation 
+mere lines code fifth axd software time contain time critical portion 
+due limited resources plans anx began analyze axd code 
+months debugging extending hipe required run successfully making run fact non trivial despite platform independent example axd project internal version erlang compatible 
+performance measurements summarized :10.1.1.33.8547:10.1.1.33.8547
+basically axd system runs huge inner loop spanning hundreds procedures stands profile 
+rewriting lower level language attractive option improving axd performance 
+hand due size program little reuse cache system frequently stalls waiting instructions 
+second finding spends time inside built operations manipulating byte arrays internal database 
+considerable time spent os kernel 
+reasons performance speedup compiling native emulated code noticeable considerably lower obtained small benchmark programs see table sect 
+
+speedup probably justifies increased code size compilation time 
+open source hipe december ericsson released current erlang otp system open source erlang opened possibility distributing hipe system open source 
+unfortunately contacts erlang development groups hipe ericsson infrequent indirect meant hipe ericsson erlang system evolved independently years erlang 
+short hipe old obsolete system ported release 
+task porting hipe turned significantly harder anticipated hoped 
+example ericsson erlang system switched different tagging scheme low bits word high ones 
+syntactic changes erlang source code massive option settle manual extremely slow painful diff merge process 
+porting hipe second release jam confronted surprises 
+ericsson system featured generational garbage collector needing modifications native code stack incompatible compiler imperative data structures see sect 
+
+generational collectors place objects separate memory areas depending age concentrate johansson development hipe system design experience report efforts reclaiming memory younger objects tend short lived 
+updates cause old objects contain young objects 
+need special treatment generational collectors additional data structures needed record code generated maintain data structures ch 
+
+problem support exist runtime system base erlang system need 
+time time implement support reverted purely functional implementations compiler data structures slowed compilation times considerably 
+hipe compiler optimises constant data structures statically allocated literals 
+incompatible new generational garbage collector change explicitly move objects residing constant data area 
+problem erlang process youngest generation scattered distinct memory areas older generation single memory area 
+usually way 
+means collector easily test pointer refers young generation 
+tests pointer refers older generation assumes point young generation 
+bif calling conventions changed subtly extensions hipe low level sparc assembly support code needed deal 
+track occasional memory corruption bugs 
+tag scheme limits address range erlang values consequently runtime system check memory blocks allocated erlang values reside safe address range 
+unfortunately allocation site runtime system failed perform check 
+memory usage high unsafe address returned 
+converting address tagged pointer lose significant bits causing accesses malfunction pointer operation produce different address 
+positive side porting effort gave opportunity review revise design decisions retrospect entirely satisfactory 
+particular re implemented mode switch interface new jam instructions explicit tests cf sect 
+mode switch stack frame management cf sect 
+
+addition rewrote hipe code server dynamic linker march hipe version released open source version 
+released system consisted lines erlang code lines assembly code added unchanged jam system 
+architecture described detail sect 
+
+hipe obtained www csd uu se projects hipe 
+current hipe hipe significantly better performance ericsson open source erlang sect 
+presents detailed performance data support claim 
+drawback hipe jam emulator 
+beam system improved reliable delivers superior performance compared jam 
+consequently ericsson discontinued jam november 
+hipe separate branch erlang development 
+acknowledging problem development teams hipe erlang otp uppsala university ericsson respectively begun tighter cooperation common system design meetings frequent exchange code snapshots 
+concrete result cooperation technology transfer academia industry taken place data representation removes address space limitation incorporated ericsson standard erlang otp system 
+ambitious common goal include hipe standard component releases open source erlang 
+hipe compiler front see sect 
+replaced starting beam bytecodes front core erlang underway 
+erlang otp compiler object file loader modified allow users easily generate load native code standard compiler loader interfaces 
+time making final touches article may integration systems complete release common system scheduled october 
+currently concentrating efforts hipe back architecture 
+hipe architecture hipe system consists compiler virtual machine jam beam code ultrasparc machine code runtime system augmented support native machine code 
+section describes design implementation components 
+architecture hipe system shown fig 
+
+hipe compiler hipe compiler implemented set erlang modules 
+compile function hipe compiler called erlang function descriptor 
+see www csd uu se projects hipe 
+erlang function described triple module name function name function arity 
+erlang allows different functions module function names long arities differ 
+vm emulator johansson development hipe system design experience report memory vm bytecode data native code symbolic vm code icode rtl sparc erlang run time system hipe compiler fig 
+
+intermediate representations hipe compiler retrieves function bytecodes bytecode file memory translates optimises code series intermediate representations produces machine code 
+machine code passed hipe linker stores machine code memory integrates running system 
+calls compiled function invoke machine code version 
+entire modules compiled generated machine code may saved files faster loading sessions 
+hipe compiler described 
+intermediate representations compiler intermediate representations irs control flow graphs cfgs nodes basic blocks arcs represent transfers control 
+contrast ordinary cfgs hipe cfgs multiple entry points 
+handle exceptions procedure failure entry point catch addition normal call entry point 
+callee throws exception caught current function control enter function failure entry points 
+intermediate representations hipe compiler icode icode ir assumes infinite number registers implicit stack 
+primitive operators operations arithmetic constructing data performed function calls 
+function calls may take number parameters registers preserved calls 
+bookkeeping operations heap overflow tests time slice tests context switching implicit 
+simplicity small size icode means suitable initial simplifications type analysis type optimisation inline expansion 
+rtl register transfer language rtl machineindependent ir similar address code tended capture conventional compiler optimisations 
+rtl instructions similar mips instruction set 
+tagged untagged registers 
+tagged register holds proper erlang value untagged register may hold address raw integer value 
+untagged registers may live function calls including calls garbage collector add complexity inefficiency gc 
+compiler enforces rules 
+sparc final ir sparc assembly language 
+adds symbolic operations loading atom address resolved linker 
+translation steps virtual machine code icode erlang function disassembled bytecode symbolic virtual machine code translated icode 
+case jam pure stack virtual machine icode register oriented translation uses virtual stack assign registers stack slots 
+common operations fetching element tuple pattern matching inline expanded fetches tests 
+obviously poor sequences virtual machine code peephole optimised efficient icode sequences concatenation individual translations 
+message receive operations translated loops icode 
+icode rtl translation icode rtl large number operations arithmetic data construction tests inline expanded 
+data structure operations turned loads stores 
+data tagging operations explicit enable optimisations constant propagation folding applied 
+exception handlers expanded real code 
+optimisation rtl ir rewritten include stack handling explicitly code 
+function call live variables tagged registers pushed stack call variables call popped stack 
+rtl sparc translating rtl sparc ir straightforward 
+expansion occur 
+instance rtl compare jump instruction implemented sparc instructions compare followed conditional branch 
+standard graph coloring register allocator applied map rtl registers available sparc registers 
+spilling occurs static data area allocated code block holding spilled temporaries 
+register allocation applied separately extended basic block ebb maximal tree cfg control flow join return function call 
+runtime system simulates concur johansson development hipe system design experience report scheduling processes ebb boundaries function call site ends ebb ebb multiple simultaneous activations 
+spilling static data area safe 
+final code stored file assembled binary machine code linked runtime system 
+optimisations hipe performs number common compiler optimisations 
+applied icode rtl irs unreachable code elimination 
+basic blocks reached removed 
+constant propagation folding 
+constants propagated operators constant operands evaluated safe 
+copy propagation 
+eliminate copies substituting possible 
+unused result copy operation deleted 
+optimisations extended basic blocks fixpoint iteration order save compilation time ebb analysed optimised single pass 
+icode rtl translation step heap overflow tests expanded 
+initially data allocation site performs heap overflow test 
+reduce number tests needed runtime tests propagated backwards cfg adjacent tests merged separate tests bytes respectively test bytes 
+translation sparc register allocation compiler performs instruction scheduling order move useful delay slots branch instructions 
+hipe linker described erlang requires ability upgrade code runtime affecting processes currently executing old version code 
+underlying erlang runtime system maintains global table loaded modules 
+module descriptor contains name list exported functions locations current previous code segments 
+exported functions refer current code segment 
+remote function call form module function parameters performs lookup module function name beam emulator lookup optimized 
+function emulator starts executing bytecodes error handler invoked 
+native code function call implemented machine level call absolute address 
+caller code linked linker initialises call directly invoke callee 
+callee loaded linker direct call stub performs appropriate error handling 
+callee exists emulated bytecode linker directs call stub turn invoke emulator 
+order handle hot code loading dynamic compilation runtime linker maintains information call sites native code 
+information dynamic code patching follows module updated new version emulated code remote function calls native code module located 
+call sites patched call new emulated code new native emulated code stubs 
+emulated function compiled native code native code call site refers function patched call new native code 
+instruction bytecode replaced new instruction cause native code version invoked 
+native emulated stub invoke native code deallocated 
+module unloaded memory freed native code call sites referring module patched invoke error handling stub 
+native code call sites non existent module removed linker data structures prevent attempts update 
+illustrates actions hipe linker 
+initially function exists emulated code native code function calls trap emulated stub see fig 
+
+compiling native code call site invoke native code instruction original emulated code replaced trap native emulator instruction see fig 
+
+fortunately smallest possible jam beam bytecode function larger trap native emulator instruction 
+standard erlang system hipe support load demand modules 
+invoked error handler undefined function calls attempt load bytecodes module file system 
+successful call continues normal 
+side effect loading module hipe linker patch native code call sites described 
+native code calling conventions hipe runtime system erlang process execute emulated code native sparc code 
+obviously native emulated code data representation 
+emulator calling conventions inappropriate native code 
+instance jam passes parameters stack uses large call frames containing redundant information discussed johansson development hipe system design experience report call native code emulated code native stub trap emulated native code call emulated code trap native native code compiling native code compiling native code sect 
+
+native code passes return address parameters registers remaining parameters stack shrinks fixed portion stack frames single word preserving previous return address shown fig 
+
+hipe uses stacks process emulated code native code 
+described sect 
+done mainly simplify garbage collector stack contain frames single type 
+instance jam frames scanned particular order fields untagged 
+currently hipe sparc register windows registers saved restored needed function calls 
+reason windows fixed size adds exactly new registers visible shared adjacent window 
+functions need registers means number registers register file contain unpredictable bit patterns 
+turn exact garbage collection impossible compiler emit stack frame layout tables 
+mode switching hipe mode switch occurs transfer control native code emulated code viceversa 
+design decision mere presence multiple execution modes impose runtime overheads long mode switches occur 
+design requirement calls great care implementing mode switches performance correctness 
+switches occur 
+question answered mode switches occur 
+hipe compiles individual fig 
+
+code backpatching done hipe linker functions native code mode switch occur flow control function functions different modes 
+mode switches occur call return sites 
+erlang exception mechanism introduces mode switches viz exception thrown code executing mode handler different mode 
+refer cases call return throw events respectively 
+switches occur 
+second question answered system discover particular instance call return throw event perform mode switch 
+call events 
+hipe uses pseudo static approach calls mode caller 
+described sect 
+native code caller refers emulated mode callee linker redirects call instruction invoke native code stub turn causes switch emulated mode 
+emulated function compiled native code start original bytecodes overwritten special emulator instruction causes switch native mode 
+asymmetry cases due fact hipe linker knowledge call sites native code 
+return events 
+recursive function call causes mode switch return sequence augmented perform inverse mode switch 
+hipe uses mode convention returns 
+call causes mode switch new continuation stack frame created mode callee 
+return address continuation points code causes switch back caller mode 
+returns native emulated code return address points machine code runtime system 
+returns emulated johansson development hipe system design experience report native code return address points special emulator instruction 
+choice hipe causes overhead mode switches minimised amount changes existing emulators 
+throw events 
+hipe deals exception throws way deals function returns convention augmented mode switching stack frames 
+call causes mode switch new exception catch frame created mode callee 
+handler address catch frame points code causes switches back caller mode re throws exception 
+call causes frames pushed catch frame return frame 
+code return address return frame knows remove catch frame beneath switching mode 
+addition call return throw events described hipe may need perform process suspended resumed 
+scheduler erlang runtime system knowledge current mode process 
+assumes implicitly process executed emulator 
+process created resumed scheduler simply passes process control block pcb emulator execution 
+process executes native code suspended hipe set resume address pcb point special emulator instruction 
+scheduler resumes process emulator executes instruction turn resumes suspended native code 
+illustrates mode switch frames return addresses 
+functions emulated jam code native code 
+calls native instruction planted original emulated code linker 
+call pushes emulated mode return frame top frame 
+mode switch transfers control sets native code return address register point emulated mode switch routine 
+calls trap emulated native code stub 
+call saves live registers including return address frame 
+mode switch pushes mode switch return frame invokes creates frame local variables 
+shown mode switch catch frames created 
+maintaining tail recursion mode calling convention mode switching stack frames efficient easy implement 
+programming languages 
+functional programming languages erlang relies tail recursive function calls expressing iteration 
+consider sequence calls sp stack frame mode switch frame ra mode switch return frame stack frame stack frame returns jam environment native environment sp fp ap pc cc sp ra 
+fig 
+
+mode switch frames created call tail calls native code function tail tail tail sp emulated function tail correct implementation expected execute sequence constant stack space regardless length 
+unfortunately call new mode switch stack frame pushed return perform inverse mode switch 
+stack space usage grow linearly length sequence tail calls optimisation lost 
+hipe solves problem follows 
+return address mode switch stack frame known value address return routine native mode address return mode switch instruction emulated mode 
+simple runtime test able distinguish mode switch stack frames normal stack frames 
+consider call sequence tail calls pushes mode switch frames native code stack catch frame return frame 
+system normally push new mode switch frames stack 
+hipe implements mode switch call event follows 
+current return frame mode switch frame pop mode switch return frame caller stack pop mode switch catch frame caller stack invoke callee 
+
+push mode switch catch frame callee stack 
+push mode switch return frame callee stack 
+invoke callee 
+initial test prevents adjacent mode switches created restores proper tail recursive johansson development hipe system design experience report 
+test expensive executed mode switch call 
+similar methods maintaining proper tail recursion context mixed mode execution prolog implementations prolog bim sicstus prolog 
+modifications emulators described sects 
+modified jam beam emulators support mixing native emulated code 
+short modifications jam loader registers location function bytecodes hipe linker 
+native code stack added process control block native code variables stack pointer return address 
+garbage collector extended scan native code stack repair catch frame links stack relocated 
+small number instructions added emulators support mode switching emulated native code 
+critical examination design decisions hipe compiler intermediate representations split intermediate representations irs conceptually provides nice abstraction levels icode simple translation target rtl principle express machine independent optimizations quite easily retargetable sparc format simple point 
+separation concerns simplified compiler development experimentation optimizations 
+hand current implementation number optimizations constant propagation folding dead code elimination repeated irs slows compilation process 
+described sect 
+compiler irs cfgs multiple entry points 
+function cfg normal call entry point entry point exception handler body 
+retrospect decision number compiler algorithms complex 
+example dominators longer straightforward compute obstacle ssa compiler optimisations 
+compiler rtl ir intended machineindependent 
+data representation tagging operations explicit translation icode rtl 
+version base erlang system tends data representation machines applies proper erlang values 
+native code needs manipulate native code return addresses native code stack 
+garbage collector able scan native stack native return addresses tagged 
+special tag operations machine dependent sparc return addresses word aligned return addresses 
+alternative allow garbage collector identify words stack tagged words untagged 
+requires support compiler linker 
+particular requires generation meta data describe stack contents 
+unfortunately current system able 
+problem risc processors needs changed hipe support native code 
+caller save register management register stack management performed independent places hipe compiler 
+rtl ir live registers saved process native stack function calls register allocator registers spilled static data area 
+process native stack register spill area ordinary malloc blocks pointed general purpose registers related way processor stack stack register arrangement adequate risc machines clearly suboptimal machines provide handful general purpose registers 
+moving register management register allocator easily cpu specific solutions 
+instance processor stack stack register native code permit efficient code making general purpose register available register allocator runtime system 
+allow processor call return instructions 
+instructions tend registers safe hipe 
+similar machines operate processor stack 
+modern implementations processor call return instructions hints branch prediction hardware 
+application code uses ordinary jumps implement function calls returns branch prediction accuracy reduced 
+easily generate register stack descriptors describe garbage collector registers live registers saved ones contain erlang values 
+turn permit untagged return addresses callee save registers 
+spilling static area decided static area spilling translation rtl preserve sufficient stack information easily spill stack 
+fixing problem circumvented simple hack johansson development hipe system design experience report remained 
+subsequent releases hipe remove hack 
+spilling static area depends system properties 
+rtl rewritten sparc register containing erlang value survives function call 
+particular spilled values reused function calls 
+means spill area empty call reused recursive activations function 
+
+static area scanned garbage collector invoked explicitly compiled code 
+spill area empty time call scan garbage collector need know procedure specific spill areas 
+
+process scheduling triggered special emulator instruction 
+instruction implemented test procedure call handled call viz emptying spill area 
+danger due concurrent activations procedure 
+compiler optimisations mentioned sect 
+main compiler optimisations implemented fixpoint iterations traditional single passes extended basic blocks 
+done attempt speed compiler 
+probably conservative decision retrospect loops uncommon erlang code pattern matching generates joins cfgs cut 
+limits effectiveness optimisations especially code complex pattern matching common larger applications 
+experience adding partial redundancy eliminator hipe compiler confirms 
+due reason effectiveness optimization significantly lower come expect reports languages optimizing compilers 
+separate native stack described sect 
+earlier version hipe stack emulated native code scheme eventually abandoned quite complex difficult implement correctly 
+dual stack approach disadvantages advantages example jam emulator implements exception handling creating linked list catch frames stack 
+native code uses strategy means stack may contain pointers preemptive multithreaded system break property static spill area 
+
+runtime system relocates stack increase size stack traversed catch frame links updated 
+separating stacks stack scanning code garbage collector kept simple 
+approach scanning code know switch mode order correctly deal different stack frame layouts 
+certainly doable require effort implement correctly 
+new emulator instructions described sect 
+hipe adds small number new instructions jam beam emulator support mode switching emulated native code 
+prior port open source erlang hipe dynamic tests emulator 
+call check target native code version return throw resume check return address zero interpreted signal switch mode 
+design required changes different locations emulator complicated mode switch stack frame management imposed runtime overheads emulated code generally ugly difficult maintain 
+contrast current design requires small localised extension emulator imposes runtime overheads mode switches 
+mode switching described sect 
+hipe uses static mode approach mode switching call return exception throw passes control code executing mode 
+linker runtime system insert software trap code sequences trigger mode switches 
+hipe uses approach due performance simplicity initial inspiration alleged come implementation sicstus prolog 
+alternatives include dynamic tests conventions 
+dynamic tests test performed function call site determine mode callee 
+appropriate code sequence selected perform call 
+implement returns dynamic testing mode switch return frames 
+dynamic testing return address tagged communicate caller type callee return callee inspects tag just single bit chooses correct return code 
+mode switch return frames callee returns mode tests caller responsible pushing additional mode switch frame mode switch necessary just hipe 
+johansson development hipe system design experience report common choice fixed mode calls usually native code 
+emulated functions represented small native code wrappers invoke emulator called 
+advantage approach dynamic type test needed call site 
+disadvantage calls emulated mode functions penalised conversions native code calling conventions includes maintaining emulated native code return addresses 
+performance characteristics hipe analyzed detail reported :10.1.1.33.8547:10.1.1.33.8547
+put performance erlang implementations perspective comparing performance functional languages sect 
+sect 
+briefly report performance current hipe system implementations erlang 
+erlang vs functional languages functional programming languages differ significantly design philosophy lazy vs strict statically vs dynamically typed features provide concurrent performance characteristics 
+reasons comparisons conclusive 
+intention just get feeling performance erlang implementations comparing hipe version jam system hipe version version high performance implementations functional languages 
+systems comparison bigloo version scheme compiler compiling native code gcc bigloo optimization option sml nj release cml extensions clean version 
+erlang scheme strict dynamically typed language 
+cml concurrent statically typed strict 
+clean statically typed lazy 
+experiment conducted processor mhz sun ultra enterprise gb primary memory running solaris benchmark programs qsort ordinary quicksort 
+sorts short list times 
+fib recursive fibonacci function 
+calculates fib times 
+huff version huffman encoder 
+encodes decodes file characters times 
+time taken read file included 
+ring concurrent benchmark creates ring processes sends messages 
+benchmark executed times tables number iterations shown parentheses 
+benchmark table 
+performance erlang vs functional languages qsort fib huff ring jam hipe bigloo cml clean tests concurrency features language run implementations support concurrency 
+performance results seconds shown table 
+seen jam implementation erlang quite slow compared implementations functional languages hipe brings gap significantly 
+comparison different erlang implementations hipe erlang systems comparison jam beam etos 
+jam beam systems measurements ericsson open source erlang system hipe 
+compared jam translation erlang code beam machine instructions advanced 
+example treatment pattern matching considerably better beam system full pattern matching compiler implemented 
+beam uses direct threaded emulator gcc labels class objects extension instructions machine code addresses part emulator implement instruction 
+system described sect 
+
+etos system university montreal gambit scheme compiler 
+translates erlang functions scheme functions compiled native code translation erlang scheme fairly direct 
+advantages similarities languages optimizations gambit effective compiling erlang code 
+optimizations inlining function calls currently single module unboxing floating point temporaries 
+etos performs optimizations erlang scheme translation simplification pattern matching 
+etos compiler progress full erlang implementation 
+able run relatively small benchmarks etos 
+version etos 
+performance comparison erlang implementations taken 
+conducted mhz single processor sun ultrasparc mb primary memory running solaris 
+addition fib qsort small sequential concurrent benchmarks johansson development hipe system design experience report huff erl slightly different version huffman encoder compressing short string times 
+difference huff lies mainly input provided sake etos currently handle file program bit erlang specific uses polymorphic lists 
+nrev naive reverse element list times 
+smith smith waterman dna sequence matching algorithm 
+matches sequence length 
+done times 
+decode part telecommunications protocol 
+decodes incoming binary message times 
+medium sized benchmark lines 
+life concurrent benchmark executing generations conway game life board square implemented process 
+benchmarks report performance systems industrial applications erlang eddie parser handling complex get requests 
+excluding otp libraries consists modules total lines erlang code 
+benchmark executed times 
+axd time critical software part axd atm switch mentioned sect 
+
+sets tears number connections times functions benchmark 
+tables contain results comparison 
+sequential benchmarks hipe etos fastest systems small programs times faster jam times faster beam implementation 
+performance difference hipe etos small programs significant 
+decode probably difficult etos optimize operations pattern matching binary objects immutable sequences binary data hipe times faster etos 
+hipe faster jam beam extent benchmarks 
+etos significantly faster jam slower beam processes enter picture 
+suspect etos implementation concurrency call cc efficient 
+move benchmarks real world applications erlang programs tend spend execution time built ins standard library 
+example mentioned axd program extensively uses built ins access shared database top erlang term storage 
+implementation built ins currently shared jam beam hipe percentage execution spent builtins bottleneck hipe speedup 
+hipe version faster beam considerably faster jam implementation 
+concluding remarks article described hipe system developed current architecture implementation decisions experience involvement man year project 
+documenting implementation detail believe technical issues discussed interest programming language implementors hope experience proves useful interested erlang working similar projects 
+table 
+times seconds benchmarks different erlang implementations sequential benchmarks concurrent applications fib huff erl nrev qsort smith decode ring life eddie axd jam beam hipe etos table 
+speedup different erlang implementations compared jam sequential benchmarks concurrent applications fib huff erl nrev qsort smith decode ring life eddie axd beam hipe etos johansson development hipe system design experience report developing industrial strength system academic environment hard 
+doing parts system evolving independently industry adds extra level complication ideally minimized interaction 
+realizing necessity experience working industrial software development teams ericsson shown research group direct frequent contact group industry build trust interest transfer technology ideas direction impaired impossible despite difficulties collaborations useful driving research achieving impact real world 
+
+bjarne cker johan crucial initial phase project bjarne continued support appreciated 
+christer jonsson worked version hipe compiler richard carlsson currently working core erlang front 
+thomas ulf kurt johansson mats peter extremely helpful axd 
+open source erlang era bj rn gustavsson kenneth helpful main contacts 
+bj rn help incorporation hipe greatly acknowledged 
+research supported part advanced software technology competence center 
+
+aho sethi ullman compilers principles techniques tools 
+addison wesley reading mass 
+armstrong virding williams concurrent programming erlang 
+prentice hall englewood cliffs nd edition 
+bell threaded code 
+comm acm 
+blau rooth axd new generation atm switching system 
+ericsson rev 
+briggs cooper torczon improvements graph coloring register allocation 
+acm trans prog lang syst 
+van eekelen van plasmeijer barendregt clean language functional graph rewriting 
+kahn ed proc 
+conference functional programming languages computer architecture fp ca 
+lncs 
+berlin heidelberg new york springer verlag pp 
+
+carlsson gustavsson johansson lindgren nystr pettersson virding core erlang language specification 
+technical report information technology department uppsala university nov 
+cytron ferrante rosen wegman zadeck efficiently computing static single assignment form control dependence graph 
+acm trans prog lang syst 
+feeley compiling erlang scheme 
+palamidessi glaser meinke eds principles declarative programming 
+lncs 
+berlin heidelberg new york springer verlag pp 
+
+gordon breed hybrid compilers interpreters 
+technical report ecs lfcs department computer science university edinburgh edinburgh uk 
+representing type information dynamically typed languages 
+technical report tr university arizona department computer science oct 
+hal karlsson nilsson performance measurements threads java processes erlang 
+technical report etx dn su ericsson nov 
+hausman turbo erlang approaching speed tick eds implementations logic programming systems pp 
+
+kluwer academic boston mass 
+hieb dybvig bruggeman representing control presence class continuations 
+proc 
+acm sigplan conference programming language design implementation pp 
+june 
+johansson jonsson native code compilation erlang 
+uppsala master thesis computer science uppsala university oct 
+johansson nystr lindgren jonsson evaluation hipe erlang native code compiler 
+technical report uppsala university 
+johansson pettersson sagonas hipe high performance erlang system 
+proc 
+acm sigplan international conference principles practice declarative programming pp 
+
+acm new york sept 
+jones lins garbage collection algorithms automatic memory management 
+wiley new york 
+lindgren jonsson design implementation high performance erlang compiler 
+technical report uppsala university nov 
+lindholm yellin java tm virtual machine specification 
+java series 
+addison wesley reading mass 
+muchnick advanced compiler design implementation 
+morgan kaufman san fransisco calif 
+nilsson persson anx high speed internet access 
+ericsson rev 
+pettersson staged tag scheme erlang 
+technical report information technology department uppsala university nov 
+programming systems group sicstus prolog user manual 
+technical report swedish institute computer science 
+reppy cml higher order concurrent language 
+acm sigplan conference programming language design implementation pp 
+
+acm new york 
+serrano weis bigloo portable optimizing compiler strict functional languages 
+mycroft ed proc 
+nd static analysis symposium 
+lncs 
+berlin heidelberg new york springer verlag pp 
+
+stallman porting gcc 
+technical report free software foundation 
+sun microsystems ultrasparc tm user manual 
+technical report sun microelectronics palo alto calif 
+open telecom platform 
+ericsson rev 
+see www erlang se 
+virding garbage collector concurrent real time language erlang 
+baker ed proc 
+international workshop memory management 
+lncs 
+berlin heidelberg new york springer verlag pp 
+
+warren prolog instruction set 
+technical report sri international menlo park usa oct 

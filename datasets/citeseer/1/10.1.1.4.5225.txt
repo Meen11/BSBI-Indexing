@@ -1,0 +1,368 @@
+jello retargetable just time compiler llvm bytecode chris lattner brian university illinois urbana champaign lattner cs uiuc edu design implementation jello retargetable just time jit compiler intel ia architecture 
+input jello program statically compiled low level virtual machine llvm bytecode 
+jello takes advantage features llvm bytecode representation permit cient run time code generation emphasizing retargetability 
+approach uses machine code representation static single assignment form machine independent handle machine specific features implicit explicit register 
+representation phases code generation making jit easily retargetable new platforms changing code generator 
+jello ultimate goal provide flexible host research runtime optimization programs written languages traditionally compiled statically 
+
+jello code name retargetable just time jit compiler currently translates bytecode low level virtual machine llvm ia machine code 
+years jit compilation proven ective way improve performance bytecode interpreters variety languages 
+jit compilers built systems supporting variety source languages including perl java microsoft common language runtime 
+jello designed retargetable jit compiler requiring implementation instruction selector machine code emitter target machine description add support new target 
+influence feature globally ects entire code generator implying support designed start 
+jello currently targets ia target feel able support ia architecture hacks target independent code indicates separation clean target dependent independent code ia architecture known quirks 
+describes design implementation jello importantly describes design decisions cient just time compiler 
+design jello intrinsically tied retargetable nature code generation phases 
+able generate code multiple processors cient manner di cult problem 
+describe constraints implementation aided hindered development code generator 
+important properties llvm bytecode llvm compiler infrastructure uses low level representation represent programs written arbitrary source languages implemented front far 
+llvm infrastructure uses llvm bytecode representation support aggressive traditional interprocedural optimizations native code generation 
+representation low level strongly typed load store code representation static single assignment form input jello runtime 
+programs compiled llvm bytecode portable di erent architectures type safe 
+llvm features significantly di erent input jit compiler common bytecode representations jvm net platforms 
+particular llvm ssa form jello need construct ssa runtime ssa optimizations ssa construction expensive allows powerful optimizations 
+important aspect llvm guarantee execution safety program java net 
+llvm implicit bounds checks array accesses example static compiler perform aggressive optimizations compile time optimizations runtime unnecessary 
+llvm supports source languages possible write non type safe programs 
+programs aspects target machine pointer size ect bytecode representation 
+prior jello llvm compiler infrastructure provided sparc static code generator back simple interpreter named lli 
+addition jello extension lli llvm cient platform dynamic bytecode execution ia platform framework adding new architecture support 
+jello virtual machine architecture jello virtual machine designed easy add new targets flexible support new research virtual machine technology 
+support goals jello architecture separates code generation process series modular stages simplifying addition new passes replacement existing ones 
+easy retarget jello designed machine code representation target agnostic target description interface get concrete information machine code representation 
+design cleanly partitions phases compilation target specific phases 
+structure jello code generator diagrammed 
+llvm inst sel ssa opts analysis reg alloc fp prologue epilogue peephole opts code emission ia jello code generation phases diagram target specific phases bold instruction selection floating point support support ia floating point stack architecture peephole optimizations code emission 
+passes pipeline machine independent hooks target descriptions extract requisite information allowing reused new architectures developed 
+organization remainder describes design implementation jello 
+section starts describing machine code function represented 
+order implement target independent transformations target agnostic code parameterized target working 
+section describes interfaces section describes target independent phases code generation 
+section describes target specific phases code generation implemented target section describes implementation phases ia particular 
+section describes mechanism jit compiler lazily compile functions program demand 
+section describes high level experiences observations 
+section describes related conclude section 
+
+machine code representation retargetable virtual machine jello share code targets possible 
+phases operate machine code needing know exact semantics target machine instructions 
+phases operate machine code inspecting properties code registers read written allowing applicable target properties apply 
+particular machine code represented control flow graph function list machine instructions making basic block 
+machine instructions represented unique identifier variable length list operands 
+operand machine instruction holds information type data held immediate constant register relocatable branch targets function names 
+register operand keeps track instruction writes register reads register 
+note representation information instruction operands instruction processed instruction abstracted unique identifier instruction representation lightweight keeping minimum required information able represent machine instructions arbitrary targets 
+key decision ssa form machine code 
+llvm ssa form easy instruction selection pass converts ssa llvm code ssa machine code 
+ssa available target independent transformations enabling cient powerful optimizations machine code 
+register operands instructions may physical registers ssa registers tracked simple target independent manner 
+target register assigned unique small identifier physical ssa registers represented unsigned bit numbers 
+register values larger maximum physical register boundary represent ssa registers values lower boundary physical registers 
+lookup table built containing entry register indicating register class instruction defines ssa register providing def chains 
+majority machine code ssa form physical registers exist 
+example shows case ia machine code mix ssa virtual registers physical registers 
+mov reg de ssa reg mov edx reg set source mov eax reg set source div reg eax edx edx eax reg mov reg eax move ssa reg example machine code ssa form example ia div instruction divides bit value register operand 
+eax edx registers fixed instruction set operands div instruction 
+order represent generated machine code contains number copy instructions converting ssa registers appropriate fixed physical registers 
+allows machine code explicitly represent fixed register assignments external annotations 
+physical registers manner allowed live duration basic block contained 
+allows single linear scan basic block ciently find def chains reuse registers 
+important point notice physical register fairly rare computation 
+ia instruction set instructions need preallocated registers pure ssa form 
+register allocator runs ssa register transformed physical registers physical register lifetime restriction lifted 
+important aspects design fact target registers target machine instructions represented unique id numbers opaque target independent code 
+order get information semantics instructions information registers target description interfaces described section 
+void nt ack 
+oo pass argument 
+bar pass arguments 
+example code sub esp reserve ack space 
+sub esp reserve argument space eax dword ptr esp eax mov dword ptr esp eax ca oo add esp 
+sub esp reserve argument space mov dword ptr esp mov dword ptr esp ca add esp 
+add esp restore space ret traditional ia assembly code generation example function constant pool targets allow initializing registers arbitrary constants single instruction limit values size constants may 
+order support targets function constant pool tracks constant values spilled memory allowing constants referenced load instructions 
+ia target required floating point constants 
+machine code representation entries constant pool represented symbolic sets constant pool allowing instructions address exist 
+machine code emission stage constant pool committed memory symbolic sets resolved appropriate physical addresses 
+stack space representation traditional approach code generation compiler assigns stack slots sequential physical sets demand generating concrete machine code immediately 
+example shows example function shows code generated traditional approach 
+standard ia calling conventions cause argument values passed stack requiring stack adjustments arguments called functions 
+variable sized stack objects allocated alloca function generate code modify stack pointer function executes 
+contrast jello builds list stack locations function 
+stack object allocated stack frame manager keeps track alignment size information object assigning symbolic identifier 
+stack frame manager assign physical frame set prologue epilogue generations phase executes 
+operations temporarily allocate stack space calling function add instances code stream represent information see 
+representation stack objects allows jello simplified number important ways powerful 
+code generator simplified having single target independent interface allocate stack objects 
+instruction selector mechanism provide address stack allocated automatic variables register allocator uses mechanism allocate spill slots prologue epilogue inserter uses mechanism allocate spill slots callee saved registers 
+representation allows traditional elimination optimization conveniently implemented described section 
+stack objects reordered having modify machine code representation stack may optimized increase locality stack objects packed reduce space wasted due alignment 
+prologue epilogue phase code generation responsible converting frame physical sets 
+adds spill restore code registers modified function 
+assigns physical stack sets stack objects stack frame manager 
+third scans function rewriting frame physical frame 
+pass takes note maximum values passed pseudo instruction uses target description rewrite instructions physical instructions 
+uses target descriptor add target specific prologue epilogue code function information gathered analysis ia implementation hooks described section 
+
+target description problem jit compilation target independent bytecode solved target independent manner requires cient representation target specific attributes register file instruction set 
+registers modeled opaque enumerated values associated flags describe properties registers 
+organization designed minimize amount information exposed target independent code providing cient access required information 
+properties registers target independent code typically needs expose type register example integer versus floating point size bitwidth register 
+properties described current implementation flags bit vector 
+described lower level intermediate representation jello code generation target specific physical registers direct actual architected state freely intermingled virtual registers assigned physical registers execution may proceed 
+achieved described section assigning types registers type enumerated value threshold value separating types 
+result target independent code manipulate instructions registers type size relation architected state having introduce special cases 
+target independent code needs able inspect opaque register values find attributes 
+machine independent interface register file exports methods allow module inspect sets callee saved caller saved registers enumerate various classes registers available target machine get register registers particular class 
+useful example trying find physical register store contents virtual register 
+register information interface exposes information aliases register file crucial ia integer registers target description exposes sequences target specific code useful targets 
+example prologue epilogue insertion pass eventually uses hooks insert target specific prologue program 
+similarly register allocator uses hooks spill reload spilled values stack 
+target description exposes small amount information opaque machine instructions 
+example set flags associated instruction type indicating reads writes memory change control flow exposes information registers implicitly read written instruction 
+ia example bit div instruction implicitly reads writes eax edx registers represented machine code intermediate representation 
+information necessary phases register allocation 
+
+target independent phases machine independent instruction representation target description framework create phases 
+currently jello contains phases live variable analysis register allocation prologue epilogue code insertion 
+live variable analysis live variable analysis phase constructs live ranges ssa physical registers register allocator ia specific floating point support phase described section 
+register value live variable analysis identifies instructions register value available 
+jello live variable analysis phase takes advantage ssa form machine instructions ciently compute live ranges 
+ssa register definition inspect uses 
+due properties ssa form definitions dominate uses simply recursively mark predecessor basic blocks live reach definition 
+ssa form allows sparse algorithms operate entire function time 
+physical registers may appear machine code time handled purely local techniques lifetimes constrained basic block phases register allocation 
+register allocation register allocation transforms machine code ssa form occasional physical register mentioned physical registers 
+allocates ssa registers physical registers spills stack 
+uses target descriptor information get information registers available allocation registers generic solution problem manifests targets 
+example sparc architecture aliasing floating point register file 
+implicitly read written machine instruction generate spill reload code 
+piece information register allocator needs type information virtual registers knows physical registers compatible certain ssa register 
+instance ia architecture contains bit integer registers floating point registers 
+sure allocate ssa registers correct class physical register target multiple types 
+stated generally need able map type size data represented ssa values subset machine registers hold type data 
+solution implemented problem target machine description export interface register classes 
+register class set registers hold particular piece data 
+ia sets bit integer registers plus floating point registers 
+instruction selection ssa register created adds entry register table indicates register class belongs 
+jello currently pluggable register allocator algorithms implemented peephole register allocator local register allocator 
+peephole allocator hold values registers instructions computation loads values registers computation stores computed values memory 
+local register allocator keeps values registers single basic block 
+working implementing global linear scan algorithm getting system running quickly primary goal 
+prologue epilogue code insertion described section separate phase write prologue epilogue function 
+phase separate related transformations 
+scan machine code looking writes callee saved registers 
+callee saved register spilled reloaded entrance exits respectively function 
+second ect finalize layout stack objects tracked frame manager followed rewriting stack objects newly assigned physical sets 
+phase uses target descriptor insert canned prologue epilogue code sequence target may optionally information obtained previous steps customize generated code see section example 
+target independent phases code generation diagram includes target independent stages planned currently implemented 
+phases perform target specific optimizations ssa version function post register allocation version function 
+optimizations instruction scheduling may added distant 
+ssa opts phase intended host variety light weight ssa optimizations useful improve ciency code generated instruction selector 
+input llvm code highly optimized optimization opportunities exposed instruction selection performed 
+example risc processors sequence instructions load arbitrary integer constants register 
+similar constants loaded registers redundancy generated code may eliminated 
+peephole opts phase intended support table driven peephole optimization phase uses tables drive target independent optimization algorithm 
+phase repair suboptimal sequences generated code easily incorporated earlier algorithms 
+
+target specific phases target machine specific phases compilation jello instruction selection machine code emission 
+describe detail aspects inner working require target specific 
+instruction selection target dependent pass instruction selection knowledge target platform guides translation llvm bytecode lower level machine instruction stream 
+pass machine dependent encodes particular knowledge architecture output pass machine instructions processed target independent phases 
+common strategies instruction selection simple expansion followed peephole optimization instruction selection optimal pattern matching intermediate representation :10.1.1.53.363
+code generator expands instruction intermediate representation llvm case canned sequence target specific instructions 
+code generated scheme quite inefficient intensive peephole optimization improve quality 
+approach currently implemented ia instruction selector 
+instruction selection pattern matching operates computing covering intermediate representation tiles represent instructions target machine code 
+costs assigned tiles represent execution time size instruction dynamic programming technique compute minimum cost cover input ir 
+approach provides faster compilation cient code expansion approach peephole optimization largely unnecessary operate general dag structures intermediate representation ciently 
+jello continues plan replace expansion instruction selector pattern matching selector 
+ertl shown tiling dags np complete general performed linear time useful subset general grammars 
+believe approach provide best tradeo compilation time ciency ciency generated code 
+machine code emission compilation process machine instructions need assembled loaded memory binary image executed directly processor 
+jello depend external assemblers aid process 
+encoded binary sequences instructions translated width bit fields parameters flags need encoded instructions executed intended side ects 
+continuing involves developing instruction description mechanism create machine code emitters target instruction set description 
+tool accepts description target isa written special mark language allows instructions separated classes common traits number parameters accept implicit ects allows class structure inherit commonalities repetition instruction descriptions may factored 
+method allows target instruction set description kept readable easily extensible allowing tuned extended users comfortable jello source code 
+
+ia concrete target jello supports intel ia architecture 
+chose architecture target number peculiar features making great challenge 
+addition ia architecture widely available cost ective implementations available systems supporting 
+ia back useful addition llvm compiler infrastructure previously generate native code bit sparc platform 
+ia back composed primary pieces implementation target description classes described section llvm ia instruction selector machine code emitter writes binary machine code memory assembly code printer debugging 
+ia implementation target description straight forward 
+currently expose register classes bit bit bit integer registers floating point registers 
+current implementation simple implementation machine code instruction information classes 
+ia instruction selector largest part ia back terms lines code 
+ort transformation swift possible ia instruction selector consists primarily methods perform data directed table lookups llvm instructions operand types emit short sequences machine instructions perform appropriate operations 
+words simple code expansion instruction selector gcc 
+implementation simple relatively cient lead cient code combined aggressive peephole optimizer 
+ia machine code emitter printers large part ia back largely odd encodings fact implemented manually 
+address instructions peculiar feature ia architecture address instructions read operands write third 
+ia instructions read operands overwrites example eax ecx 
+problematic represent ssa form ssa register may single definition 
+machine code printer critical path debugging 
+solve issue represent address ia instructions address instructions 
+allows ssa representation natural way allowing ssa peephole optimizers aggressive 
+register allocation occurs instructions contain flags indicate register allocator register operands allocated physical register providing auto updating instructions final machine code 
+ia floating point support peculiar feature ia architecture compiler writer perspective expose regular register file floating point operations 
+floating point operations operate stack values stack implements usual push pop duplicate exchange operations instructions operate top specified element 
+implementations ia architecture exchange operation implemented register rename table incurs significant pipeline overhead paired floating point calculation 
+means operands floating point calculations may ectively reside stack slot loss ciency 
+insight standard register allocation algorithm assign values floating point operand stack slots just assign values general purpose registers 
+algorithm described report leung george 
+purposes register allocation ia machine description defines floating point registers fp 
+fp risc address floating point operate registers 
+separate phase runs register allocation rewrites floating point register accesses stack operations pairing operations appropriate exchange operations values moved just time stack slots needed 
+practice find small number exchange operands necessary 
+ia stack optimizations ia architecture provides bit integer registers 
+dearth registers causes considerable pressure register allocator stack pointer frame pointer 
+cases possible completely eliminate need dedicated frame pointer freeing register 
+traditional layout stack frame shown 
+return address incoming argument area incoming stack pointer esp previous stack frame fixed size stack objects variable size stack objects outgoing argument area current stack pointer frame pointer ebp current stack frame 
+ia stack frame layout diagram shows distinct areas exist fixed size stack objects variable sized stack objects temporary stack allocations outgoing function call arguments 
+functions variable sized stack objects created alloca intrinsic created frame pointer stack pointer registers equal body function 
+case stack pointer operations frame pointer allowing frame pointer additional general purpose register 
+register allocation performed register allocator queries ia target list registers bit integer class 
+current function variable sized stack objects created instruction selection ia target returns ebp register register addition standard registers 
+prologue epilogue pass rewrites frame pseudo instructions uses target hooks target specific manipulation 
+frame pointer elimination optimization possible hooks simply rewrite frame terms stack pointer frame pointer 
+
+reg dword ptr ack ob mov dword ptr esp reg ca oo 
+mov dword ptr esp mov dword ptr esp ca bar 
+ret jello code sub esp reserve ack space 
+eax dword ptr esp mov dword ptr esp eax ca oo 
+mov dword ptr esp mov dword ptr esp ca bar 
+add esp ack space ret final jello code jello code generation example frame pointer optimization enables optimizations help common cases 
+particular function contains calls functions optimize computation outgoing argument area calls 
+pseudo instruction described section jello computes size largest outgoing argument area maximum bytes space outgoing argument areas instruction allocates space fixed size objects 
+example final code generated jello shown 
+function call functions leaf function variable sized stack objects perform di erent optimization 
+case need adjust stack pointer entry exit function 
+ia target rewrites frame sets original version stack pointer access stack objects bottom stack 
+eliminating stack pointer adjustment function saves instruction entry instruction exit function 
+note optimization applies large leaf functions just small leaf functions probably inlined anyway 
+big endian long pointer emulation problem jello project current llvm front generates llvm bytecode sparc target 
+problematic ia target non type safe programs fail pointer size vs bits big vs little di erences 
+initial solution problem intended temporary emulate big endian bit target necessary 
+instruction selection phase values loaded memory byte swapped load values stored memory byte swapped store 
+emulate bit pointers simply low bits actual pointer value 
+emulation controllable flag bytecode indicating properties target bytecode compiled 
+emulation imposes fairly heavy run time performance cost especially floating point codes load values integer registers perform byte swap critical get jello jit compiler running quickly 
+practice gives complete compatibility sparc bytecode files 
+progressing retargetable front allow er competitive performance ia 
+
+jello virtual machine just time compiler jello able compile function start execution function regain control call function executes 
+order support jello currently emits call instructions target functions compiled called null pointer 
+call instruction executed segmentation fault generated 
+jello installs trap handler sigsegv segmentation fault signal unix order trap events 
+sigsegv delivered jello check see due lazy function compilation look return address function call pushed stack call instruction 
+return address call consult hashtable function supposed called location 
+function code generated code generator invoked time 
+program counter process modified point real function address original call instruction updated point newly generated code sigsegv handler returns causing execution continue called function 
+update original call instruction get signal call site 
+technique known chaining known technique bypassing main translation loop virtual machine 
+note approach indirect calls 
+problem indirect calls address function cause fault simply copy null register find problem indirect call 
+point way knowing intended function destination 
+immediately generate code function generate code function initialize global value requires know address side stepping problem completely 
+extension mechanism generate response need function pointers trampoline functions know dynamically function code needs generated 
+sigsegv trap purpose cause problems programs handle sigsegv signal delivered program registered sigsegv handler 
+jello knows trapped sigsegv due lazy function resolution mechanism generates code ultimately may register signal handler 
+recognizes calls signal sigaction trying install inspect current sigsegv handler 
+generating code intercept call jello record attempts modify handler return information logically installed handler 
+anytime sigsegv received come recognized call site jello dispatches program logical signal handler aborting program 
+
+experiences observations development jello project currently far 
+point time code generation infrastructure developed generated code stable works code tested big endian emulation mode 
+performance generated code approximately factor times slower code generated static compiler primarily due byte swapping instructions imposed emulation mode lack global register allocator 
+absolute performance generated code competitive learned number valuable lessons 
+particular feel goal developing retargetable code generator success clear distinction target specific code large amount code sharable 
+developing code generation interfaces tried anticipate types architectural challenges targets di cult properly support 
+particular feel writing new target sparc architecture straight forward features register windows branch delay slots complex calling conventions aliasing floating point register file 
+key lesson learned llvm virtual instruction set works input jit compiler 
+particular having perform extensive optimization input program run time having input program ssa form dramatically speed dynamic compilation 
+measurements indicate compiler overhead typically total execution time sample test programs code generator built debug mode extensive assertion checking enabled 
+table shows aggregate timing information various phases compilation suite benchmark programs 
+table shows spend majority time register allocator live variable phases com phase time local register allocator live variable analysis instruction selection prolog epilog insertion machine code emitter peephole optimizer fp eliminate phi nodes table compiler overhead breakdown 
+sense phases implemented single pass ect subset instructions program 
+contrast register allocator live variable analysis phases inspect modify instruction program perform passes 
+
+related virtual machines programming languages notably java virtual machine optimizing jit implementations example 
+language specific jits exist including parrot jit perl python language 
+sets jello apart vm technologies jit compiler language usually compiled bytecode executed jit compiler 
+additionally verifiably safe virtual machines java microsoft clr llvm bytecode representation encode implicit safety checks executed run time 
+code extensively optimized static compile time possibility extra code inserted dynamic translation native code 
+low level representation llvm encode high level language specific constructs classes objects 
+retargetable compilers long studied understood 
+examples include vcode dcg fabius gcc 
+dynamic compilation purposes including reoptimization machine code 
+
+jello designed cient retargetable just time compiler llvm bytecode 
+described design implementation system detailing important design features modular largely 
+plan jello test bed research virtual machine technologies runtime optimization codes advantage modularity extensibility portability features 
+
+bala duesterwald banerjia 
+dynamo transparent dynamic optimization system 
+acm sigplan notices 
+burke 
+choi fink grove hind sarkar serrano sreedhar srinivasan whaley 
+jalapeno dynamic optimizing compiler java 
+java grande pages 
+cmelik keppel 
+shade fast instruction set simulator execution profiling 
+acm sigmetrics performance evaluation review may 
+cytron ferrante rosen wegman zadeck 
+ciently computing static single assignment form control dependence graph 
+acm transactions programming languages systems pages october 
+davidson whalley 
+quick compilers peephole optimization 
+software practice experience 
+engler 
+vcode retargetable extensible fast dynamic code generation system 
+sigplan conference programming language design implementation pages 
+engler proebsting 
+dcg cient retargetable dynamic code generation system 
+proceedings sixth international conference architectural support programming languages operating systems pages 
+acm press 
+ertl 
+optimal code selection dags 
+principles programming languages popl 
+fraser henry proebsting 
+burg fast optimal instruction selection tree parsing 
+acm sigplan notices apr 
+fraser proebsting 
+finite state code generation 
+acm sigplan notices 
+free software foundation 
+gnu compiler collection 
+gcc gnu org 
+hansen 
+parrot jit subsystem 
+www org docs jit pod html 
+lattner 
+llvm infrastructure multi stage optimization 
+master thesis computer science dept university illinois urbana champaign urbana il dec 
+see llvm cs uiuc edu 
+lattner adve 
+llvm instruction set compilation strategy 
+tech 
+report uiucdcs computer science dept univ illinois urbana champaign aug 
+lee leone 
+optimizing ml run time code generation 
+sigplan conference programming language design implementation 
+leung george 
+notes new floating point code generator 
+lindholm yellin 
+java virtual machine specification 
+addison wesley reading ma 
+microsoft 
+net framework developer guide common language runtime overview 
+poletto sarkar 
+linear scan register allocation 
+acm transactions programming languages systems 
+
+python specializing compiler 
+sourceforge net 
+traub holloway smith 
+quality speed linear scan register allocation 
+sigplan conference programming language design implementation pages 

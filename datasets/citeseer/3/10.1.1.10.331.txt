@@ -1,0 +1,940 @@
+copyright chris arthur lattner llvm infrastructure multi stage optimization chris arthur lattner university portland thesis submitted partial fulfillment requirements degree master science computer science graduate college university illinois urbana champaign urbana illinois modern programming languages software engineering principles causing increasing problems compiler systems 
+traditional approaches simple compile link execute model unable provide adequate application performance demands new conditions 
+traditional approaches interprocedural profile driven compilation provide application performance needed require infeasible amounts compilation time build application 
+thesis presents llvm design implementation compiler infrastructure supports unique multi stage optimization system 
+system designed support extensive interprocedural profile driven optimizations cient commercial compiler systems 
+llvm virtual instruction set glue holds system 
+lowlevel representation high level type information 
+provides benefits low level representation compact representation wide variety available transformations providing high level information support aggressive interprocedural optimizations link post link time 
+particular system designed support optimization field run time unused idle time machine 
+thesis describes implementation compiler design llvm compiler infrastructure proving design feasible 
+llvm compiler infrastructure maturing cient system show host variety research 
+information llvm web site llvm cs uiuc edu iii acknowledgments thesis possible support large number people helped big ways little 
+particular advisor vikram adve support patience especially trust respect 
+shown communicate ideas ectively find important meaningful topics research 
+demanding understanding allowing freedom explore interests driven succeed 
+inspiration certainly stems person 
+continuous source support ideas encouragement understanding 
+despite late nights amounts stress truly odd sense humor just tolerated loved person possible truly understanding contribution brian 
+brian invaluable sounding board ideas ear occasional provider mints helped tremendously annoying requirements submitting thesis 
+important time 
+jim numerous occasions provided critical eye writing importantly great friend 
+possible provided raw materials fueled late night 
+iv table contents list figures 
+vii 
+existing compiler system approaches 
+traditional approaches link time interprocedural optimization 
+traditional approaches run time optimization 
+traditional approaches compile time profile driven optimization 
+multi stage optimization llvm 
+research contributions thesis 
+organization thesis 
+llvm system architecture 
+high level design llvm compiler 
+compile time front static optimizer 
+link time linker interprocedural optimizer 
+run time profiling reoptimization 
+gathering profile information run time 
+llvm approach run time optimization 
+idle time ine 
+llvm virtual instruction set 
+overview llvm virtual instruction set 
+address code 
+static single assignment form 
+high level type information 
+type safe pointer arithmetic getelementptr instruction 
+distinguishing safe unsafe code cast instruction 
+explicit memory allocation unified memory model 
+function calls exception handling 
+plain text bytecode memory representations 
+optimizations llvm 
+simple analyses transformations 
+instruction combining pass 
+level raise pass 
+data structure analysis 
+data structure graph 
+construction algorithm 
+complexity results applications 
+automatic pool allocation 
+runtime support pool allocation 
+identifying candidate data structures 
+transforming function bodies 
+external uses llvm infrastructure 
+ensuring code safety runtime checks 
+program control language pcl 
+advanced compilers class 
+evaluating infrastructure 
+evaluating maturity llvm 
+evaluating productivity llvm 
+evaluating performance llvm infrastructure 
+evaluation summary 
+related 
+compiler infrastructures 
+high level virtual machines 
+intermediate representations 
+
+
+vi list figures llvm system architecture diagram 
+llvm code snippet illustrating typed operations 
+code example loop body 
+llvm code example loop body 
+examples llvm types 
+examples malformed llvm code 
+code complex memory addressing 
+llvm code complex memory addressing 
+examples casts llvm 
+pointer arithmetic example 
+pointer arithmetic example llvm 
+pointer arithmetic example getelementptr instruction 
+exception handling example 
+llvm code exception handling example 
+level raise example code 
+level raise example raw llvm code 
+level raise example llvm code level raising 
+local function 
+code ssa form data structure analysis example 
+local analysis algorithm 
+local function 
+llvm virtual instruction set 
+bottom ds graphs 
+bu main function 
+source function 
+bottom ds graph example 
+main data structure power benchmark 
+candidate identification algorithm 
+function transformation algorithm 
+source pool allocated 
+vii modern programming languages software practices aim support reliable modular dynamic software applications increasing programmer productivity providing higher level semantic information compiler 
+cases features impose run time performance penalty compiled applications 
+time microprocessors continuing evolve break neck pace 
+pipelines get deeper caches gaining additional levels memory access times getting slower relative cpu 
+compensate hardware designers exposing parallel execution resources integrating features sole domain compiler developers register renaming engines reordering bu ers example 
+situated modern programming language architecture compiler responsible making application perform possible 
+compilers eliminating provably unnecessary overhead program making ective resources exposed processor 
+solution problems conceptually simple increase scope analysis optimization allowing compiler better job 
+unfortunately traditional approaches compilation poorly suited handling new demands placed compiler 
+thesis describes low level virtual machine llvm compiler infrastructure suited modern programming languages architectures 
+llvm designed achieve critical goals 
+enable aggressive multi stage optimization strategy providing maximum performance 
+
+serve host leading edge research development providing strong foundation current projects 
+
+operate transparently user developer behaving identically standard system compiler including realistic compilation times 
+llvm designed address simple observation human patience limited 
+supporting llvm provides excellent user application performance compile time performance application developers productive research environment compiler developers 
+order understand design decisions llvm describe existing approaches dealing issues deficiencies approaches 
+existing compiler system approaches compiler systems enjoyed broad range research di erent methods producing highperformance executables 
+aggressive compilers techniques ectively 
+unfortunately techniques suitable compiler produce high performance executables achieve low compilation times 
+techniques link time interprocedural optimization run time dynamic optimization profile driven optimization 
+traditional approaches link time interprocedural optimization interprocedural program optimization highly ective technique providing high performance executables 
+underlying idea gather program place possible increasing scope analysis transformation single translation unit 
+important decision determining scope optimizations possible interprocedural optimizer level program represented 
+existing interprocedural optimizers answers question 
+low level machine code large amount research gone performing interprocedural optimizations machine code link time run time :10.1.1.12.7138
+advantage systems unmodified front compiler systems allowing developer compiler want 
+systems su er important limitation machine code simply provide high level information support aggressive interprocedural analyses transforma tions 
+systems typically target low level transformations interprocedural register allocation inlining trace construction 
+
+high level syntax trees ast order solve problem compiler developers invented techniques preserve source level information way link time 
+cases implemented writing high level compiler intermediate representation ir disk compile time 
+link time linker reads serialized versions program ast combining optimizing performing code generation link time 
+approach solves problem low level approach interprocedural optimization lack high level information high cost 
+compilation postponed link time change single source file requires complete recompilation program 
+additionally compiler irs proprietary severely restricting amount interoperability compilers 
+fact cases di erent versions compiler communicate dependent memory layout intermediate representation 
+traditional approaches run time optimization interprocedural optimization multiple ways approaching run time optimization 
+common approach simply ignore dynamic optimization completely static compilers 
+run time optimization monitoring entire range dynamic program behavior missed 
+reason run time optimization frequently applied technique achieving high performance modern systems 
+common types dynamic optimization systems follows 
+high level language virtual machines run time optimization just time jit compilation common class high level language virtual machines vms 
+vms target dynamic languages smalltalk self java machineindependent byte code input encodes languages high level ectively ast level 
+virtual machine high level input program representation systems able provide platform portability security services addition reasonable performance 
+unfortunately high level representation presents problem run time optimizer interprocedural link time optimizer substantial optimizations performed compile time 
+case jit compiler means dynamic compiler spend valuable run time cycles performing mundane optimizations common copy propagation reduces number run time cycles available interesting optimizations 
+hand high level representations provide dynamic compiler rich information source allowing wide variety interesting optimizations run time cycles spared 
+
+architecture level virtual machines dynamic translators spectrum machine code instruction set translators 
+systems manipulate native machine code achieve higher performance dynamically translate machine code di erent architectures 
+systems drawbacks applications similar machine code interprocedural optimizers 
+tend trace formation optimization rely highly accurate profiling information incapable high level restructuring transformations 
+traditional approaches compile time profile driven optimization profile driven optimization important technique uses estimated run time behavior application improve performance optimizing common cases expense uncommon cases 
+traditional way integrate profiling compilation system split standard compile link stages compilation stage process 
+stage compilation compiles program inserts profiling instrumentation program cause gather form profile information run time 
+second stage links instrumented object files instrumented executable 
+third stage profile driven optimization requires developer application run generated executable series test runs generate profile information application 
+fourth fifth stages recompile program source relink collected profile information optimize program 
+profile driven optimization important tool large impact final execution performance application approach suboptimal features 
+profile information useful accurate 
+realistic programs opposed benchmarks di erent ways application usage pattern developer profile runs may match usage pattern particular user 
+static profile information may counter productive optimizations may slow cases user encountering 
+larger problem developers willing profile guided optimization cumbersome 
+order technique developers modify build processes testing cycles account new step process 
+application easily graphical example manually exercising program build profile information error prone expensive 
+multi stage optimization llvm llvm system architecture described chapter designed address problems traditional systems 
+briefly static compilers llvm system compile source code low level representation includes high level type information llvm virtual instruction set described chapter 
+allows static compiler perform substantial optimizations compile time communicating high level information linker 
+link time program combined single unit llvm virtual instruction set code interprocedurally optimized examples high level interprocedural optimizations included chapter 
+program completely optimized machine code generated native executable produced 
+executable native machine code includes copy program llvm bytecode stages optimization 
+llvm run time optimizer simply monitors execution running program gathering profile information 
+run time optimizer determines improve performance program transformation may routes direct modification optimized machine code new code generation attached llvm bytecode 
+case llvm bytecode provides important high level control flow data flow type information useful aggressive run time optimizations 
+transformations expensive perform run time cient representation 
+transformations run time optimizer gathers profile information serializing disk 
+idle time detected user computer ine perform aggressive profile driven optimizations application 
+ine optimizer equivalent power link time optimizer 
+di erence ine optimizer uses profile interprocedural analysis information improve program link time optimizer profile information 
+note system collects profile information field provides accurate information possible interfere development process 
+llvm virtual instruction set allows link time compile time speeding incremental recompilations 
+components operate representation share implementations transformations 
+research contributions thesis main contribution thesis show aggressive interprocedural analyses transformations may performed low level representation provided high level type information 
+second main contribution thesis show low level representation build compiler system includes sophisticated optimizations practical 
+specifically system fits standard build model operating drop replacement pre existing tools 
+supports sophisticated interprocedural analyses transformations post link link time profile information respectively 
+enables novel strategies run time optimization operate machine code advantage having high level information available 
+collects profile information program field allowing accurate profile information consequently highest performance applications 
+third main contribution thesis implementation design 
+implementation llvm compiler infrastructure solid infrastructure hosting variety current research see chapter 
+particular note fact llvm successfully host infrastructure advanced compilers class section 
+students tend forgiving researchers poor design lack documentation buggy implementation poor extensibility demonstrates great deal maturity 
+time hope able llvm available researchers outside university illinois 
+organization thesis order fully understand design llvm system architecture chapter discusses tools 
+chapter describes features llvm virtual instruction set suitable common program representation llvm system 
+chapter describes applications llvm system showing low level representation successfully host variety aggressive analyses transformations accompanied type information 
+chapter evaluates llvm compiler infrastructure terms maturity productivity performance 
+chapter briefly describes related field chapter concludes 
+llvm system architecture llvm system designed multi stage approach compilation briefly described section 
+chapter continues discussion describing individual components llvm system design interfaces 
+compilation strategy unique fact allows aggressive optimization lifetime application remaining practical 
+high level design llvm compiler compared current compilation systems llvm system designed perform sophisticated transformations link time run time software installed field 
+order realistically deployable llvm compiler integrate existing build schemes cient common scenarios 
+section describes approach compilation explaining requirements addressed 
+diagram llvm system shown 
+optimizing linker runtime optimizer optimized code profile trace info offline profile trace info llvm llvm llvm native libraries host machine static compiler static compiler files llvm exe llvm native exe llvm system architecture diagram traditional compilers break compilation process steps compile link 
+separating phases provides benefits separate compilation translation units modified need recompiled entire application relinked 
+traditional compiler compiles source code object file containing machine code linker combines object files libraries form executable program 
+simple system linker typically little concatenate object files resolve symbol 
+llvm approach retains distinction compile link time allowing retain advantages separate compilation 
+compiling directly machine code static compiler front ends described section emit code llvm virtual instruction set 
+llvm optimizing linker described section combines llvm object files optimizes integrates native executable writes disk 
+organization permits sophisticated interprocedural optimizations performed link time ective 
+executable written optimizing linker contains native machine code directly executable host architecture copy llvm bytecode application application executed field runtime may monitor execution program collecting profile information typical usage patterns application 
+optimization opportunities detected application behavior may cause runtime dynamically recompile portions application stored llvm bytecode 
+transformations may expensive perform directly runtime 
+transformations idle time machine ine optimizer recompile application aggressive interprocedural techniques accurate profile information detected user actual usage patterns 
+key points high level llvm system design llvm virtual instruction set described detail chapter communicate di erent tools tools fit standard development framework 
+operating common representation allows transformations shared di erent components system 
+specific aspects component described 
+compile time front static optimizer llvm system designed support multiple language front ends translates supported source languages llvm virtual instruction set 
+static compiler performs optimization possible translation unit reduce amount required link time optimizer 
+llvm bytecode contained special section executable paged memory accessed runtime optimizer 
+primary job language front translate source language llvm virtual instruction set perform language specific optimizations 
+example front optimize call printf hello puts hello high level semantics functions question defined standard 
+llvm transformations modular shared static compilers choose llvm infrastructure transformations improve code generation capabilities 
+note includes interprocedural optimizations link time optimizer may limited scope translation unit larger scope link time 
+key design llvm virtual instruction set ability support arbitrary source languages common low level type system 
+high level virtual machines llvm type system specify object model memory management system specific exception semantics language 
+llvm directly supports lowest level type constructors pointers structures arrays relying source language map high level type system low level 
+way llvm language independent way microprocessor high level features mapped simpler constructs 
+link time linker interprocedural optimizer link time phase compilation process majority program available analysis transformation 
+llvm optimizing linker natural place perform aggressive interprocedural optimizations entire program 
+transformations modular llvm allowing llvm optimizing linker traditional scalar optimizations employed static compilers clean results large scale interprocedural optimizations 
+static compilers link time optimizations operate llvm bytecode directly able take advantage high level information encoded making ective 
+example automatic pool allocation transformation described section fundamentally requires type information provided llvm data structure analysis transformation described section note shared libraries system libraries may available analysis link time 
+accurate due ssa form llvm virtual instruction set 
+design compile time link time optimizers permits application known technique speeding interprocedural analysis compile time interprocedural summaries computed function program attached llvm bytecode link time interprocedural optimizer process interprocedural summaries input having compute results scratch 
+technique reduces amount analysis performed translation units need recompiled potentially saving substantial amount compile time 
+link time optimization completed code generator appropriate target selected translate llvm native code current platform 
+user decides post link optimizers copy compressed llvm bytecode included executable 
+including bytecode directly generated executable eliminates possibility runtime ine optimizers acquire wrong bytecode program 
+run time profiling reoptimization key research goals llvm project develop new strategy runtime optimization 
+strategy built model gathering profile information runtime control reoptimization recompilation program llvm bytecode 
+gathering profile information run time avoiding traditional approach profile guided optimization described section important goal llvm system 
+primary disadvantages traditional approach profile information measures usage pattern developer user developers rarely profile guided feedback 
+runtime profiling field eliminates problems user application provides profile runs application extra developers 
+note runtime may variety di erent techniques collect profile note achieved building program database deferring compilation input source code link time 
+eliminates possibility program database sync object files 
+information ranging pc sampling techniques find hot functions loops path profiling determine hot paths complex region code 
+lifetime application runtime optimizer eventually dormant changing program strong phase behaviors occur benefit continuous optimizations 
+llvm approach run time optimization virtual machine systems llvm runtime optimizer choose lightweight optimizations directly precompiled native machine code referring llvm bytecode high level information dataflow types 
+capability enabled detailed mapping information maps native llvm code representations program 
+information allows simple transformations code layout example implemented safely due control flow information llvm code ciently machine code generated code 
+aggressive transformations results value profiling example may elect modify llvm bytecode program regenerate machine code 
+approach useful optimizations medium complexity 
+expensive optimizations ine 
+idle time ine types applications particularly amenable runtime optimization applications large amount code hot 
+runtime optimizer ord spend significant amount time improving piece code probably detect frequent paths executed program 
+order support types applications support optimizations require potentially expensive analyses ine available 
+designed run idle time user computer allowing aggressive runtime optimizer 
+ine combines profile information gathered runtime optimizer llvm bytecode recompile application 
+way able perform aggressive profile driven interprocedural optimization competing application processor cycles 
+usage pattern application changes time runtime ine coordinate ensure application performing peak capability 
+llvm virtual instruction set llvm system architecture designed produce highest performance executables aggressive system continuous optimization 
+key factors di llvm systems program representation uses 
+program representation low level allow significant amounts optimization early phases compilation high level support aggressive link post link time optimizations 
+llvm virtual instruction set designed low level representation high level type information 
+provides extensive language independent type information values program exposes memory allocation directly compiler specifically designed uniform abstractions 
+chapter discusses major features llvm virtual instruction set 
+syntax semantics instruction defined llvm manual 
+overview llvm virtual instruction set llvm instruction set represents virtual architecture captures key operations ordinary processors avoids machine specific constraints physical registers pipelines lowlevel calling conventions traps 
+llvm provides infinite set typed virtual registers hold values primitive types integral floating point pointer values 
+virtual registers static single assignment ssa form widely representation compiler optimization explained section 
+llvm type system explained detail section 
+llvm virtual instruction set unique mechanism explicit representation exceptional control flow described section 
+llvm programs transfer values virtual registers memory solely load store operations typed pointers 
+memory partitioned global area stack heap procedures treated global objects 
+objects stack heap allocated alloca malloc instructions respectively accessed pointer values returned operations 
+stack objects allocated stack frame current function automatically freed control leaves function 
+heap objects explicitly freed free instruction 
+motivation implementation operations explained section 
+note llvm virtual instruction set define runtime operating system functions memory management particular garbage collection signals 
+features defined runtime libraries apis programs link 
+hand llvm virtual instruction set class language textual binary memory representation 
+implications decision discussed section 
+address code address code representation choice risc architectures languageindependent compiler optimizations years 
+close spirit machine code small number simple orthogonal operations 
+address code easily compressed allowing high density llvm files 
+llvm operations including arithmetic logical operations address form take operands produce single result 
+llvm includes standard orthogonal set arithmetic logical operations add sub mul div rem xor shl shr 
+collection comparison instructions di erent operators 
+produce boolean result 
+addition simple binary instructions instructions take variable number operands 
+important examples include call instructions phi instruction represent code ssa form 
+key point llvm instructions polymorphic single instruction add operate di erent types operands 
+greatly reduces number distinct opcodes 
+particular require di erent opcodes operations signed unsigned integers single double precision floating point values arithmetic logical shifts types operands automatically define semantics operation type result follow strict type rules defined manual 
+example illustrates simple llvm operations 
+example type example unary operators neg implemented terms xor sub respectively 
+div int signed integer division div uint unsigned integer division cond int produces boolean value br bool cond label true label false true 
+llvm code snippet illustrating typed operations information determines perform signed unsigned division comparison signed unsigned 
+static single assignment form llvm uses static single assignment ssa form primary code representation 
+program said ssa form variables defined exactly variable dominated variable definition 
+ssa form greatly simplifies dataflow optimizations single definition reach particular value finding definition trivial 
+enables fast flow insensitive algorithms achieve benefits algorithms expensive dataflow analysis referred sparseness property 
+implication single definition property instruction computes value add int implicitly creates new virtual register holding value 
+value may explicit name add unique name automatically assigned llvm system 
+property enables uses llvm refer directly operation computes value enabling cient traversal def information 
+control flow taken account simple variable renaming code valid ssa form 
+handle control flow merges ssa form defines function select incoming value depending basic block control flow came 
+llvm provides phi instruction corresponds ssa node 
+syntax instruction phi 
+result assigned value val control reaches instruction basic block labelled label val control reaches basic block label 
+phi instructions basic block appear basic block 
+shows example function requires nodes 
+int pow int unsigned unsigned int result result return result code example loop body shows llvm code representing loop body 
+loop result phi int result loop phi uint loop result mul int result result add uint cond uint br bool cond label loop label exit llvm code example loop body noted virtual registers llvm ssa form values memory 
+dramatically simplifies transformations scalars aliases 
+high level type information llvm strictly typed representation ssa value memory location associated type operations obey strict type rules 
+type information enables broad class high level transformations low level code 
+addition type mismatches detect errors optimizations llvm consistency checker 
+llvm type system includes source language independent primitive types void bool signed unsigned integers bits floating point values single double precision opaque constructive types pointers arrays structures functions 
+types language independent data representations mapped higher level language types 
+example classes inheritance virtual methods represented structures data values typed function table indirect function calls inheritance 
+permits high level language independent optimizations virtual function resolution performed llvm code 
+examples illustrating llvm types shown 
+uint array unsigned integer values int pointer array int values float int int pointer function takes int pointer int returning float float structure element float second element pointer function type defined previously examples llvm types llvm instructions strictly typed restrictions operands simplify transformations preserve type correctness example add instruction requires operands type arithmetic integral floating point type produces value type 
+load instruction requires pointer operand load 
+store instruction requires value type say store pointer store pointer type 
+examples malformed code shown 
+uint load int load pointer store int float store int float val add int val definition dominate ret int null return int fn returning uint examples malformed llvm code restrictions llvm code compact explained section type information enables high level information easily extracted low level code enabling novel transformations link time 
+possible allow type safe access fields data memory 
+reason critical instruction llvm maintaining type safety getelementptr instruction 
+type safe pointer arithmetic getelementptr instruction getelementptr instruction calculate address sub element aggregate data structure type safe manner 
+pointer structure field number getelementptr instruction yields pointer field 
+pointer array element number instruction returns pointer specified element 
+addition indexing multiple indexes specified time getelementptr instruction 
+struct rt structure complex types char int char struct st int double struct rt st contains instance rt embedded int foo struct st return code complex memory addressing example example complex memory access designed concise illustration llvm lexical structure type system getelementptr instruction 
+test case defines structure types function performs complex indexing 
+llvm code version code generated front llvm comments added 
+addition illustrating getelementptr instruction code shows llvm identifiers type value names start character prevent namespace collisions reserved words shows examples complicated nested types shows llvm rt type int st type int double rt define function foo returning int st int foo st perform indexing 
+tmp getelementptr st long uint uint ret int tmp return computed value llvm code complex memory addressing function definition 
+additionally illustrates useful named types hand inspection code symbolic names provided compiler types expanded inline making manageable 
+distinguishing safe unsafe code cast instruction broad reasons type conversions may required programs explicit conversions value type may may require manipulating data integer floating point signed integer unsigned reinterpreting data type data type treating data memory linear sequence bytes array integers 
+llvm type conversions happen carefully controlled way cast instruction 
+cast instruction converts value type 
+examples illustrated 
+cast int double requires data conversion cast int long may require data conversion cast int uint data conversion needed cast int pd double data conversion needed may unsafe cast void pi data conversion needed may unsafe examples casts llvm cast instruction takes place typical sign extension instructions signed unsigned types distinct integer floating point conversion instructions 
+cast operations alter data converting signed integer unsigned integer size 
+llvm intended general purpose low level instruction set represent type safe type unsafe programs arbitrary high level languages 
+distinguishing safe unsafe operations important memory oriented optimizations may legal safe programs 
+consider llvm program type safe cast instruction converts non pointer type pointer type pointer type pointer type words casts pointer type allowed 
+example cast instructions unsafe 
+pointer casts way operations second type data memory encoded llvm 
+program type safe definition type information exploited important analyses alias analysis data structure reorganization transformations safely applied program completely type safe llvm code getelementptr instruction pointer arithmetic requiring unsafe casts 
+example language pointer arithmetic naive compilation cause type violations 
+example consider code int size pointer arithmetic 
+pointer arithmetic example pointer arithmetic statement compiled initially snippet llvm code 
+cast type safe arbitrary value cast pointer note programs undefined behavior accessing memory free range array subscripts considered type safe definition 
+appropriate behavior preclude transformations compiler legally change behavior programs having detect correctness violations result undefined behavior 
+language stricter safety requirements java fortran additional type safety checks required language implemented explicit llvm code example conditional branches bounds array optimized just low level representations standard static compilers 
+tmp cast int long convert pointer integral type add tmp add long tmp add offset integral value cast long tmp int convert result back pointer unsafe 
+pointer arithmetic example llvm case result happens valid integer pointer compiler know analysis 
+case getelementptr instruction directly navigate array type safe manner 
+getelementptr int long get pointer integer pointer arithmetic example getelementptr instruction practice programs completely type safe definition unsafe cast operations eliminated programs simple transformations 
+programs intrinsically unsafe operations casting specific integer representing address memory mapped hardware device pointer converted getelementptr instruction 
+cases cast instruction llvm gives critical information type system violated improving analyses allowing straightforward determination transformation safe 
+explicit memory allocation unified memory model hardest programs adequately optimize memory bound programs extensive complex data structures heap 
+better expose memory allocation patterns compiler added typed memory allocation instructions instruction set 
+malloc instruction allocates elements specific type heap returning typed pointer new memory 
+free instruction releases memory allocated malloc instruction alloca instruction similar malloc allocates memory example shows instance range array access trapped 
+native code generated program malloc free instructions converted appropriate native function calls allowing custom memory allocators 
+stack frame current function heap memory automatically deallocated return function 
+instructions essential preserving type safety representation enable new transformations data structure analysis section automatic pool allocation section di cult 
+important property aggressive techniques safe non type safe programming languages llvm virtual instruction set unique manner handles memory 
+llvm addressable objects stack allocated locals global variables functions dynamically allocated memory explicitly allocated giving unified memory model 
+stack allocated locals automatic variables source level alloca calls explicitly allocated alloca instruction 
+heap allocated memory allocated malloc instruction 
+functions global variables collectively referred global values declare regions statically allocated memory accessed address object name global value refers address 
+interesting ect accessing memory objects address llvm need address operator 
+representation simplifies memory access analysis implicit accesses memory 
+memory tra occurs load store instructions execute 
+function calls exception handling llvm provides function call instructions away calling conventions underlying machine simplify program analysis provide support exception handling 
+simple call instruction takes pointer function call arguments pass passed value 
+call instructions take function pointer invoke seemingly indirect calls direct calls easily identifiable 
+second function call instruction provided llvm invoke instruction languages destructors implement exception handling 
+normal malloc function returns untyped pointer cast appropriate type llvm implements stack unwinding mechanism zero cost exception handling 
+zero cost exception handling model indicates presence exception handling causes extra instructions executed program exceptions thrown 
+exception thrown stack unwound stepping return addresses function calls stack 
+llvm runtime keeps static map return addresses exception handler blocks uses invoke handlers unwinding 
+order build static map handler information llvm provides invoke instruction takes exception handler label addition function pointer argument operands normal call instruction 
+code generation occurs return address invoke instruction associated exception handler label specified allowing exception handling cleanup routine invoked stack frame unwound 
+invoke instruction capable representing high level exceptions directly llvm low level concepts return address handler map 
+llvm independent source language exception handling semantics 
+representation exception edges directly specified visible llvm framework ensuring llvm transformations correct face exceptions 
+example illustrates case invoke instruction generated front 
+class object destructor func throw 
+exception handling example key thing note simple example guarantees destructors stack allocated objects invoked block exited 
+exception thrown result func call block exited handler installed call object destructor 
+shows llvm code example 
+invoke instruction associates exception handler call exception propagated invoked function 
+example invoke destructor local object 
+context java language need call destructors unwinding 
+object alloca class stack allocate object call constructor object invoke void func label label execution continues 
+call destructor object call void rethrow rethrow current exception llvm code exception handling example invoke instruction unlock locks acquired synchronized blocks methods 
+language catch clause implemented terms exception destination 
+currently front uses exception handling support built llvm optimizations transformations aware exceptional control flow edges unit tests designed 
+plan implement setjmp longjmp calls facility 
+plain text bytecode memory representations llvm virtual instruction set glue unifies system design described chapter 
+ectiveness ease system depends aspects instruction set design 
+important feature llvm virtual instruction set class language complete textual format examples included document compressed binary format memory format suitable transformation 
+able convert llvm code representations information loss debugging transformations simpler allows test cases written easily decreases amount time required understand memory representation 
+optimizations llvm low level representations notorious poor hosts high level analyses transformations 
+example sgi pro compiler intermediate representation whirl contains di erent levels representation order perform optimizations highest level possible 
+high quality compiler interprocedural optimization done high level representation ectively language neutral syntax tree 
+llvm aims enable high level transformations link post link time 
+reasons advantageous represent code low level form 
+chapter describes aggressive transformations analyses performed llvm representation showing cient low level representation enriched type information support 
+maintain low level representation high level type information support interesting high level transformations 
+note analyses optimizations implemented llvm robust daily 
+simple analyses transformations llvm low level representation suited traditional transformations analyses address code 
+traditional optimizations implemented thesis llvm compilers 
+interesting ones include 
+traditional ssa optimizations simple dead code elimination aggressive dead code elimination global common subexpression elimination induction variable simplification loop invariant code motion expression simple constant propagation sparse conditional constant propagation value numbering 
+
+control flow graph optimizations analyses critical edge elimination various forms dominator information interval construction natural loop construction loop pre header insertion cfg simplification 
+
+interprocedural analyses transformations call graph construction various alias analyses global constant merging type safety analysis dead global elimination global variables functions inlining 
+addition transformations llvm contains intraprocedural passes descriptions help illustrate llvm system works 
+relatively unconventional passes instruction combining level raising passes 
+instruction combining pass instruction combining pass simple list driven pass operates ssa graph function performing peephole optimizations 
+pass operates ssa graph simple peephole optimizer able perform powerful global optimizations 
+pass contains identities add sub mod xor add add add shl phi 
+instruction combining pass ensures instructions canonical form appropriate 
+example add instruction constant argument canonical form constant second argument 
+instruction combination extremely fast dramatically simplify code passes safely assume input trivial cases handle simplifies implementation 
+instruction combining pass takes place simple value numbering pass able directly eliminate equivalent expressions value numbering pass identify 
+level raise pass existing compilers retain little type information program convert high level code representation ast lower level representation optimizations 
+re targeting existing compilers important part llvm strategy developed level raising pass centralize type information reconstruction 
+level raising pass compiler front ends modified simply generate legal llvm code simple low level poorly typed explicit byte addressing structure field accesses 
+front level raising pass recover type information direct structure fields getelementptr instruction described section 
+way program analysis required recover type information shared preexisting compiler front ends integration problems simply llvm llvm transformation 
+level raising pass eliminates cast instructions llvm code di erent strategies 
+assumes type information function interfaces correct eliminating cast instructions possible 
+believe prototypes functions easily accessible debug information maintained compiler correct compiler performing aggressive optimizations 
+optimizations may arbitrarily modify body functions debug information di cult body function 
+contains code demonstrate transformations level raising pass struct pair integers int unsigned foo struct return access fields level raise example code snippet llvm front outputs llvm code correct poorly typed 
+example strength reduction multiply done front llvm 
+case level raise pass notices cast casts structure pointer pointer type element structure 
+cast eliminated simply converting cast instruction getelementptr instruction field 
+similarly equal cast raised safe getelementptr instruction 
+type int int typedef information function prototype information preserved debug information uint foo cast cast int cast reg load int cast load field reg shl int reg multiply cast cast low level structure reg add cast address arithmetic cast cast reg int cast reg load int cast load field reg add int reg reg add fields ret int reg return result level raise example raw llvm code contains code level raising pass improved 
+type int int typedef information int foo cast getelementptr uint cast reg load int cast load field reg shl int reg multiply cast getelementptr uint cast reg load int cast load field reg add int reg reg add fields ret int reg return result level raise example llvm code level raising example proven type safe despite fact input program little way type information 
+data structure analysis data structure analysis completely novel interprocedural link time analysis developed llvm compiler infrastructure 
+extensive link time analysis type information precise ssa representation 
+data structure analysis context sensitive flow insensitive heap analysis algorithm specifically designed support macroscopic data structure analyses transformations 
+new class algorithms developed instances data structure scope analysis transformation 
+key strength data structure analysis ability variety di erent analysis problems 
+addition macroscopic data structure transformations pool allocation described section data structure analysis may base variety traditional analyses alias analysis interprocedural mod ref de virtualization function pointers 
+data structure analysis key properties required enable transformations mentioned context sensitivity cloning field sensitivity explicit heap model 
+properties especially widely considered incur high analysis cost 
+order overcome cost data structure analysis introduces key simplifications scalable extremely fast practice 
+section describes data structure analysis algorithm high level showing design llvm allows aggressive interprocedural analyses link time 
+section describes graph representation built analysis provided clients 
+section describes algorithm construct data structure graphs 
+detailed information original describing algorithm 
+data structure graph data structure analysis concisely summarizes program memory connectivity patterns composition building data structure graph ds graph function program 
+graph function composed pieces information set nodes outgoing edges mapping scalars function nodes graph list call sites context graph 
+described turn 
+shows ds graph function computed local information 
+running example 
+data structure nodes ds graph partitioning potentially unbounded memory objects created dynamic execution program 
+node graph represents set memory objects edges represent may point relationships 
+data structure analysis uses unification approach heap modeling steensgaard points analysis algorithm example reason field node graph point single destination node 
+analysis discovers di erent nodes may pointed field merges nodes 
+node capable representing objects multiple distinct outgoing edges points information field sensitive 
+example node list fields outgoing edges field incoming edges node second field 
+void list ir list int fp data call local function field sensitivity example property greatly enhanced typed llvm representation 
+data structure analysis able optimistically assume memory objects strongly typed violation noticed 
+assumption significantly speeds analysis vast majority data structures type safe practice non type safe languages non type safe construct node collapsed single field losing field sensitivity node retaining conservative correctness 
+practice node collapsing infrequent programs 
+node small set flags track information node 
+bits track classes memory represented node 
+bit tracks node complete bits track mod ref information node 
+data structure analysis partitions memory di erent classes objects heap allocated typedef struct list struct list int data list int void list void fp int phi ssa phi node fp data void int void list list int num list new malloc sizeof list new num num new data num return new int main lists disjoint list list code ssa form data structure analysis example stack allocated global corresponding types llvm memory objects unknown objects 
+unknown memory objects occur constant value cast pointer value example access memory mapped hardware device address arithmetic occurs 
+cases occur infrequently portable programs 
+data structure analysis tracks ds node pointed scalar program 
+maps pointer compatible register single node may point null 
+denote scalars ellipses diagrams fp data 
+llvm uses ssa form representation mapping simple maintain 
+ds graphs correctly represent incomplete programs functions unavailable analysis 
+ciently node data structure graph contains bit indicate incomplete 
+bit set node may outgoing edges represented graph information type mod ref information may missing 
+bit clear node fully represented 
+example memory nodes labelled void list flag set pointers formal arguments fp imply nodes may modified outside context current function 
+flags eliminated interprocedural analysis 
+data structure analysis tracks nodes graph may contain incomplete information ds graph sound regardless information incorporated 
+dramatically simplifies construction algorithms section 
+bits tracked ds graph node mod ref indicate objects represented node modified read context graph 
+partitioning memory objects ds graph provides natural way represent information 
+ref bit set list node field read 
+data structure edges ds graph edges represent may point information 
+ds graphs field sensitive edges contain node point set node 
+edges fp set zero edge data node set bytes size pointer system 
+call site information return values ds graph function may contain call nodes addition traditional memory nodes 
+presence call node indicates unresolved function call exists current function may occur due incomplete program unfinished analysis 
+call nodes directly correspond call instructions llvm 
+leftmost field call node represents return value 
+function call returns pointer value field points returned memory object interprocedural analysis incomplete node merged object 
+second field points memory object representing callee function functions indirect function call may potentially call function 
+subsequent fields represent actual arguments passed call site 
+includes indirect call invoking function pointed scalar fp return object fp returns void actual argument 
+function returns pointer type graph represents returned object special scalar labeled returning edge object returned 
+construction algorithm data structure graphs created step process 
+intraprocedural phase processes function program abstracts behavior local data structure graph ignoring ect callers callees 
+bottom analysis clones merges callee graphs callers 
+final top phase merges caller graphs back callees 
+example program motivating example 
+illustrates high level challenges data structure analysis algorithm handle 
+local analysis phase local analysis phase captures memory usage behaviors individual functions including calling caller context 
+local analysis phase phase data structure analysis directly uses llvm virtual instruction set describe detail phases 
+top level approach algorithm illustrated 
+function seed scalar map instruction mark nodes incomplete section local analysis algorithm analysis starts initial conditioning step seed include entries non instruction value function pointer compatible type 
+example step source global nodes 
+phase analysis flow insensitive linear pass program representation 
+llvm version function shown 
+describe cases detail 
+void void list void int void int gi call local function allocation sites create new node appropriate memory class bit set 
+llvm virtual instruction set allocates heap stack memory malloc alloca instructions easy identify representations distinguish automatic variables address taken variables 
+load instructions updates mod ref information merge load source destination pointers 
+return instructions handled updating return value current ds graph 
+call instruction represented new call site object graph uniformly represents direct indirect calls example see 
+instruction malloc alloca new node set bit node address struct field set idx address array element load set bit node store set bit node cast type safe args return call 
+callsite cs new callsite retval cs callee cs args cs collapse nodes set bit pointer args llvm virtual instruction set cast instructions communicate important information type system violated see section 
+pointer converting non type safe cast encountered operand node folded 
+folding operation discards field sensitivity order retain conservative correctness 
+explicit exposure operation llvm virtual instruction set loss type information explicit 
+instructions involving pointer compatible operand result local analysis phase sets unknown bit collapse node indicate untraceable occurred 
+final step local graph construction calculate data structure nodes complete incomplete 
+local graph node reachable formal argument global passed argument call site returned call site marked incomplete 
+bottom analysis phase bottom bu analysis phase creates graph function program concisely summarizing total ect calling function imposed aliases mod ref information calling context information 
+computes graph cloning bottom graphs known callees caller local graph merging nodes pointed corresponding formal actual arguments 
+ds graph representation list maintained ds graph implicitly defines known edges call graph 
+bottom analysis phase uses tarjan linear time algorithm identify strongly connected components sccs call graph defined list 
+tarjan algorithm identifies sccs post order directly providing bottomup order phase requires 
+traversing call graph post order bottom analysis phase clones called graph caller resolving arguments eliminating call sites 
+handling function pointers external functions requires restrict post order traversal walk call sites target complete nodes 
+graphs cloned caller unresolved call nodes copied 
+unresolved call may resolved function passed function pointer argument known 
+allows indirect call resolved inlining callee bu graph graph function call site resolved 
+example indirect call site void int list ir list int call cloning list list int int gr finished bottom ds graphs resolved processing 
+note bu graph containing original call site example call resolved bu pass 
+list hmr list int list hmr list int int gmr bu main function graph shows bottom graph calculated main function example 
+graph demonstrates combination context sensitivity cloning identify disjoint data structures complex pointer manipulation involved 
+top analysis phase top analysis pass propagate information callers callees 
+goal phase construct graph function describes possible contexts function invoked 
+top construction phase exact inverse bottom construction phase 
+traverse inverse call graph call graph computed bottom traversal edges inverted tarjan scc identification algorithm handle sccs way bottom phase 
+inlining callee graphs caller graph function top pass inlines caller graph callees 
+primary distinction bottom top construction phases incomplete node marker mark argument nodes incomplete callers identified analysis safe calling contexts taken consideration 
+incoming arguments complete safe decide incoming pointers aliased example 
+complexity results applications despite capabilities data structure analysis identifying complex recursive data structures analysis time complexity worst case size largest scc program common case number functions program 
+addition low asymptotic complexity data structure analysis cient practice 
+lattner adve show data structure analysis quite cient scalable programs tested ptr dist olden specint benchmarks including programs lines code requiring seconds analyze largest program building local bottom top graphs 
+memory requirements data structure analysis modest mb memory represent results largest program 
+key features data structure analysis algorithm may variety di erent applications 
+top graph directly useful memory object disambiguator implementing alias analysis 
+additionally mod ref information captures nodes graph may basis simple interprocedural mod ref implementation 
+implementation needs additional interprocedural analysis compute context sensitive flow insensitive result making simple powerful 
+applications data structure analysis ranging accurate call graph construction aggressive interprocedural transformation known automatic pool allocation 
+automatic pool allocation researchers demonstrated value pool allocating data structures fully automatic pool allocation challenging problem 
+describe simple algorithm developed lattner adve llvm infrastructure fully automatic pool allocation programs 
+algorithm uses data structure graph ensure safety transformation 
+automatic pool allocation example macroscopic transformation works entire data structures time 
+fundamentally requires strong interprocedural capabilities llvm ective 
+void unsigned list malloc sizeof list list malloc sizeof list unsigned populate lists malloc sizeof patient malloc sizeof patient lists source function function illustrate pool allocation works 
+important part example creates disjoint doubly linked lists objects common creation function common traversal function 
+shows bottom data structure graph example 
+function list hmr list patient list patient hmr list hmr list patient list patient hmr bottom ds graph example section describes runtime support programs transformed pool allocation section describes candidate data structures identified pool allocation section describes program transformed pool allocated data structures 
+runtime support pool allocation designed simple pool allocation runtime library external functions data type pool descriptor 
+transform program pass pool descriptors functions allocate free nodes pool 
+way pool descriptor available needed 
+pool allocator assumes memory pool consists uniformly sized objects allocate multiple consecutive objects needed arrays objects 
+pool allocating complex data structure example main data structure power benchmark olden suite shown data structure node graph allocated di erent pool memory 
+simple heuristic groups memory objects type works tree nodes linked lists heavily recursive structures 
+power benchmark example memory pools corresponding level heterogeneous tree structure level linked list nodes 
+root lateral branch leaf data structure graph root pool lateral pool branch pool leaf pool pool descriptor graph main data structure power benchmark addition bookkeeping information pool allocator runtime pool descriptors augmented include pointers pool descriptors data structure forming graph isomorphic data structure graph accessible runtime including back edges forward edges 
+power benchmark graph shown 
+graph runtime locate memory blocks allocated data structure traversing pool descriptors data structure 
+identifying candidate data structures order pool allocate data structure detect bounds lifetime data structure allocate delete pools determine safe data structure 
+data structure analysis graph purposes 
+data structure graph detect data structures lifetimes bound function lifetime allowing allocate pool entry function deallocate function returns 
+automatic pool allocation identifies candidates scanning functions program inspecting bottom graph function 
+lifetime data structure contained current function data structures subgraph unreachable edges due scalar pointer map globals point structure returned current function 
+escape analysis similar points escape analysis conservative ective heuristic approximation data structure lifetime 
+refer function lifetime bounds lifetime data structure root function root subtree call graph needs modified handle pool allocation 
+safe convert data structure pool allocation automatic pool allocation prove data structure type safe way 
+data structure analysis graph function data structure type safe nodes collapsed nodes incomplete indicating node may collapsed known context 
+identification algorithm shown 
+program rog function fn rog ds fn ds ds escapes ds ds candidate identification algorithm transforming function bodies data structure selected pool allocation root function modified allocate pool descriptors representing various nodes subgraph 
+insert code stack allocate pool descriptor initialize pool descriptor entry function destroy pool descriptor book keeping information associated memory pool exit nodes function 
+pools created body root function functions calls access data structure processed transformed calls malloc free llvm instructions 
+pool descriptor passed called functions available eventual calls 
+algorithm shown 
+function datastructure ds orklist function fn orklist instruction instructions ds ds elseif ds orklist orklist function transformation algorithm transformation iterates list functions process transforming function list empty 
+initially list seeded root function expanded call untransformed function encountered 
+body function transformed rules malloc free operations referring pool allocated data structure changed calls library functions 
+function calls take pointer data structure argument return pointer part data structure modified pass pool descriptor data structure called function 
+function processed added transformation list 
+void unsigned pd pd pd pd list unsigned pd sizeof list pd sizeof list pd sizeof patient pd sizeof patient list pd list pd populate lists pa pd pd pa pd pd pa pd pd pd pd pd pd source pool allocated transformed function allocates memory pools data structure node disjoint data structures 
+function transformed similarly 
+external uses llvm infrastructure llvm designed support wide variety compiler research di erent focuses needs 
+best ways evaluate capability see people author system 
+llvm fortunate projects short amount time 
+projects briefly described hi lighting features llvm viable 
+ensuring code safety runtime checks adve describe language called control designed provide code safety correctness guarantees entirely static analysis opposed run time checks 
+control subset includes heap allocation pointers di analyze features language features typically real time control applications target 
+code certified safe execute compiler analysis installed field fear corrupting state control system 
+safety implemented strong static analyses eliminating need runtime overhead imposed dynamic safety checks 
+uses llvm system variety ways 
+heavily relies link time interprocedural capabilities system perform flow sensitive context sensitive analysis array bounds constraints 
+various ssa properties llvm virtual instruction set analysis cient data structure graphs described section analyze evaluate memory safety properties 
+program control language pcl stanley adve describe framework language support ease development adaptive applications named program control language pcl 
+pcl supports adaptations distributed applications separating adaptive logic underlying distributed program providing abstraction program behavior reason specify adaptation operations provides high level mechanisms monitoring adapting program behavior 
+conceptually pcl allows programmers change behavior application runtime modifying static task graph application example adding removing tasks edges 
+static task graph provides global view entire distributed computation participating process 
+allows process modify behavior process simply modifying parts static task graph high level language extensions invoking explicit communication 
+pcl compiler runtime library hide complexities modifying task graph performing remote communication 
+pcl built llvm infrastructure provides extensive interprocedural analysis capabilities high level information program semantics 
+involves automatic semi automatic extraction task graph program 
+data structure graphs control flow graph dominance control dependence call graph information required successful analysis high level information 
+program analysis required link time analysis essential 
+advanced compilers class llvm served host compiler infrastructure university illinois advanced compilers cs class fall 
+students required llvm write simple global transformation scalar replacement aggregates complete group project 
+sample projects include multiple implementations ssa partial redundancy elimination implementations anderson alias analysis ine variable substitution online cycle elimination framework incremental recomputation interprocedural data flow problems 
+groups researched open ended problems data structure graphs introduce static memory management programs explicit allocation deallocation 
+evaluating infrastructure evaluating infrastructure di cult aspects directly evaluate quality maturity infrastructure 
+infrastructures exist solely enable interesting applications infrastructure interesting application 
+despite important qualities infrastructures successful 
+chapter attempts evaluate quantify aspects llvm compiler infrastructure order provide idea ectiveness llvm role compiler infrastructure 
+qualities attempt estimate maturity productivity performance 
+evaluating maturity llvm simple extremely limited way evaluate maturity code base count number lines code contains 
+metric useful establishing size project prone potentially significant problems insignificant details coding conventions dramatically influence numbers 
+llvm compiler infrastructure written exclusively high level code making extensive standard template library modern features language numbers conservative estimate compared projects features 
+time writing llvm cvs tree contains lines code including whitespace comments html documentation counting test framework automatically generated code 
+counting source lines code code whitespace comments html yields information contained table note numbers count code llvm cvs repository include front 
+reasonable metric evaluating infrastructure amount documentation currently available describing 
+important metric documentation necessary external developers infrastructure ectively 
+documentation llvm cvs counted david wheeler tool available www com source language sloc sloc bison ansi flex table source lines code sloc llvm infrastructure tree contains lines html documentation counted wc extensive source comments describing various subsystems extensive documentation automatically extracted source code tool 
+additional developer support llvm web page mailing lists 
+sloc documentation give indication maturity infrastructure far best indicator llvm 
+chapter describes ways llvm infrastructure today author external contributors 
+uses show capabilities infrastructure features infrastructure able er new developers 
+particular note fact llvm successfully host infrastructure advanced compilers class section 
+students tend forgiving researchers poor quality implementation lack documentation buggy implementation poor extensibility 
+llvm worked quite providing measure maturity 
+evaluating productivity llvm llvm infrastructure provides solid foundation research development teaching 
+productivity hard quantify detailed study indicators may provide reasonable argument llvm productive environment 
+indicator shows numbers sloc required implement known compiler transformations llvm 
+statistics di erent scalar optimizations provided table 
+numbers quite modest considering capabilities individual transformations transformation dominator tree control dependence graph provided llvm optimistically delete basic blocks 
+transformation implemented transformation sloc raw loc aggressive dead code elimination global common subexpression elimination loop invariant code motion sparse conditional constant propagation table source lines code sloc known compiler transformations terms value numbering interface 
+value numbering interface enables automatically alias analysis disambiguate load store aliases allowing remove redundant load instructions 
+pass alias analysis disambiguate memory allowing hoist memory access instructions loops 
+note di erence sloc raw loc columns 
+di erence due extensive comments describing high level algorithms 
+second productivity indicator dramatic rate progress llvm years development 
+despite fact optimizer infrastructure core parts infrastructure completely developed single programmer capable system able support interesting research 
+reasons llvm productive environment written high level language modern programming techniques interfaces infrastructure simple orthogonal stable time infrastructure regression feature tests document implemented features ensure bugs stay fixed 
+documentation comments code assist developers new llvm 
+important reason high productivity llvm framework llvm virtual instruction set 
+llvm ir simple representation free complicated special cases strange behavior code transformations analyses simplified 
+additional advantage llvm virtual instruction set defined textual representation may visualize exactly pass construct test cases passes manually llvm 
+writing regression tests simple simply specify pass run llvm input code expected output 
+evaluating performance llvm infrastructure despite fact llvm strong research infrastructure care taken ensure llvm remains cient 
+important clients runtime optimizer reasonable quality implementation metric 
+maturity productivity measuring performance infrastructure hard 
+reason show known optimizations cient implemented llvm infrastructure 
+optimizations depend infrastructure variety low level needs performance indicative infrastructure ciency 
+unoptimized optimized benchmark loc inst bb fn inst bb fn gap vortex twolf table static statistics large specint benchmarks table describes largest specint benchmarks currently compatible llvm compiler 
+statistics describe number lines code benchmark sets columns describing size llvm representation optimization llvm static optimizer 
+dramatic di erence size optimization clearly illustrates value performing aggressive optimization compile time performing optimization link time 
+table contains data describing ciency ectiveness known optimizations run gap benchmark 
+benchmark largest consisting lines code chosen representative detailed analysis 
+tests llvm infrastructure compiled optimization level gnu compiler tests timed ghz amd processor 
+raw input pass entire benchmark linked prior optimizations performed front automatically order stress test optimization 
+configuration corresponds unoptimized column table 
+llvm front missing minor pieces functionality preventing compiling benchmarks 
+specifically setjmp longjmp support ability define body function missing 
+transformation changes time time inst sec sec sec sec sec sec sec sec table performance optimizations gap benchmark front little optimization relying static optimizer clean code input code completely unoptimized 
+results table see infrastructure quite cient ective 
+despite fact input large pass performs quite due clean implementation sparse ssa approach 
+additionally optimizations quite ective deleting instructions 
+able delete tens thousands static instructions program run 
+able delete individual instructions basic blocks worth instructions runs front output trivially dead 
+benchmark gap vortex twolf table transformation timing ectiveness results large specint benchmarks table contains data large spec benchmarks 
+table see gap vortex benchmarks similar respect optimization times twolf benchmark faster 
+believe twolf optimized quickly program representation intermediate data structures transformations fit comfortably cache processor larger benchmarks su er capacity misses 
+transformations optimized particular cache usage probably improved significant margin 
+thing important note test designed stress test typical application optimizations 
+practice previous optimizations greatly reduced size program passes execute 
+static optimizer run translation units compiled resulting program greatly reduced link time 
+case benchmarks static optimizer reduces input linker respectively 
+evaluation summary clearly llvm progressed long way years development 
+llvm commercial grade research compiler increasingly attractive new research development 
+development continues expect llvm continue grow gaining new capabilities possibilities 
+related llvm clearly related di erent projects di erent ways 
+chapter identifies evaluates important related llvm 
+field compilers broad prior art small fraction related may included 
+compiler infrastructures compiler infrastructures available research world targeting variety di erent problems ranging language support mid level optimization low level code generation issues 
+llvm targeted mid level interprocedural optimizations briefly examine suif compiler infrastructure sgi open compiler excel areas 
+suif compiler infrastructure influential compiler interprocedural optimization 
+suif part national compiler infrastructure project amazing variety research projects 
+built source source translator uses high level ast representation 
+suif powerful interprocedural profile driven transformations 
+primary drawback suif system slow general large ast representation 
+additional problem ast representation new front ends added adding new node types ast 
+extending ast requires existing modules updated extensions di cult add new features di cult support older code 
+reason important features exceptions supported cial suif distributions 
+sgi open compiler outgrowth sgi high quality commercial compiler projects 
+industrial strength compiler robust compiler optimizations built including interprocedural profile driven transformations 
+compiler uses intermediate representation named whirl represents code di erent levels language specific machine specific continuous lowering system transform language specific trees machine specific code 
+optimizations may performed appropriate level analysis transformation 
+suif sgi open compiler performs interprocedural optimization high level ast representation deferring compilation link time 
+additionally strong profile driven optimization framework depends traditional stage model leads number problems described section 
+multi level representation detrimental modularity phases designed particular level set freely interchanged 
+contrast systems llvm system uses low level representation languageindependent types 
+representation simple low level address code representation compact regular need modified support new front ends 
+low level representation allows optimization happen compile time deferring compilation link time systems 
+systems provide high level information link time optimizer llvm maintain information adds little value llvm representation 
+additionally systems provide information runtime ine reoptimization system infeasible 
+high level virtual machines years interest high level virtual machine technology exploded 
+virtual machines available decades starting original pascal code interpreter 
+today language level virtual machines smalltalk self java microsoft common language runtime available host corresponding language set languages case clr 
+platforms er large number security platform independence features tend dynamic compilation achieve acceptable performance 
+note systems represent program higher language specific representation llvm 
+presents lot high level information runtime optimizer largely impossible static compiler meaningful amount optimization runtime 
+mentioned section requires runtime optimizer perform mundane optimizations runtime just get acceptable code aggressive optimizations costly 
+hand systems er features llvm currently including security guaranteed portability 
+llvm bytecode completely portable input program typesafe details endian ness pointer size configuration compiler leak llvm bytecode non type safe programs 
+systems support non typesafe programs small issue 
+strength llvm require specific object model set exception semantics high level language feature front 
+flexible set inter language conventions need defined allow code produced di erent front ends communicate llvm application binary interface abi 
+intermediate representations llvm virtual instruction set important part llvm system determines larger components 
+properties llvm virtual instruction set strongly typed ssa representation suitable target source language 
+note llvm virtual instruction set disk format memory format transformation 
+distinguishes variety aims front creation simpler 
+lot done field typed intermediate representations 
+functional languages strongly typed intermediate languages natural extension source language 
+typed assembly language project focuses type information prove program safety 
+safetsa representation combination type information ssa form focusing safety properties 
+contrast extensive llvm virtual instruction set type information prove safety properties input program 
+fact feature llvm allows representation arbitrary programs generated front worst behaved 
+interesting feature llvm simple detect type violations occur described section 
+general llvm virtual instruction set designed maximal performance providing important high level information post link optimizers 
+number attempts unified generic intermediate representation 
+goal projects reduce amount ort required create new language microprocessor 
+projects largely failed ranging original universal computer oriented language discussed implemented architecture language neutral distribution format andf implemented ultimately failed 
+llvm ambitious projects 
+primary di erence llvm virtual instruction set projects level represent programs 
+unified intermediate representations attempt describe languages ast level implying include features possible source languages preserve information possibly target machine 
+llvm approaches problem way microprocessor implement generic low level features language mapped 
+high level concepts implemented common denominator forms ways llvm simply appears strict risc architecture front 
+thesis describes design aggressive multi stage optimizing compiler 
+compiler built idea low level representation high level type information powerful perform aggressive link time post link optimizations 
+support claim example transformations require high level information order ective performed link time full ectiveness 
+operating lowlevel representation allows compiler design cient practical allows traditional optimizations implemented simple cient manner 
+llvm virtual instruction set key design llvm compiler system 
+describe novel aspects representation including strong type information builtin support low level exception handling constructs ssa form explicit memory allocation support 
+features permit development variety techniques including novel macroscopic data structure analyses transformations 
+profile guided optimization important family techniques extracting maximum performance application 
+show llvm compiler infrastructure obtain highly accurate profile information field 
+profile information may variety transformations run time scheduled idle time machine 
+important contribution thesis implementation design 
+llvm compiler infrastructure mature system supporting development novel analyses transformations 
+llvm clean system design extensive documentation making natural match teaching topics advanced compilers 
+llvm compiler infrastructure quiet success years development exciting part watching grow 
+day llvm gaining new features applied new problems expanding new areas 
+look forward seeing llvm look years rate growing possible 
+dalton franz ery 
+safetsa type safe referentially secure mobile code representation static single assignment form 
+acm sigplan conf 
+prog 
+lang 
+design implementation june 
+anderson dean ghemawat henzinger leung sites vandevoorde waldspurger weihl 
+continuous profiling cycles gone 
+technical note digital equipment systems research center palo alto ca july 
+anderson 
+program analysis specialization programming language 
+phd thesis diku university copenhagen may 
+andrew ayers stuart de jong john peyton richard schooler 
+scalable cross module optimization 
+acm sigplan notices 
+bala evelyn duesterwald sanjeev banerjia 
+dynamo transparent dynamic optimization system 
+pages 
+thomas ball james larus 
+cient path profiling 
+proceedings th annual acm ieee international symposium microarchitecture pages 
+ieee computer society press 
+michael burke linda torczon 
+interprocedural optimization eliminating unnecessary recompilation 
+acm transactions programming languages systems toplas 
+brad calder peter feller alan eustace 
+value profiling 
+international symposium microarchitecture pages 
+david chase 
+implementation exception handling part journal language translation june 
+fred chow sun chan robert kennedy shin ming liu raymond lo peng tu 
+new algorithm partial redundancy elimination ssa form 
+proceedings acm sigplan conference programming language design implementation pages 
+acm press 
+cohn goodwin lowney 
+optimizing alpha executables windows nt spike 
+digital technical journal 
+andf consortium 
+architectural neutral distribution format www andf org 
+ibm 
+xl fortran ways boost performance 
+white 
+karl crary david walker greg morrisett 
+typed memory management calculus capabilities 
+conference record popl th acm sigplan sigact symposium principles programming languages san antonio texas pages new york ny 
+ron cytron jeanne ferrante barry rosen mark wegman kenneth zadeck 
+ciently computing static single assignment form control dependence graph 
+acm transactions programming languages systems pages october 
+kemal ebcioglu erik altman 
+daisy dynamic compilation int symp 
+computer architecture pages 
+brian joel stanley vikram adve 
+program control language programming language adaptive distributed applications 
+journal parallel distributed computing appear october 
+accepted publication 
+manuel fahndrich je rey foster su alexander aiken 
+partial online cycle elimination inclusion constraint graphs 
+proceedings acm sigplan conference programming language design implementation pages 
+acm press 
+mary fernandez 
+simple ective link time optimization modula programs 
+acm sigplan notices 
+david gay alex aiken 
+language support regions 
+proc 
+sigplan conf 
+programming language design implementation pages snowbird ut june 
+adele goldberg david robson 
+smalltalk language implementation 
+addison wesley reading ma 
+gosling joy steele 
+java language specification 
+addison wesley menlo park ca 
+rajiv gupta eduard zhang 
+profile guided compiler optimizations 
+compiler design handbook optimizations machine code generation 
+crc press 
+
+transmeta breaks low power barrier 
+michael hind 
+pointer analysis haven solved problem 
+acm sigplan sigsoft workshop program analysis software tools engineering pages 
+acm press 
+simon peyton jones norman ramsey 
+portable assembly language supports garbage collection 
+international conference principles practice declarative programming 
+vikram adve 
+ensuring code safety runtime checks real time control systems 
+proc 
+int conf 
+compilers architecture synthesis embedded systems cases grenoble france october 
+chris lattner vikram adve 
+data structure analysis cient context sensitive heap analysis applications 
+submitted acm sigplan conference programming language design implementation 
+chris lattner vikram adve 
+llvm manual llvm cs uiuc edu docs html 
+chris lattner vikram adve 
+automatic pool allocation disjoint data structures 
+proc 
+acm sigplan workshop memory system performance berlin germany june 
+chris lattner llvm web site llvm cs uiuc edu 
+microsoft 
+net common language runtime see web site msdn microsoft com net 
+morrisett walker crary glew 
+system typed assembly language 
+acm transactions programming languages systems may 
+muth 
+alto platform object code modification 
+romer voelker lee wolman wong levy bershad chen 
+instrumentation optimization win intel executables etch august 
+rountev satish chandra 
+line variable substitution scaling points analysis 
+proceedings acm sigplan conference programming language design implementation pages 
+acm press 
+sgi 
+sgi open compiler open sourceforge net 
+zhong shao christopher league stefan 
+implementing typed intermediate languages 
+international conference functional programming pages 
+michael smith 
+overcoming challenges feedback directed optimization keynote talk 
+proceedings acm sigplan workshop dynamic adaptive compilation optimization pages 
+acm press 
+amitabh srivastava david wall 
+practical system intermodule code optimization link time 
+journal programming languages december 
+steel 
+myth fact 
+annual review automated programming 
+bjarne steensgaard 
+points analysis linear time 
+symposium principles programming languages pages january 
+mads tofte jean pierre talpin 
+region memory management 
+information computation pages february 
+david ungar randall smith 
+self power simplicity 
+norman meyrowitz editor proceedings conference object oriented programming systems languages applications oopsla volume pages new york ny 
+acm press 
+frederic vivien martin rinard 
+pointer escape analysis 
+proceedings acm sigplan conference programming language design implementation pages 
+acm press 
+robert wilson 
+overview suif compiler system 
+unpublished manuscript stanford university 
+robert wilson robert french christopher wilson saman amarasinghe anderson steven tjiang shih wei liao chau wen tseng mary hall monica lam john hennessy 
+suif infrastructure research parallelizing optimizing compilers 
+sigplan notices 
+

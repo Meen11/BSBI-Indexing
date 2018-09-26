@@ -1,0 +1,947 @@
+oo encapsulation lightweight os concurrency mechanisms ace toolkit document available technical report number wucs cs wustl edu washington university st louis 
+describes design ace object oriented thread encapsulation class library 
+library shields programmers differences solaris threads posix pthreads win threads 
+architecture class library user internal design perspective key design implementation issues discussed 
+readers gain understanding design approach tradeoffs various software quality factors performance portability extensibility 
+certain types distributed applications benefit concurrent model execution perform tasks 
+concurrency particularly useful improve performance simplifying programming network servers multiprocessor platforms 
+server applications threads handle multiple client requests concurrently convenient error prone design alternatives artificially serializing requests transport layer interface queueing requests internally handling iteratively forking heavy weight process client request 
+describes class library contained adaptive communications environment ace 
+ace encapsulates enhances lightweight concurrency mechanisms provided solaris threads posix pthreads win threads 
+material intended technical audience interested understanding strategies douglas schmidt schmidt cs wustl edu www cs wustl edu schmidt department computer science washington university st louis mo tactics object oriented oo concurrent programming threads 
+assumed reader familiar general oo design programming techniques design patterns application frameworks modularity information hiding object modeling oo notations omt fundamental programming language features classes inheritance dynamic binding parameterized types basic unix systems programming concepts process management virtual memory interprocess communication networking terminology client server architectures rpc corba tcp ip 
+assume depth knowledge concurrency general solaris posix win multithreading synchronization mechanisms particular 
+overview concurrent programming multi threading section 
+overview defines key terminology outlines various alternative mechanisms available concurrent programming solaris posix pthreads win threads 
+organized follows section gives overview goals ace os thread encapsulation library outlines oo architecture library components 
+section presents relevant background material concurrent programming general solaris multi threading model particular 
+section presents user perspective motivates design ace thread encapsulation library focusing case example culled concurrent client server application 
+section describes public interfaces internal design ace threads encapsulation library detail 
+section presents examples illustrate oo components defined section 
+section presents concluding remarks 
+overview ace oo concurrency mechanisms goals distinct feature modern operating systems solaris osf windows nt os compared previous generations sunos integrated support user level multi threading synchronization 
+existing multi threading synchronization mechanisms shipped operating systems relatively low level apis written developing applications mixture classes low level apis places unacceptable burden developers 
+mixing styles single application leads impedance mismatch object oriented procedural programming 
+hybrid programming style distracting chronic maintenance problem 
+avoid having developer re implement ad hoc wrappers os threading mechanisms ace toolkit provides set object oriented concurrency components described 
+ace components provide portable extensible interface concurrent programming 
+interface simplifies thread management synchronization mechanisms develop clients servers 
+interface ported drafts posix pthreads standard solaris threads microsoft win threads vxworks tasks 
+requirements conjunction goal encapsulating simplifying concurrency substrate os threading mechanisms ace oo thread encapsulation class library developed response common application requirements 
+simplify program design allowing multiple application tasks proceed independently conventional synchronous programming abstractions corba remote method invocations transparently improve performance processing capabilities hardware platforms shared memory symmetric multi processors explicitly improve performance reducing data copying overlapping computation communication improve perceived response time interactive applications user interfaces network management applications associating separate threads different tasks services application 
+design goals ace oo thread class library developed achieve design goals improve consistency programming style enabling developers oo consistently concurrent applications 
+section focuses solaris threading synchronization mechanisms concreteness 
+mechanisms design principles interfaces equivalent posix pthreads win threads 
+improve portability reusability underlying concurrency mechanisms 
+reduce amount obtrusive changes applications thread safe 
+eliminate minimize potential subtle synchronization errors 
+enhance abstraction modularity compromising performance 
+architectural overview ace oo thread encapsulation components booch object model illustrates components ace threads encapsulation class library 
+components include classes class categories described 
+ace locks class category mutex thread mutex process mutex classes provide simple efficient mechanism serializes access shared resource file object shared memory 
+encapsulate solaris posix win synchronization variables mutex pthread mutex respectively described section 
+rw mutex rw thread mutex rw process mutex classes serialize access shared resources contents searched changed 
+encapsulate solaris synchronization variable posix pthreads win threads implementation uses mechanisms described section 
+semaphore thread semaphore process semaphore classes implement dijkstra counting semaphore abstraction general mechanism serializing multiple threads control 
+encapsulate solaris sema synchronization variable posix pthreads win threads implementation mechanisms described section 
+null mutex null mutex class provides implementation locking interface wrappers synchronization 
+class described section 
+token token class provides generalpurpose synchronization mechanism 
+forexample implements recursive mutex semantics thread owns token reacquire 
+addition threads blocked awaiting serviced strict fifo order threads release token contrast mutex don strictly enforce acquisition order 
+class described section 
+ace classes prefixed ace avoid polluting global name space programs 
+brevity prefix omitted code 
+object model ace oo thread encapsulation components recursive thread mutex recursive thread mutex extends default solaris thread mutex semantics allowing calls methods nest long thread owns lock re acquires 
+works mutex class outlined described section 
+ace guards class category guard write guard read guard classes ensure lock automatically acquired released entry exit block code respectively 
+described section 
+thread control control class conjunction thread manager class automate graceful termination cleanup thread activities originating function 
+class described section 
+ace conditions class category condition condition class block change state condition expression involving shared data 
+encapsulates solaris posix pthreads cond synchronization variable win threads implemented mechanisms described section 
+null condition null condition class provides zero overhead implementation condition interface single threaded applications 
+
+ace managers class category thread manager thread manager class contains set mechanisms manage groups threads collaborate implement collective actions 
+class 
+thread spawn spawn class provides standard utility manages creation threads handle requests clients concurrently 
+class described section 
+ace active objects class category task class central mechanism ace defining active objects 
+active objects queue messages input output perform userdefined message processing services separate threads control 
+class described section 
+miscellaneous ace concurrency classes thread thread class encapsulates solaris threads posix pthreads win threads family thread creation termination management routines 
+class described section 
+atomic op atomic op class transparently parameterizes synchronization basic arithmetic operations 
+class described section 
+barrier class implements barrier synchronization particularly useful types parallel scientific applications 
+class described section 
+tss class allows objects physically thread specific private thread accessed logically global program 
+class described section 
+background concurrent programming multi threading unix systems programmers familiar traditional process management system calls fork exec wait 
+experience emerging multi threading synchronization mechanisms unix solaris threads posix pthreads win threads 
+section presents overview background material relevant concurrent programming solaris threads 
+detailed discussions concurrent programming solaris posix win threads appear :10.1.1.112.4939
+processes threads process collection resources enable execution program instructions 
+resources include virtual memory descriptors run time stack signal handlers user group ids access control tokens 
+unix systems sunos processes single threaded unix operations singlethreaded programs generally synchronous control program operating system system calls 
+extent single threaded nature traditional unix processes simplifies programming processes interfere explicit intervention programmers 
+applications particularly networking servers difficult develop single threaded processes 
+example single threaded network file server block extended periods time handling client request responsiveness clients suffer 
+common workarounds avoid blocking single threaded servers event dispatcher approach develop event demultiplexer dispatcher object oriented reactor framework 
+technique widely manage multiple input devices single threaded user interface frameworks 
+main event demultiplexer dispatcher detects incoming event event appropriate event handler dispatches applicationspecific callback method associated event handler 
+primary drawback approach long duration conversations developed finite state machines 
+approach unwieldy number states increase 
+addition nonblocking operations may difficult improve performance techniques streaming schemes benefit locality data instruction caches 
+user level routines approach develop non preemptive user level routine package explicitly saves restores context information 
+enables tasks suspend execution routine resumes point 
+multitasking mechanisms windows mac system os widely available systems approach 
+general routines complicated correctly developers manually perform task preemption explicitly yielding thread control periodically 
+task execute relatively short duration 
+clients may detect requests handled sequentially concurrently 
+limitation routines application performance may reduced os blocks services process task incurs page fault 
+failure single task spinning infinite loop may hang entire process 
+multi processing approach alleviating complexity single threaded unix processes coarse grained multi processing capabilities provided fork exec system calls 
+fork spawns separate child process executes task concurrently parent 
+possible separate processes collaborate directly mechanisms shared memory memory mapped files 
+local host shared memory faster means ipc message passing avoids explicit data copying 
+overhead inflexibility fork exec dynamic process invocation prohibitively expensive overly complicated applications 
+example process management overhead short duration services resolving ethernet number ip address retrieving disk block network file server setting attribute snmp mib excessive 
+difficult exert fine grain control scheduling process priority 
+addition processes share objects shared memory segments non portable assumptions placement virtual table pointers 
+multi threading mechanisms provide elegant efficient way overcome limitations traditional concurrent processing techniques described 
+thread single sequence execution steps performed context process 
+addition instruction pointer thread consists resources run time stack function activation records set general purpose registers thread specific data 
+conventional workstation operating systems variants unix windows nt support concurrent execution multiple processes may contain threads 
+process serves unit protection resource allocation separate hardware protected address space 
+thread serves unit execution runs process address space shared threads 
+benefits threads concurrent programming advantageous implement concurrent applications perform multiple tasks separate threads separate processes reasons thread creation forking new processes spawning new thread require duplicating parent address space memory setting new kernel data structures consuming extra process slot order perform subtask larger application 
+context switching threads maintain minimal state information 
+context switching overhead reduced state information stored retrieved 
+particular context switching threads time consuming context switching unix heavyweight processes 
+due fact tlb virtual address mappings need changed switching threads process 
+threads run strictly user level incur context switching overhead 
+synchronization may necessary switch kernel mode user mode scheduling executing application thread 
+thread synchronization expensive 
+example entities synchronized global entities localized 
+global synchronization involves kernel local intra process synchronization application threads may require kernel intervention 
+data copying communicating separate threads shared memory faster ipc message passing separate processes avoids overhead explicit data copying 
+example cooperating database services frequently common memory resident data structures may simpler efficient implement threads 
+general shared address space process communicate threads easier efficient shared memory mechanisms system shared memory files communication processes 
+overview multi processing multithreading solaris section summarizes relevant background material multi processing mp multi threading mt mechanisms provided solaris details threading models implementations sgi sequent osf windows nt somewhat different basic concepts similar 
+traditional unix process relatively heavyweight entity contains single thread control 
+contrast thread concurrency mechanisms available solaris sophisticated flexible efficient properly 
+shown solaris mp mt architecture operates levels kernel space user space contains components processing elements cpus execute user level kernel level instructions 
+semantics sun mp mt model intended uni processors symmetrical multi processors shared memory hardware 
+kernel threads fundamental entities scheduled executed processing elements pes kernel space 
+os kernel maintains small data structure stack kernel thread 
+context switching kernel threads relatively fast require changing virtual memory information 
+solaris multi processing multi threading architecture lightweight processes lwps associated kernel threads 
+solaris unix process longer thread control 
+process contains lwps 
+mapping lwps kernel threads 
+scheduler solaris uses lwps kernel threads schedule application tasks 
+lwp contains relatively large amount state register data accounting profiling information virtual memory address ranges timers 
+context switching lwps relatively slow 
+time sharing scheduler class default scheduler divides available pe multiple active lwps preemption 
+technique lwp runs finite period time typically milliseconds 
+time slice current lwp elapsed os scheduler selects available lwp performs context switch places preempted lwp queue 
+kernel schedules lwps criteria priority availability resources scheduling class 
+fixed order execution lwps time sharing scheduler hand kernel thread lwp 
+example system threads nfs daemon callout thread kernel thread operate entirely kernel space 
+class 
+application threads lwp may thought virtual pe application threads scheduled multiplexed user level thread library 
+application thread shares process address space threads unique stack register set 
+application thread may spawn application threads 
+process application threads execute independently necessarily parallel depending hardware 
+solaris provides multi level concurrency model permits application threads spawned scheduled modes 
+bound threads map lwps kernel threads 
+bound threads permit independent tasks execute parallel multiple pes 
+application threads running separate lwps separate kernel threads may execute parallel assuming running multiprocessor asynchronous 
+application threads may perform blocking system calls handle page faults impeding progress 
+kernel level context switch required reschedule bound threads 
+likewise tion operations bound threads require os kernel intervention 
+bound threads useful application designed take advantage parallelism available hardware platform 
+bound thread requires allocation kernel resources may inefficient allocate large number bound threads 
+
+unbound threads multiplexed manner atop lwps kernel threads thread run time library 
+user level library implements non preemptive cooperative multi tasking concurrency model 
+schedules dispatches suspends unbound threads minimizing kernel involvement 
+compared application threads bound lwps unbound application threads require overhead spawn context switch synchronize 
+depending number kernel threads application library associates process unbound threads may execute multiple pes parallel 
+unbound thread allocate kernel resources possible allocate large number unbound threads significantly degrading performance 
+challenges concurrent programming multi processor lwp may run parallel separate pes 
+uni processor lwp active point time 
+regardless hardware platform programmers ensure access shared resources files databases records network devices terminals shared memory serialized prevent race conditions 
+race condition occurs order execution concurrent lwps leads unpredictable erroneous results database record left inconsistent state 
+race conditions may eliminated solaris synchronization mechanisms described section 
+mechanisms serialize access critical sections code access shared resources 
+addition challenges concurrency control limitations arise multi threading multi processing single threaded reactive event loops implement concurrent applications robustness executing tasks threads single process address space may reduce application robustness 
+problem occurs separate threads process address space protected 
+order reduce context switching synchronization overhead threads receive little protection hardware memory management unit mmu 
+mmu protects separate process address spaces accidental malicious corruption active processes system 
+threads protected faulty service process may corrupt global data shared services running threads process 
+turn may produce incorrect results crash entire process cause network server hang indefinitely related problem certain unix system calls invoked thread may undesirable side effects entire process 
+example system call side effect destroying threads process thr exit terminate current thread 
+access privileges limitation multithreading threads process share userid access privileges files protected resources 
+prevent accidental intentional access unauthorized resources network services base security mechanisms process ownership services typically implemented separate processes 
+performance common misconception multithreading application automatically improve performance 
+circumstances multithreading improve performance 
+example compute bound applications uni processor benefit multi threading computation overlap communication 
+addition finegrained locking causes high levels synchronization overhead 
+prevents applications fully exploiting benefits parallel processing 
+circumstances multi threading may improve performance significantly 
+example multi threading connection oriented application gateway may benefit run multi processor platform 
+likewise uni processor bound applications may benefit multi threading computation overlapped communication disk operations 
+overview solaris synchronization threading mechanisms section outlines illustrates synchronization threading mechanisms available solaris posix pthreads win threads 
+systems threads share various resources open files signal handlers global memory single process address space 
+utilize synchronization mechanisms coordinate access shared data avoid race conditions discussed section 
+illustrate need synchronization mechanisms consider code fragment typedef long counter counter request count file scope void run svc queue message message mb message buffer dequeue mb keep track number requests request count identify request perform service processing return code forms part main event loop network daemon distributed database medical images distributed file server 
+code main event loop waits messages arrive clients 
+message arrives main thread removes message queue method 
+depending type message received thread performs type processing image database query file update 
+request count variable keeps track number incoming client requests 
+information update attribute snmp mib 
+code shown works fine long run svc executes single thread control 
+incorrect results occur multi processor platforms run svc executed simultaneously multiple threads control running different pes 
+problem code thread safe auto increment operations global variable request count contain race condition 
+different threads may increment obsolete versions request count variable stored pe data caches 
+phenomenon may demonstrated executing code example shared memory multiprocessor running solaris operating system 
+solaris allows multiple threads control execute parallel shared memory multi processor 
+example shown simplified version network daemon illustrated example typedef long counter static counter request count file scope void run svc int iterations int iterations request count count requests return void iterations typedef void thr func void main driver function multi threaded server 
+int main int argc char argv int threads argc atoi argv int iterations argc atoi argv thread id divide iterations evenly threads 
+int iterations iterations threads spawn threads run parallel 
+int threads thr create thr func run svc void iterations thr bound thr suspended id resume suspended threads threads id contiguous 
+threads thr continue id wait threads exit 
+int status thr join id void status cout thread id id status status endl cout iterations iterations request count request count endl return solaris thr create thread library routine called thread times spawn new threads control 
+example newly created thread executes svc function passed value argument 
+value causes run svc routine iterate iterations threads times 
+thread spawned thr bound thr suspended flags 
+thr bound informs solaris thread run time library bind thread dedicated lwp 
+lwp may run parallel separate pe multiprocessor system 
+suspended flag creates thread suspended state 
+ensures threads completely initialized resuming tests calling thr continue 
+continue function solaris thread library routine resumes execution suspended threads 
+note example takes advantage fact thread ids allocated contiguously solaris ascending order 
+threads resumed join routine blocks execution main thread 
+thr join similar unix wait system call reaps status exiting threads 
+thr join reap threads return threads running run svc exited 
+threads exited main thread prints total number final value request count exits program 
+compiling code executable file running thread iterations produces results thread id status iterations request count result appears expected 
+executed threads iterations pe machine program prints thread id status thread id status thread id status thread id status iterations request count clearly wrong value global count half total number iterations 
+problem auto increments count serialized properly 
+general run svc produce incorrect results executed parallel shared memory multi processor platforms provide strong sequential order cache consistency models 
+enhance performance shared memory multi processors employ weakly ordered cache consistency semantics 
+example family sparc multi processors provides total store order partial store order memory cache consistency semantics 
+total store order semantics reading variable accessed threads different pes may serialized simultaneous writes variable threads pes 
+likewise partial store order semantics writes may serialized writes 
+case expressions require single load store memory location ori may produce inconsistent results due cache latencies multiple pes 
+ensure reads writes variables shared threads updated correctly programmers manually enforce order changes variables globally visible 
+common technique enforcing strong sequential order total store order partial store order shared memory multi processor protect increment request count variable synchronization mechanism 
+solaris provides synchronization mechanisms 
+describes wrappers primary synchronization mechanisms provided solaris mutexes readers writer locks counting semaphores condition variables 
+ace contains wrappers mutex rw lock semaphore encapsulate solaris synchronization mechanisms mutex sema respectively 
+remainder section outline behavior solaris synchronization mechanisms 
+section illustrates wrappers simplify common synchronization variable usage improve program reliability 
+mutual exclusion locks mutex exclusion locks commonly called mutexes binary semaphores protect integrity shared resource accessed concurrently multiple threads control 
+mutex serializes execution multiple threads defining critical section thread executes code time 
+mutexes simple thread owning mutex may release efficient terms time space 
+operations mutex variables operating systems solaris implemented adaptive spin locks 
+spin locks ensure mutual exclusion atomic hardware instruction 
+spin lock simple efficient synchronization mechanism certain types resource contention auto incrementing global request count variable illustrated example 
+adaptive spin lock polls designated memory location atomic hardware instruction conditions occur mutexes provide efficient form mutual exclusion 
+define critical section single thread may execute time 
+value location changed thread currently owns lock 
+signifies lock released may acquired spinning thread 
+thread holding lock goes sleep 
+point spinning thread puts sleep avoid unnecessary polling 
+multi processor overhead incurred spin lock relatively minor 
+hardware polling cause contention system bus affects local pe caches threads spinning mutex 
+simple efficient type mutex non recursive mutex 
+non recursive allow thread currently owning mutex reacquire mutex releasing 
+deadlock occur immediately 
+solaris posix pthreads implement non recursive mutexes data type lock mutex unlock functions 
+win provide non recursive mutex 
+posix pthreads win threads implement recursive non recursive mutexes types mutexes discussed section 
+described section ace oo thread encapsulation library provides mutex wrapper portable implement non recursive mutex semantics 
+non recursive mutexes portably implemented thread mutex class 
+readers writer locks readers writer locks similar mutexes 
+example thread acquires readers writer lock release 
+multiple threads may acquire reader writer lock simultaneously reading thread may acquire lock writing 
+readers writer mutexes help improve concurrent execution resources protected mutex read far written 
+solaris supports readers writer mutexes type 
+posix pthreads win threads support readers writer locks natively 
+described ace thread library provides class called rw mutex portably implements semantics readers writer locks wrapper class 
+solaris ace implementations readers writer locks gives preference writers 
+multiple readers single writer waiting lock writer acquire 
+counting semaphores counting semaphores conceptually non negative integers may incremented decremented atomically 
+thread tries decrement semaphore value equals zero thread suspended thread increments semaphore 
+counting semaphores useful keeping track changes shared program state 
+record occurrence particular event semaphores maintain state allow threads decisions state event occurred past 
+semaphores efficient mutexes retain additional state sleep locks 
+general need acquired released thread acquired initially 
+enables asynchronous execution contexts signal handlers 
+solaris supports semaphores type 
+win supports semaphores 
+posix pthreads support semaphores natively 
+described section ace thread library provides class called semaphore portable implements semantics semaphores wrapper class 
+condition variables condition variables provide different flavor locking mutexes readers writer locks counting semaphores 
+mechanisms collaborating threads wait thread holding lock executes code critical section 
+contrast condition variable typically thread wait condition expression involving shared data attains particular state 
+cooperating thread indicates state shared data changed scheduler wakes thread suspended condition variable 
+newly awakened thread re evaluate condition expression potentially resumes processing shared data attained appropriate state 
+condition expression waited condition variable may arbitrarily complex 
+general condition variables permit complex scheduling decisions compared synchronization mechanisms 
+condition variable synchronization implemented sleep locks trigger context switch allow thread execute lock acquired 
+described section mutexes implemented adaptive 
+spin locks consume excessive resources thread wait long amount time particular condition signaled 
+condition variables useful semaphores mutexes situations involving condition expressions se mantics 
+case waiting thread block certain condition expression involving shared state true list longer empty network flow control 
+case need maintain event history 
+condition variables record signalled correctly lead lost wakeup problems 
+solaris posix pthreads support condition variables type 
+native win api support condition variables 
+described section ace thread library provides class portably implements semantics condition variables wrapper class 
+process vs thread synchronization semantics increase flexibility improve performance solaris provides flavors synchronization semantics optimized threads execute process intra process serialization threads execute separate processes inter process serialization 
+solaris thread flag init functions synchronization mechanisms creates variables optimized threads single processes 
+likewise process flag creates synchronization variable valid multiple processes 
+type synchronization mechanism general somewhat efficient threads run single process 
+mutex example code illustrates solaris mutex variables may solve auto increment serialization problem observed earlier count example typedef long counter file scope static counter request count mutex protecting request count initialized zero 
+static mutex void run svc void int iterations mutex lock acquire lock request count count requests mutex unlock release lock return void iterations code mis global variable solaris synchronization variable zero initialized default semantics 
+example mutex initialized start unlocked state 
+time lock called acquire ownership lock 
+thread attempts acquire lock forced wait spinning owner lock 
+example shown solves original synchronization problem suffers drawbacks inelegant inconsistent code mixes functions objects different identifier naming conventions 
+hybrid programming style distracting maintenance problem 
+obtrusive solution requires changing source code 
+developing large software system manually performing types changes leads maintenance problems changes consistently 
+non portable code solaris synchronization mechanisms 
+particular porting code posix pthreads windows nt threads require changing locking code 
+error prone easy programmers forget call mutex unlock 
+starve threads trying acquire lock 
+furthermore deadlock occur owner lock tries reacquire mutex owns 
+possible programmer forget initialize mutex variable 
+mentioned solaris zero mutex variable implicitly initialized 
+guarantees mutex variables allocated fields dynamically allocated structures classes 
+thread mechanisms posix pthreads windows nt threads guarantees synchronization objects initialized explicitly 
+section examine wrappers helps overcome problem improving functionality portability robustness solaris synchronization mechanisms 
+simplifying concurrent programming oo section examines case motivate demonstrate benefits encapsulating solaris concurrency mechanisms wrappers 
+case depicts representative scenario production system 
+additional examples ace oo thread encapsulation class library appear section presentation library interfaces section 
+useful classes evolved incrementally generalizing solutions practical problems arise system development 
+interface implementation class stabilized iterative process generalizing classes time 
+unfortunate major barrier entry object oriented design learning internalizing process identify describe classes objects understanding apply apply features templates inheritance dynamic binding overloading simplify generalize programs 
+effort capture dynamics class design evolution section illustrates process object oriented techniques idioms incrementally applied solve surprisingly subtle problem 
+problem arose development family concurrent distributed applications execute efficiently uni processor multi processor platforms 
+section focuses steps involved generalizing existing code templates overloading transparently parameterize synchronization mechanisms concurrent application 
+infrastructure code components adaptive communication environment ace framework described 
+example examines language features solve serialization problem section elegantly 
+described section original solution inelegant non portable error prone required obtrusive changes source code 
+section illustrates progression solutions build insights prior iterations design evolution 
+initial solution somewhat elegant solution original problem encapsulate existing operations ac thread mutex wrapper follows class thread mutex public thread mutex void mutex init lock thread thread mutex void mutex destroy lock int acquire void return mutex lock lock int release void return mutex unlock lock private solaris serialization mechanism 
+mutex lock advantage defining wrapper interface mutual exclusion mechanisms application code examples classes shown methods implemented class definition 
+style exposition purposes developing applications 
+portable os platforms 
+example implementation thread mutex class interface mechanisms windows nt win api class thread mutex public thread mutex void lock thread mutex void lock int acquire void lock return int release void lock return private win serialization mechanism 
+critical section lock thread mutex wrapper class cleans original code somewhat improves portability ensures initialization occurs automatically thread mutex object defined shown code fragment example typedef long counter file scope 
+static counter request count thread mutex protecting request count 
+static thread mutex void run svc void int iterations acquire count requests 
+request count release return void iterations wrapper approach solve problems identified section 
+particular solve problem forgetting release mutex requires manual intervention programmers 
+addition class thread mutex requires obtrusive changes original non thread safe source code 
+solution straightforward way ensure locks released automatically semantics class constructors destructors 
+utility class uses language constructs automate acquisition release mutex note implementation supports mutexes single process 
+ace implements process wide mutexes win mechanisms 
+class guard public guard const thread mutex lock lock acquire guard void lock release private const thread mutex lock guard defines block code thread mutex acquired released automatically block exited 
+employs idiom idiom commonly known constructor resource acquisition destructor resource release 
+shown code constructor class acquires lock mutex object automatically object class created 
+likewise destructor guard class automatically unlocks thread mutex object object goes scope 
+note lock data member class guard thread mutex object 
+avoids overhead creating destroying underlying solaris mutex variable time constructor destructor executed 
+making slight change code guarantee thread mutex acquired released automatically example typedef long counter file scope 
+static counter request count thread mutex protecting request count 
+static thread mutex void run svc void int iterations automatically acquire mutex 
+guard monitor request count automatically release mutex 
+remainder service processing omitted 
+solution fixed problem obtrusive changes code 
+adding extra curly brace delimiter block guard inelegant error prone 
+maintenance programmer misunderstand importance curly braces remove yielding code int iterations guard monitor request count remainder service processing omitted 
+unfortunately curly brace elision side effect eliminating concurrent execution application serializing main event loop 
+computations executed parallel section code serialized unnecessarily 
+improved solution solve remaining problems transparent unobtrusive efficient manner requires additional features parameterized types operator overloading 
+features provide template class called atomic op portion shown complete interface appears section template class type class atomic op public atomic op void count atomic op type count type operator void guard monitor lock return count operator type guard monitor lock return count arithmetic operations omitted private thread mutex lock type count op class redefines normal arithmetic operations built data types operations atomically 
+general class defines basic arithmetic operators atomic op class due deferred instantiation semantics templates 
+atomic op class uses mutual exclusion features thread mutex class arithmetic operations objects instantiated atomic op classes correctly multi processor 
+features templates operator overloading allow technique transparently multi processor 
+addition method operations op defined inline functions 
+optimizing compiler generate code ensures run time performance atomic op greater calling mutex lock unlock function directly 
+atomic op class write code identical original safe code fact typedef changed example typedef atomic op long counter file scope static counter request count void run svc void int iterations calls atomic op operator request count combining constructor destructor idiom acquiring releasing mutex automatically templates overloading produced simple remarkably expressive parameterized class abstraction 
+abstraction operates correctly atomically infinite family types require atomic operations 
+example provide thread safe functionality arithmetic types simply instantiate new objects op template class follows atomic op double atomic double atomic op complex atomic complex extending atomic op parameterizing type mutual exclusion mechanism design op classes described yield correct transparently thread safe programs room improvement 
+particular note type thread mutex data member hard coded op class 
+templates available design decision represents unnecessary restriction easily overcome 
+solution add type parameter template op follows template class lock class guard basically private new data member change 
+const lock lock template class lock class type class atomic op type operator void guard lock monitor lock return count private lock lock new data member type count new class simple change source file typedef atomic op thread mutex long counter file scope 
+counter request count design rationale performance issues making changes described worthwhile analyze motivation templates parameterize type mutual exclusion mechanism program beneficial 
+just supports templates useful circumstances 
+fact parameterizing generalizing problem space templates clear sufficient reasons may increase difficulty understanding reusing classes 
+templates op class raises issues 
+run time performance penalty added abstraction second question templates inheritance dynamic binding emphasize uniform mutex interface share common code third aren synchronization properties program obscured templates overloading questions related section discusses tradeoffs involving different design alternatives 
+performance primary reason templates atomic op class involve run time efficiency 
+expanded optimizing compiler template instantiation additional amount run time overhead minimal non existent 
+contrast inheritance dynamic binding incur overhead run time order dispatch virtual method calls 
+illustrates performance exhibited mutual exclusion techniques examples 
+depicts number seconds required process iterations divided iterations thread 
+test examples compiled optimization level sun compiler 
+test executed times idle pe sun mp 
+results averaged reduce amount spurious variation proved insignificant 
+example uses solaris mutex functions directly 
+example uses thread mutex class wrapper interface 
+surprisingly implementation consistently performed better example direct calls underlying solaris mutex functions 
+example uses guard helper class inside nested curly brace block ensure thread mutex released automatically 
+version required time execute 
+example uses atomic op template class slightly efficient solaris mutex functions directly 
+aggressively optimizing compilers reduce amount variation results 
+example original erroneous implementation mutual exclusion operations 
+operates extremely efficiently approximately seconds process iterations produces results totally incorrect 
+number seconds example number seconds required process iterations example operation ratio example example example example table serialization time different examples table indicates number micro seconds incurred mutual exclusion operation examples 
+recall loop iteration requires mutex operations acquire lock release lock 
+example baseline value uses underlying solaris primitives directly 
+third column examples normalized dividing values example 
+portability motivation parameterizing type mutual exclusion mechanism increase portability os platforms 
+templates decouple formal parameter class name thread mutex actual name class provide mutual exclusion 
+useful platforms mutex denote existing type function 
+templates atomic op class source code require changes 
+interesting motivation arises observation different flavors mutex semantics want program family related programs 
+mutual exclusion flavors share basic acquire release protocol possess different serialization performance properties 
+section presents number mutual exclusion mechanisms proven useful practice 
+transparency argument templates parameterize synchronization level transparency hides mutual exclusion semantics program 
+considered bug feature depends believes concurrency synchronization integrated program 
+class libraries contain basic components manager described section allowing synchronization semantics parameterized desirable enables developers precisely control specify concurrency semantics want 
+alternatives strategy don class libraries multi threading obviously limits functionality locking outside library may inefficient unsafe hard code locking strategy library implementation inflexible potentially inefficient 
+alternatives principles reuse object oriented software systems 
+evaluating tradeoffs selecting appropriate design strategy developing class library supports concurrency depends factors 
+example certain library users may welcome simple interfaces hide concurrency control mechanisms view 
+contrast library users may willing accept complicated interfaces return additional control increased efficiency 
+layered approach class library design may satisfy groups library users 
+design approach lowest layers class library export parameterized types template arguments 
+higher layers provide reasonable default type values provide easier application developer programming interface 
+new default template argument feature adopted ansi committee facilitates development class libraries satisfy types library users 
+feature allows library developers specify common default types arguments template class function definitions 
+example modification template class atomic op provides typical default template arguments template class lock thread mutex class type long class atomic op 
+defined mt safe default thread mutex long 
+typedef atomic op counter don serialize 
+typedef atomic op null mutex counter endif mt safe counter request count due complexity arises incorporating concurrency applications templates quite useful reducing redundant development effort 
+language feature possible misuse templates needlessly complicate system design implementation mention increasing compile link times 
+heuristic deciding parameterized types keep track existing code duplicated way modifies data types 
+reasonable scenario require third version differs types indicates generalizing original code templates may worthwhile 
+public interfaces internal design section describes public interfaces relevant internal design aspects components ace oo thread encapsulation library 
+ace components divided groups low level threading apis provides lowlevel wrapper underlying os threading synchronization apis 
+low level threading apis contained class 
+class encapsulates differences various versions unix win 
+components ace programmed methods class easier port ace new platforms 
+high level threading class allow threaded applications programmed higher level features constructors destructors templates 
+high level threading apis written terms low level ace os class 
+divided groups wrappers locking mechanisms described section 
+wrappers native threading functions 
+higher level thread management classes 
+case example ace oo thread components section 
+remainder section presents comprehensive discussion public interfaces functionality internal design ace 
+appropriate section depicts private portions wrapper classes order illustrate wrappers mapped solaris threading synchronization mechanisms 
+implementations posix pthreads win wrappers similar 
+ace locks class category ace wrappers provide portable type safe object oriented interface solaris posix win os synchronization mechanisms described section 
+bullets outline primary benefits ace wrappers improve correctness automating initialization synchronization objects appear fields classes structs guaranteeing locks acquired released automatically 
+uniform synchronization interface wrappers threading synchronization provide uniform interface acquiring releasing various types locks 
+particular components ace locks class category support common methods acquire try acquire release 
+uniformity possible lock classes type parameters conjunction ace synchronization components defined section 
+intuitive error reporting solaris posix pthreads synchronization functions somewhat non standard mechanism returning errors callers 
+contrast ace wrappers standard approach returns failure occurs indicate cause failure 
+simplify common usage pattern wrappers simplify common usage patterns low level threading synchronization mechanisms 
+code shown illustrates point ace wrappers mutex cond implement simple version dijkstra counting semaphores equivalent acquire respectively 
+class semaphore public semaphore int initial value count nonzero lock automatically acquire lock 
+guard thread mutex monitor lock count initial value automatically release lock block thread semaphore count greater decrement 
+void acquire void automatically acquire lock guard thread mutex monitor lock wait semaphore available 
+count count nonzero wait count count automatically release lock increment semaphore potentially unblocking waiting thread 
+void release void automatically acquire lock guard thread mutex monitor lock allow waiter continue 
+count count nonzero signal count count automatically release lock private thread mutex lock condition thread mutex count nonzero int count note constructor condition object count nonzero binds thread mutex object lock condition object 
+simplifies wait calling interface 
+contrast native solaris cond wait interface requires mutex passed parameter call 
+solaris win provide built implementation counting semaphores see discussion section 
+posix pthreads threads library include semaphore 
+class shown illustrates ace wrappers documents implementation posix pthreads ace thread encapsulation library 
+mutex classes ace mutex wrappers provide simple efficient mechanism serializes access shared resource 
+encapsulate solaris posix synchronization variable win handle mutex implementation 
+class definition mutex shown class mutex public initialize mutex 
+mutex int type thread implicitly destroy mutex 
+mutex void explicitly destroy mutex 
+int remove void acquire lock ownership wait lock released 
+int acquire void const conditionally acquire lock don wait lock released 
+int try acquire void const release lock unblock waiting thread 
+int release void const private mutex lock type synchronization lock 
+ace thread may enter critical section invoking method object 
+calls method block thread currently owns lock left critical section 
+leave critical section thread invokes release method object currently owns 
+enables thread blocked mutex enter critical section 
+thread mutex process mutex classes inherit mutex constructor create appropriate type mutex follows class thread mutex public mutex public thread mutex void mutex thread class process mutex public mutex public thread mutex void mutex process calls mapped appropriate underlying api creating thread process specific mutexes respectively 
+particular win implementation thread mutex uses efficient powerful critical section implementation process mutex implementation uses efficient powerful win 
+semaphore classes ace semaphore wrappers class implement dijkstra counting semaphore abstraction general mechanism serializing multiple threads control 
+encapsulate synchronization variable 
+semaphore class interface shown class semaphore public initialize semaphore default value count 
+semaphore int count int type thread void implicitly destroy semaphore 
+semaphore void explicitly destroy semaphore 
+int remove void block thread semaphore count greater decrement 
+int acquire void const conditionally decrement semaphore count greater won block 
+int try acquire void const increment semaphore potentially unblocking waiting thread 
+int release void const private sema semaphore semaphore semaphore classes inherit constructor create appropriate type semaphore follows class thread semaphore public semaphore public thread semaphore void semaphore thread class process semaphore public semaphore public thread semaphore void semaphore process rw mutex classes ace readers writer wrappers serialize access resources contents searched changed 
+encapsulate synchronization variable implemented natively solaris emulated ace win pthreads 
+mutex interface shown class rw mutex public initialize readers writer lock 
+rw mutex int type thread void arg implicitly destroy readers writer lock 
+rw mutex void explicitly destroy readers writer lock 
+int remove void acquire read lock block writer hold lock 
+int acquire read void const acquire write lock block readers writer hold lock 
+int acquire write void const conditionally acquire read lock won block 
+int try acquire read void const conditionally acquire write lock won block 
+int try acquire write void const unlock readers writer lock 
+int release void const private lock note posix pthreads win threads provide type 
+ensure code portability ace provides rw mutex implementation existing low level synchronization mechanisms mutexes condition variables 
+addition ace provides rw thread mutex process mutex implementations 
+recursive thread mutex class recursive thread mutex extends default solaris non recursive locking semantics 
+allows calls acquire methods nested long thread owns lock re acquires 
+works thread mutex class 
+default solaris provides non recursive mutexes 
+semantics restrictive certain circumstances 
+ace provides support recursive locks recursive thread mutex class 
+recursive locks particularly useful callback driven frameworks framework event loop performs callback user defined code 
+user defined code may subsequently re enter framework code method entry point recursive locks useful prevent deadlock occurring locks held framework callback 
+class implements recursive lock semantics solaris synchronization mechanisms note posix pthreads win provide recursive mutexes native thread libraries class recursive thread mutex public initialize recursive mutex 
+recursive thread mutex const char name void arg implicitly release recursive mutex 
+recursive thread mutex void explicitly release recursive mutex 
+int remove void acquire recursive mutex increment nesting level owner mutex calls method 
+int acquire void const conditionally acquire recursive mutex won block 
+int try acquire void const releases recursive mutex release mutex nesting level 
+int release void const thread get thread id void return id thread currently owns mutex 
+int get nesting level void return nesting level recursion 
+thread acquired mutex time nesting level 
+nesting level incremented time thread acquires mutex recursively 
+private void set nesting level int void set thread id thread thread mutex nesting mutex guards state nesting level thread id condition thread mutex lock available condition variable suspends waiting threads mutex available 
+int nesting level current nesting level recursion 
+thread owner id current owner lock 
+code illustrates implementation methods thread mutex class recursive thread mutex recursive thread mutex const char name void arg nesting level owner id nesting mutex name arg lock available nesting mutex name arg acquire recursive lock increment nesting level deadlock owner lock calls method 
+int recursive thread mutex acquire void const thread id thread self thread mutex guard mon nesting mutex contention just grab lock immediately 
+nesting level set thread id id nesting level lock increment nesting level proceed 
+id owner id nesting level wait nesting level dropped zero point acquire lock 
+nesting level lock available wait set thread id id nesting level return releases recursive lock 
+int recursive thread mutex release void const thread id thread self automatically acquire mutex 
+thread mutex guard mon nesting mutex nesting level nesting level inform lock free 
+lock available signal return example recursive thread mutex atomic op counter section 
+example atomic op called multiple recursive function calls single thread counter recursive lock 
+typedef atomic op recursive thread mutex counter keep track recursion depth 
+static counter recursion depth int factorial int cout recursion depth recursion depth endl return call acquires lock subsequent calls increment nesting level 
+recursion depth return factorial thread mutex prevents deadlock occurring depth counter incremented 
+illustrates recursive lock behavior convincing example 
+program executing factorial multiple threads produce unpredictable results depth global various modified serially multiple threads control 
+appropriate expensive locking strategy case thread specific storage pattern described section 
+null mutex class null mutex class provides zero overhead implementation general locking interface shared wrappers threading synchronization 
+interface trivial implementation mutex shown class null mutex public null mutex void null mutex void int remove void return int acquire void const return int try acquire void const return int release void const return shown code null mutex class implements methods op inline functions removed completely compiler optimizer 
+section illustrates mutex 
+token class class provides general purpose synchronization mechanism 
+example implements recursive mutex semantics thread owns token reacquire 
+addition threads blocked awaiting token serviced strict fifo order threads release token 
+contrast mutexes don strictly enforce acquisition order 
+interface class shown class token public initialization termination 
+token const char name void token void acquire token sleeping obtained timeout expires 
+thread currently holds token sleep hook called thread goes sleep 
+int acquire void sleep hook void void arg time value timeout behaves just previous acquire method invokes virtual function called sleep hook overridden subclass token 
+int acquire time value timeout overridden subclass define appropriate behavior acquire goes sleep 
+default op virtual void sleep hook void optimized method efficiently token threads waiting 
+useful don want quality service threads waiting get token 
+int renew int position time value timeout interface compliant lock mechanisms implements non blocking acquire 
+int void shuts token instance 
+int remove void relinquish token 
+line gets 
+int release void return number threads currently waiting get token 
+int void return id current thread owns token 
+thread current owner void ace guards class category guard classes compared level mutex apis wrapper described section provides elegant interface synchronizing multiple threads control 
+mutex potentially error prone possible forget call method shown section 
+may occur due programmer due occurrence exceptions 
+improve application robustness ace synchronization facilities leverage semantics class constructors destructors ensure mutex locks automatically acquired released 
+ace provides family classes write guard read guard ensure lock automatically acquired released entry exit block code respectively 
+class basic guard mechanism defined follows template class lock class guard public implicitly automatically acquire try acquire lock 
+guard lock int block lock result block acquire implicitly release lock 
+guard void result lock release locked acquire lock errno contain reason 
+int locked void return result explicitly release lock 
+int remove void return lock remove explicitly acquire lock 
+int acquire void return lock acquire conditionally acquire lock won block 
+int void return lock explicitly release lock 
+int release void return lock release private pointer lock re guarding 
+lock lock tracks acquired lock failed 
+int result object class defines block code lock acquired released automatically block exited 
+note mechanism rw mutex synchronization wrappers 
+illustrates benefit wrappers promote interface conformance adapting incompatible interfaces solaris semaphores mutexes 
+default class constructor shown block lock acquired 
+cases non blocking acquire calls necessary prevent deadlock 
+ace guard constructor second parameter instructs lock try acquire method acquire 
+method test atomically lock acquired 
+read guard write guard classes interface guard class 
+acquire methods read locks write locks respectively 
+thread control class thread control class conjunction manager class automate graceful termination cleanup thread activities originating function 
+example thread control constructor stores state information 
+information automatically removes thread manager function invoke thread originally terminates 
+technique works correctly regardless path function executed exceptions thrown 
+respect thread control class behaves utility class section 
+interface thread control class class thread control public initialize thread control object 
+insert register thread thread manager 
+thread control thread manager int add implicitly kill thread exit remove associated thread manager 
+thread control void explicitly kill thread exit remove associated thread manager 
+void exit void status set exit status return status 
+void set status void status get current exit status 
+void get status void ace conditions class category condition class class block change state condition expression involving shared data 
+encapsulates solaris threads posix synchronization variable 
+condition class interface template class mutex class condition public initialize condition variable 
+condition const mutex int type thread void arg implicitly destroy condition variable 
+condition void explicitly destroy condition variable 
+int remove void block condition absolute time day elapsed 
+blocking wait 
+int wait time value const signal waiting thread 
+int signal void const signal waiting threads 
+int broadcast void const private cond cond mutex lock 
+const mutex mutex note win provide condition variable abstraction 
+ace threading library implements ace components semaphores mutexes 
+null condition class condition class zero cost implementation interface described 
+methods implemented ops 
+useful cases mutual exclusion simply needed particular program service run single thread control contend threads access shared resources 
+reason classes allow applications parameterize type synchronization require requiring changes application code 
+null condition class interface template class mutex class null condition public null condition const mutex int type void arg null condition void int remove void return int wait time value const errno etime return int signal void const errno etime return int broadcast void const errno etime return null condition class identical spirit null mutex class described section 
+ace thread managers class category thread manager class manager class contains set mechanisms manage groups threads collaborate implement collective actions 
+example thread manager class provides mechanisms suspend resume allow number participating threads suspended resumed atomically 
+thread manager class shields applications incompatibilities different flavors multithreading mechanisms solaris posix win threads 
+interface thread manager class illustrated class thread manager public initialize thread manager 
+thread manager int size implicitly destroy thread manager 
+thread manager void initialize manager room size threads 
+int open int size default size release resources 
+int close void create new thread 
+int spawn thr func long thread void stack size stack size create new threads 
+int spawn int thr func void args long flags clean thread exits 
+void exit void status blocks threads running 
+void wait void resume stopped threads 
+int resume void suspend threads 
+int suspend void send signum stopped threads 
+int kill int signal private 
+thread spawn class thread spawn class provides standard utility manages creation threads handle requests clients concurrently 
+class behaves thread factory accepting connections clients spawning threads demand run service specified service handler svc handler 
+interface thread spawn class template class svc handler class peer acceptor class peer addr class thread spawn public acceptor svc handler peer acceptor peer addr public initialization methods 
+thread spawn thread manager tm reactor virtual int open const peer addr sia reactor protected virtual int handle input int fd template method accepts connection spawns thread 
+virtual int handle close int fd reactor mask called factory closed 
+virtual svc handler svc handler void factory method creates appropriate svc handler 
+virtual int thr flags void returns flags spawn thread 
+note classes inherits ace acceptor class generic factory passively connecting clients creating service handlers :10.1.1.40.8396
+ace active objects class category task class class central mechanism ace creating user defined active objects passive objects process application messages 
+ace task perform activities dynamically linked serve endpoint operations associated multiple threads control called active object store messages queue subsequent processing execute user defined services 
+class defines interface inherited implemented derived classes order provide application specific functionality 
+class interface defines pure virtual methods open close put described 
+defining task class enhances reuse decoupling components provided class category application specific subclasses inherit components 
+likewise pure virtual methods allows compiler ensure subclass task honors obligation provide functionality initialization termination methods subclasses derived methods perform application initialization termination activities 
+activities typically allocate free resources connection control blocks handles synchronization locks 
+tasks defined modules separately 
+modules stored pairs task subclass handles read side processing messages sent upstream module layer handles write side processing messages send downstream module layer 
+methods read side task subclasses invoked automatically framework inserted removed stream respectively 
+application specific processing methods addition subclasses define put svc methods 
+methods perform application specific processing functionality messages 
+example messages arrive head tail stream series inter result invoking put svc method task stream 
+put method invoked task layer stream passes message adjacent task layer 
+put method runs synchronously respect caller borrows thread control originally invoked put method 
+thread control typically originate upstream application process downstream pool threads handle device interrupts internal stream event dispatching mechanism timer driven callout queue trigger retransmissions connection oriented transport 
+ace task executes passive object borrows thread control caller put method entry point task serves context task executes behavior 
+contrast ace task executes active object task svc method perform application specific processing asynchronously respect tasks 
+put svc method directly invoked adjacent task 
+invoked separate thread associated task 
+thread provides execution context thread control task svc method 
+method runs event loop continuously waits messages arrive task message queue see bullet 
+implementation put svc method message may forwarded adjacent task stream put task utility method 
+put calls put method task residing adjacent layer 
+invocation put may borrow thread control caller handle message immediately synchronous processing approach illustrated 
+conversely method may enqueue message defer handling method executing separate thread control asynchronous processing approach illustrated 
+discussed particular processing approach selected significant impact performance ease programming 
+alternative methods methods message queueing mechanisms addition open close put pure virtual method interfaces task contains message queue 
+queue standard component ace pass information 
+executes active object message queue buffer sequence data messages control messages subsequent processing svc method 
+messages arrive svc method dequeues messages performs subclass application specific processing tasks 
+types messages may appear message queue simple composite 
+simple message contains block composite message contains multiple message blocks linked 
+composite messages generally consist control block followed data blocks 
+control block contains bookkeeping information destination addresses length fields data blocks contain actual contents message 
+overhead blocks tasks minimized passing pointers messages copying data 
+message queues contain pair high low water mark variables implement layer flow control adjacent modules stream 
+high water mark indicates amount bytes messages queue willing buffer flow controlled 
+low water mark indicates level previously flow longer considered full 
+interface class provided template class synch class task public service object public initialization termination methods 
+task thread manager thr mgr message queue synch mp virtual int open void flags virtual int close long transfer msg queue handle immediate processing 
+virtual int put message block time value tv run daemon thread handle deferred processing 
+virtual int svc void protected turn task active object 
+int activate long flags routine runs service routine daemon thread 
+static void svc run task synch tests message enqueue blocking 
+int put message block insert message message list 
+int message block time value extract message list 
+int message block time value return message queue 
+int message block time value transfer message adjacent task stream 
+int put message block time value turn message back 
+int reply message block time value task utility routines identify names 
+const char name void const task synch sibling void module synch module void const check queue reader 
+int reader void check queue writer 
+int writer void special routines corresponding certain message types 
+int flush long flag manipulate watermarks 
+void water marks io msg io cmds size miscellaneous ace concurrency classes thread class utility class utility encapsulates solaris posix win family thread creation termination management routines wrappers 
+class provides common interface mapped solaris threads posix pthreads win threads 
+interface class provided typedef void thr func void class thread public spawn new threads execute func argument arg 
+static int spawn size thr func func void arg long flags void stack size stack size spawn new thread executes func argument arg 
+static int spawn thr func void arg long thread void stack size stack size hthread handle wait threads exit 
+static int join hthread hthread void suspend execution thread 
+static int suspend hthread continue execution previously suspended thread 
+static int resume hthread send signal signum thread 
+static int kill thread int signum return unique id thread 
+static thread self void yield thread 
+static void yield void exit current thread returning status 
+static void exit void status set lwp concurrency level process 
+static int int new level get lwp concurrency level process 
+static int void static int int const set change examine calling thread signal mask 
+static int thread key void void value allocates identify data specific thread process 
+key global threads process 
+static int thread key key void value bind value thread specific data key key calling thread 
+static int thread key key void stores current value bound key calling thread location pointed 
+atomic op class op class transparently parameterizes synchronization basic arithmetic operations 
+template class lock class type class atomic op public initialize count 
+atomic op void initialize count atomic op type atomically increment count 
+type operator void atomically increment count type operator const type atomically decrement count 
+type operator void atomically decrement count dec type operator const type dec atomically compare count rhs 
+type operator const type rhs atomically check count rhs 
+type operator const type rhs atomically check count rhs 
+type operator const type rhs atomically check count rhs 
+type operator const type rhs atomically check count rhs 
+type operator const type rhs atomically assign rhs count 
+void operator const type rhs atomically return count 
+operator type private lock lock type count barrier class barrier class implements barrier synchronization particularly useful types parallel scientific applications 
+class allows count number threads synchronize completion called barrier synchronization 
+implementation uses sub barrier generation numbering scheme avoid overhead ensure threads exit barrier correct 
+class barrier public initialize barrier synchronize count threads 
+barrier int count int type thread void arg block caller count threads called wait allow caller threads continue parallel 
+int wait void tss class tss class allows objects physically private thread accessed logically global program 
+underlying thread specific storage pattern class described 
+public interface ace tss class template class type class tss public caller passes non null ts obj initialize thread specific value 
+calls operator return value 
+tss type ts obj get thread specific object key associated object 
+returns data initialized returns pointer data 
+type ts object void smart pointer obtain thread specific object associated key 
+type operator ace oo thread encapsulation library section presents examples illustrate key features ace threading library 
+refer back interfaces described section determine behavior ace concurrency components 
+map manager message demultiplexing selecting mutual exclusion mechanism appropriate semantics depends context class 
+example illustrates interface implementation map manager component general ace toolkit :10.1.1.42.8614:10.1.1.42.8614
+component typically network server map external identifiers port numbers connection ids internal identifiers pointers queues messages stored outgoing links satellite flow controlled 
+portion manager interface implementation shown template class ext id class int id class lock class map manager public associate ext id int id 
+int bind ext id ext id const int id int id write guard lock monitor lock 
+break association ext id 
+int unbind ext id ext id write guard lock monitor lock 
+locate int id associated ext id pass parameter int id 
+return 
+int find ext id ext id int id int id read guard lock monitor lock locate entry ext id int id ext id successfully located 
+return return private lock lock 
+advantage approach released regardless execution path exits method 
+example lock released properly arm statement returns find method 
+addition constructor destructor resource acquisition release idiom properly releases exception raised processing definition helper method 
+useful exception handling mechanism designed call necessary destructors exit block exception thrown 
+note written definition explicit calls acquire release int find ext id ext id int id int id lock acquire ext id int id ext id successfully located 
+lock release return lock release return find method logic space efficient 
+addition guarantee lock released exception thrown method 
+type manager template class instantiated depends particular structure parallelism program code 
+example situations useful declare typedef map manager addr tcb mutex map manager calls find bind automatically serialized 
+situations useful turn synchronization touching existing library code mutex class typedef map manager addr tcb null mutex map manager situation may case calls far frequent 
+case may sense mutex readers writer lock typedef map manager addr tcb rw mutex map manager wrappers templates create highly portable platform independent mutual exclusion class interface impose arbitrary syntactic constraints different synchronization mechanisms 
+templates parameterize type locking little application code change accommodate new synchronization semantics 
+selection appropriate synchronization mechanism guided thorough profiling empirical measurements 
+thread safe message queueing mechanism example illustrates ace condition wrapper ace mutex wrapper 
+code extracted message queue class contained task class described section 
+queue parameterized type synchronization policy needed achieve desired level concurrency control 
+default level concurrency control thread safe defined mt synch class file class mt synch public typedef condition mutex condition typedef mutex mutex synch queue public methods thread safe corresponding overhead implies 
+contrast synch class queue public methods thread safe additional overhead null synch defined follows class null synch public typedef null condition null mutex condition typedef null mutex mutex example message queue appeared run svc function section 
+message queue modeled message queueing buffer management facilities provided system streams bsd unix 
+ace message queue composed message blocks linked prev pointers 
+addition block may linked chain blocks 
+structure enables efficient manipulation arbitrarily large messages incurring great deal memory copying overhead 
+contents message represented internally message block 
+class message block public message block size size message type type mb data message block cont char data 
+queue thread safe queueing facility messages 
+note traits idiom combine condition mutex types single template parameter 
+template class synch mt synch class message queue public default high low water marks 
+enum low water mark 
+default lwm high water mark 
+default hwm message queue active activate deactivate 
+active message queue inactive activate deactivate 
+inactive initialize message queue 
+message queue size hwm default hwm size lwm default lwm destroy message queue 
+message queue void checks queue full empty 
+int full void const int empty void const enqueue dequeue message block 
+int enqueue tail message block new item time value tv int enqueue head message block new item time value tv int dequeue head message block item time value tv deactivate queue wakeup threads waiting queue continue 
+int deactivate void queue threads enqueue dequeue messages 
+int activate void private routines assumes locks held 
+int enqueue tail message block int enqueue head message block int enqueue head message block check boundary conditions 
+int empty void const int full void const implement activate deactivate methods assumes locks held 
+int deactivate void int activate void pointer head message block list 
+message block head pointer tail message block list 
+message block tail lowest number unblocking occurs 
+int low water mark greatest number bytes blocking 
+int high water mark current number bytes queue 
+int cur bytes current number messages queue 
+int cur count indicates queue inactive 
+int deactivated wrapper synchronization primitives controlling concurrent access 
+synch mutex lock synch condition notempty synch condition implementation message queue class shown 
+constructor message queue create empty message list initializes condition objects 
+note lock automatically created default constructor 
+template class synch message queue message queue size hwm size lwm lock notempty lock 
+methods check queue empty contains messages full contains high water mark bytes 
+note methods utilize pattern public methods acquire locks private methods assume locks held 
+template class synch int message queue synch empty void const return cur bytes cur count template class synch int message queue synch full void const return cur bytes high water mark template class synch int message queue synch empty void const guard synch mutex monitor lock return empty template class synch int message queue synch full void const guard synch mutex monitor lock return full methods activate deactivate message queue 
+method deactivates queue awakens threads waiting queue continue 
+messages removed queue 
+operations called queue activated immediately return 
+returns inactive queue inactive call active queue active call 
+information allows caller detect changes state 
+template class synch int message queue synch deactivate void guard synch mutex lock return deactivate template class synch int message queue synch deactivate void int current status deactivated inactive active wake 
+notempty broadcast broadcast deactivated return current status activate method queue threads enqueue dequeue messages 
+returns inactive queue inactive call active queue active call 
+template class synch int message queue synch activate void guard synch mutex lock return activate template class synch int message queue synch activate void int current status deactivated inactive active deactivated return current status enqueue head method inserts new item front queue 
+enqueue dequeue methods parameter caller block action possible 
+caller block waiting amount time tv 
+blocked call returns queue closed signal occurs time specified tv elapses 
+template class synch int message queue synch enqueue head message block new item time value tv guard synch mutex monitor lock deactivated errno return wait queue full 
+full release lock wait timeout signal space available list 
+wait tv errno etime errno return deactivated errno return enqueue message head list 
+enqueue head new item tell blocked threads queue new item 
+notempty signal return note method signals condition object queue previously empty 
+optimization improves performance reducing amount context switching caused unnecessary signaling 
+enqueue dequeue methods perform similar optimizations 
+tail method inserts new item queue 
+returns number items queue 
+template class synch int message queue synch enqueue tail message block new item time value tv guard synch mutex monitor lock deactivated errno return wait queue full 
+full release lock wait timeout signal space available list 
+wait tv errno etime errno return deactivated errno return enqueue message list 
+enqueue tail new item tell blocked threads queue new item 
+notempty signal return dequeue head method removes front item queue passes back caller 
+method returns count number items queue 
+template class synch int message queue synch dequeue head message block item time value tv guard synch mutex monitor lock wait queue empty 
+empty release lock wait timeout signal new message placed list 
+notempty wait tv errno etime errno return deactivated errno return dequeue message 
+dequeue head item tell blocked threads queue longer full 
+signal return code illustrates ace implementation classic bounded buffer program message queue 
+program uses threads concurrently copy stdin stdout 
+illustrates relations ace components run concurrently 
+producer thread reads data stdin stream creates message queues message message queue 
+consumer thread dequeues message writes stdout 
+save space error checking omitted 
+include message queue include thread manager typedef message queue mt synch mt message queue global thread manager 
+static thread manager thr mgr producer reads data message queue message consumer 
+pointer enqueued data read 
+pointer inform consumer exit 
+static void producer mt message queue msg queue insert thread thr mgr 
+thread control tc thr mgr char buf int concurrent producer consumer allocate new message 
+message block mb new message block read mb rd ptr mb size shutdown message thread exit 
+mb length msg queue enqueue tail mb send message thread 
+mb wr ptr msg queue enqueue tail mb destructor thread control removes exiting thread thread manager automatically 
+return consumer dequeues message message queue writes message stderr stream deletes message 
+producer sends null pointer informs reading exit 
+static void consumer mt message queue msg queue message block mb insert thread thr mgr 
+thread control tc thr mgr int result keep looping reading message queue timeout get message length signals quit 
+result msg queue dequeue head mb result return int length mb length length write mb rd ptr length delete mb length break destructor thread control removes exiting thread thread manager automatically 
+return main function spawns threads run producer consumer functions copy stdin stdout parallel 
+int main int argc char argv thread safe instantiation message queue 
+message queue msg queue thr mgr spawn thr func producer void msg queue thr new lwp thr detached thr mgr spawn thr func consumer void msg queue thr new lwp thr detached wait producer consumer threads exit 
+thr mgr wait return concurrent network database server example illustrates concurrent network database server developed ace thread management components 
+client requests trigger server lookup employees unique numerical id match name returned client 
+client request server run parallel 
+example illustrates manager thread control classes 
+addition illustrates ace wrapper classes sockets 
+code shown intentionally simplified example represent highly robust efficient implementation developed 
+example production implementation place upper bound number spawned bound threads avoid consuming large amounts kernel resources 
+addition production implementation clearly sophisticated database scheme 
+include sock acceptor include thread manager process thread manager 
+thread manager thr mgr function called new thread created 
+function passed connected client sock stream uses receive database lookup request client 
+static void lookup name ace handle handle local thread control object 
+thread control tc thr mgr enum maximum line ll read client 
+maximum size employee name 
+simple read database 
+static struct int emp id const char emp name emp db john wayne cindy crawford simpson bill clinton rush michael jackson george burns sock stream new stream char char new stream set handle handle new stream recv int emp id atoi int int index emp db index emp id index emp id emp db index emp id sprintf emp db index emp name sprintf error new stream send new stream close destructor thread control removes exiting thread thread manager automatically 
+return default port number 
+static const int default port int main int argc char argv port number server 
+short port argc atoi argv default port internet address server 
+inet addr addr port passive mode listener object 
+sock acceptor server addr sock stream new stream wait connection client illustrates concurrent server 
+accept connection client 
+server accept new stream spawn thread client request 
+thr mgr spawn thr func lookup name void new stream get handle thr bound thr detached return concluding remarks motivates describes object oriented thread encapsulation class library provided ace 
+ace thread class library provides benefits developers improve consistency programming style enabling developers oo concurrent applications 
+reduce amount obtrusive changes applications thread safe 
+example utility classes library op mutex rw mutex semaphore improve portability reusability underlying os specific concurrency mechanisms 
+eliminate minimize potential subtle synchronization errors 
+ace thread library classes guard thread control ensure resources locks library data structures allocated released properly exceptions occur 
+enhance abstraction modularity compromising performance 
+language features inline functions templates ensures additional functionality provided ace oo thread library reduce efficiency significantly 
+ace oo thread encapsulation library number commercial projects 
+products include ericsson eos family telecommunication switch monitoring applications bellcore atm switch management software network management subsystem core infrastructure subsystem motorola iridium global personal communications system enterprise wide electronic medical imaging systems kodak siemens 
+schmidt ace object oriented framework developing distributed applications proceedings th usenix technical conference cambridge massachusetts usenix association april 
+kleiman barton faulkner smith stein weeks williams multiprocessing 
+multithreading sunos kernel proceedings summer usenix conference san antonio texas june 
+ieee threads extension portable operating systems draft february 
+custer inside windows nt 
+redmond washington microsoft press 
+gamma helm johnson vlissides design patterns elements reusable object oriented software 
+reading ma addison wesley 
+johnson foote designing reusable classes journal object oriented programming vol 
+pp 
+june july 
+booch object oriented analysis design applications nd edition 
+redwood city california benjamin cummings 
+rumbaugh blaha premerlani eddy lorensen object oriented modeling design 
+englewood cliffs nj prentice hall 
+bjarne stroustrup programming language nd edition 
+addison wesley 
+stevens advanced programming unix environment 
+reading massachusetts addison wesley 
+comer stevens internetworking tcp ip vol iii client server programming applications 
+englewood cliffs nj prentice hall 
+sun microsystems open network computing transport independent rpc june 
+object management group common object request broker architecture specification ed 
+stevens unix network programming edition 
+englewood cliffs nj prentice hall 
+stevens tcp ip illustrated volume 
+reading massachusetts addison wesley 
+schmidt active object object behavioral pattern concurrent programming proceedings nd annual conference pattern languages programs monticello illinois pp 
+september 
+schmidt cranor half sync half async architectural pattern efficient structured concurrent proceedings nd annual conference pattern languages programs monticello illinois pp 
+september 
+birrell programming threads tech 
+rep src digital equipment january 
+sun microsystems mountain view ca sunos guide multi thread programming part number ed may 
+schmidt reactor object behavioral pattern concurrent event demultiplexing event handler dispatching pattern languages program design coplien schmidt eds pp 
+reading ma addison wesley 
+garg parallel streams multi process implementation proceedings winter usenix conference washington jan 
+saxena peacock yang verma krishnan pitfalls multithreading svr streams processes proceedings winter usenix conference san diego ca pp 
+jan 
+schmidt suda measuring performance parallel message process architectures proceedings conference computer communications info com boston ma pp 
+ieee april 
+mats locking strategies multiprocessor implementations protocols proceedings symposium communications architectures protocols sigcomm san francisco california acm 
+schmidt family design patterns applicationlevel gateways theory practice object systems special issue patterns pattern languages vol 
+schmidt stephenson object oriented framework developing network server daemons proceedings nd world conference dallas texas sigs oct 
+booch simplifying booch components report vol 
+june 
+linton calder design implementation interviews proceedings usenix workshop november 
+harrison schmidt thread specific storage pattern reducing locking overhead concurrent programs oopsla workshop design patterns concurrent parallel distributed systems acm october 
+schmidt acceptor connector design patterns actively passively initializing network services workshop pattern languages object oriented programs ecoop aarhus denmark august :10.1.1.40.8396
+hutchinson peterson kernel architecture implementing network protocols ieee transactions software engineering vol 
+pp 
+january 
+schmidt adaptive communication environment object oriented network programming components developing client server applications proceedings th annual sun users group conference sanfrancisco ca pp 
+sug june 
+unix software operations unix system release programmer guide streams 
+prentice hall 
+stevens tcp ip illustrated volume 
+reading massachusetts addison wesley 
+schmidt harrison object oriented components high speed network programming proceedings st conference object oriented technologies systems monterey ca usenix june 

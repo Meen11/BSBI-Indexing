@@ -1,0 +1,446 @@
+portable implementation continuation operators imperative languages exception handling sakamoto akinori yonezawa department information science faculty science university tokyo presto japan science technology cocoa yonezawa tokyo ac jp 
+describes scheme manipulating partial continuations imperative languages java portable manner portability means scheme depend structure native stack frame implementation virtual machines runtime systems 
+exception handling plays significant role scheme reduce overheads 
+scheme program transformation contrast cps transformation scheme preserves call graph original program 
+scheme important applications transparent migration mobile computation checkpointing highly reliable system 
+technology enables running computations move remote computer enables running computations saved storages 
+situation occurs execution states running program encoded data structure 
+checkpointing technique improves reliability system saving execution states running program periodically 
+context mobile computation form computation migration called transparent migration strong mobility means entire execution state running program including call stack part heap image preserved migration 
+transparent migration process execution states program saved data structure data structure transmitted destination host network execution states reconstructed host data structure 
+difficult capture recover call stack program language call cc call current continuation primitive 
+imperative languages capability storing execution states including call stack implemented compiler support runtime support 
+smalltalk implementation standard ml sml nj primitive dumps execution image local disk 
+reports completely different approach program transformation 
+scheme portable sense depend structure native stack frames implementation virtual machines runtime systems 
+existing system need extended capture restore execution states 
+scheme developed mainly study implementation transparent migration java java allows java programs manipulate stack frames restricted form 
+exception handling plays significant role scheme reduce overheads 
+rest organized follows 
+sect 
+introduces operators manipulating continuations clarify implemented scheme described 
+sect 
+describes continuation operators implemented exception handling mechanism 
+sect 
+shows applications 
+sect 
+discusses difficulties limitations technique 
+sect 
+compare technique related 
+sect 
+summarizes 
+partial continuations section introduces simple calculus control devised development sml nj 
+calculus provides tagged operators manipulating partial continuations analogous danvy shift reset felleisen prompt 
+program transformation scheme essentially implements operators partial continuations imperative languages 
+calculus extension call value lambda calculus semantics defined style structured operational semantics 
+polymorphic type system provided calculus 
+focus operators partial continuations 
+syntax operators defined follows capturing functional continuation set delimiting effect metavariables denote prompt expression variable respectively 
+prompt special constant tag determines set expressions matched 
+operator captures functional continuation innermost set expression prompt 
+captured continuation bound variable expression evaluated extended environment 
+set expression delimits effect capturing continuation 
+outer context set operator captured 
+contrast call cc call current continuation operator scheme captures full continuation 
+evaluation rule defined formally follows set evaluation context hole scope set expression prompt fresh variable 
+evaluation context strictly speaking slight difference original operators 
+set valid expressions restricted convenience 
+expression single special constant called hole 
+position hole evaluation context syntactically defined designates expression evaluated redex evaluation context 
+denote result replacing hole implies redex expression 
+evaluation rule represents continuation expression set expression 
+continuation eta conversion 
+righthand side evaluated environment continuation bound various control operators implemented composing primitive control operators 
+ref 
+provides examples implementation call cc exception handling coroutines 
+notion partial continuations partly implemented early programming languages pl mesa execution restart instruction raised exception exception captured exception handler 
+addition model exception handling proposed resumption contexts class objects modifiable 
+scheme implement exception handling mechanism imperative languages portable manner 
+emulating continuations section describes control operators sect 
+implemented imperative languages java 
+scheme implementation need manipulate stack frames overheads quite low due exception handling mechanism 
+scheme program transformation 
+contrast cps transformation code transformed scheme preserves original call graph additional method invocations inserted maintain continuation operation 
+cps transformed program easily overflows call stack base language typical imperative language 
+section suppose target language java bytecode suitable explaining idea program transformation 
+java virtual machine forbids stack manipulation java bytecode concern security 
+program java bytecode inspect modify stack frames 
+facts obviously show scheme portable widely applicable various imperative languages 
+transformer takes program imperative language continuation operators input produces equivalent program base language 
+transformation method basis method source program method class created 
+created class represents execution states method 
+program transformed explicitly manages execution states 
+captured continuation standard data structure base language implies save modify remote host 
+transformation implemented exception handling mechanism prevent exception handling source program 
+transformation consists different sub transformations saving execution states resumption point restoring execution states 
+transformation saving execution states described sect 
+restoring described sect 
+
+effects transformations transformed code 
+program transformed additional fragments inserted original program incurs slowdown ordinary execution note part relating continuation operation slows 
+addition scheme changes method signatures 
+extra parameter inserted method pass state object explained sect 
+
+public class fib public static void fib int return int fib return fib fig 
+
+pseudo code fibonacci function 
+fibonacci function fig 
+illustrate transformation section 
+readability java pseudo code denote program reality consists java bytecodes 
+bytecode analysis transform bytecode program need information set valid frame variables kind registers entries operand stack program point 
+variable entry valid value available possible control flow 
+types frame variables entries operand stack necessary 
+addition transformed code pass java bytecode verifier original code passes 
+obtain necessary information bytecode bytecode analysis performed transformation 
+bytecode transformer requires exactly information bytecode verification 
+adopted type systems java bytecode verification keep information bytecode 
+transformer transforms bytecode programs information 
+type system stata abadi freund mitchell 
+stata type system provides information types frame variables operand stack 
+addition bytecode subroutines described 
+hand freund type system focuses uninitialized values fresh objects constructors invoked 
+uninitialized value exists brief period ordinary execution constructor object invoked soon created source type system violation 
+bytecode typed type systems tells bytecode program verifiable 
+type reconstruction problem find appropriate type judgment program method 
+verification algorithm 
+implemented type reconstruction algorithm type systems extend full set java bytecode bytecode subroutine facility 
+mentioned sect 
+difficult transform bytecode subroutine efficient code 
+bytecode subroutines supported current implementation 
+public class st fib fib extends public int public int public long public float public double public object state class public void resume fib fib fig 
+
+state class 
+transformation algorithm defines state class method 
+execution state method stored instance state class 
+fig 
+shows example state class designates resumption point variables array types keep frame variable values operand stack values 
+addition special values manage state capture restoration stored arrays 
+special values include state object current method state object caller current method special exception notifies migration 
+size array determined statically method analyzed 
+state class subclass common super class 
+state class method resume resumes execution stored state object 
+explained sect 
+
+capturing continuation capturing continuation consists operations 
+saving frame variable values operand stack values method 
+saving resumption point information method 
+repeating method 
+operations essentially yield logical copy stack 
+case java bytecode language frame variables include parameters method resumption point program counter 
+case java source source transformation operand stack values saved 
+temporary variables introduced 
+save execution state partially evaluated expression expression split intermediate values saved 
+consider piece code foo bar save result foo expression split advance follows tmp foo tmp bar transformation algorithm inserts code fragments method exception handler method invocation 
+occurrence state capturing notified special exception 
+exception handler responsible saving execution state 
+program counter saved known exception handler unique resumption point 
+set valid frame variables types bytecode analysis described sect 
+
+instructions saving valid entries operand stack frame variables 
+entries operand stack defined discarded exception thrown means values fetched exception handler 
+basic idea saving values operand stack copies frame variables contents entries operand stack set 
+valid entries operand stack bytecode analysis 
+care needed case java bytecode 
+continuation captured invoking operator special exception thrown 
+method captures exception method stores execution state newly created state object defined method propagates exception caller method 
+process repeated exception reaches set operator prompt 
+fig 
+shows result transforming method fig 
+state capturing 
+exception handler captures exception notify inserted method invocation 
+exception handlers resumption point local variables saved created state object 
+variable undefined recursive invocation method fib value saved exception handler 
+state object stored exception object append 
+exception re thrown 
+public static void fib int throws notify return int try fib catch notify st fib fib new st fib fib append throw try return fib catch notify st fib fib new st fib fib append throw fig 
+
+pseudo code transformed state capturing 
+invoking continuation invoking continuation consists operations 
+restoring frame variable values operand stack values method 
+transferring control resumption point method 
+reconstructing dynamic extents active exception handlers 
+reconstructing call stack 
+execution states method reconstructed state object 
+call stack reconstructed calling methods order invoked 
+method transformed advance restore execution state state object 
+method called state object extra parameter restores values frame variables operand stack continues execution resumption point 
+extra parameter method null indicates ordinary execution 
+transformation algorithm inserts code fragments method instructions put state object extra parameter method invocation instruction 
+instructions head method restore valid frame variables valid entries operand stack 
+execution state method restored state object passed method extra parameter 
+inserted code restores valid frame variables entries operand stack resumption point 
+restoring frame variables entries operand stack control transferred resumption point 
+fig 
+shows result transforming method fig 
+state restoration 
+parameter added pass state object 
+extra parameter null original body method executed 
+execution state reconstructed state object 
+variable holds state object method 
+valid value state restoration 
+local variable values restored state object control transferred resumption point 
+remember java bytecode 
+goto instructions 
+transformer goto instructions 
+source code transformer java uses technique control transfer 
+note scope exception handler automatically recovered restoring execution state callee method done invoking callee 
+implies instruction resumes callee instruction invokes callee ordinary execution takes place scope exception handler 
+see resume method fig 
+resumes execution 
+parameter state object second parameter dummy 
+public static void fib int int st fib fib null null st fib fib callee switch case goto default goto return fib null return fib fig 
+
+pseudo code transformed state restoration 
+public interface receiver public void receive throws exception fig 
+
+interface receives captured continuation 
+set operators explain operators manipulating partial continuations sect 
+implemented techniques just shown 
+mentioned sect 
+special exception notify notify occurrence state capturing 
+define subclass class notify occurrence prompt operators continuations 
+prompt corresponds subclass class notify 
+java way extend environment modify semantics operator fits java 
+syntax operator follows expression evaluated functional continuation innermost set expression prompt captured bound variable expression evaluated extended environment 
+restrict form object implements interface receiver fig 
+
+interface method receive takes instance state class 
+continuation captured passed invoking method receive continuation 
+variable 
+sum new operator looks denotes object implements interface receiver 
+operator implemented just follows throw new class name corresponds prompt variable refers object object stored exception object constructor statement initiates state capture process throwing exception hand set operator set translated follows try catch receiver receive receiver object state objects stored exception object 
+method returns bottom state objects 
+invoking continuation achieved calling method resume shown fig 
+state object 
+experimental results section reports performance results implementation program transformers 
+measured execution efficiency code size growth elapsed time program transformation 
+elapsed time ms jit jit program original original fib qsort compress jdk intel celeron tm processor mhz elapsed time sec program original transformed fib qsort bintree ultrasparc processor mhz table 
+comparison execution efficiency 
+execution efficiency transformed programs kinds code evaluated original program transformed source code level transformed bytecode level 
+elapsed times transformed programs measured compared 
+transformers java source code transformer java bytecode transformer source code transformer 
+purpose experiment identify overheads induced inserted code fragments original programs 
+captured continuations invoked execution benchmark programs 
+results shown table compress benchmark program included specjvm integer matrix multiply size bintree application inserts random integer binary tree times 
+part overheads java applications due code fragments saving operand stack resumption points 
+overheads fibonacci method high method invokes method recursively 
+body method small relative overheads inserted code fragments tend high 
+experiment overheads induced bytecode transformation induced 
+quick sort queen programs overheads approximately original programs applications executed just time compilation 
+scheme works better java 
+overheads due source code transformation java bytecode transformation 
+bytecode size bytes program original fib times times qsort times times times times compress times times table 
+comparison bytecode size 
+growth bytecode size transformed programs growth bytecode size due program transformations shown table 
+growth rates programs approximately times 
+think results worst case relative overheads inserted code fragments tend high original method small 
+growth rate falls large application compress 
+size bytecode produced bytecode transformer similar size bytecode produced source code transformation 
+characteristics quite different 
+case size transformed bytecode proportional square deepest depth loops 
+contrast size bytecode transformed bytecode level proportional number resumption points valid values 
+elapsed time method ms program analysis transformation fib qsort compress table 
+elapsed time analysis transformation 
+elapsed time program transformation elapsed time analysis transformation bytecode transformer shown table 
+case analysis takes time transformation 
+total elapsed time short 
+believe figures show bytecode transformer practical 
+elapsed time compress obviously shorter applications 
+reason compress methods 
+applications quite small 
+methods 
+case compress memory cache effectively 
+application point scheme continuation manipulation program transformation finds applications 
+mobile computation mobile computation promising programming paradigm network oriented applications running computations roam network 
+various kinds applications proposed electric commerce auction automatic information retrieval workflow management automatic installation 
+move program execution remote host execution states thread saved restored 
+difficult java program manipulate stack java security policy forbids 
+different approaches proposed realizing transparent thread migration java virtual machine extension program transformation schemes :10.1.1.17.3826
+migration called transparent strong program execution resumed destination site exactly execution state migration time 
+relationship partial continuation transparent thread migration pointed watanabe 
+program transformation schemes thread migration accomplished steps execution states target thread saved machine independent data structure departure site 
+thread terminates migration succeeds 
+data structure representing execution states target thread transmitted network destination site 
+new thread created destination 
+equivalent execution states target thread reconstructed new thread 
+entire process implemented standard mechanisms java 
+checkpointing checkpointing technique system reliable saving execution states local disk periodically 
+system fails reason system states recovered saved system image 
+source code transformer portable checkpointing developed 
+idea analogous case mobile computation 
+sending encoded execution states remote computer saved local disk 
+limitations section discusses limitations scheme due program transformation java proper problems 
+limitations due program transformation save continuation methods associated continuation transformed advance 
+implies call stack includes stack frames non transformed methods part execution states saved 
+situation occurs program graphical user interface needs callback methods 
+callback methods invoked runtime system 
+program transformation scheme continuation captured thread execute continuation 
+thread thread capture continuation efficient manner 
+strongly restricts way programs migrate mobile computation 
+program execution involves multiple threads migrated remote host want thread move threads 
+efficient way moving set threads particular thread clear 
+words subjective move implemented way described objective move 
+continuation invoked stack frames reconstructed state objects 
+implies values stack different addresses original addresses captured 
+object allocated stack special care taken 
+instance programmer address object changes continuation invoked 
+gives partial solution problem 
+java proper problems difficult save state bytecode subroutines efficient way return address bytecode subroutine saved object restriction java bytecode verifier 
+difficult save execution states class initializer programmer call class initializer 
+invoked runtime system class loaded 
+locking lost continuation captured locking correctly recovered state restoration 
+lock acquired synchronized statement synchronized method released exception notifying state capturing 
+related implementation technique partial continuations program transformation studied implement prolog system language 
+notion partial continuations useful implement cut delay primitives prolog causes backtracking freezes computation proof goal particular variable instantiated 
+implementation technique received attention developed study implementation transparent migration java 
+java allows java programs manipulate stack frames restricted form 
+program transformation known way transparent migration accomplished extending virtual machines 
+relationship partial continuation transparent thread migration pointed watanabe 
+pointed exception handling mechanism notifying occurrence state capturing low costs 
+developed scheme transparent migration standard java scheme difficulties resumption control compound statement 
+difficulties eliminated idea unfolding 
+schemes source code level transformation 
+scheme bytecode transformation devised 
+technique developed 
+threads system distributed system thread migrated remote host 
+source source transformation overheads normal execution system access local variable incurs memory access 
+porch source code transformer checkpointing 
+shares large part scheme exception handling roll back call stack language 
+taga developed thread migration scheme source code transformation 
+exploits exception handling mechanism roll back call stack 
+overheads due program transformation described reduced technique abe taga 
+code fragments inserted state restoration needed execution states reconstructed 
+method transformed scheme generates versions fully transformed transformed state capturing 
+ordinary execution methods 
+summary shown scheme operators partial continuations implemented imperative languages java 
+implies continuation operators call cc implemented java 
+scheme portable need knowledge native stack frames runtime systems 
+program transformation overheads execution performance quite low due exception handling mechanism 
+implemented transformers java benchmark measurements reported sect 
+
+study technique completed show limitations sect 
+
+needed eliminate limitations 
+
+abe kato 
+implementation scheme mobile threads source code translation technique java 
+proceedings summer united workshops parallel distributed cooperative processing july 
+japanese 
+
+luca cardelli 
+mobile computation 
+mobile object system programmable internet volume lecture notes computer science pages 
+springer verlag april 
+
+luca cardelli andrew gordon 
+mobile ambients 
+maurice nivat editor international conference foundations software science computational structures volume lecture notes computer science pages 
+springer verlag 
+
+cugola carlo ghezzi gian pietro picco giovanni vigna 
+analyzing mobile code languages 
+mobile object system programmable internet volume lecture notes computer science pages april 
+
+olivier danvy andrzej filinski 
+abstracting control 
+proceedings acm conference lisp functional programming pages 
+
+geert johan rudi rudy 
+survey checkpointing rollback techniques 
+technical report esat laboratory katholieke universiteit leuven belgium june 
+
+
+dimitrov vernon rego 
+portable threads system supporting migrant threads heterogeneous network farms 
+proceedings ieee parallel distributed systems volume pages 
+
+christophe dony 
+improving exception handling object oriented programming 
+proceedings th ieee computer software application conference compsac pages november 
+
+matthias felleisen 
+theory practice class prompts 
+conference record fifteenth annual acm symposium principles programming languages pages 
+
+matthias felleisen daniel friedman eugene kohlbecker bruce duba 
+syntactic theory sequential control 
+theoretical computer science volume pages 
+
+freund mitchell 
+type system object initialization java bytecode language 
+acm transaction programming languages systems november 
+
+stefan 
+transparent migration java mobile agents 
+ma mobile agents volume lecture notes computer science pages 
+springer verlag 
+
+robert gray 
+agent tcl transportable agent system 
+proceedings cikm workshop intelligent information agents fourth international conference information knowledge management 
+
+carl gunter didier jon riecke 
+generalization exceptions control ml languages 
+conference record fpca sigplan sigarch wg conference functional programming languages computer architecture pages june 
+
+tim lindholm frank yellin 
+java virtual machine specification second edition 
+addison wesley 
+
+michel 
+high level management computation history design implementation prolog system 
+software practice experience february 
+
+mitchell maybury 
+mesa language manual 
+xerox parc april 
+csl 
+
+sakamoto akinori yonezawa 
+bytecode transformation portable thread migration java 
+proceedings joint sym agent systems applications mobile agents asa ma pages september 
+
+akinori yonezawa 
+simple extension java language controllable transparent migration portable implementation 
+coordination languages models volume lecture notes computer science pages 
+springer verlag april 
+
+akinori yonezawa 
+calculus code mobility 
+bowman derrick editors proceedings second ifip international conference formal methods open object distributed systems pages 
+chapman hall 
+
+
+thread migration java environment 
+master thesis university waseda 
+
+raymie stata mart abadi 
+type system java bytecode subroutines 
+src research report digital systems research center june 
+
+raymie stata mart abadi 
+type system java bytecode subroutines 
+conference record popl th acm sigplan sigact symposium principles programming languages pages 
+
+volker 
+portable checkpointing recovery heterogeneous environments 
+technical report university iowa 
+tr 
+
+volker 
+portable checkpointing heterogeneous architectures 
+fault tolerant parallel distributed systems chapter pages 
+kluwer academic press 
+
+taga akinori yonezawa 
+extension supports thread migration little loss normal execution efficiency 
+proceedings summer united workshops parallel distributed cooperative processing july 
+japanese 
+
+eddy bert bart tim 
+portable support transparent thread migration java 
+proceedings joint symposium agent systems applications mobile agents asa ma pages september 
+
+watanabe 
+mobile code description partial continuations definition operational semantics 
+proceedings 

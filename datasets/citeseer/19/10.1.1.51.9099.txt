@@ -1,0 +1,205 @@
+implementing mpi ap linux david paul andrew tridgell david walsh cap research program australia national university canberra act australia sits cafe anu edu au preliminary mpi library implemented fujitsu ap multicomputer running ap linux operating system 
+environment parallel programs may dedicated fixed partition number parallel programs may share partition 
+mpi library constructed messaging operations driven polling interrupt techniques 
+polling works single parallel program running partition interrupt driven communication far better machine multiple parallel programs executing 
+gang scheduling multiple parallel programs polling relatively ineffective 
+mpi previously implemented fujitsu ap ap multicomputers running operating system 
+parallel program initiated machine reset kernel loaded launching parallel program nodes 
+single user single program environment means techniques polling acceptable 
+running multicomputer operating system supports multiple parallel programs sharing processors sophisticated strategy needs employed message passing library order achieve best utilization machine resources 
+linux operating system ported ap extensions support parallel programs 
+preliminary implementation mpi library built environment 
+section provides overview ap multicomputer section introduces ap linux operating system 
+implementation pointto point communication addressed section performance evaluation library section 
+overview ap ap distributed memory multicomputer include nodes 
+shown nodes connected independent networks 
+point point communication realized net wormhole routed torus network bandwidth mbytes sec link 
+net broadcast network communication host machine broadcasting data cells host cell 
+net synchronization network provides fast barrier synchronization entire machine 
+bif net net net rtc host cell sun ap disk option 
+ap system configuration node consists mhz processor message controller msc controls flow data net memory cpu 
+messages sent cell kernel intervention writing directly msc registers 
+memory protection notion contexts definition sparc mmu 
+context represents mapping virtual addresses physical addresses 
+unix operating system process context 
+contexts referenced context id small integer represented page tables stored system memory 
+requests sent msc specify addresses virtual addresses context current process 
+context id current process sent message header receiving msc map virtual addresses remote node physical addresses 
+invalid unmapped addresses cause msc interrupt cpu order map page normal page fault signal error msc 
+case transfer continued second aborted 
+overview ap linux linux modern operating system developed loosely knit group people internet led linux torvalds university helsinki finland 
+provides posix compliant kernel user environment features expected normal workstation environment 
+linux widely intel processors available range processor architectures including alpha mips powerpc sparc 
+ap linux operating system linux appropriate extensions support multicomputer environment 
+significant extension notion parallel process parallel program consists process collection nodes process context id simple gang scheduler written support execution parallel processes 
+communication msc achieved procedures described put dest node local addr size remote addr remote flag local flag get src node local addr size remote addr remote flag local flag put function transfer data segment local addr size bytes node dest node address remote addr 
+local flag variable sender incremented data sent 
+remote flag variable receiver message transferred receiver memory 
+get operation similar put initiated receiver sender 
+importantly operations don require kernel trap data transferred intermediate copying functions return appropriate command words written msc registers 
+process parallel program special ring buffer receive messages nodes 
+nonblocking send operation uses put command provided destination address ring buffer 
+msc hardware maintains read write pointers determine incoming messages placed 
+ap linux provides support interrupt driven communication 
+functions available put signal node id signal number get signal node id signal number call put signal instruct msc send message special memory location node node id cause interrupt 
+interrupt handler generates specified signal process context id sender 
+get signal function works similar fashion put signal specified signal generated local node generated remote node 
+functions important implementing interrupt driven communication library section illustrates 
+point point communication section describes implementation library basic non blocking send receive primitives 
+goals implementation ffl large messages intermediate copying performed transferring message send receive buffer 
+particularly important machine ap speed memory copying bandwidth net 
+ffl transfer message data occur processes executing facilitate overlap communication computation 
+ffl user able select polling interrupt techniques detect arrival new messages completion data transfers 
+message transfer methods sections describe different send methods place protocol library employs 
+mpi program executed threshold value specified indicates messages threshold size sent place method greater threshold size sent protocol method 
+destination address receive tag datatype receive rank receive context pending nonblocking receives detection message receive flag count source address number bytes send rank send tag send context send flag sender receiver message data unmatched received messages 
+place method place method method transfers message data receiver ring buffer 
+detection message matching receive request receiver copy message data ring buffer specified receive buffer 
+illustrated 
+execution mpi program queues maintained library 
+known unmatched received messages queue contains messages received nodes unmatched time order 
+second queue known pending nonblocking receives queue contains nonblocking receive requests matching message received time order 
+message sent method detected receiver nonblocking receive request queue scanned matching requests 
+matching request located message copied ring buffer receiver buffer specified request object subsequently dequeued marked completed message ring buffer removed 
+matching receive request new entry appended unmatched received message queue containing necessary details message ring buffer 
+nonblocking receive operation implemented scanning unmatched received message queue match 
+match detected message copied receiver buffer message ring buffer removed associated element unmatched received message queue 
+match detected nonblocking receive request object appended pending nonblocking receives queue 
+ring buffer store message send request wait receiver post matching nonblocking receive 
+extra memory receive flag count receive rank receive context pending nonblocking receives destination address receive tag datatype source address number bytes send rank send tag send context send flag get request sender receiver increment send flag increment receive flag protocol message detection message unmatched received messages 
+protocol method copy required copy data receiver buffer 
+reason method intended mainly sending small messages overheads memory copy relatively small 
+protocol method method uses get operation transfer message directly sender buffer receiver buffer avoiding intermediate message copying 
+sending message directly receiver small fixed size message known protocol message sent receiver 
+message contains details address message rank sender tag context message address integer variable remote flag parameter get operation 
+operation seen 
+algorithm place method processing new incoming messages 
+matching nonblocking receive request information initiate get operation 
+protocol message src node remote addr size remote flag parameters known matching nonblocking request object contains local addr local flag parameters 
+get call issued mpi library returns process continue executing message transferred 
+remote flag local flag variables stored associated nonblocking receive send request objects incremented indicate operation completed 
+method benefit avoiding intermediate message copying 
+requires rendezvous sender receiver message transferred 
+overhead get call inplace method attractive small messages 
+noncontiguous sends descriptions place protocol method far assumed send receive buffer contiguous 
+noncontiguous send buffers packed contiguous area memory sent inplace method 
+msc supports transfer onedimensional strided buffers certain restrictions 
+possible get stride operation works similar fashion get works strided buffers protocol method 
+detection methods fundamental operation mpi library detect arrival new messages detect put get transfer completed 
+library uses different methods described sections 
+particular method may lifetime mpi execution 
+polling detection mode operation mpi wait operations implemented sitting busy wait loop set flags list request objects incremented 
+ring buffer examined iteration check arrival new messages ensure progress 
+ring buffer checked test probe functions 
+method avoids signal handlers associated overheads potentially waste large amount cpu time 
+ap linux system envisaged method single parallel program running set nodes 
+problem method protocol messages detected time user program calls mpi functions check ring buffer 
+depending application significant amount time 
+delays completion associated nonblocking send request 
+signal method uses signals indicate messages arrived put get transfer completed 
+incurs overhead potentially better cpu 
+mode operation put signal called send destination cell 
+due message ordering msc destination cell receive signal message arrived 
+signal handler process new message described 
+signal needs generated indicate put get request completed 
+place method receiver knows nonblocking receive operation completed cpu explicitly copies data ring buffer receiver buffer 
+generate signal sender indicate message transferred sender buffer sender invokes put signal immediately send node id argument 
+due ordering properties msc signal generated data transferred sender buffer 
+similarly protocol method immediately receiver issues get operation retrieve message issues get signal operation 
+msc ordering properties insure sender receive signal data transferred sender buffer receiver receive signal data transferred receiver buffer 
+mpi process blocking state system call process run signal delivered 
+allows processes run system 
+method protocol messages detected soon possible allowing early initiation get transfers 
+critical sections mpi library marked flag 
+critical section interrupted signal handler returns immediately 
+case library code calls handler exits critical section 
+required manipulating system queues important operation writing command msc registers atomic 
+detection mode operation compromise polling signals modes 
+test probe functions ring buffer checked arrival new messages 
+mpi process enters blocked state process polls certain interval specified user startup time 
+condition process blocking true specified interval process modifies signal mask appropriately calls 
+put signal get signal operations invoked signals mode issued mode case receiving process waiting signal 
+appropriate value interval method avoid overheads signals cases limiting amount cpu time wasted 
+performance section provides analysis performance mpi library 
+ping pong benchmark mea sure latency measure overheads different transfer detection methods described previous section variety message sizes 
+nas parallel benchmarks run examine effect different transfer detection modes execution times 
+wall clock times reported running multiple parallel programs simultaneously different detection modes 
+ping pong benchmarks ping pong benchmark consists pair processes echo single message fixed size back forth 
+process sends message receives echoed message second process receives message 
+performed large number iterations message size total time recorded process 
+dividing time number iterations determines round trip time message size 
+dividing time give message latency dividing latency message size gives bandwidth 
+illustrates performance library message sizes bytes 
+inplace polling key indicates messages sent place protocol polling indicates messages transferred protocol method 
+keys indicate polling 
+expected small messages sent place faster sent protocol method 
+protocol method faster message sizes greater bytes indicating overhead get extra memory copy ring buffer receiver buffer 
+software latency measured zero sized message compares value mpi library running 
+similar seen inplace protocol times detection infinite interval 
+effect configuration means sends accompanied put signal operation receiver 
+infinite interval specified receiver detection signal blocked kernel interrupt handler process message generate signal 
+constant time difference polling modes measures overhead comes significant overhead compared latency polling 
+inplace signals protocol signals indicate times running signals mode 
+clearly signals mode carries significant overhead 
+zero sized message latency polling mode 
+determined time writing large overhead exists protocol signals curve irregular 
+illustrates performance library message sizes bytes place protocol methods polling 
+detection methods produce times 
+effect performing extra memory copy place method quite evident 
+bytes bandwidth measured mbytes place method compared mbytes protocol method close peak mbytes speed net 
+nas parallel benchmarks bt ft mg programs nas parallel benchmarks executed class small processor ap class processor ap 
+results seen table times normalized column 
+inplace poll column refers runs sending done place method polling protocol poll indicates messages sent protocol method polling poll indicates message threshold place protocol method bytes polling previous column millisecond interval sig previous column signals mode 
+interesting result best configuration benchmarks send messages place polling 
+benchmarks ran faster signals 
+primary reason occur ap linux signals far overhead 
+expected protocol poll column showed slow times messages sent protocol method matching sending receiving requests rendezvous transfer initiated 
+applications drastic affect performance particularly small messages 
+high overheads signals reflected sig column 
+multiple parallel programs aim benchmark measure effect running multiple instances class sp nas parallel benchmark program nodes node ap 
+multiple instances started simultaneously wall clock time recorded instances completed 
+normalized times summarized table 
+programs ran place method 
+polling column indicates total wall clock time gang scheduling polling latency microseconds message size bytes protocol signals inplace signals protocol inplace protocol polling inplace polling 
+ping pong benchmark small messages latency milliseconds message size bytes inplace polling protocol polling 
+ping pong benchmark large messages benchmark class inplace poll protocol poll poll sig bt ft mg bt ft mg table 
+nas benchmark results number instances polling polling gang signals table 
+multiple parallel programs benchmark 
+instances sp benchmark running total time complete times instance program 
+attempting run programs configuration lead enormous completion times 
+running gang scheduler big difference instances run total time quite large 
+running mode millisecond interval huge difference 
+running signals mode gave best result presumably cpu polling 
+programs run signals mode took times longer execute single program running signals mode indicates important interrupt driven message passing library multiple parallel programs running simultaneously 
+directions ap linux system mpi library developed time writing 
+clearly gang scheduler needs improved effective running multiple parallel programs polling mode 
+signal overheads measured ping pong benchmark accounted 
+needs examined detail overheads need reduced substantially signals mode effective 
+similarly overheads shown mode ping pong benchmark need examined 
+preliminary mpi library built ap runs modified version linux kernel node 
+library employ number methods affecting behaviour messages transferred messages data transfer events detected 
+measurements shown polling effective single parallel program executing machine signals mode effective parallel programs executing time 
+user determines mode runtime choice governed current operating environment interactive batch application messaging characteristics 
+contributors linux providing excellent operating system base research 
+special go david miller extensive help details kernel 
+fujitsu laboratories continuing support cap program crc advanced computational systems support project 
+bailey harris van der woo 
+nas parallel benchmarks 
+technical report nas nasa ames research center december 
+hayashi doi shimizu 
+ap architectural support parallelizing compilers parallel programs 
+international symposium parallel architectures algorithms networks 
+ieee dec 
+shimizu kato 
+third generation message passing computer ap 
+international symposium supercomputing pages november 
+hayashi shimizu 
+ap message handling mechanism ii system level interface 
+summer workshop parallel processing volume arc july 
+hayashi 
+implementing mpi fujitsu ap ap polling interrupts remote copying 
+joint symposium parallel processing jun 
+hayashi 
+mpi library uses polling interrupts remote copying fujitsu ap 
+international symposium parallel architectures algorithms networks 
+ieee jun 

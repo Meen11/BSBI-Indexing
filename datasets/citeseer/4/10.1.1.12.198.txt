@@ -1,0 +1,579 @@
+traps pitfalls practical problems system call interposition security tools tal garfinkel cs stanford edu computer science department stanford university system call interposition powerful method regulating monitoring application behavior 
+years wide variety security tools developed technique 
+approach brings host pitfalls implementer overlooked allow tool easily circumvented 
+shed light problems lessons learned course design implementation cycles system call interposition sandboxing tool 
+problems pitfalls encountered including incorrectly replicating os semantics overlooking indirect paths resources race conditions incorrectly subsetting complex interface side effects denying system calls 
+practical solutions problems provide general principles avoiding difficulties encountered 
+explosion interest os intrusion detection confinement years brought host approaches security rely system call interposition confinement intrusion detection :10.1.1.13.2425:10.1.1.43.6197
+system call interface compelling boundary interpose allows virtually application interactions network file system sensitive system resources monitored regulated 
+unfortunately building tools securely interpose interface quite subtle 
+implementer careful tool easily circumvented 
+course design implementation iterations build current incarnation janus system call interposition referred system call interception system call tracing 
+term typically refers architecture system call interface passively monitored 
+system call interposition application sandboxing tool encountered host mistakes challenges related building class systems 
+perspective experience believe past area painted incomplete inaccurate picture steps required ensure correctness interposition tool 
+details interposition mechanism tool architecture underlying os semantics cursory consideration 
+focused higher level issues policy specification analysis system call patterns intrusion detection :10.1.1.43.6197
+focused mechanism concerned general design issues performance pitfalls mechanism practice interactions interposition mechanism tool architecture system call api taken account :10.1.1.143.5553:10.1.1.24.246
+problems arise interactions quite subtle 
+unix api tremendously complex specifics process tracing interfaces 
+system call interposition fails take details account results may assumptions incomplete unjustified simply wrong 
+overlooking minor detail undermine tool security 
+changes tool architecture deal minor detail significant important implications system performance range security policies enforce 
+presenting detailed analysis unix purposes building interposition tools far scope single 
+pitfalls problems encountered course building janus solutions explored principles distilled experience designing building auditing class systems 
+lessons context sandboxing tool problems solutions equal relevance intrusion detection tools rely system call interposition 
+proceed follows 
+section provide background current version janus discuss related system call interposition security tools examine relationship interposition sandboxing intrusion detection tools 
+section provide basic model janus works provide context discussion 
+section discusses pitfalls problems encountered building janus divided categories incorrectly replicating os semantics overlooking indirect paths resources race conditions incorrectly subsetting complex interface side effects denying system calls 
+explain category error concrete examples context janus 
+section solutions problems discussed section consider design choices trade offs janus alternative designs 
+offer design principles help avoid types pitfalls encountered 
+section presents discussion remaining open questions topics design system call interposition security tools 
+conclude discussion section 
+background related current janus implementation built process successive improvements re writings starting original prototype described goldberg 
+original janus architecture restricting application interactions underlying operating system interposing system calls application standard process tracing mechanisms 
+systems restricted execution subsequently developed architecture including 
+unfortunately detailed wagner ptrace interface initially janus interposition linux variety limitations poor choice mechanism application sandboxing security sensitive applications 
+additional discussion limitations ptrace presence hostile applications offered 
+attempts overcome limitations associated ptrace creative standard unix mechanisms results 
+provides means overcoming problem argument races see section standard unix mechanisms unfortunately approach severe performance penalty 
+jain sekar demonstrate efficient user level approach interposition ptrace authors note relies technique avoiding system call argument races completely secure 
+solaris proc interface prominent process tracing mechanism provide ideal mechanism security applications 
+address problem supporting secure system call interposition version janus relies dedicated system call interposition mechanism implemented linux loadable kernel module 
+similar approach addressing problem taken systrace system call interposition security tool design closely resembles version janus 
+groups looked developing novel system call interposition mechanisms broader set applications simply sandboxing 
+slic interposition agents looked providing infrastructure interposition general mechanism os extensibility :10.1.1.143.5553
+ufo examined potential applying technique means implementing user level filesystem 
+completely kernel system call interposition tools application sandboxing studied groups 
+commercial products approach currently available 
+intrusion detection analysis system call traces received great deal attention :10.1.1.43.6197
+typically abstracts away real details system choosing explicitly idealized model system call tracing 
+problem secure system call tracing similar secure system call interposition 
+system call tracing case viewer interested calls application modifying denying 
+problems allow system call interposition sandbox circumvented evade system call tracing ids 
+ids case ways difficult 
+sandbox deny system calls interpreting effects calls difficult ignore issues overloaded calls analyze 
+ids generally restricted passive observation deal problems 
+additionally users willing pay overhead associated secure interposition sandboxing additional guaranteed degree security potential simply detect intruder may 
+discussion system call interposition requires basic knowledge unix api 
+recommend readers looking additional background topic refer stevens mckusick 
+janus architecture intuitively janus thought firewall sits application operating system process process process system call entry kernel proper mod janus policy engine janus application allow deny user space kernel space open foo open foo deny result allow open foo 
+system call interposition janus ing system calls allowed pass 
+analogous way firewall regulates packets allowed pass 
+way think janus extension os monitor runs user level 
+concretely janus consists mod janus kernel module provides mechanism secure system call interposition janus user level program interprets user specified policy order decide system calls allow deny 
+gain better understanding janus basic operating model look lifetime program run janus 
+startup janus reads policy file specifies files network resources allow access 
+
+janus forks child process relinquishes resources closes descriptors parent attaches child tracing interface provided mod janus 
+user level consists attaching file descriptor child process 
+janus selects descriptor waits notified interesting events 
+
+child sandboxed application 
+
+accesses new resources open bind screened janus decide allow application access descriptor resource 
+
+program continues run janus supervision voluntarily ends execution explicitly killed janus policy violation 
+sandboxed process forks new children new descriptors attached subjected security policy parents janus process 
+examine janus screens system calls consider sequence events occurs sandboxed process attempts call open foo depicted 
+sandboxed process system call open foo traps kernel system call entry point 
+
+hook system call entry point redirects control mod janus open sensitive system call 
+
+mod janus notifies janus system call requested puts calling process sleep 
+
+janus wakes requests relevant details call mod janus uses decide allow deny call 
+notifies mod janus decision 
+
+call allowed control returned kernel proper system call execution resumed normal 
+janus decides deny call error returned calling process system call aborted 
+basic model program running janus sandbox 
+readers may wish refer sources janus mod janus referring back description initial janus prototype 
+problems pitfalls section presents selection problems pitfalls encountered course building janus 
+broken general categories incorrectly replicating os semantics overlooking indirect paths resources race conditions incorrectly subsetting complex interface side effects denying system calls 
+introduce problem general description concrete examples 
+incorrectly replicating os order policy decisions janus obtain interpret os state associated application monitoring 
+achieving lead replicating os ways 
+may try replicate os state 
+necessarily keep state order track processes monitoring 
+state overlaps state managed os 
+order interpret application behavior meaning system call replicate os functionality 
+cases replication introduces possibility inconsistency lead incorrect policy decisions 
+incorrectly mirroring os state janus needs os state order policy decision 
+example observe process wants call ioctl descriptor want know descriptor 
+open read read write 
+associated file socket 
+sync flag set 
+solution problem infer current os state observing past application behavior 
+option certainly attractive ways 
+inferring state means don need modify os information readily available 
+eliminates system call overhead querying os 
+unfortunately trying infer trivial information error prone discovered course building janus 
+janus needs know protocol type ip sockets order decided monitored process bind 
+initial solution problem record socket protocol type created look information need arose 
+unfortunately taken account system calls change descriptor space 
+result malicious process fool janus protocol type socket violate certain security policies 
+consider example suppose enforcing security policy application example web server allowed bind tcp sockets port allowed bind udp sockets allowed create connect talk dns server 
+suppose see sequence calls 
+socket udp 
+janus logs udp socket 
+
+socket tcp 
+janus logs tcp socket 
+
+close 
+
+dup 
+janus state type inconsistent believes tcp socket 
+
+bind address port 
+janus allows call proceed believes type tcp security policy violated 
+failed take dup account sequence calls shown leave janus state internal representation process descriptor space indicates protocol type tcp state inconsistent actual protocol type udp 
+modified janus account possible means duplicating descriptors dup dup robust solution simply query kernel directly 
+case state readily available kernel interface access initially overlooked 
+took lessons 
+avoid replicating state monitor 
+time attempts shadow os state user level runs risk copy inconsistent os 
+second policy decisions minimize amount state require reduces chance relying inconsistent state 
+important lesson mistake illustrates underestimate complexity unix interface semantics 
+initially incorrect approach taken solving problem written programmers directly accessing information achieved janus kernel module proc interface viable solution 
+significant experience unix programming environment 
+mistake detected rewrite years variety parties looked code failed detect problem 
+incorrectly mirroring os code operating systems perform non trivial processing interpret system call arguments 
+duplicating processing runs risk incorrectly implementing kernel functionality having duplicate implementation inconsistent time real world kernels change 
+ideal example type problem arise canonicalization path names 
+janus needs canonical file names allow files uniquely specified context access control policies example suppose janus sees call open foo 
+needs able tell file tmp foo security policy 
+superficially appears simple problem 
+relative path simply need resolve constituent parts 
+example path contains need resolve correct directories subtle issues 
+component path symbolic link expand 
+consider file system root resolve path name 
+application monitored allowed may different file system root janus process watching 
+individual processes application may different roots 
+basic path resolution regularly confounds implementers applications require functionality 
+subtleties arise due fact file system behavior may differ process basis 
+consider linux proc self contains information reflecting state process accessing directory 
+resolve proc self cwd current process current working directory context monitor may find different result resolve path context untrusted process monitor watching 
+janus initially tried user level got wrong overlooking issues 
+solution adopted kernel context monitored process calling appropriate kernel function file names copied kernel 
+complete description approach dealing problem section 
+duplicating os functionality code avoided costs 
+cursory examination reports bugtraq reveals serious bugs network services got canonicalization wrong time 
+duplication adds complexity tool question duplicated functionality overlooks corner cases 
+overlooking indirect paths resources resources accessible call direct paths indirect paths 
+direct paths obvious clearly specified typically interposed 
+access linux file system direct paths normal file system api calls access descriptors open modify file system rename unlink 
+monitoring interposition tools carefully guard interfaces 
+tools ignore overlook indirect routes access file system 
+consider routes unix domain sockets unix domain sockets bound locations file system 
+opened normal files create things lock files 
+core dumps application open files directly create files dumping core 
+descriptor passing unix domain sockets allow descriptors passed back forth processes sendmsg 
+path overlooked applications gain access unauthorized files network sockets checking monitor 
+consider sandboxed processes different network access policies access common portion file system open access unix domain sockets files 
+process access sensitive data access external network process external network access access sensitive data processes collaborate leak sensitive data violate system security policy 
+admittedly example utilize presence shared memory interfaces processes share data 
+limit runs issue confinement problem 
+unhelpful processes common way application gain access parts file system specified security policy processes unwittingly help 
+ideal example name service cache daemon 
+glibc retrieve entries passwd groups interprocess communication unix domain socket 
+user read access standard socket var may inadvertently access potentially sensitive parts system 
+malicious process able create sockets part file system impersonate trick processes version passwd groups files 
+key difficulties interposing interface complex unix api simply knowing side effects non obvious ways affect system resources 
+important identify possible way process access modify resources working concert processes 
+race conditions race conditions system call interposition security tools commonly occur due non atomicity permission checking user level janus access granting kernel 
+referred time check time bugs 
+basic outline race condition looks 
+janus permission perform operation relies mutable shared state 
+
+state changes making result performing operation illegal meaning context changed 
+
+operation performed operating system access granted access janus approved 
+type race condition significant problem sandboxing tools mislead intrusion detection systems 
+operations system calls perform rely mutable shared state altered fundamentally change impact system call 
+see examples type race sections 
+symbolic link races symbolic link races familiar problem security conscious unix programmer 
+symbolic link race occurs symbolic link modified point different file time file refers checked property access relies check occurs 
+consider example suppose janus enforcing security policy allows write access tmp foo tmp bar read access tmp baz 
+suppose tmp foo initially symbolic link pointing tmp bar 
+consider sequence events 
+process calls open tmp foo 
+
+janus checks access tmp foo tmp bar allowed noting allow call proceed 
+
+process removes tmp foo creates new symbolic link tmp foo points tmp baz 
+
+os executes open tmp foo process granting write access tmp baz 
+process just violated security policy holds descriptor tmp baz read write access 
+example examples process necessarily need call modify tmp foo janus check modifications just need happen janus check order calls strictly dictate order complete 
+symbolic link races commonly known frequently confounding problems system call interposition sandboxing tools 
+frequently tools attempt solve problem symbolic link races pathnames checking canonical name policy cases forcing application canonicalized name file system access altering arguments call question 
+solve problem symbolic link races fails address root problem concurrency 
+resolving tmp foo tmp bar process change tmp bar symlink tmp baz open call executes change tmp symlink appropriate permissions 
+discuss difficulty formulating correct solution problem section 
+relative path races relative path races exploit fact location inode change time janus resolves path relative inode check access time kernel resolves path relative inode perform access 
+illustrate potential exploit race consider sequence events assume current working directory process tmp foo bar janus allows monitored application read write access contents tmp directory 
+
+process calls open shadow 
+
+janus resolves path tmp shadow notes tmp allows call 
+
+process sandbox renames tmp foo bar tmp bar 
+
+os executes open shadow context process current working directory tmp bar process gains read write access shadow 
+relative path races similar flavor symbolic link races rely malicious processes collaborating modify shared file system meta data fool monitor 
+interestingly relative path races studied problem symbolic link races spite fact appear unique problem system call interposition sandboxing 
+argument races argument race occurs arguments system call modified time checked janus operating system perform system call 
+argument races occur system call arguments reside portion memory accessible process 
+consider scenario suppose janus policy allow read access tmp foo deny file system access 
+
+process calls open path path tmp foo 
+
+janus traps process 
+janus reads path memory notes tmp foo opened policy allows call proceed 
+
+process modifies path point shadow 
+
+os executes open call returning descriptor shadow 
+generally argument races concern system call arguments 
+scalar system call arguments passed os registers immediately copied kernel system call trap handler 
+scalar arguments kernel tampered user space processes ptrace tracing interfaces 
+non scalar arguments path names socket addresses connect bind immediately copied user memory kernel 
+copied individual system calls immediately 
+potentially leaves window opportunity attacker strike time system call initiated arguments examined janus arguments copied kernel 
+type race occur presence shared memory 
+examples mechanisms supporting linux include shared memory facilities mmap memory shared multi threads created clone call 
+debugging interfaces ptrace allow processes modify memory processes taken account 
+file system information races linux threads share file system information means threads share root directories current working directories 
+sharing current working directories highly problematic easily facilitates race file system operation uses relative path 
+example consider sequence calls assuming access shadow forbidden janus 
+thread calls open shadow 
+current working directory tmp 
+
+janus traps approves call 
+
+thread calls chdir janus approves call 
+
+thread open shadow 
+executes current working directory returning descriptor shadow 
+security policy violated 
+class race conditions similar previous really class 
+problem file system meta data shared process meta data shared threads 
+sharing root directories problematic similar race condition induced 
+shared descriptor space races case threads share descriptor spaces encounter possibility race checks rely type descriptors correctness 
+example suppose janus policy allows tcp sockets bound port 
+executing sequence calls multi threaded application threads violate policy 
+
+thread calls socket create tcp socket fd 
+thread calls socket create udp socket fd 
+janus traps call bind thread attach fd port allows call proceed fd tcp socket 
+
+thread closes fd 
+thread calls dup 
+
+thread bind call proceeds binding udp socket port violating security policy 
+races type argument races dealing multi threaded application highly problematic 
+due difficulties janus currently support multi threaded applications 
+discuss problem section 
+incorrectly subsetting complex interface application generally enforce policy allow subset system call interface refer practice subsetting 
+system call interface granularity system calls disallow calls granular disallowing certain arguments calls allow open path path foo 
+spite simplicity subsetting tricky 
+unanticipated interactions different system calls difficult check subsetting solution correct 
+order better illustrate limitation approach type difficulties arise consider series incorrect subsetting solutions problem symlink races motivated experience 
+attempt deny creation files allow unrestricted access 
+argument correctness solution goes untrusted application allowed create files access restriction symlink race occurs harm done 
+problems pre existing sources 
+solution start incomplete 
+notable include implicit assumption worried untrusted application creates 
+ignores possibility pre existing unsafe unsafe created processes 
+conditions exists policy sufficient prevent symlink races 
+example untrusted application rename pre existing symlink facilitate race case true 
+attempt deny creation renaming 
+argument correctness solution remove untrusted applications ability create name removed ability create race 
+problems directory renaming relative 
+preventing renamed prevents attack broke previous solution problems 
+suppose example untrusted process rename tmp replace directory contains file named foo symlink baz 
+violate security policy 
+completely disallowing direct manipulation prevent attack 
+attack possible check reachable safe start janus 
+attempt deny access 
+suppose give allowing access general 
+implement janus stat files allows access deny call 
+clearly renaming attack works aware race occur try ensure open fail try slip symlink 
+modify open call slightly adding flag execute 
+flag cause open fail finds tmp foo symlink 
+safe turns get burned component path tmp foo may symlink including tmp 
+protected approach path consists foo 
+problem intermediate components path 
+providing general solution problem yields tool fragile presence possible just subsetting mechanisms called 
+potential alternative approaches addressing problem section 
+believe example clearly illustrates potential mistakes subsetting complex stateful interface unix file system 
+serves clear illustration limitations purely subsetting approach user level application sandboxing 
+side effects denying system calls system call interposition restrict application behavior preventing execution system call violate predetermined security policy 
+preventing execution system call causing system call return manner inconsistent normal semantics detrimental impact operation application potentially reliability security 
+denying calls application uses drop privilege frequently introduces serious security flaws 
+type problem applications run root drop privilege setuid 
+applications rely setuid fail check return value setuid fails continue function compromised state 
+casual examination able discover condition common freebsd daemons appears problem quite widespread 
+applications fail check return values privilege reducing calls simply fail open 
+frequently saw failures ignored privilege reducing calls including reduce resource limits drop privilege descriptors 
+aborting privilege dropping calls undermine security model sandboxed application generally advisable allow calls 
+setuid related calls prudent abort application entirely wish deny call 
+forcing system calls return value part specified interface application designer simply anticipate potential source problems 
+example solaris proc process tracing interface allow aborted system calls return 
+leads applications hang repeatedly retrying aborted system call expectation eventually complete 
+solutions helpful hacks section techniques solving avoiding problems problems pitfalls section 
+consider different approaches avoiding argument races avoiding file system races denying system calls adversely effecting applications 
+set solutions provide brief review problem addressed give high level summary solutions 
+details implementing solutions trade offs associated approach 
+give special attention solutions chose janus rationale choices 
+conclude general principles recognizing avoiding problems class system 
+avoiding argument races recap discussion section argument races occur system call arguments modified time monitor reads arguments permission check operating system uses arguments 
+canonical example problem process changing argument string tmp foo shadow memory process just string argument open call 
+consider approaches preventing class race condition copy arguments safe place memory private memory kernel address space address space trusted process 
+guarantees sensitive arguments modified read monitor kernel 
+leave arguments place ensure memory reside private safe 
+strategies sought arguments accessible kernel trusted process janus safe thread control requesting system call 
+copying sensitive arguments kernel os kernel prevent argument races copying arguments kernel memory 
+approach sense cost copy usually minimal easy verify safety approach 
+mod janus protects system call arguments variation theme copying volatile system call arguments kernel memory 
+mod janus traps system call immediately looks table see call arguments reside user memory 
+arguments mod janus copy arguments buffer kernel twiddle argument pointers trapped thread registers point new location memory 
+set flag indicating kernel ok current system call obtain arguments kernel memory 
+janus subsequently examines arguments untrusted application fetch copy directly thread specific buffer memory untrusted process 
+primary advantage approach simplicity verifying correctness 
+say high degree certainty arguments kernel buffer modified untrusted processes presence multi threading 
+disadvantage approach adds complexity kernel resident portion janus memory private sense mean memory modifiable monitor processes process owns memory 
+means memory explicitly shared processes created 
+mmap map private flag shared multiple threads modifiable 
+process tracing interface mod janus dedicated performing task mod janus lines total major penalty 
+individual system calls require special treatment order copy arguments kernel 
+fortunately arguments interest typically standard types socket addresses path names 
+specifying call copying behavior reduced filling call entry table specifies argument types 
+property approach system calls permitted fetch arguments kernel memory user memory 
+mod janus failed twiddle threads argument pointers pointers arguments arguments nested pointers untrusted application able gain unauthorized access kernel memory 
+difficulty verifying somewhat ameliorated table driven approach 
+minimizes code duplication simplifies auditing 
+considered possibility moving complexity janus giving finer grained control moving arguments thread scratch space user level ultimately decided approach believe provided power tracing process greatly increased possibility creating exploitable hole mod janus intended accessible unprivileged processes 
+protecting arguments user memory solution problem preventing argument races copying arguments read section memory address space untrusted process 
+setting section accomplished dedicated kernel code forcing process mmap mprotect region memory 
+system call arguments checked copied region janus 
+approach taken earlier versions janus create read memory region calling mmap context untrusted process process attached keep track location scratch space untrusted application address space 
+correctness approach relies janus judiciously guarding mprotect mmap interfaces ensure read section memory tampered 
+approach attractive done kernel order implement 
+system ptrace inefficiency ptrace copy arguments prohibitively expensive efficient mechanism attractive approach 
+concerns assuring access user scratch space sufficiently restricted efficiency lead abandon approach janus 
+checking arguments reside shared memory argument races occur arguments reside unprotected shared memory 
+approach preventing restricting interfaces allow creation shared memory clone creating multiple threads certain uses mmap facilities creating shared memory areas 
+applications viable solution 
+relatively linux applications multi threading 
+true bsd operating systems provide kernel support multi threading 
+shared memory facilities terribly widespread 
+check arguments reside shared memory user level examining permissions virtual memory area arguments currently reside 
+accomplished proc filesystem linux 
+approach correct ensure virtual memory area argument resides shared untrusted process copy 
+private memory regions enforced reading process memory writing back location ensure process private copy 
+necessary privately files may reflect changes underlying file process guaranteed get copy area file writes area 
+approach enforces limitation generality tool requires kernel modifications minimal effort part implementer 
+avoiding file system race conditions order verify janus sees exactly filesystem accesses process file system access take place manner ensures race condition take place 
+section demonstrated trying achieve simply subsetting away problematic behaviors left policy file system access quite cumbersome difficult safely 
+subsection potential approaches solving problem 
+approaches coercing applications accessing file system access pattern easily verify safe shared library replacement simply disallowing access conform access pattern disallow potentially safe operations simply hard verify 
+behavior 
+unix applications obtain access files encountering symlink races 
+important normal application programmers example want write ftp server securely checks file system accesses security policy 
+programmer accomplish leveraging fact current working directory process private state change time performs check file relative directory time call completes 
+programmer leverage perform race free open recursively expanding readlink path component time reached file path violates policy 
+similar sequence calls perform file system operations races 
+monitoring application performing sequence calls check call sequence risk race condition 
+follows fact perform check application call race fool application race fool monitor 
+clearly specific behavior pattern normally expect applications conform 
+play tricks coerce applications conforming behavior patterns 
+enforcing behavior mechanisms force application conform definition behavior access filesystem manner easily verify safe 
+
+induce safe call sequences monitored process forced directly execute safe sequence calls process tracing mechanism 
+example monitored process call open tmp foo force operating system appropriate safe sequence system calls specified context traced process 
+
+static dynamic library replacement approach replace problematic library calls code converts calls easy check counterparts 
+shared library replacement open called mentioned linux invariant violated allow threads clone shared file system state 
+approach requires modified loader 
+trick loader loader access file system directly order load shared libraries 
+tmp foo safe sequence calls 
+approach rely janus security system libraries trusted merely serve facilitate easy checking 
+
+force access proxy letting application access file system directly require go proxy process accesses file system application behalf 
+proxy turn safe operations accesses files preventing falling victim file system races 
+promising results preliminary experiments facilitating proxy file system access shared library replacement 
+interesting note approach solves problem argument races 
+denying system calls breaking applications reason wish deny system call allows process modify sensitive global state sensitive file resource limits uid 
+case process local copy state affecting functionality 
+approach giving application copy global state call virtualization 
+virtualization powerful technique allows isolate untrusted application sensitive resources preserving normal system semantics obviating risk breaking application 
+ways virtualize sensitive resources 
+emulate normal semantics unauthorized portion operating system interface shared library replacement technique simulate semantics running root processes running privilege 
+technique tools simplify packaging software 
+redirect calls sensitive resources copy resources 
+example modifying arguments system calls directly tracing mechanism done indirectly shared library replacement 
+replicate resources normal operating system facilities task example give untrusted application copy file system 
+possible preferable virtualize resources deny access gives highest level certainty broken sandboxed application 
+kernel kernel complex operation don try replicate code just call code kernel 
+section discussed problem file names 
+os provide system call just purpose janus addresses problem having mod janus path names time fetched untrusted process system call entry 
+advantageous reasons 
+file system namespace varies process basis path names execution context monitored processes ensures differences taken account 
+second janus kernel module simply calls kernel canonicalization code sure getting correct canonicalization 
+final advantage letting kernel canonicalization simplifies policy engine lines 
+lessons implementer summarize lessons experience avoid replicating os state functionality 
+reuse os functionality query os directly state possible 
+beware inconsistency 
+conservative design 
+don underestimate complexity system call api 
+don overestimate understanding nuances 
+aware race conditions occur os monitor 
+consider state system call relies perform function 
+think parts system modify state 
+think happen time policy decision system call system call finishes 
+aware multi threading semantics particular operating system 
+explicit 
+document justify decisions design assumptions hold order implementation correct 
+assumptions may violated os evolves tool ported platform security system call interposition tools rely complex set assumptions rarely mind implementer 
+solaris provides system call file names 
+interface fool proof 
+issue differences process views file system remains problem 
+having call add additional system calls policy engines critical path 
+aware direct indirect paths resources 
+know ways process modify file system network sensitive system resources 
+file system huge chunk mutable shared state 
+fraught race conditions obvious non obvious variety 
+dealing file system interface difficult part confining monitoring application 
+time change behavior operating system example aborting system calls risk breaking applications potentially introducing new security holes 
+avoid making changes conflict normally specified os semantics diverge application designer expectations 
+variety problems solved order demonstrate system call interposition sandbox support full range potential applications secure fashion 
+notable omission list solutions answer question support multi threaded applications 
+aware user level system call interposition sandboxing tool addressed problem 
+potential solution offer functionality kernel module allow locking thread meta data 
+process state globally shared state file system meta data quite possible user level process safely allowed lock 
+performance implications solution unclear require study 
+important trend generation janus prototype second generation exemplified janus systrace abandon purely user level approach application sandboxing embrace hybrid solution dedicated kernel module patch tasks system call interposition pathnames fetching system call arguments significant performance security benefits realized reliance small amount additional kernel code lines mod janus comparable number systrace kernel patch 
+clear correct balance user kernel space functionality 
+pushing small amount additional functionality kernel deal file system access policy potentially eliminate race checking file system access control examined sections 
+subdomain demonstrated solution feasible addition modest amount additional kernel code 
+important question addressed system call boundary remains best place interpose applications access sensitive resources 
+linux alternative approach soon available form linux security module lsm provides low level hooks adding new access control mechanisms kernel 
+lsm provide complete solution provides common foundation build mechanisms potentially yield cleaner abstraction controlling access sensitive resources 
+briefly touched relationship host intrusion detection 
+believe challenges unique application interposition hope see comparable study examining interactions policy mechanism implementation context real system 
+currently closest wagner examining weaknesses policy models system call anomaly detection tools proposed hofmeyr 
+variety problems pitfalls occur design implementation system call interposition security tools 
+broadly categorized problems headings incorrectly replicating os semantics overlooking indirect paths resources race conditions incorrectly subsetting complex interface side effects denying system calls 
+shown problems allow related tools circumvented 
+considered variety solutions problems identified domain noting principles aid implementer avoiding common pitfalls 
+touched number problems area believe merit study 
+acknowledgments implementation janus exist significant effort guidance provided david wagner 
+done development version janus ian goldberg david wagner marti hearst 
+steve gribble provided invaluable feedback encouragement course 
+greatly benefited feedback discussions niels constantine michael constant ben pfaff 
+ben pfaff steven offered significant editorial help 
+eric brewer david culler mendel rosenblum dan boneh provided excellent research environment conducted 
+material supported part national science foundation part nsf career ccr 
+meets expect 
+org 
+cv sandbox operating system environment controlled execution alien code 
+technical report ibm watson research center sept 
+acharya 
+parameterized behavior classes confine untrusted applications 
+proceedings ninth usenix security symposium aug 
+alexandrov schauser 
+extending operating system user level ufo global file system 
+proc 
+usenix annual technical conference january 
+alexandrov schauser 
+confined execution environment internet computations 
+bishop 
+checking race conditions file accesses 
+computing systems spring 
+
+linux anti debugging techniques 
+www big net au silvio linux anti debugging txt january 
+cowan beattie hartman pu wagle gligor 
+subdomain parsimonious server security 
+proceedings systems administration conference dec 
+security technologies 
+system call interception whitepaper 
+www com whitepaper 
+forrest hofmeyr somayaji longstaff 
+sense self unix processes 
+ieee symposium research security privacy pages 
+ieee computer society press 
+fraser badger feldman 
+hardening cots software generic software wrappers 
+proceedings ieee symposium security privacy 
+garfinkel wagner 
+janus practical tool application sandboxing 
+www cs berkeley edu daw janus 
+petrou rodrigues anderson :10.1.1.143.5553
+slic extensibility system commodity operating systems 
+pages june 
+goldberg wagner thomas brewer 
+secure environment untrusted helper applications 
+hofmeyr forrest somayaji 
+intrusion detection sequences system calls 
+journal computer security 
+jain sekar 
+user level infrastructure system call interposition platform intrusion detection confinement 
+proc 
+network distributed systems security symposium 
+jones 
+interposition agents transparently interposing user code system interface 
+symposium operating systems principles pages 
+joost 
+fake root 
+packages debian org stable utils html 
+ko fraser badger 
+detecting countering system intrusions software wrappers 
+proceedings th usenix security symposium august 
+lampson 
+note confinement problem 
+communications acm oct 
+liao vemuri 
+text categorization techniques intrusion detection 
+proc 
+th usenix security symposium august 
+mckusick bostic karels quarterman 
+design bsd operating system 
+addison wesley 
+
+architecture study janus practical tool application sandboxing 
+
+improving host security system call policies 
+technical report citi november 
+steve bellovin 
+shifting odds writing secure software 
+www research att 
+com smb talks odds ps 
+stevens 
+advanced programming unix environment 
+addison wesley 
+wagner dean 
+intrusion detection static analysis 
+proc 
+ieee symposium security privacy 
+wagner soto 
+mimicry attacks host intrusion detection systems 
+proc 
+ninth acm conference computer communications security 
+wagner 
+janus approach confinement untrusted applications 
+technical report csd 
+wespi dacier debar 
+intrusion detection variable length audit trail patterns 
+raid pages 
+williams 
+implementation scheduler activations netbsd operating system 
+usenix annual technical conference 
+wright cowan morris 
+linux security modules general security support linux kernel 
+linux security modules general security support linux kernel 

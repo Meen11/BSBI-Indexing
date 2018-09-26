@@ -1,0 +1,433 @@
+flash cient portable web server vivek pai peter druschel willy zwaenepoel department electrical computer engineering department computer science presents design new web server architecture called asymmetric multiprocess event driven amped architecture evaluates performance implementation architecture flash web server 
+flash web server combines high performance event driven servers cached workloads performance multi process multithreaded servers disk bound workloads 
+furthermore flash web server easily portable achieves results facilities available modern operating systems 
+performance di erent web server architectures evaluated context single implementation order quantify impact server concurrency architecture performance 
+furthermore performance flash compared widely web servers apache zeus 
+results indicate flash match exceed performance existing web servers wide range real workloads 
+results show contribution various optimizations embedded flash 
+performance web servers role satisfying needs large growing community users 
+portable high performance web servers reduce hardware cost meeting service demand provide exibility hardware platforms operating systems cost availability performance considerations 
+web servers rely caching web content main memory achieve throughput rates thousands requests second despite long latency disk operations 
+data set size web workloads typically exceed capacity server main memory high performance web server structured appear proc 
+annual usenix technical conference monterey ca june 
+rice university overlap serving requests cached content concurrent disk operations fetch requested content currently cached main memory 
+web servers take di erent approaches achieving concurrency 
+servers single process event driven sped architecture provide excellent performance cached workloads requested content kept main memory 
+zeus server original harvest squid proxy caches employ sped architecture workloads exceed capacity server cache servers multi process mp multi threaded mt architectures usually perform best 
+apache widely web server uses mp architecture unix operating systems mt architecture microsoft windows nt operating system 
+presents new portable web server architecture called asymmetric multi process eventdriven amped describes implementation architecture flash web server 
+flash nearly matches performance sped servers cached workloads simultaneously matching exceeding performance mp mt servers disk intensive workloads 
+flash uses standard apis easily portable 
+flash amped architecture behaves event driven architecture requested documents cached behaves similar multi process multi threaded architecture requests satis ed disk 
+qualitatively quantitatively compare amped architecture sped mp mt approaches context single server implementation 
+experimentally compare performance flash apache zeus real workloads obtained server logs operating systems 
+rest structured follows sec zeus con gured multiple sped processes particularly running multiprocessor systems accept read find send read file start conn request file header send data tion explains basic processing steps required web servers provides background discussion 
+section discuss asynchronous multi process event driven amped single process event driven sped multiprocess mp multi threaded mt architectures 
+discuss expected performance characteristics section discussing implementation flash web server section 
+real synthetic workloads evaluate performance server architectures apache zeus servers section 
+background section brie describe basic processing steps performed web server 
+clients tcp transport protocol contact web servers request content 
+client opens tcp connection server transmits request header speci es requested content 
+static content stored server form disk les 
+dynamic content generated request auxiliary application programs running server 
+server obtained requested content transmits response header followed requested data applicable client tcp connection 
+clarity discussion focuses serving requests static content ona unix operating system 
+web server architectures discussed fully capable handling dynamically generated content 
+likewise basic steps described similar requests operating systems windows nt 
+basic sequential steps serving request static content illustrated consist accept client connection accept incoming connection client performing accept operation server listen socket 
+creates new socket associated client connection 
+read request read request header client connection socket parse simpli ed request processing steps header requested url options 
+find le check server lesystem see requested content le exists client appropriate permissions 
+le size modi cation time obtained inclusion response header 
+send response header transmit response header client connection socket 
+read le read le data part larger les lesystem 
+send data transmit requested content part client connection socket 
+larger les read le send data steps repeated requested content transmitted 
+steps involve operations potentially block 
+operations read data accept connections socket may block expected data arrived client 
+operations write socket may block tcp send bu ers full due limited network capacity 
+operations test le validity stat open le open block necessary disk accesses complete 
+likewise reading le read accessing data memory mapped le region block data read disk 
+high performance web server interleave sequential steps associated serving multiple requests order overlap cpu processing disk accesses network communication 
+server architecture determines strategy achieve interleaving 
+di erent server architectures described section 
+addition architecture performance server implementation uenced various optimizations 
+section discuss speci optimizations flash web server 
+server architectures section describe proposed asymmetric multi process event driven amped architecture existing single process eventdriven sped multi process mp multithreaded mt architectures 
+process accept get conn process accept get conn read request read request find file find file send get header conn send get header conn read file send data read file send data multi process mp model server process handles request time 
+processes execute processing stages sequentially 
+multi process multi process mp architecture process assigned execute basic steps associated serving client request sequentially 
+process performs steps related request accepts new request 
+multiple processes employed typically requests served concurrently 
+overlapping disk activity cpu processing network connectivity occurs naturally operating system switches runnable process currently active process blocks 
+process private address space synchronization necessary handle processing di erent requests may di cult perform optimizations architecture rely global information shared cache valid urls 
+illustrates mp architecture 
+multi threaded multi threaded mt servers depicted employ multiple independent threads control operating single shared address space 
+thread performs steps associated request accepting new request similar mp model process 
+primary di erence mp mt architecture threads share global variables 
+single shared address space lends easily optimizations rely shared state 
+threads form synchronization control access shared data 
+mt model requires operating system provides support kernel threads 
+thread blocks operation runnable threads address space synchronization necessary inside os accept incoming connections accept queue shared accept get conn read request find file send get header conn read file send data multi threaded mt model uses single address space multiple concurrent threads execution 
+thread handles request 
+remain eligible execution 
+operating systems freebsd provide userlevel thread libraries kernel support 
+systems ectively support mt servers 
+single process event driven single process event driven sped architecture uses single event driven server process perform concurrent processing multiple requests 
+server uses non blocking systems calls perform asynchronous operations 
+operation bsd unix select system poll check operations completed 
+depicts sped architecture 
+sped server thought state machine performs basic step associated serving request time interleaving processing steps associated requests 
+iteration server performs select check completed events new connection arrivals completed le operations client sockets received data space send bu ers 
+event ready completes corresponding basic step initiates step associated request appropriate 
+principle sped server able overlap cpu disk network operations associated serving requests context single process single thread control 
+result overheads context switching thread synchronization mp mt architectures avoided 
+problem associated sped servers current operating systems provide suitable support asynchronous disk operations 
+operating systems non blocking read write operations expected network sockets pipes may block disk les 
+result supposedly non blocking read operations les may block caller disk progress 
+operating systems experiments exhibit behavior freebsd solaris 
+best accept get conn read request find file event dispatcher send header read file send data single process event driven sped model uses single process perform client processing disk activity driven manner 
+knowledge true versions unix 
+unix systems provide alternate apis implement true asynchronous disk apis generally integrated select operation 
+di cult impossible simultaneously check completion network disk events cient manner 
+operations stat le descriptors may blocking 
+reasons existing sped servers special asynchronous disk interfaces 
+result le read operations hit le cache may cause main server thread block causing loss concurrency performance 
+asymmetric multi process event driven asymmetric multi process event driven amped architecture illustrated combines event driven approach sped architecture multiple helper processes threads handle blocking disk operations 
+default main event driven process handles processing steps associated requests 
+disk operation necessary le requested main memory le cache main server process instructs helper inter process communication ipc channel pipe perform potentially blocking operation 
+operation completes helper returns noti cation ipc main server process learns event completion event select 
+amped architecture strives preserve ciency sped architecture operations disk reads avoids performance problems su ered sped due inappropriate support asynchronous disk reads operating systems 
+amped achieves support widely available modern operating systems 
+unix system amped uses standard non blocking read write accept system calls accept get conn read request find file event dispatcher send header read file send data helper helper helper asymmetric multi process event driven amped model uses single process eventdriven request processing helper processes handle disk operations 
+sockets pipes select system call test completion 
+mmap operation access data lesystem operation check le main memory 
+note helpers implemented kernel threads main server process separate processes 
+helpers implemented separate processes mmap allows helpers initiate reading le disk introducing additional data copying 
+case main server process helper mmap requested le 
+helper touches pages memory mapping 
+nished noti es main server process safe transmit le risk blocking 
+design comparison section qualitative comparison performance characteristics possible optimizations various web server architectures previous section 
+performance characteristics disk operations cost handling disk activity varies architectures circumstances cause request processing disk operation progress 
+mp mt models process thread causes disk activity blocked 
+amped helper processes perform blocking disk actions blocked server process available handle requests 
+extra cost amped model due inter process communication server helpers 
+sped process handles client interaction disk activity user level processing stops request requires disk activity 
+memory ects server memory consumption ects space available lesystem cache 
+sped architecture small memory requirements process stack 
+compared sped mt model incurs additional memory consumption kernel resources proportional number threads employed concurrently served requests 
+amped helper processes cause additional overhead helpers small application level memory demands helper needed concurrent disk operation concurrently served request 
+mp model incurs cost separate process concurrently served request substantial memory kernel overheads 
+disk utilization number concurrent disk requests server generate ects bene multiple disks disk head scheduling 
+mp mt models cause disk request process thread amped model generate request helper 
+contrast user level processing stops sped architecture accesses disk generate disk request time 
+result bene multiple disks disk head scheduling 
+cost bene ts optimizations features server architecture impacts feasibility pro certain types web server optimizations features 
+compare tradeo necessary various architectures qualitative standpoint 
+information gathering web servers information requests accounting purposes improve performance cost gathering information connections varies di erent models 
+mp model form interprocess communication consolidate data 
+mt model requires maintaining thread statistics periodic consolidation ne grained synchronization global variables 
+sped amped architectures simplify information gathering requests processed centralized fashion eliminating need synchronization interprocess communications shared state 
+application level caching web servers employ application level caching reduce computation memory store previous results response headers le mappings frequently requested content 
+cache memory competes lesystem cache physical memory technique applied carefully 
+mp model process may cache order reduce interprocess communication synchronization 
+multiple caches increase number compulsory misses lead cient memory 
+mt model uses single cache data accesses updates coordinated synchronization mechanisms avoid race conditions 
+amped sped single cache synchronization 
+long lived connections long lived connections occur web servers due clients slow links modems persistent connections 
+cases server side resources committed duration connection 
+cost long lived connections server depends resource occupied 
+amped sped cost le descriptor application level connection information kernel state connection 
+mt mp models add overhead extra thread process respectively connection 
+flash implementation flash web server high performance implementation amped architecture uses aggressive caching techniques maximize performance 
+section describe implementation flash web server optimization techniques 
+overview flash web server implements amped architecture described section 
+uses single non blocking server process assisted helper processes 
+server process responsible interaction clients cgi applications control helper processes 
+helper processes responsible performing actions may result synchronous disk activity 
+separate processes chosen kernel threads implement helpers order ensure portability flash operating systems support kernel threads 
+server divided modules perform various request processing steps mentioned section modules handle various caching functions 
+types caches maintained translations response headers le mappings 
+caches function explained 
+helper processes responsible performing pathname translations bringing disk blocks memory 
+processes dynamically spawned server process kept reserve active 
+process operates synchronously waiting server new requests handling request time 
+minimize interprocess communication helpers return completion noti cation server sending le content may loaded disk 
+pathname translation caching pathname translation cache maintains list mappings requested bob actual les disk home users bob public html index html 
+cache allows flash avoid pathname translation helpers incoming request 
+reduces processing needed pathname translations reduces number translation helpers needed server 
+result memory spent cache recovered reduction memory helper processes 
+response header caching servers prepend le data response header containing information le server information cached reused les repeatedly requested 
+response header tied underlying le cache need invalidation mechanism 
+mapping cache detects cached le changed corresponding response header regenerated 
+mapped files flash retains cache memory mapped les reduce number map operations necessary request processing 
+memory mapped les provide convenient mechanism avoid extra data copying double bu ering require extra system calls create remove mappings 
+mappings frequently requested les kept reused unused mappings increase kernel bookkeeping degrade performance 
+mapping cache operates chunks les lazily data mapped 
+small les occupy chunk large les split multiple chunks 
+inactive chunks maintained lru free list unmapped list grows large 
+lru approximate clock page replacement algorithm operating systems goal mapping memory 
+mapped le pages tested memory residency 
+byte position alignment system call allows applications send multiple memory regions operation 
+high performance web servers send response headers followed le data 
+cause misaligned data copying operating system degrading performance 
+extra cost misaligned data proportional amount data copied 
+problem arises os networking code copies various memory regions speci ed operation contiguous kernel bu er 
+size response header stored rst region length multiple machine word size copying subsequent regions misaligned 
+flash avoids problem aligning response headers byte boundaries padding lengths multiple bytes 
+adds characters variable length elds response header server name padding 
+choice bytes word alignment target systems byte cache lines systems may optimized copying cache boundaries 
+dynamic content generation flash web server handles serving dynamic data mechanisms similar web servers 
+request arrives dynamic document server forwards request corresponding auxiliary cgi bin application process generates content pipe 
+process currently exist server creates forks 
+resulting data transmitted server just static content data read descriptor associated cgi process pipe le 
+server process allows cgi application process persistent amortizing cost creating application multiple requests 
+similar fastcgi interface provides similar bene ts 
+cgi applications run separate processes server block disk activity reasons perform arbitrarily long computations affecting server 
+memory residency testing flash uses system call available modern unix systems determine mapped le pages memory resident 
+operating systems don support operation provide system call lock memory pages compaq tru unix digital unix flash control le cache management eliminating need memory residency testing 
+suitable operations available operating system control le cache test memory residency possible feedback heuristic minimize blocking disk flash run clock algorithm predict cached le pages memory resident 
+prediction adapt changes amount memory available le cache continuous feedback performance counters keep track page faults associated disk accesses 
+performance evaluation section experimental results compare performance di erent web server architectures section real workloads 
+furthermore comparative performance results flash state theart web servers apache zeus synthetic real workloads 
+results quantify performance impact various performance optimizations included flash 
+enable meaningful comparison di erent architectures eliminating variations stemming implementation di erences flash code base build servers amped flash mt flash mt mp flash mp sped flash sped architectures 
+servers represent architectures discussed developed replacing flash event helper dispatch mechanism suitable counterparts architectures 
+respects identical standard amped version flash techniques optimizations 
+addition compare servers widely production web servers zeus high performance server sped architecture apache mp architecture provide points 
+tests flash mp apache servers server processes flash mt uses threads 
+zeus con gured single process experiments synthetic workloads con guration advised zeus real workload tests 
+sped zeus block disk multiple server processes yield performance improvements uniprocessor platform allows overlapping computation disk flash mt flash memory mapped le cache mb limit pathname cache limit entries 
+flash mp process mapped le cache limit mb pathname cache entries 
+note caches mp server con gured smaller replicated process 
+experiments performed servers running di erent operating systems solaris freebsd 
+tests server hardware mhz pentium ii cpu mb memory multiple mbit ethernet interfaces 
+switched fast ethernet connects server machine client machines generate workload 
+client software event driven program simulates multiple clients 
+simulated client requests fast server handle 
+synthetic workload rst experiment set clients repeatedly request le le size varied test 
+simplicity workload test allows servers perform highest capacity requested le cached server main memory 
+results shown figures solaris freebsd 
+left hand side graphs plot servers total output bandwidth requested le size 
+connection rate small les shown separately right 
+results indicate choice architecture little impact server performance trivial cached workload 
+addition flash variants compare favorably zeus rming absolute performance flash implementation 
+apache server achieves signi cantly lower performance operating systems entire range le sizes result aggressive optimizations employed flash versions presumably zeus 
+flash sped slightly outperforms flash amped model tests memory residency les sending 
+slight lags performance flash mt flash mp due extra kernel overhead context switching architectures 
+zeus anomalous behavior freebsd le sizes kb appears stem byte alignment problem mentioned section 
+servers enjoy substantially higher performance run freebsd opposed solaris 
+relative performance servers strongly ected operating system 
+bandwidth mb sped flash zeus mt mp apache file size kbytes connection rate reqs sec sped flash zeus mt mp apache file size kbytes solaris single le test trivial test server architecture little impact performance 
+aggressive optimizations flash zeus cause outperform apache 
+bandwidth mb sped flash zeus mp apache file size kbytes connection rate reqs sec sped flash zeus mp apache file size kbytes freebsd single le test higher network performance freebsd magni es di erence apache rest compared solaris 
+shape zeus curve kbytes kbytes due byte alignment problem mentioned section trace experiments single le test indicate server maximum performance cached workload gives little indication performance real workloads 
+experiment servers subjected realistic load 
+generate client request stream replaying access logs existing web servers 
+shows throughput mb sec achieved various web servers di erent workloads 
+cs trace obtained logs rice university computer science departmental web server 
+trace re ects traces obtained rice web server provides personal web pages approximately students sta members 
+results obtained web servers running solaris 
+results show flash amped architecture achieves highest throughput workloads 
+apache achieves lowest performance 
+comparison flash mp shows part result mp architecture due lack aggressive optimizations flash 
+trace smaller dataset size cs trace achieves better cache locality server 
+result flash sped relative performance better trace mp performs disk intensive cs trace 
+trace high locality average transfer size smaller cs trace resulting roughly comparable bandwidth numbers 
+second server performance realistic workloads range dataset sizes working set sizes 
+generate input stream dataset size access logs rice ece departmental web server truncate appropriate achieve dataset size 
+clients replay bandwidth mb bandwidth mb apache mp mt sped flash cs trace sped flash zeus mp apache bandwidth mb performance rice server traces solaris apache mp mt sped flash trace data set size mb freebsd real workload sped architecture ideally suited cached workloads working set ts cache flash mimics flash sped 
+flash sped performance drops drastically operating disk bound workloads 
+cated log loop generate requests 
+experiments client machines clients generate workload 
+figures bsd solaris shows performance measured total output bandwidth various servers real workload various dataset sizes 
+report output bandwidth request sec experiment truncating logs di erent points vary dataset size changes size distribution requested content 
+causes uctuations throughput requests sec output bandwidth sensitive ect 
+performance servers declines dataset size increases signi cant drop point working set size dataset size exceeds server ective main memory cache size 
+point servers essentially disk bound 
+observa tion results flash competitive flash sped cached workloads time exceeds meets performance mp servers disk bound workloads 
+con rms flash amped architecture able combine best architectures wide range workloads 
+goal central design amped architecture 
+slight performance di erence flash flash sped cached workloads re ects overhead checking cache residency requested content flash 
+data memory test causes unnecessary overhead cached workloads 
+sped architecture performs cached workloads performance bandwidth mb sped flash zeus mt mp apache data set size mb solaris real workload flash mt server comparable performance flash core disk bound workloads 
+result achieved carefully minimizing lock contention adding complexity code 
+ort disk bound results resembled flash sped 
+quickly disk activity increases 
+con rms earlier reasoning performance tradeo associated architecture 
+behavior seen sped zeus performance absolute performance falls short various flash derived servers 
+performance flash mp server falls significantly short achieved architectures cached workloads 
+result smaller user level caches flash mp compared flash versions 
+choice operating system significant impact web server performance 
+performance results obtained solaris lower obtained freebsd 
+operating system impact relative performance various web servers architectures trends clear 
+flash achieves higher throughput workloads memory cient causes context switching mp servers 
+flash needs helper processes keep disk busy needing process connection 
+additionally helper processes require little application level memory 
+combination fewer total processes small helper processes reduces memory consumption leaving extra memory lesystem cache 
+performance zeus freebsd appears drop data set exceeds mb servers drop earlier 
+believe phenomenon related zeus appears give priority small documents 
+full load tends starve requests large documents causes server process somewhat smaller ective working set 
+lower performance solaris appears mask ect os 
+explained zeus uses process con guration experiment advised vendor 
+noted gives zeus slight advantage single process flash sped process continue serve requests blocked disk results flash mt servers provided freebsd system lacks support kernel threads 
+flash performance breakdown experiment focuses flash server measures contribution various optimizations achieved throughput 
+con guration identical single le test freebsd clients repeatedly request cached document size 
+shows throughput obtained various versions flash combinations main optimizations pathname translation caching mapped le caching response header caching 
+connection rate reqs sec flash path mmap path resp path mmap resp mmap resp caching file size kbytes flash performance breakdown optimizations flash small le performance drop half 
+lines show ect various combinations caching optimizations 
+results show optimizations signi cant impact server throughput cached content pathname translation caching providing largest bene optimization avoids request cost impact strongest requests small documents 
+performance wan conditions bandwidth mb sped flash mt mp simultaneous clients adding clients low client overheads mt sped amped models cause stable performance adding clients 
+multiple application level caches process overheads cause mp model performance drop 
+web server benchmarking lan environment fails evaluate important aspect real web workloads fact clients contact server wide area network 
+limited bandwidth packet losses wan increase average connection duration compared lan environment 
+result throughput requests second real server handles signi cantly larger number concurrent connections server tested lan conditions 
+number concurrent connections signi cant impact server performance 
+experiment measures impact number concurrent connections various servers 
+persistent connections simulate ect long lasting wan connections lan testbed 
+replay ece logs mb data set size expose performance ects limited le cache size 
+see performance solaris simultaneous clients increased 
+sped amped mt servers display initial rise performance number concurrent connections increases 
+increase due added concurrency various aggregation ects 
+instance large number connections increases average number completed events reported select system call amortizing overhead operation larger number events 
+number concurrent connections exceeds performance sped amped mt server su ers gradual decline performance 
+decline related switching space overhead mt architecture 
+mp model su ers additional process overhead results signi cant decline performance number concurrent connections increases 
+related james hu perform analysis web server optimizations 
+consider di erent architectures multi threaded architecture employs pool threads evaluate performance unix systems windows nt webstone benchmark 
+various researchers analyzed processing costs di erent steps request serving proposed improvements 
+compare existing high performance approaches new socket apis evaluate single le tests benchmarks 
+yiming hu extensively analyze earlier version apache implement anumber optimizations improving performance especially smaller requests 
+yates measure demands server places operating system various workloads types service rates 
+banga examine operating system support eventdriven servers propose new apis remove bottlenecks observed large numbers concurrent connections 
+flash server amped architecture bear resemblance portable operating system environment built multiprocess structuring 
+model programming uses groups processes called teams cooperate passing messages indicate activity 
+parallelism asynchronous operation handled having process synchronously wait activity communicate occurrence event driven server 
+model flash disk helper processes seen waiting asynchronous events completion disk access relaying information main server process 
+harvest squid project uses model event driven server combined helper processes waiting slow actions :10.1.1.21.1584:10.1.1.21.1584
+case server keeps dns cache uses set processes perform calls library routine 
+dns lookup cause library routine block process ected 
+flash uses helper mechanism blocking disk accesses harvest attempts select call perform non blocking le accesses 
+explained earlier unix systems support select falsely indicate disk access block 
+harvest attempts reduce number disk metadata operations 
+impact disk accesses web servers new caching policies proposed 
+arlitt propose new caching policies analyzing server access logs looking similarities servers 
+cao introduce greedy caching policy uses access frequency le size making cache replacement decisions 
+analyzed various aspects web server workloads 
+data copying operating system signi cant cost processing large les approaches proposed alleviate problem 
+introduce new api read send memory mapped les copying 
+io lite extends fbufs model integrate lesystem networking interprocess communication application level bu ers set uniform interfaces 
+engler low level interaction cheetah web server exokernel eliminate copying streamline small request handling 
+lava project uses similar techniques microkernel environment 
+approaches increasing web server performance employ multiple machines 
+area focused multiple server nodes parallel sharing memory machines :10.1.1.1.2034
+presents new portable highperformance web server architecture called asymmetric multi process event driven amped describes implementation architecture flash web server 
+flash nearly matches performance sped servers cached workloads simultaneously matching exceeding performance mp mt servers disk 
+flash uses standard apis available modern operating systems easily portable 
+results experiments evaluate impact web server concurrency architecture performance 
+purpose various server architectures implemented code base 
+results show flash amped architecture nearly match exceed performance architectures wide range realistic workloads 
+results show flash server performance exceeds zeus web server exceeds performance apache real workloads 
+perform experiments show contribution various optimizations embedded flash performance 
+acknowledgments grateful erich je mogul anonymous reviewers comments helped improve 
+michael pearlman solaris testbed con guration 
+special zeus technology server software damian reeves feedback technical assistance 
+jef thttpd web server flash derives infrastructure 
+supported part nsf ccr ccr mip texas ibm partnership award 
+apache 
+www apache org arlitt williamson 
+web server workload characterization search invariants 
+proceedings acm rics conference pages philadelphia pa apr 
+banga druschel 
+measuring capacity web server 
+proceedings usenix symposium internet technologies systems usits monterey ca dec 
+banga druschel 
+measuring capacity web server realistic loads 
+world wide web journal special issue world wide web characterization performance evaluation 
+appear 
+banga druschel mogul 
+resource containers new facility resource management server systems 
+proc 
+rd usenix symp 
+operating systems design implementation feb 
+
+dns support load balancing 
+rfc apr 
+cao irani 
+cost aware www proxy caching algorithms 
+proceedings usenix symposium internet technologies systems usits monterey ca dec 
+chankhunthod danzig neerdaels schwartz worrell 
+hierarchical internet object cache 
+proceedings usenix technical conference jan 
+cheriton 
+system multi process structuring portability 
+elsevier science publishing 
+
+cisco systems 
+www cisco com crovella bestavros 
+self similarity world wide web tra evidence possible causes 
+proceedings acm sigmetrics conference pages philadelphia pa apr 
+dahlin yang anderson patterson 
+cooperative caching remote client memory improve le system performance 
+proc 
+usenix symp 
+operating systems design implementation monterey ca nov 
+
+chung huang 
+wang 
+ip techniques hosting service cluster machines 
+computer networks isdn systems 
+druschel peterson 
+fbufs highbandwidth cross domain transfer facility 
+proceedings fourteenth acm symposium operating system principles pages dec 
+feeley morgan karlin levy thekkath 
+implementing global memory cluster 
+proceedings fifteenth acm symposium operating system principles copper mountain dec 
+fox gribble chawathe brewer gauthier 
+cluster scalable network services 
+proceedings sixteenth acm symposium operating system principles san malo france oct 
+hu schmidt 
+measuring impact event dispatching concurrency models web server performance high speed networks 
+proceedings nd global internet conference phoenix az nov 
+hu yang 
+measurement analysis performance improvement apache web server 
+proceedings th ieee international performance computing communications conference february 
+ibm 
+ibm dispatcher 
+www software ibm com network dispatcher kaashoek engler ganger wallach 
+server operating systems 
+proceedings acm sigops european workshop pages ireland sept 
+levy voelker karlin anderson 
+implementing cooperative prefetching caching globally managed memory system 
+proceedings acm sigmetrics conference madison wi june 
+liedtke jaeger islam 
+high performance caching lava hit server 
+proceedings usenix annual technical conference new orleans la june 
+manley seltzer 
+web facts fantasy 
+inproceedings usenix symposium internet technologies systems usits pages monterey ca dec 
+mogul 
+network behavior busy web server clients 
+technical report wrl dec western research laboratory palo alto ca 
+kandlur 
+performance issues www servers 
+submitted publication 
+national center supercomputing applications 
+common gateway interface 
+ncsa uiuc edu cgi open market fastcgi speci cation 
+www fastcgi com pai aron banga druschel zwaenepoel 
+locality aware request distribution network servers 
+proceedings th conference architectural support programming languages operating systems san jose ca oct 
+acm 
+pai druschel zwaenepoel 
+io lite uni ed bu ering caching system 
+proceedings rd symposium operating systems design implementation new orleans la feb 
+khalidi 
+cient zero copy framework unix 
+technical report tr sun microsystems laboratories may 
+yates almeida almeida 
+interaction operating system web server 
+technical report tr boston university cs dept boston ma 
+zeus technology limited 
+zeus web server 
+www zeus uk 

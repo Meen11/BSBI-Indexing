@@ -1,0 +1,660 @@
+continuously adaptive continuous queries streams samuel madden shah joseph hellerstein uc berkeley raman ibm almaden research center madden cs berkeley edu ibm com continuously adaptive continuous query cacq implementation eddy query processing framework 
+show design provides significant performance benefits existing approaches evaluating continuous queries adaptivity aggressive sharing space enables 
+breaking abstraction shared relational algebra expressions telegraph cacq implementation able share physical operators selections join state fine grain 
+augment features grouped filter index simultaneously evaluate multiple selection predicates 
+include measurements performance core system comparison existing continuous query approaches 
+
+traditional query processors utilize request response paradigm user poses logical query database query engine processes query generate finite answer set 
+interest continuous query paradigm users register logical specifications interest streaming data sources continuous query engine filters synthesizes data sources deliver streaming unbounded results users :10.1.1.136.4253
+aspect continuous query processing overlooked literature date need adaptivity change unbounded queries definition run long experience changes system data properties system workload run 
+continuous query engine adapt gracefully changes order ensure efficient processing time 
+motivation mind telegraph adaptive dataflow engine platform continuous query engine discuss continuous query implementation 
+show eddy continuously adaptive query processing operator applied continuous queries :10.1.1.34.8546
+architecture dub continuously adaptive continuous queries cacq supported part national science foundation itr iis itr si darpa contract ibm microsoft siemens uc micro program 
+done author uc berkeley 
+permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+acm sigmod june madison wisconsin usa copyright acm 
+offers significant performance robustness gains relative existing continuous query systems 
+interestingly scheme provides benefits scenarios change evident due ability share computation storage queries aggressively earlier approaches static query plans 
+interest continuous queries arose context handling streams data sensor networks 
+researchers tinyos projects uc berkeley oxygen project mit predict environments soon tens thousands small low power wireless sensors 
+devices produce stream data streams need monitored combined detect interesting changes environment 
+clarify techniques consider scenario sensor networks 
+application sensor networks building monitoring variety sensors light temperature sound vibration structural strain magnetic field distributed building allow occupants supervisors building monitor environmental properties human activity 
+instance structural engineers wish vibration sensors detect earthquakes strain sensors assess structural integrity 
+employees wish light motion sensors tell boss office 
+building managers temperature motion readings automatically adjust heating lighting 
+autonomous devices lighting systems door locks sprinkler systems window shades register queries drive behavior 
+assume distinct type sensor logical sensor reading table data source accumulates readings sensors type 
+entry readings table contains sensor id timestamp sensor value 
+large office building sensors feeding dozens logical tables thousands continuous queries 
+scenario illustrates requirements continuous query system numerous long running queries posed number unbounded streams sensor readings 
+sensor readings arrive queries currently system applied updates queries disseminated users registered queries 
+users pose cancel queries time operations applied tuple vary depending current set queries system 
+cacq design incorporates significant innovations better suited continuous query processing streams continuous query systems 
+eddy operator provide continuous adaptivity changing query workload data delivery rates system performance 
+second explicitly encode performed tuple lineage tuple allowing operators queries applied single tuple 
+third efficient pred index applying different selections single tuple 
+split joins unary operators called stems state modules allow pipelined join computation sharing state joins different queries 
+section motivates techniques specific examples 
+
+challenges contributions challenge designing continuous query system minimize amount storage computation required satisfy simultaneous queries running system 
+thousands queries dozens logical sources queries overlap significantly data sources require 
+highly queries source contain selection predicates overlapping ranges attributes request pairs sources joined 
+efficiently process outstanding queries continuous query processor leverage overlap possible 
+query processing complicated long running nature continuous queries query cost estimates sound query posed may dead wrong time query removed system 
+section discuss main contributions cacq addressing challenges 
+adapting long running queries illustrate problems arise static query optimizer build query plans long running queries consider example building monitoring scenario queries may request building locations lights illuminated rooms correspond areas occupied people 
+queries include selection predicate looking light levels threshold 
+normal working hours predicate selective areas building lit 
+static query optimizer normally place predicate top query plan 
+night locations lit occupied selective predicate pushed bottom plan 
+static optimizer easily change decision possible optimizer periodically re run deciding complicated 
+difficult traditional query engine including designed continuous queries modify order operations query plan query flight 
+eddies circumvent problem continuous adaptivity route tuple takes operators query dynamically chosen tuples arrive working hours operators applied different order tuples arrive night 
+order enable flexible routing system uses eddies necessity incorporates query processing algorithms amenable flight reordering operations :10.1.1.34.8546
+eddy determines order apply operators observing cost selectivity routing tuples accordingly 
+basic mechanism continuous adaptivity discussed section 
+explicit tuple lineage result reordering endemic eddies path tuple takes operators lineage explicitly encoded tuple 
+different tuples accumulate different lineages time eddy produces correct query result 
+note query processing operator connected eddy example pipelined hash join may process tuples different lineages depending previously routed selections joins contrasts systems static query plans state intermediate tuples implicit query plan 
+query operators static plan operate tuples single lineage 
+tele graph designed correctly eddies query operators correctly handle tuples query multiple different lineages 
+cacq extend ability multiple overlapping queries maximizing sharing state queries 
+example consider number queries building network looking temporally join temperature light sensor readings threshold light threshold varying query query 
+query consists operators selection light readings windowed join time window sets readings 
+queries join predicate query selects different set light tuples satisfy multiple queries 
+cq goals dictate try share possible queries contain join identical predicate equality join time light temperature tuples obvious trick perform single join 
+detailed discussion techniques maintaining tuple lineage provided section 
+grouped filter predicate index third technique continuous query processing predicate indexing operator called grouped filter reduces computation selection predicates commonalities 
+maintain grouped filter index attribute source appears query index efficiently compute overlapping portions range queries 
+details grouped filter discussed section thought opaque object takes multiple predicates tuple efficiently returns set predicates accept tuple 
+consider building monitoring scenario different users may different preferences temperature offices central heating system may sensor network determine temperature offices 
+heating system decide direct heat particular part building posing number continuous queries looking temperatures user specified threshold office 
+query pair selections location temperature 
+temperature predicates overlap comfort range people fairly similar 
+index temperature predicates avoid applying predicate independently ask grouped filter find predicates requesting temperature value tuple temperature field 
+tuple filtered building location output queries match heating system uses adjust building temperature appropriate location 
+stems multiway pipelined joins users may issue queries join data distinct overlapping subsets sources 
+example continuing building monitoring scenario imagine user wants blinds region building close warm sunny time user wants windows open warm quiet time 
+assume readings temperature light sound sensors tagged time arrive time order 
+new data arrives continuous query system compute join location attributes sources stream results clients react quickly changing conditions 
+continuous query system simultaneously handle numerous queries varying overlap set sources combine 
+fulfill requirements computing joins streaming non streaming sources cacq system employs techniques 
+modify notion join standard way tuples join occur time window 
+modification bounds state need maintain compute joins 
+second space efficient generalization doubly pipelined joins eddy framework 
+incoming source build index fly encapsulate index unary operator called stem introduced 
+stems exposed eddy class operators eddy encapsulates logic computing joins incoming sources stems 
+technique permits perform multiway pipelined join 
+allows incrementally compute join subset sources stream results user 
+technique allows share state computing joins numerous queries 
+describe details scheme section 
+section discuss implementation cacq system focusing techniques 
+
+implementation implemented cacq system context telegraph query processing engine developed past years uc berkeley database group 
+supports read sql style queries nested queries variety data sources files network sensor streams web pages 
+streams treated infinite relational data sources web pages mapped relational tables simple wrappers 
+conventional query plan telegraph uses eddy operator dynamically route tuples arriving data sources operators operate tuples 
+telegraph provides operators perform basic dataflow operations select join 
+telegraph development platform discuss cacq implementation 
+describe techniques fully implement select project join spj queries nesting aggregation 
+describe queries streaming data 
+assumed queries apply data system moment query registered data may appear query removed system 
+queries historical non streaming data part implementation turn briefly section related 
+map stream elements sensor readings relations proposed 
+allows queries posed streaming data refer relations relational attributes 
+mapping done obvious way field stream element corresponds attribute relation representing stream 
+assume stream element fields time stamp indicating produced 
+caveats design system 
+clarity exposition consider designs increasing order complexity 
+rudimentary cacq system single query joins runs single source multiple attributes 
+show multiple queries joins processed simultaneously sharing tuples selection operators 
+show joins added system share state stems 
+single query joins single query cacq system similar telegraph standard eddy operator :10.1.1.34.8546
+query decomposed set operators constitute processing applied tuple flowing system 
+considering joins moment operators exist scan operators fetch tuples selection operators filter tuples user specified boolean predicate 
+assume queries contain conjunctions ands predicates discuss disjunctive predicates ors section 
+core system single eddy routes tuples operators processing 
+operator input queue tuples waiting processed 
+operators dequeue tuples process return eddy routing 
+eddy maintains pool tuples waiting placed input queue operator 
+pool empty eddy schedule scan operator cause tuples fetched produced 
+notice eddy vary route tuple takes operators system tuple basis 
+note tuples copied allocated passed operators 
+detailed discussion telegraph see 
+routing single query case facilitate routing eddy maintains bit vectors tuple :10.1.1.34.8546
+bit vector contains number bits equal number operators system 
+vectors track operators may applied tuple 
+bits indicate operators applied tuple 
+single table case tuple routed operator ready bits initially set 
+second bit vector contains bits indicate operators tuple routed 
+initially done bits cleared 
+tuple bits set output 
+simple selection case done bits complement ready bits tuple processed particular operator operator ready bit cleared done bit set 
+section see cases bitmaps complements 
+query processing operator far selection operator uses bits follows tuple arrives applies predicate tuple 
+tuple satisfy selection predicate operator discards tuple deallocating returning eddy 
+tuple satisfies predicate operator done bit set ready bit cleared tuple returned eddy processing 
+total storage overhead vectors bits tuple twice number operators query 
+final element simple single query cacq system way determine order tuples routed operators 
+policy decision ordering eventually result tuple fully processed orderings place highly selective selections earlier routing efficient 
+eddy employs routing policy choose tuple route operator process 
+routing policy implements tuple adaptivity eddies 
+query case assuming selections cost apply policy route selective operators 
+discuss routing polices cacq system section 
+simple single query cacq approach describe extend solution multiple queries queries single source 
+multiple queries joins goal multiple query solution absence joins single eddy route tuples continuous queries currently system 
+solution tuples copied different queries different predicates relation operate exactly tuples 
+important reasons tuples occupy storage conserved copying takes valuable processor cycles 
+key part multiple query solution joins grouped filter allows share multiple selections attribute relation 
+design data structure select select select queries eddy data source filter filter basic continuous query architecture section 
+shows basic architecture 
+users submit queries consisting selection predicates fields source queries submitted single eddy just filter operator associated grouped filter field field eddy tracks tuples ready output query sends tuples back appropriate users required 
+refer single eddy operators associated queries running flow 
+rest section uses example show queries added tuples routed flows joins 
+modifications single query system allow handle multiple queries new queries combined old queries sharing operators possible tuples properly routed merged set queries output appropriate users 
+adding query combining old new queries complicated 
+new query scans relation existing query share existing scan operator 
+similarly new query selection attribute grouped filter exists simply add predicate filter 
+example consider case second query added eddy single query single source 
+ll 
+query consists operators scan selections arrives contains scan selection selection matching scans relation need instantiate new scan similarly add predicates selections grouped filters created instantiating 
+remember considering case interested historical tuples case create different scan operator 
+routing multiple query case turn routing tuples flow 
+approach single query case eddy repeatedly uses routing policy choose tuple route operator tuple routed 
+complexity arises routing predicate index 
+accepts tuple rejects need record information means tuple output output reject 
+solution encode information queries accept reject tuple tuple just store ready bits tuple 
+allocate bitmap bit query store tuple 
+query bit set indicates tuple output rejected query tuple need output query 
+bit turned rejects tuple bit turned tuple output 
+bitmap done bits completely encode notion tuple lineage discussed 
+lineage simply capture tuple path single query concisely expresses tuple path queries system 
+looking tuple point flow possible determine tuple done bits go ready bits importantly may output bits 
+cacq approach dependent structure query plan implicit information tuple lineage 
+means operator common queries treated single operator handles tuples queries 
+similarly tuple common queries copying 
+fact tuple may output queries explicitly encoded bits 
+existing continuous query systems niagaracq static query plan pair operators merged kept separate query optimizer guarantee set tuples flowing operator identical set tuples flowing :10.1.1.136.4253
+leads extra copies tuple allocated cacq approach 
+implementation detail chosen bits tuple fixed size bitmap attempting dynamically resize bitmap tuple new queries arrive 
+dynamic resizing expensive tuples flowing system query arrives 
+note limits maximum number queries may system time 
+approach bit queries exist time tuple created set 
+means tuple output queries arrive system 
+similarly query removed system set bits query flight tuples 
+allows reuse bit associated query new query flight tuples output new queries accordance specification queries cacq data arrives query 
+outputting tuples shown track queries tuple may may need output mechanism determine tuple output needed 
+accomplish associating compact query signature mask query 
+completion size bitmap bit turned operator process tuple output 
+determine tuple output query output rejected done bits value equal tuple output maintain separate data structure associate query id output queue deliver tuples user posed query 
+system properly merge queries route tuples 
+optimization significantly improves space efficiency approach 
+consider happens new query single selection source added queries shown 
+query shares operators queries system tuple routed selection operators space reserved tuple done bits selections tuple bits system queries sources lead significant source state operators queries input queries 
+select 
+select 
+select source state operators queries continuous query data structures waste space tuple :10.1.1.136.4253
+solution partition state source 
+state previously system wide information queries operators specific particular data source 
+tuple tagged tells eddy scan operator created tuple determine tuple done ready bits interpreted 
+auxiliary data structures created operators table lists operators apply source table lists queries source 
+entry list corresponds bit ready tuples 
+similarly entries correspond bits tuple bitmap 
+insure completion masks built associated appropriate source operators list 
+shows data structures sample queries 
+shows extra fields stored tuple header routing cacq eddies 
+fields inherited single query tuple shown additional fields multi query case shown 
+performance effects additional storage section estimating amount storage required maintain tuple source query state cacq system 
+table summarizes storage overhead additional data structures including bits basic eddies implementation 
+table refers number distinct selection operators reachable source total number predicate indices equal number attributes divided total number queried sources 
+refers average number queries involve tuples source absence joins equal average number queries divided number sources 
+table gives representative values building monitoring scenario parameters assuming aggressive goal simultaneous queries 
+provide numeric values table 
+notice additional cost continuous queries just mb continuous query tuple format majority output queues queries 
+state active tuple kb troublesome considers case queries run independently 
+case copies tuple byte tuples mb state required copies tuple 
+section experimental evidence showing query performance relates tuple size cacq 
+storage overhead order system able scale arbitrary number queries able extend size tuples seriously impacting performance 
+expected larger tuples lead slower performance simply bits allocated copied time tuple operated 
+experimental results generated actual telegraph query engine running real time 
+continuous data source generated stream random tuples fields sequence number uniquely identifying tuple integer valued fields random values uniformly sampled range 
+server unloaded pentium iii mhz megabytes ram 
+telegraph running sun hotspot jdk debian linux kernel 
+client connections came separate machine running hotspot jdk 
+avoid variations network latency tuples counted discarded just sent back client machine 
+studies ran simultaneous queries source described 
+varied tuple state size bits tuple minimum required queries bits tuple default value experiments measured tuple throughput rate 
+purposely kept number queries small measure impact additional tuple state independently cost additional queries operators performance discuss section 
+results shown 
+notice tuple throughput drops factor bits tuple slope curve decreasing adding bits significantly decrease query performance 
+fact tail graph pro represents memory bandwidth system fixed number bytes second allocate format tuples 
+longer tuples require bytes fewer allocated formatted second 
+results demonstrate tuple size dramatically effect performance query processor 
+important bear mind amount source state run simultaneous queries amount parallelism severely stress database system 
+predicate index grouped filter previously mentioned cacq system includes predicate index allows group selection predicates combining selections single field grouped filter operator table parameters cacq monitoring scenario 
+parameter value light temperature sound accel mag 
+attributes source avg 
+filters query sizeof bytes sizeof bytes sizeof bytes sizeof bytes table continuous query storage 
+extra data structures required continuous queries flow estimates queries structure size expression estimated size bytes source state ss queries sizeof operators sizeof tuple state ts query state qs sizeof total flow state ss qs ts mb kb tuple throughput tuple throughput vs tuple state tuple state bits eddy performance vs tuple size apply range predicates ordered domain single tuple efficiently applying predicate independently 
+selection operator encountered new query source field checked see matches instantiated grouped filter 
+predicate merged filter 
+new grouped filter created just single predicate 
+grouped filter consists data structures greater balanced binary tree tree equality hash table inequality hash table 
+new predicate arrives inserted appropriate data structure predicates put greater tree location specified constant value greater equal equal predicates inserted tree equality hash table 
+note store entire predicate data structure keep predicate constant value query id query applies particular need store database table field predicate applies 
+tuple arrives filter data structures probed value tuple 
+greater tree predicates left value tuple matches likewise tree predicates right value tuple matches see 
+equality hash match occurs value tuple table 
+conversely inequality case tuples matches appear table 
+matches retrieved bit mask queries marked queries predicates tuple passes 
+matches mask scanned tuple bitmap modified indicate tuple output queries tuple pass way queries prevented seeing tuples 
+illustrates data structures set predicates single field 
+probe tuple shown right gray boxes indicate matching predicates data structures 
+addition significantly reducing number predicates evaluated predicates exist single field grouped predicates interesting reason represent significant reduction number operators eddy route typical tuple 
+provides number benefits serves reduce average tuple size tuples need fewer operator bits headers 
+second reduces size operator state stored source 
+eliminates large number routing steps flow tu submitted predicates grouped filter predicates source matches tuple tuple grouped filter example grouped filter searched matching predicates tuple arrives 
+grayed regions correspond matching predicates tuple upper right 
+ple step particularly expensive routing tuple thousands filters incur non trivial routing overhead 
+queries disjunction point considered queries predicates 
+handle ors follow standard practice reduce boolean expression conjunctive normal form ex ample eddy free choose order tuples routed selection operators grouped filters 
+queries may share predicate disjunction short circuit evaluation expressions aborting evaluation disjuncts disjunct fails skipping evaluation predicates conjunct predicate succeeds 
+choose associate additional bit disjunct tuple predicate disjunct evaluates true set bit 
+modify logic determines tuple output query check bit set disjunct 
+omit detailed description implementation overhead solution due lack space 
+cacq system fully supports expressions containing ands ors selection predicates 
+turn performance assessment complete multi query single source system 
+performance cacq joins stated goals system allow scale large number simultaneous queries number data sources 
+believe system significant progress goal 
+demonstrate ran experiments measured effect increasing number queries second varied number data sources queries posed 
+queries scenarios randomly generated 
+randomly total tuples output second tuple throughput vs number queries continuous query eddies conventional eddies number queries tuples second number sources eddy performance vs number queries number sources 
+tuple throughput vs number sources queries predicate generated queries chance having predicate field predicate existed field predicate randomly uniformly selected set equality inequality predicates omitted randomly generated equality queries rarely overlap 
+comparison value random uniform selection range 
+measure performance cacq implementation number queries issued queries single data source measured number tuples output system 
+compared performance continuous queries basic implementation telegraph query runs eddy operators 
+shows results experiments 
+notice continuous query case throughput increases sharply queries point system fully utilized system handle queries decreasing query delivery rate 
+continues scale throughput rate queries 
+existing eddy implementation reaches maximum throughput queries total tuple throughput half continuous query system 
+measure ability system scale large number sources experimented running queries variable number sources identical source described 
+query single predicate randomly selected field source query randomly chosen available sources 
+multiple queries issued source 
+plots number tuples output versus number sources 
+expected additional sources decrease tuple throughput somewhat 
+due factors scan operators scheduled eddy 
+second filters independent streams combined filter operators created larger number predicates evaluated sources added 
+multiple queries joins far queries containing selection operators 
+section mechanism computing joins streaming sources 
+mentioned requirements join processing cacq system 
+insure join operations pipelined support continuous streaming results users may receive updates quickly 
+second scale number queries query specify join predicates subset sources 
+accomplish goals generalization eddy framework doubly pipelined hash joins called stems light temp noise tree doubly pipelined hash joins stems eddy light temp noise eddy stems conventional query plans vs cacq allows multiway pipelined join computation subset incoming sources 
+scheme reduces state needed join computation sharing flight index structures built various joins specified 
+stems multiway pipelined joins goal cacq system allow users quickly react changing conditions input data 
+ensure computation pipelined quickly produce new results data collected far new tuple arrives source 
+results produced incrementally queries just specified queries 
+fulfill requirements space efficient generalization doubly pipelined hash joins called stems 
+stems developed context adaptive query processing 
+review doubly pipelined joins properties cascades joins inefficient 
+doubly pipelined hash join binary join maintains flight hash index input relations call new tuple arrives input relations say inserted index probe index matches 
+note insertion probe phases tuple complete tuple processed 
+order build pipelined joins sources compose joins tree joins exactly static query plan 
+example shown joining readings light temperature noise sensors joined 
+disadvantages computing joins manner 
+intermediate results materialized hash indices internal joins plan 
+left deep plans join sources additional flight indices needed intermediate results 
+example intermediate tuples light temperature readings stored left hash index topmost join 
+call intermediate indices 
+second scheme scale number user queries 
+example imagine sources query possible way join sources time attribute 
+queries requiring intermediate index 
+example source needs probe intermediate indices contain joined tuples sources satisfy queries range indices shared sources satisfy rest queries 
+need maintain intermediate indices support pipelined joins queries 
+significant amount state 
+consider example distinct types sensors 
+need maintain intermediate indices support hypothetical queries 
+imagine tuple bytes join tuple matches exactly tuple sensors produce tuple second indices retain hour readings 
+index single stream mb intermediate index mb 
+just support distinct queries total size flight indices mb 
+third pipelined joins arranged query plan permit fine grain adaptivity form offered eddy 
+time join order changes recompute intermediate indices 
+cacq system avoid problems promoting transient indices individual sources class operators called stems place eddy 
+cascade joins example converted plan eddy framework 
+stems cacq system simply operators encapsulate single index built stream particular attribute key 
+indices hash indices support equality joins arise building monitoring scenario 
+types indices depending query workload 
+stems passed tuples inserted built index tuples search probe index 
+stem return tuples passed eddy back eddy 
+ready done bits marked indicate operators need process tuple 
+addition intermediate tuple concatenation tuple probe index match output match marked appropriately 
+multiway join computed starting new tuple pushed eddy source singleton tuple routing stems produce joined result 
+example imagine query ranges sources 
+new light tuple arrives possible route inserted light stem 
+sent probe temperature stem joined temperature reading 
+intermediate tuple sent noise stem joined noise readings resulting tuple output 
+query ranges light temperature sources eddy output intermediate tuple produced probe temperature stem 
+note tuple probe stems singleton intermediate tuple 
+stem apply predicate containing indexed source attribute 
+eddy routes tuples obeying constraints correctness routing policy efficiency 
+interposed eddy indices lost atomic build probe property pipelined joins leading constraints eddy stems ensure correctness 
+constraint singleton tuple inserted associated stems routed stems needs joined 
+inserted tagged globally unique sequence number 
+stems index singleton tuples 
+second constraint intermediate tuple returned stem valid sequence number tuple probe stem greater arrived sequence number indexed tuple 
+valid intermediate tuples retain larger sequence numbers invalid tuples discarded stem 
+constraints maintain build probe property tuples joined sufficient prevent duplicate tuples arising 
+constraints eddy free choose order route tuple generate results 
+routing decisions discussed 
+advantages stems eddy join processing 
+single stem built source stems shared joins queries posed 
+contrast scalability scheme scalability pipelined joins tree 
+previous exam ple sensors stems need maintain mb data support subset possible joins compared mb support queries 
+second compute joins pipelined fashion possible joins sources 
+third join order decided tuple basis providing fine grain adaptivity 
+routing joins routing tuples eddy cacq system involves computations 
+determine set operators tuple sent set queries output 
+second choose candidate operators process tuple 
+computation need maintain additional data structures augment current ones handle generating routing intermediate tuples 
+second decision routing policy stems join case described 
+need augment state associated source 
+add separate stems list containing stem operators source needs joined 
+query list remains includes queries range source 
+masks list padded stem stems list 
+similarly augment ready done bits tuple state include bits new stems 
+changes provide scheme routing singleton tuples stems describe data structures handle intermediate tuples 
+intermediate tuples contain data subset sources flowing eddy 
+input sources possible types intermediate tuples 
+analogous state maintain existing sources create virtual source intermediate tuple particular type materialized 
+source virtual source associated distinct subset sources system 
+virtual source associate operators list stems list query list list 
+queries range sources virtual source queries list corresponding virtual source 
+operators list union selection operators need applied query queries list 
+stems list contains stems modules intermediate tuple needs joined satisfy queries range additional sources 
+list contains bit mask query 
+likewise indicates operators operators list need process tuple output 
+intermediate tuple formed bitmap cleared tagged new virtual source 
+bits set reflect operators operators stems list need process tuple 
+done bits set indicate operators stems processed tuple 
+usual eddy compares done bits determine queries intermediate tuple output 
+similarly eddy uses ready bits determine stems selection operators tuple sent 
+omit details efficiently performing bit vector initialization manipulations due lack space 
+new query arrives system added queries list virtual source corresponding sources query ranges 
+virtual source exist created 
+determine selection operators stems query need 
+selection operators folded system described section 
+stems treated differently selection operators 
+new stem added stem added stems list existing sources virtual sources contain source associated stem 
+purging stems cacq system designed operate streams mechanism needed limit state accumulates joins streams flow endlessly 
+mechanism proposed limit number tuples particular stem imposing window stream 
+windows specify particular number tuples period time join applies tuples outside window included join 
+key component join solution research perspective thoroughly discussed 
+allow windows specified component join predicate 
+current implementation windows simply fixed number tuples extending system allow windows fixed time period fairly simple 
+windows sliding window incorporates data stream 
+new tuples flow old tuples forced window 
+stems may contain multiple predicates simply discard tuples index fall window particular predicate 
+keep maximum number tuples specified windows associated predicates 
+predicate reject matches outside predicates window index 
+way create multiple stems support different window sizes 
+section discuss building routing policy efficiently route tuples operators continuous eddy 
+
+routing policies routing policy responsible choosing tuple process operator process 
+original eddy implementation ideas routing called backpressure limits size input queues operators capping rate eddy route tuples slow operators 
+causes tuples routed fast operators early query execution intuitively idea fast operators filter tuples reach slower operators 
+second approach augments back pressure ticket scheme eddy gives ticket operator consumes tuple takes ticket away sends tuple back eddy 
+way higher selectivity operators accumulate tickets 
+choosing operator new tuple routed ticket routing policy conducts lottery operators chances particular operator winning proportional number tickets owns 
+higher selectivity operators receive tuples early path eddy 
+implemented variant ticket scheme 
+variant grouped filter stem number tickets equal number predicates applies penalized number tickets equal number predicates applies returns tuple back eddy 
+stem outputs tuples receives accumulate negative tickets lower bound number tickets modules receives 
+multiple stems ticket scheduled back pressure higher cardinality joins scheduled top plan require longer completely process input tuple 
+highly selective grouped filters receive tickets tuples routed filters earlier processing 
+way favor low selectivity tickets quick backpressure 
+weight value number predicates applied operator 
+performance evaluation modified routing scheme functions number queries 
+discuss performance routing policy respect joins part experiments section 
+table queries routing scheme comparison 
+select index 
+select index 
+select index 
+select index 
+select index ticket routing studies modified ticket routing scheme designed order filter operators selective grouped filter applies predicates applied 
+compare scheme alternatives 
+random scheme tuples routed random operator previously visited 
+optimal scheme tuples routed minimum set filters required process tuple 
+hypothetical scheme provides upper bound quality routing scheme 
+tuple applies smallest number possible filters 
+optimal approach orders selections selective applies order 
+determining optimal ordering possible underlying distribution attribute may unknown closely match statistics gathered attribute 
+workload shown table clearly optimal ordering places applies selection selection tuples pass selection 
+percent tuples pass percent pass 
+leads expression expected number filters tuple enter approach tuples apply filter tuples apply filter filter filter filter expect routing scheme perform serves useful lower bound number filters applied 
+final alternative hypothetical worst case approach filter applied query filters workload shown 
+routing scheme perform badly 
+ran experiments show ticket scheme compares approaches fixed queries shown table 
+chose fixed set queries random queries queries predicates uniformly selected random range tend experience little overlap select number tuples causing random ticket schemes perform similarly 
+goal experiment show ticket scheme effectively determine selectivities grouped filters affects performance felt appropriate decision 
+ran system minute compared total number tuples scanned tuples entering filter operator 
+shows results ticket routing scheme routes average tuple just filters randomized scheme routes tuple filters 
+adapting changing workloads addition routing tuples efficiently properties continuous query system rapidly adapt changing workloads 
+demonstrate ran experiments query workloads shown table 
+queries source previous experiments 
+experiments query introduced time successive query introduced seconds 
+workload queries independent just conventional eddy se predicates executed filter tuples 
+case query selective 
+second workload shows capability ticket scheme prioritize filters apply different numbers predicates filters selectivity times predicates applied final workload complex queries share filters range selectivities 
+correct ordering queries immediately apparent 
+shows percentage tickets routed filter time workloads 
+percentage tickets received measure routing policy perceived value operator 
+highly selective operators higher value reduce number tuples system operators apply predicates queries perform net 
+filter introduced receives zero tickets notice quickly system adapts newly introduced filters cases seconds filter added percentage tuples receives reached steady state 
+workload settle expected state selective frequently applied filters receiving bulk tickets 
+workload results similar workload filters receive name number tickets queries introduced 
+consistent selective apply fewer queries weighted heavily 
+note receive slightly tickets workload due increased selectivity predicates 
+
+performance study demonstrate effectiveness cacq system compare approach published niagaracq system 
+niagaracq uses static query optimizer build fixed query plans continuous queries 
+niagaracq plans grouped means operators shared queries possible 
+optimizer allows queries share operator demonstrate set tuples flowing operator queries 
+identical tuple sets requirement hold tuples explicitly encoded lineage cacq approach queries tuple may output inferred tuple location query plan 
+practice means little overlap possible queries complexity may possible share initial selection operators follow selection replicated queries exactly predicates tuples flowing operators identical 
+creating predicate index selection operators niagaracq combines selections attribute join attribute constants selection predicates 
+efficient join algorithm tree index built predicates approach similar efficiency avg 
+filters tuple smaller better routing scheme vs filters tuple random tickets optimal worst case routing policy comparison various routing schemes predicate index 
+predicates overlap multiple copies tuple produced output niagaracq join imposes non trivial performance overhead 
+compare systems run experiments proposed 
+experiments execute queries form select stocks articles price symbol symbol stocks list stock quotes set news articles companies quotes 
+articles ranged bytes kilobyte 
+stock prices randomly selected uniform distribution domain 
+run number queries form varying value notice workload favorable niagaracq approach complete overlap queries 
+mixed assortment queries harder niagaracq optimizer perform grouping 
+niagaracq optimizer generates possible plans queries consist selection operator join 
+called pushdown selection operator placed join query plan 
+selections placed group relation 
+join operators placed group sets tuples query selection disjoint separate join run query hash table articles shared queries 
+split operator shown plan special operator divides output grouped operator query specified attribute constants table 
+alternative called shown places join bottom query plan 
+tuples flowing relations unfiltered queries join operator placed single group 
+queries exactly join predicate output grouped join selection predicate identical 
+selection predicates placed single group 
+results show approach surprisingly efficient copies join operator 
+notice suffers disturbing problem selection predicates applied join contrary established query optimization wisdom 
+compared alternatives query cacq system 
+system query consists operators grouped filter price pair stems stocks symbol symbol 
+modified ticket routing scheme discussed schedule tuples stems grouped filter 
+manually constructed niagaracq query plans telegraph structure shown 
+emulating niagaracq removed tuple data structures code manages specific cacq approach 
+notice include materialization operators niagaracq plans done able keep tu table query workloads adaptivity scenario 
+workload 
+select index 
+select index 
+select index 
+select index 
+select index workload 
+select index 
+select index 
+select index 
+select index 
+select index workload 
+select index 
+select index 
+select index 
+select index 
+select index tickets tickets filter vs time query query query query query time workload tickets tickets filter vs time filter filter filter filter filter time workload tickets tickets filter vs time filter filter filter filter filter time workload percentage tickets routed filters time 
+notice selective predicates rapidly adapt receive tickets correlated routing priority eddy 
+ples join tables main memory 
+done ran experiments delivered fixed size update stock prices news articles stocks articles article stock 
+query selection predicates randomly chosen uniform distribution insured union predicates selected tuples 
+placed limit sum selectivities done niagaracq doing significantly affect performance best approach system 
+varied number distinct queries distinct selection predicates compared performance shown 
+notice cacq approach faster approach small numbers queries slightly slower 
+original performance benefit cacq apply selections smaller tuples computes join approach joins tuples 
+large numbers queries cacq approach somewhat slower due additional time spent maintaining tuple state included niagaracq experiments 
+pushdown approach case slower cases 
+note shape lines niagaracq experiments shown closely matches shape lines shown suggesting emulation niagaracq approach sound 
+experiments show cacq approach capable matching best niagaracq approaches benefit cost query optimizer 
+routing policy determines grouped selection prices selective join routes tuple selection 
+set experiments modify scenario apply udf batches stock quotes flow system 
+fix number simultaneous queries vary number articles stock quote simulate multiple news stories sources reporting particular 
+modified approach user specifies udf selects stock quotes interest single predicate 
+quotes shipped batches reflecting hours worth activity allow udfs utilize just stock price deciding return particular quote 
+sort environment join join split articles articles quotes join constant table 
+
+quotes constant table 
+
+pushdown plan plan alternative query plans niagaracq join split join 
+articles time complete number queries vs time complete cacq niagara pushdown niagara number queries normal selections seconds complete cacq vs niagaracq udf experiment logarithmic scale niagaracq approach cacq articles quote udf selections niagaracq vs cacq types selections serious investors user udf search parameters thought particularly important determining buy sell stock parameters satisfied quotes news articles quotes returned 
+notice case grouped filter evaluate udfs niagaracq group udfs btree 
+results experiments shown 
+compared approach pushdown approach remains slower cacq reasons previous experiment 
+varied cardinality articles relation articles quote 
+simulated cost udf spin looping randomly uniformly selected time interval case cacq approach efficient cacq applies udfs stock quotes joined articles niagaracq apply udfs join wishes perform single join 
+cardinality articles increases expensive udfs applied times niagaracq approach cacq 
+general limitation niagaracq approach overcome lineages explicitly encoded 
+niagaracq push selections queries shared join performing join multiple times fanout join greater severely impair niagaracq performance 
+furthermore saw single article case niagaracq pays penalty performing selections larger joined tuples 
+
+related integration eddies continuous queries cacq system necessarily related areas research 
+summarize discuss related systems adaptive query processing sensor temporal database communities 
+eddies originally proposed :10.1.1.34.8546
+basic query operator back pressure ticket routing schemes developed 
+notions adaptivity pipelining established research community 
+parallel pipelined joins proposed 
+adaptive systems xjoin query scrambling tukwila demonstrated importance pipelined operators adaptivity 
+existing continuous queries provides techniques simultaneously processing queries variety data sources 
+systems propose basic continuous query framework adopt offer extensions combining related operators query plans increase efficiency 
+generally speaking techniques employed doing combination considerably complex effective adapting rapidly changing query environments cacq 
+efficient trigger systems triggerman system similar continuous queries perform incremental computation tuples arrive 
+general approaches systems discrimination network rete treat efficiently determine set triggers fire new tuple arrives 
+approaches typically materialize intermediate results reduce required update 
+continuous queries proposed defined filtering documents limited sql language 
+system continuous queries likened trigger systems queries consists element tuples sql style query start condition condition 
+niagaracq project described cq system :10.1.1.136.4253
+goal efficiently evaluate continuous queries changing data typically web sites periodically updated news stock quote servers 
+examples niagaracq grouping approach discussion limitations section 
+problem sharing working queries new 
+multi query optimization discussed seeks exhaustively find optimal query plan including common subexpression small number queries 
+provides heuristics reducing search space fundamentally notion building query plan avoid 
+fundamental notions stream processing including extensions sql windows discussions nonblocking timestamped operators 
+proposes windows means managing joins large sets data 
+discusses operators processing streams context network routing includes interesting discussion appropriate query languages streaming data 
+discusses models data streaming sensors 
+proposes continuous queries processing streams sensor data offers motivating performance examples falls short providing specific framework query evaluation incorporate adaptivity 
+
+continuous query implementation continuously adaptive query processing scheme 
+show eddy design provides significant performance benefits adaptivity aggressive cross query sharing space enables 
+breaking abstraction shared relational algebra expressions telegraph cacq implementation able share physical operators selections join state fine grain 
+augment features grouped filter index simultaneously evaluate multiple selection predicates 
+
+avnur hellerstein :10.1.1.34.8546
+eddies continuously adaptive query processing 
+acm sigmod dallas tx may 
+chen dewitt naughton 
+design evaluation alternative selection placement strategies optimizing continuous queries 
+icde san jose ca february 
+chen dewitt tian wang :10.1.1.136.4253
+niagaracq scalable continuous query system internet databases 
+acm sigmod 
+dewitt naughton schneider 
+evaluation non equijoin algorithms 
+vldb barcelona spain 
+forgy 
+rete fast algorithm patterns objects match problem 
+artificial intelligence 
+hanson liu lu park vernon 
+triggerman asynchronous trigger processor extension object relational dbms 
+technical report university florida december 
+heinzelman kulik balakrishnan 
+adaptive protocols information dissemination wireless sensor networks 
+mobicom seattle wa august 
+hellerstein franklin chandrasekaran deshpande hildrum madden raman shah 
+adaptive query processing technology evolution 
+ieee data engineering bulletin 
+hill szewczyk woo hollar pister 
+system architecture directions networked sensors 
+asplos november 
+ives florescu friedman levy weld 
+adaptive query execution system data integration 
+proceedings acm sigmod 
+kahn katz pister 
+mobile networking smart dust 
+mobicom seattle wa august 
+lanham 
+telegraph screen 
+db cs berkeley edu 
+liu pu tang 
+continual queries internet scale event driven information delivery 
+ieee knowledge data engineering 
+special issue web technology 
+madden franklin 
+stream architecture queries streaming sensor data 
+san jose ca february 
+icde 
+miranker 
+treat better match algorithm ai production system matching 
+proceedings aaai pages 
+roy sudarshan ramamritham 
+materialized view selection maintenance multi query optimization 
+acm sigmod 
+bonnet gehrke seshadri 
+sensor database systems 
+nd international conference mobile data management hong kong january 
+raman 
+interactive query processing 
+phd thesis uc berkeley 
+roy seshadri sudarshan 
+efficient extensible algorithms multi query optimization 
+acm sigmod pages 
+selinger astrahan chamberlin lorie price 
+access path selection relational database management system 
+pages boston ma 
+sellis 
+multiple query optimization 
+acm transactions database systems 
+seshadri livny ramakrishnan 
+design implementation sequence database systems 
+vldb mumbai india september 
+shah madden franklin hellerstein 
+java support data intensive systems 
+sigmod record december 
+sullivan 
+tribeca system managing large databases network traffic 
+proceedings usenix annual technical conference new orleans la june 
+terry goldberg nichols oki 
+continuous append databases 
+acm sigmod pages 
+urhan franklin 
+xjoin reactively scheduled pipelined join operator 
+ieee data engineering bulletin pages 
+urhan franklin 
+cost query scrambling initial delays 
+acm sigmod 
+wilschut apers 
+dataflow query execution parallel main memory environment 
+pdis pages december 

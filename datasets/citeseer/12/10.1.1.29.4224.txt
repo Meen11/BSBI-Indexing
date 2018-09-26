@@ -1,0 +1,476 @@
+io lite unified buffering caching system rice university cs technical report tr vivek pai peter druschel willy zwaenepoel rice university presents design implementation evaluation io lite unified buffering caching system 
+io lite unifies buffering caching system extent permitted hardware 
+particular allows applications interprocess communication filesystem file cache network subsystem share single physical copy data safely concurrently 
+protection security maintained combination access control read sharing 
+various subsystems mutable buffer aggregates access data needs 
+io lite eliminates copying multiple buffering data enables various cross subsystem optimizations 
+performance measurements show significant performance improvements web servers intensive applications 
+presents design implementation performance io lite unified buffering caching system 
+io lite unifies buffering caching system extent permitted hardware 
+particular allows applications interprocess communication file cache network subsystem subsystems share single physical copy data safely concurrently 
+io lite achieves goal storing buffered data immutable buffers locations memory change 
+various subsystems mutable buffer aggregates access data needs 
+primary goal io lite improve performance intensive applications including web servers io lite avoids redundant data copying decreasing overhead avoids multiple buffering increasing effective file cache size permits various performance optimizations subsystems cached internet checksums 
+designs proposed improve performance operating systems 
+particular various designs exist copy free certain data paths :10.1.1.52.9688
+io lite distinguishes approaches single paradigm unify buffering data paths system including inter application kernel kernel application inter kernel data paths restrictions alignment data 
+furthermore io lite fully integrates file cache avoiding multiple buffering copying data paths involving cached files 
+approaches extensible kernels io lite uses application independent paradigm provides unrestricted execution environment benefiting intensive applications board :10.1.1.117.6702:10.1.1.100.6047
+existing unix applications take advantage io lite performance modest changes 
+io lite rely aggressive extensibility technology readily integrated existing unix system 
+implemented io lite digital unix version 
+implementation performance results dec alphastation machines connected fddi mb ethernet 
+keeping stated goal improving performance intensive servers central performance results involve web server addition benchmark applications 
+web server efficiently support general complex client requests cgi documents additional mechanisms 
+addition micro tr io lite unified buffering caching system benchmarks show significant performance gains popular intensive applications grep 
+outline rest follows 
+section briefly discusses background requirements presents design unified buffering caching system 
+section qualitative discussion io lite context related requirements web server framework comparison 
+quantitative evaluation io lite section including results microbenchmarks detailed performance results web server common applications 
+section offers 
+io lite design background conventional buffering state art unix systems major subsystem employs buffering caching mechanism 
+network subsystem operates data stored bsd mbufs equivalent system allocated private kernel memory pool 
+mbuf abstraction designed allow copy free manipulation possibly buffers 
+provides efficient support common protocol operations fragmentation reassembly network packets addition removal packet headers trailers 
+unix filesystem employs completely separate mechanism designed allow buffering caching logical disk blocks generally data block oriented devices 
+buffers buffer cache allocated private pool kernel memory 
+older unix systems buffer cache store disk data 
+modern unix systems filesystem metadata stored buffer cache 
+file data cached vm pages allowing file cache compete virtual memory segments entire pool physical main memory 
+support provided unix systems buffering caching user level 
+applications expected provide buffering caching mechanisms data generally copied os application buffers read write operations presence separate buffering caching mechanisms application major subsystems poses number problems performance redundant data copying data copying may occur multiple times data path 
+call copying redundant necessary satisfy hardware constraint 
+imposed system software structure interfaces 
+multiple buffering lack integration buffering caching mechanisms may cause multiple copies data item stored main memory 
+example web server data file may stored filesystem cache web server user level cache may held network subsystem transmission buffers multiple connections awaiting acknowledgment client 
+duplication reduces effective size main memory hit rate server file cache 
+lack opportunity cross subsystem optimization separate buffering mechanisms difficult individual subsystems recognize opportunities optimizations 
+example network subsystem server forced recompute internet checksum time file served server cache determine data transmitted repeatedly 
+significant checksum calculation cases remaining data touching operation data path redundant data copying eliminated 
+requirements unified buffer cache proceed define requirements unified buffering caching system 
+primary goals system avoiding redundant data copying systems try avoid data copying transparent manner certain conditions 
+tr io lite unified buffering caching system multiple buffering facilitating optimizations subsystems 
+fundamental requirements unified buffering caching system ffl avoiding copying multiple buffering implies single physical copy data item exist 
+ffl order support caches part unified buffer system single physical copy data item shared concurrently different os subsystems applications 
+sharing compromise protection safety 
+ffl avoiding redundant copying requires initial storage location data item physical memory preserved item lifetime main memory 
+corollary initial storage layout data object physical memory preserved lifetime 
+storage layout large data object file received network device commonly contiguous fragments necessarily page aligned page sized 
+initial storage layout data objects received network device complex 
+prevalence file retrieval networks distributed systems important scenario handled efficiently copying 
+enabling cross subsystem optimizations requires fourth condition ffl facilitate data dependent optimizations subsystems necessary subsystem able uniquely identify previously seen data item 
+example facility tcp transmission function detect asked transmit data object transmitted 
+avoid recomputing ip checksum cached value 
+immutable buffers buffer aggregates approach taken io lite define explicit abstraction data access semantics appropriate unified buffer caching system 
+os subsystems access data unified abstraction 
+applications wish obtain best possible performance choose access data way 
+io lite data buffers immutable 
+immutable buffers allocated initial data content may subsequently modified 
+access model implies sharing buffers readonly elegantly eliminates problems synchronization protection consistency fault isolation os subsystems applications read sharing allows efficient mechanisms transfer data protection domain boundaries discussed section 
+example filesystem cache applications access file network subsystem transmits part file safely refer single physical copy data 
+price immutable buffers data generally modified place alleviate impact restriction io lite encapsulates data buffer aggregates 
+buffer aggregates instances data type adt represents data 
+data contained buffer aggregate generally reside contiguous storage 
+buffer aggregate represented internally ordered list pointer length pairs pair refers contiguous section immutable buffer 
+buffer aggregates support operations truncating prepending appending concatenating splitting mutating data contained buffers 
+important note underlying buffers immutable buffer aggregates mutable 
+mutate buffer aggregate modified values stored newly allocated buffer modified sections logically joined unmodified portions pointer manipulations obvious way 
+impact absence place modifications discussed section 
+io lite data encapsulated buffer aggregates passed os subsystems ap privacy ensured conventional page access control 
+optimization data modified place currently shared 
+tr io lite unified buffering caching system plications 
+allows single physical copy data shared system 
+buffer aggregate passed protection domain boundary vm pages occupied aggregate buffers readable receiving domain 
+conventional access control ensures process access buffers associated buffer aggregates explicitly passed process 
+read sharing immutable buffers trivially guarantees fault isolation protection consistency despite concurrent sharing data multiple os subsystems applications 
+system wide counting mechanism buffers allows safe reclamation unused buffers 
+take full advantage io lite application programs modified application programming interface buffer aggregates 
+heart api operations replace conventional unix read write operations file descriptors 
+full discussion api scope due space limitations 
+technical report contains relevant information 
+ready summarize key attributes io lite unified representation data follows immutable buffers data stored immutable buffers 
+allows safe concurrent read sharing single copy data os subsystems applications 
+buffer aggregates buffer aggregate adt combines multiple immutable buffers 
+aggregate supports operations efficient access manipulation modification data objects stored immutable buffers 
+pass data communicated operating system servers applications passing buffer aggregates 
+allows highly efficient cross domain transfer data consistent goal sharing single copy data 
+impact immutable buffers consider impact restriction buffers modified place 
+program wishes modify data object stored buffer aggregate store new values newly allocated buffer 
+cases consider 
+word data object modified additional cost place modification buffer allocation 
+second subset words object change values naive approach result partial redundant copying 
+avoid partial copying storing modified values new buffer logically combining chaining unmodified modified portions data object operations provided buffer aggregate 
+additional cost case place modification buffer allocations chaining modification aggregate subsequent increased indexing costs access aggregate incurred non contiguous storage layout 
+third case arises modifications data object widely scattered leading highly fragmented buffer aggregate costs chaining indexing exceed cost redundant copy entire object new contiguous buffer 
+case arises frequently programs perform operations compression encryption 
+absence support place modifications affect performance programs 
+second case arises network protocols fragmentation reassembly header addition removal programs reformat data units 
+performance impact programs due lack place modification minimal 
+third case arises scientific programs read large matrices input devices access modify data complex ways 
+applications contiguous storage place modification 
+purpose io lite incorporates mmap interface similar modern unix systems 
+mmap interface creates contiguous memory mapping object modified place 
+mmap may require copying 
+data object contiguous properly aligned incoming network data copy operation necessary due hardware constraint 
+practice copy operation done lazily page basis 
+access occurs page memory mapped file data properly aligned page tr io lite unified buffering caching system copied 
+second write memory mapped file modified page referenced immutable io lite buffer instance file read read operation 
+system forced copy modified page order maintain snapshot semantics read 
+copy done lazily write access page 
+cross domain data transfer order support caches part unified buffer system system level file cache user level cache cross domain data transfer mechanism allow safe concurrent sharing buffers 
+words different protection domains allowed protected concurrent access buffer 
+instance caching web server retain access cached document passes document network subsystem local client 
+io lite uses mechanism similar fbufs achieve goal :10.1.1.52.9688
+mechanisms allow sequential sharing achieve goal 
+io lite fbufs combines page remapping shared memory 
+initially immutable buffer transferred vm mappings updated receiving process read access buffer pages 
+buffer deallocated mappings persist buffer added cached pool free buffers associated stream forming lazily established pool read shared memory pages 
+buffer reused vm map changes required temporary write permissions granted producer data allow fill buffer 
+toggling write permissions avoided producer trusted entity os kernel 
+write permissions granted permanently trusted entity implicitly expected honor buffer immutability 
+io lite worst case cross domain transfer overhead page remapping occurs producer allocates buffer buffer deallocated receiver 
+buffers recycled transfer performance approaches shared memory 
+io lite ensures access control protection granularity processes 
+loss security safety associated io lite 
+fbuf mechanism maintains cached pools buffers common access control list set processes access fbufs pool choice pool new fbuf allocated determines access control list data stored fbuf 
+implies programs determine access control list data object prior storing main memory 
+trivial cases incoming packet arrives network interface 
+network driver perform early demultiplexing operation determine packet destination 
+incidentally early demultiplexing identified researchers necessary feature efficiency quality service high performance networks :10.1.1.130.1539
+io lite avoid copying entirely early demultiplexing necessary 
+depicts relationship vm pages buffers buffer aggregates 
+fbufs allocated region virtual called fbuf window appears virtual address space protection domains including kernel 
+shows section fbuf window populated fbufs 
+fbuf consists integral number virtually contiguous vm pages 
+pages fbuf share identical access control attributes particular domain fbuf pages accessible 
+shown buffer aggregates 
+aggregate contains ordered list tuples form address length 
+tuple refers subrange memory called slice 
+slice contained fbuf slices fbuf may overlap 
+contents buffer aggregate enumerated reading contents constituent slices order 
+io lite file cache conventional unix file cache implementations suitable io lite place restrictions layout cached file data 
+result current unix implementations perform copy file data arrives network 
+io lite buffer aggregates form basis filesystem cache file data originates local disk generally page aligned page sized 
+file data filesystem remains unchanged 
+tr io lite unified buffering caching system buffer aggregate buffer aggregate buffer buffer buffer aggregate buffers slices received network page aligned page sized kept file cache representation received 
+io lite file cache statically allocated storage 
+data resides buffers occupy ordinary virtual memory 
+conceptually io lite file cache simple 
+consists data structure maps tuples form ile gamma id offset buffer aggregates contain extent corresponding file data 
+fbufs immutable write operation cached file results replacement corresponding buffers cache buffers supplied write operation 
+replaced buffers longer appear file cache persist long exist 
+example assume read operation cached file followed write operation portion file 
+buffers returned read replaced cache result write 
+persist process called read deallocates buffers remain 
+way snapshot semantics read operation preserved 
+io lite cache replacement paging turn discussion mechanisms policies managing io lite file cache physical memory support buffers 
+concerns related issues replacement file cache entries paging virtual memory pages contain io lite buffers 
+cached file data resides io lite buffers issues closely related 
+cache replacement unified caching buffering system different conventional file cache 
+cached data potentially concurrently accessed applications 
+replacement decisions take account cached entry cache lookups insertions vm memory accesses buffers associated entry second data io lite buffer shared complex ways 
+instance assume application reads data record file appends record file writes record second file transmits record network connection 
+sequence operations buffer containing record appear different cache entries associated file corresponding offset record read offset appended cache entry associated file network subsystem transmission buffers user address space application 
+general data io lite buffer may time represent portion application data structure represent buffered data various os subsystems represent cached portions files different portions file 
+similar issues arise file caches memory mapped files 
+tr io lite unified buffering caching system due complex sharing relationships large design space exists cache replacement paging unified buffers 
+expect research necessary determine best policies current system employs simple strategy 
+cache entries maintained list ordered current data currently referenced cache time access account cache lookups insertions read write operations cached files 
+cache entry needs evicted currently referenced cache entries chosen currently referenced entries 
+cache entry eviction triggered simple rule evaluated time vm page containing cached data selected replacement vm daemon 
+period cache entry eviction half vm pages selected replacement pages containing cached data assumed current file cache large evict cache entry 
+cache enlarged new entry added file cache policy tends keep file cache size half vm page replacements affect file cache pages 
+io lite buffers reside virtual memory cache replacement policy controls data file cache attempts hold 
+actual assignment physical memory controlled vm system 
+vm selects io lite buffer page replacement io lite writes page contents appropriate backing store frees page 
+due complex sharing relationships possible unified buffering caching system contents page associated buffer may written multiple backing stores 
+backing stores include ordinary paging space plus files evicted page holding cached data 
+enabling cross subsystem optimizations unified buffering caching system enables certain optimizations applications os subsystems possible conventional systems 
+optimizations leverage ability uniquely identify particular data content system 
+example tcp protocol io lite equipped optimization allows cache internet checksum computed slice buffer aggregate 
+slice transmitted tcp reuse cached checksum avoiding expense repeated checksum calculation 
+works extremely network servers serve documents stored disk high degree locality 
+file requested io lite file cache tcp reuse precomputed checksum eliminating remaining data touching operation critical path 
+support optimizations io lite provides buffer generation number 
+generation number incremented time buffer re allocated 
+io lite buffers immutable generation number combined buffer address provides system wide unique identifier contents buffer 
+subsystem repeatedly io lite buffer identical address generation number sure buffer contains data values 
+allows optimizations internet checksum caching 
+discussion section provides qualitative discussion contrast various systems 
+discussion concrete examine systems affect design performance web server 
+issues interest data path cache web documents attachment response header support common gateway interface cgi programs 
+section provides necessary background quantitative discussion follow section 
+posix unix posix read operations allow application request placement input data arbitrary set location private address space 
+furthermore read write operations copy semantics implying applications modify data read written external data object affecting data object 
+tr io lite unified buffering caching system interface semantics generally implemented physical copying data 
+avoid copying associated reading file repeatedly filesystem web server interface maintain user level cache web documents leading double buffering disk cache server 
+serving request cached data copied network buffers potentially leading triple buffering 
+interprocess communication affects cgi programs suffers data copied cgi program ipc buffers copied server buffers 
+data generated cgi program copied times transmission program uses buffered library stdio copied times 
+benefits interface ability modify cached response header place update response timestamp example 
+memory mapped files mmap operation modern unix systems 
+mmap conventional share semantics facilitates copy free implementation contiguous mapping requirement may demand copying os data coming network discussed section 
+io lite mmap avoids multiple buffering file data file cache application 
+io lite mmap generalize network double buffering copying occurs network subsystem 
+memory mapped files provide convenient method implementing cgi support support producer consumer synchronization cgi program server 
+having server cgi program share memory mapped files ipc require ad hoc synchronization 
+simplicity socket communication sacrificed support copy avoidance 
+transparent copy avoidance principle copy avoidance single buffering accomplished transparently page remapping copy write 
+known difficulties approach alignment restrictions overhead vm data structure manipulations 
+dealing vm alignment restrictions leads idea input alignment emulated copy technique genie 
+idea try align system buffers application data buffers allowing page swapping application buffers page aligned 
+allow proper alignment system buffers application read operation posted data arrives main memory 
+possible application query kernel page offset system buffers align buffers accordingly 
+input alignment longer transparent applications 
+emulated copy achieves transparency side ipc channel 
+suited communication application os kernel server transparently support general copy free ipc application processes 
+io lite attempt provide transparent copy avoidance 
+intensive applications written modified io lite api 
+legacy applications stringent performance requirements supported backward compatible fashion cost copy operation conventional systems 
+giving transparency place modifications io lite support general copy free including ipc data paths involve file cache 
+transparent copy avoidance approaches allow concurrent sharing suitable unified buffering caching mechanism cached file data concurrently shared 
+lead multiple buffering web server 
+lack general copy free ipc hampers performance cgi programs 
+copy avoidance handoff semantics container shipping cs system khalidi read write operations handoff move semantics 
+systems require applications process data location 
+io lite allow applications modify buffers place 
+safe handoff semantics permits sequential sharing data buffers protection domain access buffer time 
+sacrificing concurrent sharing comes cost application loses access buffer passed argument write operation explicit physical copy necessary application needs access data write 
+application reads file second application holding cached buffers file tr io lite unified buffering caching system second copy data read input device 
+demonstrates lack support concurrent sharing prevents effective integration copy free buffering scheme file cache 
+web server lack concurrent sharing forces copying hot pages making common case expensive 
+cgi programs produce entirely new data request opposed returning part file set files affected cgi programs try intelligently cache data suffer copying costs 
+fbufs fbufs copy free cross domain transfer buffering mechanism data immutable buffers concurrently shared 
+fbufs system designed primarily handling network streams implemented non unix environment support filesystem access file cache 
+io lite cross domain transfer mechanism inspired fbufs 
+trying fbufs web server lack integration filesystem result double buffering problem 
+interprocess communication facility benefit cgi programs restrictions filesystem access 
+approaches extensible kernels proposed extensible kernels address variety problems associated existing operating systems :10.1.1.117.6702:10.1.1.100.6047
+extensible kernels potentially address different os performance problems just bottleneck focus 
+contrast extensible kernels kernel fixed provide single application independent paradigm addressing bottleneck 
+approach avoids complexity overhead new safety provisions required extensible kernels 
+relieves implementors servers applications having write os specific kernel extensions 
+cgi programs may pose problems extensible kernel web servers protection mechanism insulate server poorly behaved cgi programs 
+web server rely operating system provide protection cgi process server server extend trust cgi process 
+result malicious inadvertent failure cgi program affect server 
+extensible kernels allow aggressive optimizations modifying response header inplace incrementally updating file tcp checksum information storing checksum information disk 
+presumably checksum information kept different formats various network adapter mtu sizes kept format incremental computation inexpensive 
+contrast approach caches incremental components tcp checksum checksums stored time block data transmitted 
+response headers change file data checksums remain unchanged majority data touched 
+likewise variety network adapters pose problem system variations segment size just cause new entries checksum cache 
+performance section evaluate performance prototype implementation io lite system 
+implementation takes form loadable kernel module dynamically linked running digital unix kernel 
+addition implementation includes runtime library linked applications wishing io lite 
+library provides buffer aggregate manipulation routines stubs io lite related system calls 
+experiments include modified implementation ansi stdio library uses io lite internally 
+experiments performed dec alphastation machines equipped mb main memory fddi fast ethernet network adaptors 
+model mhz cpu kb instruction data caches kbyte combined cache 
+machines run digital unix version vendor supplied performance patches busy servers section parts 
+part evaluate throughput io lite local ipc unix domain sockets internet domain sockets 
+patches fix known performance problems bsd derived network subsystems greatly affect web server performance 
+particular add hash table pcb table increase limit listen backlog default tcp time wait period tunable parameter set second case tr io lite unified buffering caching system evaluate performance io lite context server full support cgi scripts 
+performance results number common intensive applications grep gcc 
+microbenchmarks shows results microbenchmark process repeatedly allocates buffer writes word page buffer sends buffer unix domain stream socket second process 
+second process receives data reads word page deallocates buffer 
+stream socket send receiver buffer sizes set kbytes 
+graphs correspond throughput achieved io lite versus standard posix interface varying transfers sizes page size kbytes 
+curves shown io lite io io lite trusted correspond cases originator data un trusted process 
+difference lies overhead removing write permission transmitted pages untrusted process 
+experiments reported remainder data originates trusted os kernel io lite trusted figures apply 
+expected copy free io lite system outperforms standard unix considerable margin 
+results compare favorably reported similar experiment container shipping system transferring kbytes pages time cs achieves mbytes cs api requires received buffer explicitly mapped receiver address space accessed 
+receiver map access received data throughput mbytes reported cs system 
+considerably lower mb achieved io lite vol data accessed receiver 
+container shipping results reported dec system machine identical architecture alphastation comparable performance 
+server slightly slower cpu clock rate mhz smaller caches kb larger cache mb 
+difference performance cs experiment related transfer semantics 
+cs handoff semantics require implementation map buffer pages transfer 
+io lite semantics hand allow implementation dynamically allocate pool shared memory pages recycled 
+short startup period vm map changes necessary data transfers 
+untrusted data source map changes necessary buffer independent number transfers 
+expect resulting performance difference pronounced multiprocessor tlb adds considerable cost vm map changes 
+results network loopback test shown 
+test processes machine exchange data previous test inet domain stream sockets tcp ip protocol suite communication 
+packets routed machine fddi interface means mtu bytes tcp ip 
+course data reaches network interface communication local 
+io lite outperforms standard unix system dramatically 
+absolute throughput numbers modest due overheads tcp ip protocol stack 
+attribute cache tlb effects 
+unix performance dominated copy speed turn depends cache hit rate 
+copy speed diminishes transfer size approaches fraction cache kbytes 
+io lite copying occurs accesses transferred data pages generate tlb pressure causing increasing rate tlb misses larger transfer sizes 
+web servers main experiment evaluates performance web server io lite versus server memory mapped files 
+basis comparison provide performance results harvest cache running httpd accelerator mode thttpd freeware web server :10.1.1.52.9688
+fully expose performance bottlenecks operating system started fast server thttpd extensive modi tr io lite unified buffering caching system pages sent transfer mbytes sec trusted untrusted unix unix domain socket throughput pages sent transfer mbytes sec trusted untrusted unix unix inet loopback throughput flash lite flash thttpd harvest bandwidth mb file size kb transfer speed flash lite flash thttpd harvest requests sec file size kb request rate eliminate performance problems server 
+resulting program uses event driven loop invokes select system call determine data read written client connections manage interaction cgi applications 
+communication operations server handled non blocking fashion 
+changes allowed double performance original thttpd server resulting server dubbed flash 
+added io lite support small regions conditionally included code 
+server dubbed flash lite 
+experiment clients running machines repeatedly request document size web server machine 
+file size requested varied bytes bytes data points kb bytes kb kb kb kb 
+cases files cached server file cache request physical disk occurs common case 
+client process opens multiple connections server uses select loop efficiently manage connections 
+originally tried webstone benchmark load caused client machines reach cpu saturation server machine 
+tests conducted concurrent client connections access logging disabled servers 
+primary source connections client connected server fddi network 
+client saturated server showed idle time enabled client connections machine connected efficient fast ethernet network mtu size ethernet card roughly third mtu fddi card causes processing occur server machine 
+tr io lite unified buffering caching system shows output bandwidth web server function request file size presents measurements terms requests completed second 
+curves bottom represent performance harvest thttpd 
+flash flash io lite 
+versions flash outperform harvest considerable margin 
+small file sizes flash increased performance primarily due efficient request handling 
+file sizes increase disparity greater due reduction copying 
+harvest copies data internally operating system performs additional copy 
+thttpd flash files perform internal copies encounter copying operating system 
+io lite support added flash copying eliminated effects reduced overhead increase file size 
+fddi client machine fddi network reached saturation flash lite server began adding fast ethernet clients flash lite case file sizes kbytes persistent connections small files web server performance limited overhead establishing tearing tcp connections 
+request requires tcp connection lasts duration request 
+specification adds support persistent keep alive connections tcp connection client multiple requests 
+modified versions flash support persistent connections repeated experiments 
+results shown figures 
+persistent connections client machine uses new request issued soon response received previous request 
+persistent connections request rate small files nearly triples io lite version flash able saturate fddi network kbyte requests 
+fast ethernet primary network small file tests lower latency improved flash flash lite request rates requests sec respectively 
+anomalous dips graphs flash transfer speed kbytes flash lite request rate kbytes caused tcp anomalies related silly window avoidance 
+point client load generated fast ethernet network 
+note results persistent non persistent simple experiment bracket performance web server realistic conditions clients 
+connection reused temporally closely spaced requests client particular server 
+common gateway interface cgi programs area io lite unified buffer approach promises particularly substantial benefit area common gateway interface cgi programs 
+programs run separately server execute requests behalf client 
+results communicated server sends back client 
+cgi applications area may cause significant problems kernel web servers cgi programs require general execution environment behavior predictable behavior server 
+furthermore desirable provide cgi programs rich environment protecting server errant programs 
+reason highly optimized web servers server extensible kernels typically revert unoptimized general execution cgi programs 
+cgi programs difficult support efficiently reasons cgi program communicate data back server implementations cgi require server fork execute new process request 
+support form longlived cgi program cgi application exit processing just single request 
+model application uses simple library establish connection wait incoming requests behaves regular cgi application 
+approach maintains simplicity cgi standard gaining benefits non forking cgi approaches 
+regular files handle aspects cgi processing server non blocking manner 
+cgi programs rely form interprocess communication return data server data sent client gain significantly io lite 
+ran series experiments cgi application partially mimics server returns dummy file tr io lite unified buffering caching system flash lite flash bandwidth mb file size kb persistent transfer speed flash lite flash requests sec file size kb persistent request rate flash lite flash bandwidth mb file size kb cgi transfer speed flash lite flash requests sec file size kb cgi request rate requested size 
+results experiments shown figures 
+experiment attempts measure just overhead introduced cgi model interprocess communication 
+regular flash server bandwidth request rate values half server achieves serving files 
+flash lite performance significantly better approaching speed serving regular files 
+interesting cgi programs flash lite achieve performance comparable regular files served flash io lite 
+cgi persistent connections measured case client persistent connection server multiple cgi requests 
+performance cgi programs flash lite increased significantly performance regular flash 
+difference large files factor 
+clearly copy overheads interprocess server kernel limit regular flash case 
+flash cgi programs run separate processes operating system provides server protection ill behaved processes 
+server blocks cgi processes optionally uses configurable timeout parameter kill cgi process runs long concern behavior cgi processes place undue restrictions 
+flash places trust cgi process meaning errant cgi program cause flash fail way 
+io lite affords high performance cgi request handling 
+projected performance faster networks performance results web server limited extent capacity characteristics network testbed fddi fast ethernet 
+detailed measure tr io lite unified buffering caching system flash lite flash bandwidth mb file size kb persistent connection cgi transfer speed flash lite flash requests sec file size kb persistent connection cgi request rate curr asym dual fddi fast atm flash flash lite projected output bandwidth mbits ments instrumented kernel show tcp segment processing overheads place significant load server cpu 
+particular load placed cpu transmitting bandwidth fast ethernet exceeds overhead transmitting fddi factor 
+caused large part smaller maximal transfer unit mtu fast ethernet versus bytes fddi forces tcp transmit times segments amount data 
+benefits io lite limited overheads calculated projected throughput numbers networks larger mtus measured costs transmitting segments testbed 
+shows expected output bandwidth persistent connection server io lite file size kbytes assuming fddi fast ethernet actual testbed setup fddi networks oc atm network mtu bytes 
+results predict benefit io lite increase significantly network larger mtu 
+note projections assume system bottlenecks memory bandwidth bus exposed rates 
+benefits note web server experiments quantify primary increase performance due elimination cpu overhead 
+demonstrate possible secondary performance benefits due increased availability main memory results io lite elimination double buffering 
+increasing amount available memory allows larger set documents cached increasing server cache hit rate performance 
+attempt quantify effect difficult experimental testbed uses low delay lan 
+assuming mmap read files remaining source double buffering web server tcp transmission buffers 
+amount memory consumed buffers related number concurrent connections handled server times average bandwidth delay product network connections 
+busy servers may handle connections resulting significant memory require tr io lite unified buffering caching system ments current internet 
+emerging high bandwidth networks requirements sharply increase making imperative eliminate double buffering 
+applications demonstrate impact copy free performance wider range applications gain experience io lite api number existing unix programs converted new programs written io lite 
+modified gnu grep wc gnu gcc compiler chain compiler driver preprocessor compiler assembler 
+depicts results obtained grep wc permute 
+wc refers run word count program mb file 
+file file cache physical occurs 
+permute generates possible permutations character words character string 
+output 
+bytes piped wc program 
+grep bar refers run gnu grep program file wc program file piped read directly disk 
+improvements runtime approximately result io lite wc reads cached files 
+file read io lite file cache page cached file mapped application address space 
+permute program improvement significant 
+reason pipeline involved program 
+local interprocess communication occurs io lite recycle buffers avoiding vm map operations 
+grep case overhead multiple copies eliminated io lite version able eliminate copies due grep due cat 
+gcc compiler chain converted mainly determine benefits io lite compute bound applications stress io lite implementation 
+expected compiler compute intensive benefit substantially performance improvements 
+modify entire program simply replaced stdio library version uses io lite communication pipes 
+interestingly converting compiler io lite led measurable performance grep wc permute gcc sm gcc lg normalized run time ms ms ms ms various application runtimes improvement 
+improvement mainly due fact io lite allows efficient communication pipes 
+standard gcc option causes pipes temporary files communication compiler various stages various inefficiencies handling pipes caused significant slowdown gcc numbers comparison gcc running pipes 
+io lite handle pipes efficiently unexpected performance improvements resulted 
+gcc sm gcc lg bars refer compiles byte kbyte file respectively 
+grep wc programs read input sequentially converted api easily 
+preprocessor output compiler input output assembler input stdio library converted merely relinking io lite version stdio library making function calls enable library 
+preprocessor cpp input operation turned cooperative 
+initial pass code preprocessor replaces single characters shifts remainder file 
+efficient elegant approaches handling possible approaches easily accommodate io lite semantics 
+existing implementation decided take easy route convert cpp input operation mmap create private mapping input files 
+tr io lite unified buffering caching system contributions presents design implementation evaluation unified buffering caching system second compares io lite alternatives context highly demanding driver web server 
+different approaches solving problem suggested feel io lite aggressive compete best performance driven approaches time general practically implementable standard operating systems 
+io lite provides strong conceptual framework decisions regarding optimization shown io lite elegantly handle optimizations copy free interprocess communication tcp checksum avoidance double buffering elimination 
+believe io lite suited demanding applications provided results show io lite enjoying significant performance gains especially areas cgi processing interprocess communication filesystem network system involved 
+analysis results attempts show gains conditions gains expected 
+obvious bottlenecks eliminated moving persistent connections role general purpose optimization greater achieving high performance believe provides framework optimization 
+bershad savage pardyak sirer fiuczynski becker chambers eggers 
+extensibility safety performance spin operating system 
+proceedings fifteenth acm symposium operating system principles copper mountain dec 
+black rashid golub hill baron 
+translation lookaside buffer consistency software approach 
+third conf 
+architectural support programming languages operating systems asplos iii pages boston massachusetts usa apr 
+acm 
+steenkiste 
+effects buffering semantics performance 
+proc 
+nd symp 
+operating systems design implementation seattle wa usa oct 
+druschel peterson :10.1.1.52.9688
+fbufs highbandwidth cross domain transfer facility 
+proceedings fourteenth acm symposium operating system principles pages dec 
+engler kaashoek toole 
+exokernel operating system architecture application level resource management 
+proceedings fifteenth acm symposium operating system principles copper mountain dec 
+maeda bershad 
+protocol service decomposition high performance networking 
+proceedings fourteenth acm symposium operating systems principles dec 
+open market 
+fastcgi specification 
+www fastcgi com 
+ncsa 
+common gateway interface 
+ncsa uiuc edu cgi 
+pai 
+io lite copy free unix system 
+technical report tr rice university jan 
+pasquale anderson muller 
+container shipping operating system support intensive applications 
+ieee computer mar 
+:10.1.1.52.9688
+thttpd tiny turbo throttling server 
+www acme com software thttpd 
+seltzer endo small smith 
+dealing disaster surviving misbehaved kernel extensions 
+proc 
+nd symp 
+operating systems design implementation seattle wa oct 
+smith 
+giving applications access gb networking 
+ieee network july 
+tr io lite unified buffering caching system swartz 
+migrating web filer 
+www com technology level html 
+tennenhouse :10.1.1.130.1539
+layered multiplexing considered harmful 
+rudin williamson editors protocols high speed networks pages amsterdam 
+north holland 
+khalidi 
+efficient zero copy framework unix 
+technical report tr sun microsystems laboratories may 
+trent sake 
+webstone generation server benchmarking 
+www sgi com products webstone html 
+watson 
+data access nfs cifs 
+www com technology level html 

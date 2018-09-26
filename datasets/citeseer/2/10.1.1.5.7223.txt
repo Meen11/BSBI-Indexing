@@ -1,0 +1,495 @@
+nfs trace player file system evaluation zhu chen tzi cker chiueh daniel ellard chiueh cs sunysb edu ellard eecs harvard edu file access traces drive simulations storage management algorithms file caching workload characterization modeling identify interesting access patterns performance optimization 
+surprisingly rarely test correctness evaluate performance actual file system server 
+main reason exist flexible easy player file access traces 
+describes design implementation evaluation nfs trace play back tool called tbbt trace file system benchmarking tool automatically derive file system hierarchy nfs trace initialize file system image controllable aging effects speed slow trace play back speed temporal spatial scaling violating dependencies trace entries 
+experiments large nfs trace set show tbbt produce different throughput latency measurements synthetic benchmarks specsfs 
+tbbt trace player efficient specsfs workload generator despite fact requires cpu computation disk accesses 
+file system evaluation study quality evaluation workload 
+ideal file system evaluation workload representative real application requirements effective predicting system performance target environments easy scalable stress system evaluation reproducible 
+currently commonly workloads file system evaluation synthetic workload benchmarks 
+benchmarks designed specifically re create characteristics particular operating environments 
+synthetic benchmarks parameterizable making possible tailor resulting workload specific requirements 
+years synthetic benchmarks improved significantly terms realism degree tailored specific application possible synthetic file system benchmark mimic file access traces collected real world environment 
+firstly time varying site specific factors workload difficult impossible benchmark capture 
+secondly time required develop high quality benchmark order months years benchmarks keep dynamic changes workload target environment 
+contrast traces taken system definition representative system workload long collected carefully period time long ensure characteristic workload captured 
+believe file access traces serve basis file system evaluation benchmarks 
+file access traces basis workload characterization development file system design techniques rarely evaluation file systems servers 
+disk network web access traces extensively evaluate storage systems network protocols web servers respectively see reason file access traces evaluate file systems 
+reason done replaying file access traces difficult replaying types traces take account fact file system stateful access requests dependent 
+issue independent synthetic benchmark trace play back file system aging 
+file systems period time different performance characteristics new file systems 
+aging file system important part file system performance evaluation 
+developed artificial aging mechanism trace player synthetic benchmarks initial file system image needs created generating workload file system evaluation 
+trace players constructed various purposes best knowledge trace play tools comparable sophistication flexibility contemporary synthetic benchmarks 
+design implementation evaluation novel nfs trace player named tbbt trace file system benchmarking tool 
+tbbt replay captured nfs traces file server test correctness performance 
+tbbt comprehensive sense nfs trace tbbt discover file system image traced server build aged copy image test file server replay trace tested server 
+tbbt speed slow trace play back violating dependencies nfs requests replies 
+tbbt designed nfs traces drive local file systems local file system exercised nfs server 
+problem approach file system workload represented nfs trace realistic caching nfs clients 
+rest organized follows 
+section reviews related synthetic benchmarks file system trace collection simulation trace replay 
+section describes design issues various components tbbt discusses challenges file system trace replay 
+section discusses implementation details tbbt 
+section presents results evaluation study tbbt prototype analysis 
+section concludes summary research directions 
+related section give related file system trace study file system trace replay synthetic benchmarks file system aging 
+introduce disk trace player borrow technique issue request accurate timing 
+ousterhout file system trace analysis sprite trace analysis motivated research efforts log structured file systems journaling distributed file systems 
+trace studies demonstrated file system workloads diverse vary widely depending applications serve workloads changed time raise new issues researchers address roselli measured range workloads showed file sizes larger large files accessed randomly contrast findings earlier studies 
+vogels showed workloads personal computers differ previously studied workloads ellard demonstrated strong relationship names files attributes gibson trace replay approach evaluate network storage architecture networked scsi disks nasd 
+traces week long nfs trace berkeley month long afs trace laboratory afs server 
+traces decomposed represents minute activity client 
+specific client minutes selected mixed scaled represent different workloads 
+mention perform file system initialization handle dependency issues 
+implementing full fledged accurate trace play back mechanism trace play tool limited functionality required research 
+kinds synthetic benchmarks 
+category file system application utilities andrew benchmark ssh build sdet 
+advantage benchmarks capture application level dependencies file system operations application thinktime 
+disadvantage usually relatively small represent workload large general purpose networked file server 
+category synthetic benchmarks directly generate file system workload system call interface network file system protocol specsfs postmark 
+benchmarks easy scale fairly general purpose difficult benchmarks simulate diverse changing workload applicationlevel operation dependencies think time 
+research file system benchmarking focuses building flexible synthetic benchmarks give user control workload patterns building complex models emulate dependencies file system operations hbench 
+main comparison specsfs widely general purpose benchmark nfs servers 
+specsfs tbbt bypass nfs client side processing 
+specsfs attempts recreate typical workload characterization real traces 
+unfortunately result resemble nfs workloads observed 
+furthermore question typical workload exists nfs trace examined unique characteristics 
+keith smith developed artificial aging technique create aged file system image running workload designed simulate aging process 
+workload created file system snapshots traces 
+file systems aged technique exhibit realistic aging effects closely related benchmark run 
+relevant factor file system relatively full free space fragmented 
+technique benchmarks relatively small data set dedicated initialization phase 
+usu ally benchmarks micro benchmarks small macro benchmarks ssh build 
+technique applicable benchmarks takes full control logical partition initialization procedure specsfs 
+keith smith aging technique requires writing gb data requires hours run time age gb file system equivalent months 
+impractical method age multi terabyte file systems 
+tbbt aging technique different realistic runs orders magnitude quickly 
+disk generation tool specifically designed issue requests accurate timing 
+benchmarking disk systems important generate accesses meet exactly timing requirement 
+timing accuracy issuing os desired time high rate difficult achieve stock operating systems 
+tbbt suffers problem timestamp timing policy section generate file system requests 
+generate workloads microsecond accuracy throughput high enterprise storage arrays 
+timing control technique flexible portable provides simple interface load generation 
+tbbt incorporate technique improve timing accuracy request dispatching procedure 
+similar disk level benchmarks bonnie iostone lmbench need handle complications due dependencies file system operations 
+design issues nfs trace tbbt converts standard format corrects omissions trace calculates initial file system image required successful play back creates initial file system image user configurable aging parameters 
+tbbt replays nfs requests trace file server tested 
+section discuss steps detail 
+trace transformation tbbt uses standard trace format consists pair request reply format request timestamp reply timestamp operation type operation parameters return values operation type equivalent nfs procedure number original trace 
+operation parameters return values similar corresponding nfs procedure parame ters return values 
+format compatible different nfs versions 
+currently handles 
+important operation parameter parameter represent file system object 
+nfs trace nfs file handle 
+nfs file handle contains object identification information 
+nfs file handle referring object 
+need trace play back unique id called tbbt id file system object 
+nfs file handle appearing trace replaced tbbt id tbbt filters unimportant information replies file attributes piggy backed nfs replies 
+tbbt inserts additional information trace records facilitate trace play back 
+example remove request remove reply contains object id removed file needed file system dependency analysis 
+problem exists rmdir rename 
+long term file access traces contain errors need handled 
+common error packet loss 
+typical nfs tracing tools lose nfs messages presence bursty traffic 
+trace play back may fail due errors 
+example request sequence create create remove request successful reply clear remove rename missing create second create trace inconsistency main cause trace playback run fail 
+common failures create pathname exists 
+fix error insert operation delete existing pathname 
+delete pathname exist 
+fix error insert operation create pathname 
+delete directory empty 
+fix error insert operations recursively delete objects directory 
+errors trace detected pre play trace 
+pre play executes trace requests synchronously 
+failed requests indicate possible trace errors detected diagnosed 
+fix trace errors new requests added executed 
+failed requests retried validate fixes 
+creating initial file system image play back requests file access trace tested server initialized file system image similar traced server respond correctly trace requests 
+factors considered creating initial file system image file system hierarchy physical disk layout 
+essential correct trace playback crucial performance characteristics file system 
+ideally take file system snapshot traced server trace collected 
+practice impractical may cause service degradation 
+file system tools capture file system hierarchy physical layout 
+tbbt approximates traced server file system image information nfs trace 
+constructs ages image native file system tested server 
+idea extracting file system hierarchy nfs trace new 
+earlier tools developed mainly purpose trace studies extracted file system hierarchy sufficiently complete permit trace play back 
+example operations symlink link rename handled properly dynamic change file system hierarchy tracing properly captured 
+tbbt file system hierarchy extraction tool produces hierarchy map 
+hierarchy map entry contains tbbt id path create time delete time size type 
+hierarchy map entry corresponds file system object path 
+file system object multiple multiple paths appears multiple hierarchy map entries tbbt id entry 
+path exists trace collection starts create time set indicate tbbt create object trace play back begins size field gives object size time trace began 
+type field indicates file regular file directory symbolic link 
+file system hierarchy extracted nfs trace necessarily complete snapshot traced file system files referenced trace appear tbbt hierarchy map workloads highly localized 
+traces gathered systems observed cases small fraction file system accessed course day month 
+fact active files appear tbbt map may serious effect locality resulting file system 
+alleviate problem tbbt augments extracted file system hierarchy additional files 
+details create synthetic objects described section 
+file system hierarchy populate tested server file system traversing hierarchy breadth depth order creating file di link encounter 
+naive approach yields near ideal physical disk layout file system hierarchy free space contiguous data blocks file allocated physically contiguous data close corresponding metadata files directory grouped 
+result capture effects concurrency aging important real file systems 
+artificially aging file system effect aging centers fragmented free space fragmented files declustered objects 
+tbbt aging mechanism meant create aging effects 
+current implementation evaluation focuses fragmentation file blocks free space mechanism extensible include declustering effect related file system objects 
+tbbt aging mechanism purely synthetic meant emulate actual file system aging process emulated keith smith 
+detailed comparison mechanisms section 
+important design constraint tbbt file system aging mechanism able exercise desired aging effects file system resorting raw disk access interface 
+standard system call interface easier integrate file system aging mechanism file system benchmarking tools 
+aging related file system block allocation algorithm 
+analyzes assumed block allocation policy 
+policy divides file partition multiple groups called cylinder groups block groups fixed number free inodes free blocks 
+files directory preferably clustered group 
+file system aging metrics best knowledge exist measurable metrics quantify file system aging effect 
+presenting file system aging metrics define basic terms listed table 
+assume policy allocate blocks file allocate sequentially effect file system aging terms fragmentation causes quantified terms physical disk block distance consecutive blocks file 
+average fragment distance average block distance average fragment size calculated fragments blocks object regular file directory symbolic link special device free space object free blocks considered part special object fragment contiguous range blocks object fragment size number blocks fragment 
+fragment distance number physical blocks adjacent fragments block distance number physical blocks adjacent blocks object inode distance number physical blocks object inode block parent distance number physical blocks block object parent directory 
+table definitions basic terms file system aging metrics belong file file system partition related follows average fragment distance average block distance average fragment size 
+calculation metrics averaged number blocks segments file files different size weighted accordingly 
+average block distance describes degree file fragmentation 
+metrics helps distinguish types fragmentation large number small fragments located relatively close small number large fragments located far away 
+average inode distance considered special case average block distance measures distance file inode block 
+aged file system free space allocated space fragmented 
+average fragment size special free space object reflects fragmented free space portion file partition file system aging effect quantified degree clustering related files files directory 
+average parent distance meant capture proximity directory files contains indirectly closeness files directory 
+alternatively simply compute average sibling distance pair files directory 
+note metrics file fragmentation assume ffs layout sequential access patterns 
+random access patterns 
+example data logical blocks file stored physical blocks data logical blocks file stored physical blocks 
+average block distance files layout files quite different 
+file blocks locality block separated physical addresses may improve performance non sequential access patterns reading sequentially requires seeking backwards 
+file may suited reading sequentially efficient reading arbitrary order 
+note tbbt aging mechanism tied particular definition fragmentation metrics mimics file system activity cause aging 
+file system aging techniques fragmented free space due primarily file deletions 
+fragmented files contrast caused reasons 
+file fragmented free space fragmented contiguous free blocks allocate file grows 
+second interleaving append operations files files may cause blocks associated different files interleaved 
+techniques mitigate fragmentation effect interleaved appends dividing logical partition groups placing files different groups 
+heuristic contiguous blocks file opened writing 
+despite optimizations files get fragmented interleaved appends occur group file size pre allocated size 
+aging effects severe inode block utilization imbalanced groups 
+reduce declustering effect ffs policy tries place files directory group tries allocate file inode data blocks group 
+tries keep balanced utilizations different groups 
+utilization group high allocation switches group available groups 
+imbalanced usage usually caused highly skewed directory tree directory small files directory files large size 
+tbbt uses interleaved appending primary file system aging technique uses file deletion fragment free space 
+file system partition tbbt initialization procedure populates initial file system hierarchy derived input trace additional synthetic objects fill available space 
+synthetic objects populate incomplete file system hierarchy occupy free space 
+objects get fragmented interleaved appending 
+initialization synthetic objects occupy free space deleted fragmented free space available 
+way initialize gb file system partition gb free space write exactly gb data delete gb data 
+contrast keith smith aging technique writes gb data delete gb data 
+algorithm tbbt uses determine set synthetic objects added file system parameters 
+parameters file size distribution directory file ratio similar specsfs file system initialization parameters 
+third parameter distortion factor determines degree imbalance directories terms directory fan file size distribution directory 
+fourth parameter merge factor specifies extensively synthetic objects merged initial file system image 
+low merge factor means directories dominated synthetic objects extracted objects 
+tbbt interleaves append operations set files random fashion append operation adds certain number blocks associated file 
+counter file pre allocation optimization technique append operation performed separate session 
+file blocks written append operation reside contiguous disk blocks 
+blocks written append operation file may far away blocks written append operation file 
+expected distance consecutive fragments file increases number files appended concurrently 
+controlling number files involved interleaved appending number blocks append operation tbbt control average block distance average fragment size resulting file system 
+number interleaving files produces different aging effects different logical partition sizes 
+specifying absolute number files tune average block distance parameter called interleaving scope 
+interleaving scope means files appended interleaved manner 
+note choice terminology examples discussion assumes underlying file system uses ffs strategy block allocation 
+methodology works just strategies lfs lfs fragmenting free space creating dead blocks cleaner find reorganize 
+maximum interleaving scope 
+similarly assume large files tend written larger chunks 
+number blocks appending operation tune average fragment size parameter called append operations file specifies number appending operations initialize file 
+minimum size appending operation block 
+usually average file size area blocks 
+large value append file affect small number large files affect fragment size small files 
+increase average inode distance tbbt creates skewed directory hierarchy provokes imbalanced usage cylinder groups 
+increase average directory distance randomly select files interleaved files different directories prefered 
+summary tbbt file aging mechanism tries tune aging metrics average block distance average fragment size normal file average fragment size special free space object average inode distance average directory distance 
+average block distance tuned interleaving scope 
+average fragment size tuned append operations file 
+different aging effects specified different files including special free space object 
+randomization possible avoid regular patterns 
+currently fully implemented controls average inode distance average parent distance 
+trace play back playing back requests input trace tbbt needs respect semantics nfs protocol 
+sending requests timestamps feasible 
+example sequence table create reply comes time play back impossible send write request time 
+tbbt trace player provides flexible policies handle issue correct send request 
+specsfs synthetic benchmarks multiple generate requests multiple disjoint directories process requests executed synchronously concurrency 
+result specsfs load generation policy simpler 
+workload scaling common feature synthetic benchmarks 
+desirable tbbt trace player provide workload scaling trace evaluate file systems servers wide range performance different traces combined 
+absolute guarantee realism workload artificially scaled 
+sequence sequence sequence sequence creat req creat req creat req creat req creat ack creat ack write req write req write req write ack write ack write ack creat ack creat ack write req write ack table examples illustrate ordering issue trace playback 
+create operation latency traced server tested server 
+sequence trace example fs level dependency involves file system object 
+sequence trace example fs level dependency may application level dependency 
+sequence shows result playing sequence conservative order 
+sequence shows result playing sequence fs dependency order 
+ordering timing policy tbbt trace player provides ordering policies determine relative order requests conservative fs dependency order 
+guarantee play back bring modifications initial file system hierarchy trace play 
+provides timing policies full speed timestamp determine exact time requests issued 
+full speed policy requests dispatched quickly possible long chosen ordering policy obeyed 
+timestamp policy requests dispatched close timestamp possible violating ordering policy 
+conservative request issued prior requests requests earlier timestamps issued prior replies received 
+conservative concurrency inherent trace generate workload higher concurrency 
+contrast concurrency workload generated process specsfs load generator 
+differences traced server tested server impossible guarantee order replies trace replay exactly trace 
+disadvantage conservative processing latency variations tested server may unnecessarily affect throughput 
+example sequence table create latency play back times higher latency original trace request issue ordering sequence lower throughput sequence 
+fs dependency dependencies request earlier requests replies trace discovered read write serialization gorithm 
+fs dependency request issue ordering sequence table sequence results higher throughput sequence 
+conceptually file system hierarchy viewed shared data structure nfs request read write operation parts structure 
+nfs operation modifies part structure accessed operation trace operation started finished 
+example dangerous overlap request create file request write data file write request arrives soon may fail file exist 
+cases necessary wait response simply sure requests correct order 
+exceptions replies create mkdir symlink 
+replies regarded write operation newly created object need properly serialized respect subsequent accesses newly created objects 
+table summarizes file system objects read written type request reply 
+concurrent access file system object infrequent real nfs traces granularity tbbt dependency analysis individual file system object 
+finer granularity dependency analysis inode attributes file block considered separately 
+fs dependency aggressive captures dependencies detectable shared file system data structure discover application level dependencies 
+example table application logic write debug information log file successful create operation write operation depends create operation sent receiving create request reply 
+case ordering requests fs level dependencies sufficient 
+general conservative ordering fs dependency ordering properly account application level dependencies 
+workload scaling trace tbbt scale spatially temporally 
+spatially scale trace trace initial file system image cloned times cloned trace played back separate copy initial image 
+spatial scale analogous way synthetic benchmarks run multiple 
+spatially scale trace trace decomposed multiple sub traces sub trace accesses proper subset initial file request reply shared data structure set type req read readdir getattr readlink obj obj read req write setattr commit obj obj write req lookup parent name obj parent obj read req create mkdir parent name parent write reply create mkdir obj obj write req remove rmdir parent name obj parent obj write req symlink parent name path parent write reply symlink obj obj write req rename parent name parent name obj parent parent obj write replies empty table file system objects read written different requests replies 
+notation obj means object may exist associated operation return failure 
+system image 
+traces easily decomposed sub traces typically problem traces collected file servers support large number clients users 
+temporally scaling trace implemented issuing requests trace scaled timestamp observing chosen ordering policy 
+ordering policy bounds temporal scaling trace 
+scaling approaches combined scale trace 
+example required speed factor achieved spatial scale factor temporal scale factor 
+summary tbbt toolkit post collection processing benchmark runs 
+post collection processing transforms trace extracts hierarchy map 
+benchmark run consists phases initialization warm play back 
+initialization phrase populates test server initial file system hierarchy user specified aging parameters 
+warm phase file server cache playing back original trace requests full fs dependency order 
+play back phase issues requests trace specified ordering timing policy workload scaling policy 
+play back tbbt reports various statistics throughput latency operation mix initial file system size accessed data set size 
+implementation trace transformation hierarchy extraction implemented perl 
+trace play back implemented trace processed passes 
+pass transforms collected trace tbbt trace format tbbt id field replies remove rmdir 
+second pass corrects trace errors pre play trace 
+third pass extracts hierarchy map adds tbbt id replies remove rmdir rename 
+successful failed directory operation may contain information parent child relationship hierarchy map built 
+hierarchy extraction consumes great deal cpu memory especially traces large size 
+incremental version hierarchy extraction possible greatly improve efficiency 
+client client process process req receive send reply request working directory specsfs load generators 
+file server 
+specsfs uses multiple independent processes generate requests targeted disjoint directories 
+tbbt trace player user level program written adopts techniques specsfs 
+tbbt bypasses nfs client sends nfs requests directly tested file server user level rpc 
+second technique multiple machines collaboratively generate workload collect performance measurements way transparent user 
+play multiple traces sub traces disjoint working directories 
+software architecture tbbt dif disk trace file receive thread unlock tbbt load generators client operation queue object id map object lock working directory io thread lock send thread reply request file server 
+client operation waiting reply free entry operation finished lock released operation wait sent tbbt uses thread process read play back traces stored disk 
+ferent specsfs 
+shown workload generator specsfs client machine uses multi process software architecture process dispatching nfs requests synchronous rpc 
+contrast tbbt uses thread software structure shown efficient reduces context switching scheduling overhead 
+thread continuously reads trace records cyclic memory buffer called operation queue 
+send thread receive thread send nfs requests receive replies nfs server test asynchronous rpc requests 
+operation queue called look ahead window 
+size look ahead window times larger theoretical concurrency bound input trace ensure send thread able find concurrent requests run time 
+send thread determines nfs request input trace ready dispatched checking follows ordering policy request timestamp larger current timestamp number outstanding requests server exceeds threshold 
+second check timestamp policy 
+third avoid overloading test file server 
+file server overloaded tends worse performance 
+check conservative ordering straightforward 
+fs dependency ordering object locking illustrated 
+dispatching nfs request send thread acquires read write lock object associated request reply 
+locks released request dispatched locks released reply received 
+locks acquired send ing thread sending thread real lock contention atomicity issue 
+lock real operating system lock just flag associated file system object 
+trace play back requests pre determined computed fly current replay status synthetic benchmarks 
+means robust trace player needs properly react transient server errors failures way continue play trace long possible 
+requires trace player identify subsequent requests trace affected failed request directly indirectly skip handle various runtime errors side effects effectively contained 
+example create request important trace play back continue retried multiple times request fails failed read request retried disrupt trace play back process 
+evaluation section analyze validity file system benchmarking methodology show value trace approach presenting difference evaluation results tbbt specsfs measure effectiveness proposed file system aging techniques run time efficiency tbbt prototype 
+nfs traces study collected eecs nfs server eecs central computing facility campus harvard period months 
+eecs trace campus trace grow gbytes gbytes day respectively 
+harvard traces packet loss ratio 
+tbbt drive file systems 
+linux file system called rfs augments generic nfs server fast modifying nfs protocol network file access path 
+machine configuration trace post collection processing hosting test file systems running tbbt trace player specsfs benchmark 
+hardware ghz pentium cpu mbyte memory gbyte st ata disk drive mb disk cache 
+os redhat linux 
+validity trace file system evaluation intuitively tbbt represents realistic approach evaluate file system server site specific workloads questions validity practical applications captured trace touches small portion traced server file system representative trace 
+trace captured slow file server useful evaluating file server 
+extraction file system hierarchy gb gb file system size file system size gb number files millions number directories millions number subtrees millions days traces processed longer traces information file system hierarchy extracted 
+shows number directories files discovered time number isolated subtrees extracted hierarchy 
+understand different extracted file system hierarchy actual file system hierarchy measured number disjoint directory subtrees number directories number files total file system size post collection trace processing 
+shows results harvard trace covers period oct monday oct 
+total file system size eecs server gb gb touched day trace 
+days number subtrees roughly corresponds particular user home directory stops growing remains largely constant 
+total number directories touched remains nearly constant 
+suggests user working set expressed set directories changes rel throughput concurrency slowly importantly file system hierarchy tbbt extracts adequately covers active portion traced server file system tracing period 
+number regular files touched increases continuously shows sign saturation day tracing period 
+means longer traces trace file system server evaluation possible 
+eecs campus throughput eecs directory operation latency doubled look ahead window size impact look ahead window size concurrency throughput workload tbbt generate eecs campus trace 
+degree concurrency required stress file server determined product throughput latency request latency high performance file server operates peak throughput high large concurrency required stress high file servers 
+benchmark result published specsfs sfs benchmark storage cluster highest maximum concurrency requirement peak throughput requests second latency second peak throughput failover node tcp lowest maximum concurrency requirement peak throughput requests seconds latency second 
+study maximum concurrency available trace conducted simulation study 
+simulation assumes reply request comes back successfully pre configured latency 
+throughput result 
+simulation factors limit maximum concurrency look ahead window requests examined simulation request latency server 
+request latency latency numbers table 
+shows correlation nfs oct original scale peak load benchmark throughput getattr lookup read write create table operation latency throughput comparison tbbt specsfs nfs server eecs trace oct 
+rfs oct original scale peak load benchmark throughput getattr lookup read write create table operation latency throughput comparison tbbt specsfs rfs server eecs trace oct 
+rfs network file system accepts requests nfs protocols 
+maximum throughput generated look ahead window size 
+dashed line corresponds case latency operation doubled 
+general larger look ahead window concurrency tbbt extract trace higher load tbbt generate 
+look ahead window reaches certain size concurrency generated load determined inherent parallelism requests input trace 
+average latency simulation msec maximum concurrency eecs trace campus trace 
+simulation results show lightly loaded workload eecs trace requests sec modest lookahead window size concurrency drive file server performance target requests sec 
+comparison file system evaluation results trace file system evaluation tools tbbt useful produce qualitatively different hopefully realistic evaluation results produced specsfs 
+nfs oct original scale peak load benchmark throughput getattr lookup read write create table operation latency throughput comparison tbbt specsfs nfs server eecs trace collected oct 
+conducted experiments evaluate file systems nfs rfs tbbt synthetic benchmark specsfs 
+played eecs trace oct tried tune parameters specsfs benchmark match trace characteristics possible 
+changed specsfs source code file size distribution matches file size distribution oct trace 
+maximum throughput linux nfs server specsfs requests sec requests sec tbbt 
+difference non trivial 
+terms operation latency table shows latency different operations original load requests sec temporal scale load speed factor peak load 
+latency numbers tbbt specsfs quite different cases 
+carried experiment rfs server tested server result shown table 
+maximum throughput rfs server specsfs requests sec requests sec tbbt factor difference 
+obvious correlation operation latency numbers specsfs tbbt 
+determine different traces difference ran oct trace linux nfs server 
+oct trace dominated metadata operation oct trace substantial read write operations 
+specsfs configuration tuned match access characteristics oct trace 
+results table show difference tbbt specsfs throughput operation latency quite noticeable 
+trace play back experiments percentage failed requests return different value original trace 
+means tbbt successfully play back traces recorded server servers 
+fact latency throughput measurements tbbt deviate substantially specsfs different nfs servers different traces suggests trace file system server evaluation methodology useful gauging performance file servers site specific workloads 
+effectiveness artificial aging tbbt file aging mechanism control knobs interleaving scope number append operations file 
+interleaving scope defined percentage files file system interleaved time 
+example interleaving scope means files file system participate round interleaved appending participate second round 
+files operated different rounds chance mixed 
+scope round interleaved appending files mixed resulting disk layout fragmented 
+number append operations file specifies number append operations required completely initialize file 
+exact size append operation may vary randomization 
+average block distance append operations file append operations file append operations file append operations file append operations file interleaving scope aged file system average block distance increases scope append interleaving 
+different curves correspond different numbers append operations completely initialize file 
+experimented aging gb file system hierarchy extracted oct eecs trace 
+measured file system aging effect gb file system hierarchy extracted oct eecs trace utility available ext ext file systems 
+outputs information file partition divided groups number inodes blocks group 
+file pathname report inode number logical block address blocks 
+inode number tbbt infer logical block address corresponding average fragment size interleaving scope interleaving scope interleaving scope interleaving scope interleaving scope interleaving scope interleaving scope append operations file aged file system average fragment size increases number append operations completely initialize file 
+different curves correspond different scope append interleaving 
+inode table entry 
+file system aging metrics tbbt calculated outputs 
+shows average block distance aged file system image increases near linearly interleaving scope expected 
+comparison average block distance home directories graduate students development directories research projects lab range 
+different curves correspond different numbers append operations file 
+curves start break away interleaving scope bigger 
+additional aging effect increasing append operations file pronounced interleaving scope larger 
+shows number distinct append operations initialize file increases average fragment size decreases 
+different curves correspond different interleaving scope values 
+fact curves indistinguishable means interleaving scope affect average fragment size 
+tbbt file system aging mechanism stand tool 
+applied initialization phase specsfs run create drastic file system aging effects specsfs produce default 
+varied interleaving scope parameter keeping number append operations file measured resulting average block distance average read latency 
+results shown table 
+expected average read latency increases initial file system image aged average block distance increases process 
+increase average block distance linearly proportional increase read latency 
+difference average block distance specsfs initialization phase reflects aging effect specsfs produces 
+general time required create initial file system image increases degree aging 
+implementation efficiency tbbt post collection trace processing algorithm process mbytes trace requests second 
+takes minutes process day worth eecs trace hours day worth campus trace 
+tbbt initialization phase increases total file system size degree file system aging desired 
+serious aging effect tbbt attempts disk access locality file system population process 
+table shows tbbt initialization time affected average block distance level 
+tbbt aging techniques efficient 
+initialization speed orders magnitude faster keith smith aging technique section 
+run time efficiency tbbt trace play back mainly determined disk cpu consumption 
+disk bandwidth requirement tbbt trace play back fairly small 
+trace entry costs bytes 
+throughput results published specsfs throughputs file servers range requests sec means tbbt thread needs mbytes sec disk bandwidth read trace entries disk 
+thread thread accesses disk trace play back trace access involves large sequential reads disk performance bottleneck 
+cpu load tbbt comes send thread receive thread network subsystem inside os 
+linux nfs runs trace peak throughput requests sec measured cpu utilization network bandwidth consumption tbbt trace player mbps 
+linux nfs server runs specsfs benchmark peak throughput requests sec measured cpu utilization network bandwidth consumption specsfs workload generator mbps 
+results suggest tbbt trace player efficient specsfs workload generator despite fact trace play back requires additional disk trace reads incurs additional cpu overhead dependency detection error handling 
+tbbt performs specsfs tbbt trace player uses threads specsfs uses multiple processes incur excessive context switching process scheduling overhead 
+prevailing practice evaluating performance file system server stress test file system synthetic benchmarks 
+modern synthetic benchmarks incorporate access characteristics actual traces capable generating file access workloads representative load target operating environments rarely capable fully capturing time varying second order effects specific site workload 
+advocate trace driven file system evaluation methodology evaluates performance file system server driving real traces measuring resultant latency throughput 
+supporting methodology develop nfs trace play back tool called tbbt designed turn key system take input trace initialize target file server drive scaled version trace reports latency throughput numbers human intervention 
+tbbt addresses trace driven workload generation problems including automatic derivation initial file system trace aging file system varying extent satisfying dependencies trace requests playback scaling trace play back rate higher lower speed trace collected graceful handling trace collection errors run time errors test file system server efficient implementation allows single trace play back machine drive wide range high performance file servers 
+addition useful tool file system researchers promising application tbbt site specific benchmarking tool comparing competing file servers 
+compare file servers particular site collecting traces site testing performance file servers collected traces 
+evaluation results derived procedure real get assuming traces collectively representative site workload 
+current prototype play back nfs traces internal trace format designed serve common back traces network file access protocols nfs smb cifs afs 
+plan develop converter translate cifs traces collected samba server tbbt internal format tbbt play back resulting trace windows cifs server 
+specsfs initialization scope scope scope average block distance specsfs run average block distance specsfs run average read latency msec msec msec msec time create initial image sec sec sec sec table results applying proposed file system aging techniques specsfs 
+column gives result specsfs initialization procedure 
+columns show result tbbt aging technique create specsfs run initial file system image darrell anderson jeff chase 
+flexible network file service benchmark 
+technical report tr duke university may 
+eric anderson 
+toolkit flexible high fidelity benchmarking 
+rd usenix conference file storage technologies mar 
+mary baker john hartman michael kupfer ken shirriff john ousterhout 
+measurements distributed file system 
+proceedings th acm symposium operating systems principles pages monterey ca october 
+matthew blaze 
+nfs tracing passive network monitoring 
+proceedings usenix winter technical conference pages san fransisco ca january 
+aaron brown margo seltzer 
+operating system benchmarking wake lmbench case study performance netbsd intel architecture 
+acm sigmetrics conference measurement modeling computer systems 
+dahlin 
+quantitative analysis cache policies scalable network file systems 
+osdi pages 
+daniel ellard jonathan pia margo seltzer 
+passive nfs tracing email research workloads 
+proceedings second usenix conference file storage technologies fast pages san francisco ca march 
+daniel ellard jonathan margo seltzer 
+utility file names 
+technical report tr harvard university division engineering applied sciences 
+daniel ellard margo seltzer 
+new nfs tracing tools techniques system analysis 
+proceedings seventeenth annual large installation system administration conference lisa pages san diego ca october 
+garth gibson file server scaling network attached secure disks 
+proceedings acm sigmetrics international conference measurement modeling computer systems pages 
+acm press 
+marshall kirk mckusick fast file system unix 
+acm transactions computer 
+gaede 
+perspectives spec sdet benchmark 
+department computer science suny stony brook jan 
+www org osg sdm sdet html 
+howard kazar menees nichols satyanarayanan sidebotham west 
+scale performance distributed system 
+acm transactions computer systems february 
+katcher 
+postmark new file system benchmark 
+technical report tr network appliance october 
+richard 
+new methodology characterizing file system performance hybrid analytic models synthetic benchmark 
+progress session rd usenix conference file storage technologies mar 
+ousterhout da costa harrison kunze kupfer thompson 
+trace driven analysis unix bsd file system 
+proceedings tenth acm symposium operating systems principles pages orcas island wa december 
+drew roselli jacob lorch thomas anderson 
+comparison file system workloads 
+usenix technical conference pages san diego ca 
+margo seltzer greg ganger kirk mckusick keith smith craig soules christopher stein 
+journaling versus soft updates asynchronous meta data protection file systems 
+usenix annual technical conference pages june 
+keith smith margo seltzer 
+file system aging increasing relevance file system benchmarks 
+proceedings sigmetrics measurement modeling computer systems pages seattle wa june 
+spec sfs system file server benchmark 
+www spec org osg sfs 
+werner vogels 
+file system usage windows nt 
+proceedings seventeenth acm symposium operating systems principles pages kiawah island sc december 
+zhu chiueh 
+design implementation evaluation file service 
+international conference dependable systems networks june 

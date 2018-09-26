@@ -1,0 +1,244 @@
+automatic management operating system resources olin shivers mit ai lab cambridge massachusetts usa shivers ai mit edu attractive features functional programming languages provide automatic management store form garbage collection 
+benefits automatic resource management applied resources 
+scsh systems programming dialect scheme provides automatic resource management operating systems structures notably processes channels signal events 
+kind automatic management extends benefits garbage collection modularity robustness simplicity clarity new sets objects programming gives hints operating systems structured perspective functional programming languages 
+functional programming languages provided garbage collection gc user allocated data structures decades wilson 
+benefits garbage collection 
+gc eliminates stroke classes run time errors chiefly involving dangling pointers storage leaks 
+simplifies source code eliminating storage reclamation machinery application program 
+programs simpler clearer 
+gc promotes modularity systems require explicit storage management module exports data structure clients provide way tell client modules longer require data structure 
+scsh dialect scheme rs designed systems programming scsh scsh man 
+provides complete interfaces operating system 
+far complex difficult parts design involved providing interfaces underlying os resources integrated os functionality programming language 
+programming language scheme typically meant allowing automatic management exported resources 
+design channel interface example required months satisfied 
+users gained experience scsh certain classes problem design began show 
+problems typically fixed operating system resource making appear proceedings second acm sigplan international conference functional programming icfp june amsterdam 
+available www ai 
+mit edu shivers os gc ps providing automatic management 
+striking quickly serious systems turned design flaws 
+principle providing os resources form admitted automatic management turned important guiding heuristic developing system current state 
+describe techniques employed lessons learned experience 
+scsh provides automatic management types os resource channels processes signal events 
+sections ll examine detail interface scsh provides types resource 
+unix system managing ports difficult part design scsh integration scheme ports unix file descriptors 
+dealing unix file descriptors scheme environment difficult 
+unix open files part process state referenced small integers called file descriptors 
+open file descriptors fundamental way redirections passed subprocesses file descriptors preserved system calls create subprocesses 
+scheme hand uses ports specifying sources 
+ports anonymous garbage collected scheme objects integers 
+port collected deallocate underlying os resources depended 
+contrast file descriptors just integers impossible garbage collect order close file descriptor prove process pass file descriptor system call doing invoke program refer file descriptor 
+difficult best 
+scheme program scheme ports directly file descriptors problem 
+scheme implementations provide kind simple automatic closure file descriptors port gc 
+scheme code serious systems programming unix violate abstraction descend file descriptor level circumstances ffl interfacing foreign code ffl interfacing subprocess 
+causes problems 
+suppose scheme port constructed top file descriptor 
+intend fork program inherit file descriptor 
+drop port garbage collector may prematurely close file exec program 
+scsh unix interface intended address problems arise mismatch ports file descriptors 
+fundamental principle scsh ports attached open files particular file descriptors 
+scheme ports user completely unaware underlying file descriptor allocated port 
+means scsh run time system free shuffle file descriptors underneath ports dup system call necessary specific file descriptor available 
+scsh run time system keeps careful track ports completely associating revealed count port 
+revealed count zero port underlying file descriptor exported user program 
+ports created standard procedures open input file revealed count set zero 
+programmer uses port procedure expose port underlying file descriptor revealed count incremented 
+port file descriptor revealed programmer responsibility manage resource explicitly 
+programmer release port handle procedure decrement port revealed count longer needs know file descriptor 
+file descriptors allocated requests ports 
+inherited process invocation exec simply part global environment 
+subprocesses may depend port allocated file descriptors considered revealed port 
+example scsh process starts creates ports top standard file descriptors initial values current input port current output port error output port 
+ports initialised revealed set stdin stdout stderr closed user drops port 
+keeping track ports file descriptors revealed allows run time system important freedoms ffl port eligible garbage collection underlying file descriptor de allocated close system call 
+scheme user doesn know file descriptor associated port possibly retain integer handle open file dropping pointers port garbage collector free close file 
+ffl similar reasons file descriptor closed scheme process uses exec system call overlay new program 
+current memory dropped port structure deallocated 
+knows file descriptor associated port file descriptor eligible deallocation 
+ffl run time system free shift port file descriptor fd new fd user program specifically request file descriptor fd purpose 
+freedom interesting addresses longstanding problem unix system programming 
+programs need perform operations explicitly allocate specific file descriptor 
+fork dup pwd read password fd 
+dup data read plaintext fd 
+exec encryption program case programmer unix allocated file descriptor previous operation allocated pipe scheme port data 
+case dup pwd operation data 
+encryption program executes try read password data password source wanted 
+scsh knows original port built top file descriptor free shift port new file descriptor internal dup operation freeing file descriptor allocated dup pwd call 
+exactly scsh run time system system calls allocate specific file descriptors check see port associated target descriptor 
+port shifted new file descriptor dup call performing requested operation 
+note scheme specific problem arises just easily programs manipulate file descriptors 
+scsh solution known solves problem 
+scsh port facility preserves transparent close collect property file ports straightforward ways allows access underlying unix substrate interference garbage collector 
+critical systems programming absolutely requires access actual file descriptors numerical values critical part inter process interface 
+normal circumstances machinery just works scenes keep things straightened 
+time user think starts accessing file descriptors ports 
+user starts asking file descriptors allocated ports take responsibility managing information 
+managing processes unix operating system represents processes integer names called process ids pids 
+process created fork system call returns process id new process 
+process synchronise child process applying wait system call child process id parent process blocks child process exits point wait procedure returns child exit status 
+issues resource management affect definition wait procedure interesting way wait call mechanism os reclaims resources process named process id wait call operating system free reuse process id new process free reclaim space kernel process table stores process externally visible state 
+result parent wait child process exactly ffl process fails wait children accumulate kernel process table 
+kernel may reuse process id new processes may reclaim space long child parent alive parent point decide perform wait child 
+eventually space process ids fill process table overflow operating system unable create new processes 
+trivial example consider simple fragment code fork exit consumes resources asymptotically eventually cause process table fill dead child processes causing kernel unable create new processes 
+ffl process waits child waits return error lucky 
+worse failure mode store classic bug 
+wait process id kernel free allocate process id new process 
+possible original process id allocated new child original parent causing waits original child return child exit status 
+points draw problem unix solution modular 
+module code waits child process know module wait child 
+exactly analogous modularity problems explicit storage management 
+second previous channel case small integer names poor substitute data types 
+lesson applies operating system resources user level data structures 
+unix uses sixteen bit integers name processes space prone overflow unnecessary failure mode interface uses interesting property integers 
+impossible apply automatic storage management directly exported representation 
+file descriptors discussed earlier impossible garbage collect objects named integers 
+problem process table overflow unfortunately problem practical import 
+original release scsh system standard unix model represent processes integer process ids programmer required wait exactly 
+led modularity problems caused certain simple programs overflow process table 
+bug report led problem concerned capturing process output scsh 
+scsh contains procedure run port forks child process returns input port connected child standard output 
+procedure defined simply define run port thunk call values pipe fork pipe 
+stdout fd child process dup current output port thunk reading returned port return child process prints 
+simple procedure port string takes input port reads encounters file point returns accumulated data single string 
+composition procedures run string port string ffi run port forks child returns output string 
+notice run string procedure needs automatic storage management order reclaim different os resources child process id revealed run port procedure parent parent child pipe revealed run string procedure 
+programmer written loop program created time stamp string pass loop 
+time stamp run string procedure capture output date program loop ts run string exec bin date 
+loop unfortunately program waited dead children filled kernel process table 
+iterations program fail unable fork new children 
+programmer couldn advised insert wait call code actual process id hidden inside run string procedure 
+couldn simply wait child cause accidentally wait child process intended wait time 
+changing run string run port export child process id complicate interfaces damage simple composability violate modularity 
+solution redesign scsh integer process ids replaced data structure process object 
+process objects returned fork procedure passed wait procedure reclaimed automatic garbage collection 
+free wait process zero times ffl process object garbage collected scsh run time system pointers dropped child process exits 
+garbage collector free perform wait system call dead child causing deallocated kernel process table 
+ffl scsh run time system caches exit status child process process object wait 
+subsequent waits cached value 
+modular 
+child process exit status saved child process object scsh run time system free eagerly wait process time child death time user requests 
+called process benefits ffl frees child entry kernel process table 
+ffl process object eligible gc 
+really done migrate os resource process table entries kernel scsh process eligible automatic reclamation 
+managing external signals final example concerns handling reception external asynchronous signals scsh programs 
+handling signals unix implies constructing concurrency model asynchronous signals essentially mechanism notifying process actions external agent user striking interrupt character keyboard modem line dropped remote program 
+synchronous early design decision scsh concurrency model provide interrupts 
+scsh provides serial threads 
+interrupt handler model provided interrupt model problems 
+interrupts confound distinct computational elements concurrency mutex communication 
+better factor elements individual components allowing programmer needed application 
+mechanisms described section available currently released versions scsh 
+second interrupt model doesn fundamentally uniprocessor mechanism 
+main process suspended interrupt handler runs mutex built handler 
+means program executed parallel processor system run handler parallel main program violate assumption mutex programmer 
+third interrupt handlers modular 
+module code installs handler interrupt handler installed module 
+global resources potential source conflict 
+argument economy mechanism thread model functionally dominates interrupt model superfluous provide mechanisms 
+scsh serial thread model program wishes attend set external signals blocks waits occurrence signal 
+wishes compute concurrently attending external signals spawns sub thread wait signal performs concurrent computation 
+simple example suppose wish perform computation simultaneously printing time user strikes interrupt key keyboard 
+introduce blocking operator wait signal signal set gamma 
+signal causes thread block signal specified set occurs 
+application contain code singleton set define ctl signal set signal int fork thread loop wait signal ctl display loop 
+perform main computation 
+model interrupts longer necessary interrupt handlers longer global resource spurious serialisation mutex implied handler main computation completely concurrent 
+example exposes race condition design signals arrive sub thread blocked waiting wait signal call get caught 
+signal arrives handler thread actively processing prior signal dropped 
+fix concurrency model introducing new data type event represents single occurrence signal 
+event fields unix signal occurred pointer event occurred 
+events kept linked list increasing time order 
+scsh run time system keeps track event signal delivered scsh process run time system catches signal constructs new event structure links tail list fig 
+
+ordering event provides index time line signal events 
+note pointers events retained user program events gc away occur scsh run time system retains pointer event event queue 
+value exported user code event procedure 
+modify wait signal procedure take second argument event serves index portion event queue interested wait signal signal set event gamma 
+event procedure defined block event signal member signal set occurs events occurring event event queue event parameter eligible 
+occurring event returned value procedure call 
+implementation simple wait signal simply starts event scans event chain searching event satisfies signal set argument 
+finds returns immediately blocking 
+reaches tail chain finding acceptable event thread blocked thread scheduler proper signal arrives runnable 
+previous example rewritten events avoid race condition catch signals fork thread loop event event wait signal ctl display loop event wish discard pending signals processing signal simply drop triggering event handling discard pending signals fork thread loop wait signal ctl event display loop event mechanism give demand policy 
+retaining pointer event prevents subsequent events reclaimed gc system retains events program requires 
+garbage collector mediates amount signal queuing required application 
+signal handler model certain limitations 
+cause system retain large amounts storage 
+program retains pointer event freed subsequent events retained system 
+means storage consumption program dependent behaviour external agents signal generators 
+model appropriate systems signals occur extremely high rates 
+want instance event occur rotation computer disk 
+typical unix programs signal rates low model practical 
+event model requires events totally ordered 
+central bottleneck system large number events occurring high rates distributed machine 
+simple unix signals problem 
+seen scsh dialect scheme provides automatic resource management different operating system resources 
+techniques reflect resources programming language novel 
+ffl channels scsh provides mechanisms breaking abstraction controlled ways hinder management simple uses resource 
+design am aware provide features programming language 
+ffl processes scsh uses techniques migrate entries scsh process eligible automatic storage management 
+scsh design novel provide benefits automatic resource management managing os process resources 
+ffl signal events scsh provides fully interrupt free concurrency model allows gc mediate amount event queuing required application dynamic needs program 
+facilities traditionally provided interrupt handlers programming languages provided alternative mechanism modular 
+operating system language designs provided interfaces os resources advanced languages spin project modula spin standard ml new jersey interface posix sml nj systems managed exploit automatic storage management manage operating system resources manner 
+considered scheme different unix resources examples ideas examples specific scheme unix 
+scheme just easily modern programming language data types automatic resource management ml dylan 
+confined bounds unix problems limitations explicit resource management non data types named small integers commonly today operating systems 
+techniques adapted systems 
+looking current operating systems consider lessons learned providing automatic management unix resources applied design new operating systems 
+example resort specialised employed process object case migrate os resources user space enable gc consider os resources directly visible automatic management policies 
+example insights derived scsh signal handler system guide design ml os kernel constructed mit 
+programming language determines programmer view operating system 
+sense language os 
+message take away principles modern programming languages directly applied view provide machine operating system resources 
+rs rees clinger editors 
+revised report algorithmic language scheme 
+lisp pointers iv july september 
+scsh olin shivers 
+scheme shell 
+appear journal lisp symbolic computation 
+available technical report tr laboratory computer science mit technical report tr department computer science university hong kong 
+scsh man olin shivers 
+scsh manual 
+november scsh release 
+mit laboratory computer science 
+available url ftp www swiss ai mit 
+edu pub su scsh scsh manual ps 
+sml nj posix api sml nj currently available pre release form manual available 
+interested parties may contact dr john reppy laboratories research 
+att com 
+spin wilson hsieh marc fiuczynski charles garrett stefan savage david becker brian bershad 
+language support extensible operating systems 
+workshop compiler support system software february 
+available url www 
+cs washington edu research projects spin www papers wcs language ps wilson paul wilson 
+uniprocessor garbage collection techniques 
+international workshop memory management st malo france september 
+proceedings published springer verlag lecture notes computer science 
+individual available url ftp ftp cs 
+utexas edu pub garbage ps 
+notes generous observation unix system designers appear anticipated current fashion linear languages decades 
+synchronous exceptions floating point overflow zero traps fundamentally different entities asynchronous interrupts better handled different linguistic mechanisms 
+scsh provides interfaces exceptions dynamically scoped exception handlers 
+consider 
+system brief overview unix system calls relevant sections 
+disk file opened applying open system call file name returning integer file descriptor names open file 
+integer system calls read write file file closed passing integer close system call 
+closing file frees file descriptor reuse 
+valid open file descriptor fd replicated dup fd system call causes file descriptor refer open file fd 
+similarly dup fd call allocates smallest unused file descriptor causing refer open file fd returns 
+convention file descriptors taken programs standard input standard output standard error sources sinks 
+child process created fork system call duplicates calling process 
+call returns parent child process 
+parent process returns child nonzero process id child returns zero 
+child process state open file descriptors duplicate parent 
+process typically newly forked child process may overlay new program applying exec system call file name program executed exec bin ls 
+exec call return process commences executing named program fresh address space 
+process state open file descriptors preserved calls exec 
+process terminates calling exit status system call status small integer code 
+process parent may synchronise process termination calling wait system call blocks child terminates returning child exit status 
+typical scenario primitives program call fork child process arrange child process state wishes setting standard file descriptors desired redirections invoke desired child program exec call 

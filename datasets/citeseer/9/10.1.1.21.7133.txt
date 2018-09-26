@@ -1,0 +1,636 @@
+efficient implementation java interfaces invokeinterface considered harmless bowen alpern anthony cocchi stephen fink david grove derek lieber ibm watson research center box yorktown heights ny watson derek ibm com single superclass inheritance enables simple ecient table driven virtual method dispatch 
+virtual method table dispatch handle multiple inheritance interfaces 
+complication led widespread interface method dispatch inherently inecient 
+argues proper implementation techniques java interfaces need source signi cant performance degradation 
+ecient interface method dispatch mechanism associating xed sized interface method table imt class implements interface 
+interface method signatures hash imt slot hashing collisions handled custom generated con ict resolution stubs 
+dispatch mechanism ecient time space 
+furthermore static analysis online pro le data optimizing compiler inline dominant target frequently executed interface call 
+micro benchmark results demonstrate expected cost interface method call dispatched imt comparable cost virtual method call 
+experimental evaluation number interface dispatch mechanisms suite larger applications demonstrates applications moderate interface methods choice interface dispatching mechanism signi cantly impact performance 
+fortunately mechanisms provide performance modest space cost 
+
+multiple inheritance adds power expressiveness complexity controversy object oriented programming model 
+multiple inheritance simpli es complicates programming model remains matter debate 
+designers java opted avoid potential problems providing limited form multiple inheritance interface construct 
+java allows single superclass inheritance class inherit method implementations direct superclass 
+class may implement number interfaces 
+class explicitly provide implementations method signatures declared interfaces 
+single inheritance enables simple ecient virtual method dispatch virtual method tables 
+single vmt support interface method dispatch due potential multiple inheritance 
+led widespread impression interface method dispatch java inherently inecient 
+na interface dispatch mechanism introduce tremendous overhead 
+example rai reported ka jit compiler invokeinterface bytecode costs approximately times invokevirtual 
+initial implementation interface invocation jalape jvm performed similarly poorly see section 
+sources potential ineciency interface methods dynamic type checks method dispatch inhibition compiler optimizations 
+describes techniques overcome obstacles 
+section considers semantics java interfaces elucidating dynamic type checking requirements imposed java virtual machine speci cation 
+section reviews jalape virtual machine including mechanism quickly determining class implements interface 
+section describes prior schemes interface method dispatch generally dispatching methods presence multiple inheritance dynamic typing 
+section presents jalape scheme interface method dispatch 
+jvm associates small xed sized interface method table imt class 
+system hashes interface method signature imt slot hash collisions handled custom generated con ict resolution stubs 
+usual case collision runtime cost call interface identical virtual method call 
+imt collision adds little additional overhead roughly method prologue epilogue 
+interface calls hamper inlining force extra runtime tests guard inlined method bodies 
+section describes jalape mechanisms inlining interface calls 
+jalape adaptive optimization system uses criteria inlining interface method calls virtual calls 
+compiler usually employs runtime checks guard types inlined method bodies 
+section shows optimizing compiler eliminate dynamic type check imposed invokeinterface bytecode 
+section presents experimental results evaluating performance impact di erent interface dispatching mechanisms 
+experiments consider alternatives na implementation language speci cation variations itables imt dispatch 
+micro benchmark results verify itable schemes signi cantly expensive virtual method dispatch 
+results suite larger applications examine space time tradeo alternatives 
+imt dispatch itable schemes achieve best runtime performance reasonably low space costs 
+experiments illustrate applications moderate interface methods choice interface dispatching mechanism signi cantly impact bottom line performance 
+section describes ways implementation imt dispatch jalape improved 
+section concludes performance concerns deter programmers java interfaces 
+
+java interfaces java interface construct provides limited form multiple inheritance 
+java interface type members methods constants 
+proper java class may implement zero interfaces extends exactly class 
+additionally interface extend interfaces 
+jvm implementations provide virtual method dispatch table associated class 
+virtual method table vmt holds implementation method declared class 
+jvm loads class assigns virtual method unique set vmt 
+methods inherited superclass retain unique set assigned superclass 
+new class extends inherits vmt sets inherited methods 
+class overrides inherited method simply overwrites vmt entry inherited method set 
+net result method foo class suitable foo implementation resides set vmt class vmt subclass furthermore vm assign vmt sets densely minimize size vmt 
+class superclass java lang object proper sense 
+interfaces multiple inheritance preclude dispatch mechanism 
+suppose foo method interface unrelated classes implement provide suitable foo method 
+guarantee foo foo mapped vmt set share inheritance relationship 
+interface method dispatch bytecode invokeinterface carries greater runtime veri cation burden virtual counterpart invokevirtual 
+rst time bytecode executes may force speci ed class loaded potential raising exceptions may entail 
+jvm veri er guarantees object virtual method suitable method appropriate slot vmt 
+conversely veri er allows invokeinterface call object class implement interface 
+happen jvm throw 
+implementation interface dispatch java compromise optimizations enabled java simple object model 
+example jalape exploits object header fast synchronization hash codes garbage collection 
+reason multiple inheritance mechanisms employed statically typed languages complex object models notably acceptable solutions java interface methods 
+
+jalape jvm jalape research java virtual machine targeting server applications 
+written java 
+design decision allows java optimization techniques including described apply application code jvm compilers adaptive optimization system thread scheduler garbage collector subsystems 
+jalape employs compile strategy compiles method native code method executes 
+different compilers address distinct design points 
+baseline compiler produces poor quality code quickly 
+optimizing compiler provides levels optimization methods deemed require better performance 
+optimization levels include linear scan register allocation instruction selection 
+optimization level lowest consists mainly set optimizations performed intermediate representation ir gener error speci ed runtime exception second edition virtual machine speci cation rst edition 
+source bytecode compiler refuse compile program le changes initial compilation subsequent compilation le create class les name exception 
+similar happen invokevirtual case incompatibility detected class loading 
+interfaces class implements necessarily loaded class interfaces extend interfaces fact class implement interface determined rst time instance class tested interface 
+ation 
+level augments level aggressive inlining driven static heuristics online pro le information number local intra procedural ow insensitive optimizations 
+level augments level suite intra procedural static single assignment ssa optimizations 
+jalape adaptive optimization system maintains statistical samples dynamic call graph 
+information schedules frequently called computationally intensive methods recompilation appropriate level optimization 
+adaptive system relies line pro le data guide inlining decisions 
+jalape supports variety con gurations assumes con guration 
+jvm runs powerpc smp running aix operating system 
+uses parallel non generational copying garbage collector 
+optimizing compiler statically compiles methods system classes optimization level part jalape boot image 
+baseline compiler initially compiles application method just method executes rst time 
+adaptive optimization hot methods improved performance 
+objects jalape word header 
+rst header word points type information block tib type object 
+tib java array objects tib consists xed size header section vmt 
+rst slot tib header contains object describes type 
+slots provide ecient implementation dynamic type checking 
+discussed previous section test class object implements interface contributes overhead interface methods 
+tib slots points data structure array bytes called implements vector itv allows jalape answer just questions quickly 
+interface assigned unique integer index itv 
+consider itv class supposing interface assigned itv index value itv entry index caches result test implements itv entry holds known implement implements test 
+priori bound number interfaces jvm may encounter execution jvm ability grow 
+implementation logically partitions itv sections 
+rst section require array bounds check second section requires check case itv question needs grow 
+interfaces indices initial size require bounds check 
+event rst test class implements interface moderately expensive 
+subsequent tests class interface obtain cached result rst test class itv fairly cheaply 
+performance implications requiring tib legal java array considered section 
+dispatch rst subsection describes interface tables itables probably commonly mechanism interface method dispatch high performance java implementations 
+problem dispatching java interface methods closely related virtual method dispatch objectoriented languages dynamic typing 
+subsections review previous caching method signature selector indexed dispatch tables describe techniques adapted java 
+subsection discusses mechanisms implement virtual method dispatch presence multiple inheritance amenable adaptation java 
+interface tables itable virtual method table class restricted methods match particular interface class implementation 
+dispatch interface method system rst locate itable corresponds appropriate class interface pair 
+jvm load desired target method known set itable 
+typically system stores itables array reachable class object 
+jit compiler determine statically itable applies particular interface method invocation site 
+search relevant itable dispatch time 
+straightforward implementation search time increases number interfaces implemented class 
+systems augment basic searched itable approach form itable cache move front algorithm exploit temporal locality itable usage reduce expected search times 
+cacao jvm implements variant basic itable scheme avoids dispatch time search right itable 
+storing class itables list searched maintains array itables class indexed interface id empty array grows cacao analog tib making easily accessible dispatching 
+dispatch interface method cacao simply loads tib object loads itable interface constant set tib obtains pointer callee code constant set itable 
+mechanism interface method dispatch introduces dependant load virtual method dispatch 
+somewhat reduce space overhead arrays directly indexed itables cacao safely truncate interface table class non empty entry empty entries accessed 
+optimization eliminates space overhead classes don implement interfaces 
+non trivial programs interface tables classes implement interface large empty classes implement tiny fraction total set interfaces 
+caching early smalltalk systems dynamic caching avoid performing full method lookup message send 
+runtime system began method lookup rst consulting global hash table keyed class selector pair cached results method lookups 
+consulting hash table signi cantly cheaper full method lookup relatively expensive 
+smalltalk systems added inline caches mechanism avoid consulting global cache 
+inline cache call method lookup routine overwritten direct call method called call site 
+prologue callee method modi ed check receiver type matches calls method lookup routine check fails 
+inline caches extremely ective call site monomorphic exhibits temporal locality perform poorly polymorphic call sites 
+polymorphic inline caches pics developed overcome weakness 
+polymorphic inline cache call site invokes dynamically generated pic stub executes sequence tests see receiver object matches previously seen cases 
+match correct target method invoked match pic terminates call method lookup routine may turn choose generate new pic stub call site extended handle new receiver object 
+similar ideas applied interface method dispatch 
+interface method dispatched system cache history information regarding dynamic call 
+interface method dispatch history consists key vmt set 
+caching algorithm employed dictates nature key 
+vmt set represents set dispatched method 
+time system encounters similar invocation re old set new key matches old 
+dynamic caching inline caches polymorphic inline caches dispatch interface methods 
+fact rst edition java virtual machine speci cation de ned quick bytecode acted inline cache caching history invocation site 
+caching schemes 
+example invocations object objects class considered similar key represents signature interface method information cached object class object 
+invocations interface method signature considered similar key class object method invoked cache stored parallel structure table interface method signatures 
+selector signature method name types parameters return type 
+system take care caching smp computers 
+key value pair updated atomically processor see rst value pair second value 
+circumstances spells disaster 
+cost explicit synchronization prohibitive may bene cial encode pairs single word exploit atomic single word memory access 
+quick bytecodes dropped second edition jvm speci cation 
+feature caching scheme relies temporal locality guarantee ecient dispatching programs 
+polymorphic inline caches vulnerable simple inline caches perform poorly call sites 
+experimental results indicate cache mispredictions issue polymorphic inline cache programs jess possibly 
+selector indexed tables purposes signature java method name types arguments return type possibly void 
+signatures interface methods assigned unique small integer identi ers called selectors 
+selector indexed dispatch tables provide straightforward space intensive solution interface method dispatch problem 
+class maintains potentially large table indexed selector 
+entries corresponding method signature interface class implements point code matching virtual method entries null 
+selector indexed dispatch tables originally proposed implement virtual method dispatch dynamically typed object oriented languages considered space intensive practical 
+approaches proposed greatly reduce space costs selector indexed tables 
+considered specialized sparse array data structure 
+sable vm uses selector indexed dispatch tables interface method dispatch reduces space impact releasing gaps dispatch tables allocator reallocate small objects 
+clever trick significantly complicate allocation garbage collection 
+selector coloring applied reduce size selector indexed dispatch tables 
+just register allocation assignment identi ers selectors viewed graph coloring problem 
+selectors assigned color implemented class 
+approach algorithms proposed greatly reduce size dispatch tables 
+unfortunately algorithms assume set selectors classes implement known priori 
+previous selector coloring algorithms poor match java jvm know information advance 
+cacao second scheme interface method dispatch selector coloring 
+second scheme improves directly indexed itable scheme described eliminating need extra indirection virtual interface invocations cost exactly space implications severe programs 
+scheme applicable interfaces classes implement interfaces known jvm advance 
+optimistic coloring scheme recovery mechanism selectors patch previously sable vm puts limit number interface signatures dispatched fashion 
+limit exceeded falls back slower dispatch mechanism 
+compiled interface invocation sites considered cacao implemented 
+multiple inheritance statically typed object oriented languages faced similar problems multiple inheritance 
+usual solution uses multiple dispatch tables type corresponding superclass 
+object pointer indicates dispatch table corresponding static type object 
+virtual dispatch may require adjustment force object pointer refer appropriate set object header 
+solution uses signi cantly space object necessary java multiple implementation inheritance 
+myers sophisticated algorithm reduce space overhead merging dispatch tables compatible types exploiting bidirectional layout object header 
+techniques rely complete knowledge object superclasses compile time 
+unfortunately knowledge necessarily available java class loader may load full interface hierarchy compiling class methods 
+furthermore bidirectional layout mechanisms may increase object header size add runtime overhead pointer adjustment 
+
+imt interface dispatch jalape implements new interface dispatch mechanism called interface method table imt 
+imt dispatch aims match eciency selector indexed dispatch tables avoiding potentially large space costs priori knowledge requirements selector coloring 
+key idea include mechanism handle color collisions 
+able tolerate color collisions imt interface method dispatch obtains bene ts selector coloring having know interface method signatures advance committing making dispatch tables large able obtain perfect coloring program 
+selector interface method signature id hashed imt set 
+system assigns interface method ids sequentially new interface method signatures discovered loading interfaces compiling interface methods 
+current implementation jalape maps ids directly imt slots modulo size imt xed constant 
+depicts virtual imt interface dispatching sequences powerpc 
+extra instruction imt dispatch sequence prepares possibility collision loading id interface signature dispatched hidden parameter 
+collision imt entry holds executable code callee method system branch directly hidden parameter ignored 
+collision imt entry holds con ict resolution stub 
+stub uses hidden parameter determine signatures share slot receiver class imt desired target loads vmt set appropriate method transfers control code referenced set vmt 
+con ict stub code generation proceed carefully due restricted context stub execute 
+executing calling sequence stored caller return address call parameters locations dictated calling convention 
+con ict resolution stub respect calling convention may small number registers introducing save restore overhead 
+shows con ict resolution stub imt slot possible target methods 
+processor link register contains return address calling method 
+non volatile registers callee saves 
+volatile registers may contain parameters method called 
+jalape powerpc scratch registers readily available stub 
+details stub highly architecture dependent similar ideas apply platforms 
+remains explain virtual machine populates 
+simplest scheme create imt class class loaded 
+unfortunately jalape know class loaded public virtual methods interface methods class interfaces loaded class 
+jalape conservatively assume methods interface methods lead excessive false imt con icts 
+system build incrementally program runs 
+virtual machine discovers class implements interface adds interface methods class imt 
+process reveals imt con ict system dynamically generates appropriate con ict resolution stubs 
+virtual machine perform relevant type check interface method dispatch runtime compile time discussed section imt contain required methods time invocation 
+
+inlining interface invocations previous sections describe ecient schemes interface method dispatch 
+interfaces conceivably inhibit compiler optimizations method inlining particular 
+section discusses optimizations performed registers jalape method allocate free stack frame called method 
+temporary registers method calls 
+register limited utility powerpc instructions treat literal 
+jalape register conventions intel ia architecture provide free scratch register hidden parameter interface method signature id passed storing location thread speci memory 
+virtual invocation sequence contains receiver object tib receiver vmt entry method dispatched move target address link register branch setting lr return address imt interface invocation sequence contains receiver object tib receiver imt entry signature dispatched put signature id hidden parameter register move target address link register branch setting lr return address sequences virtual imt interface dispatch id contains address receiving object parameter contains interface method signature id hidden parameter lr contains return address caller tib receiver id compare hidden parameter id second method blt branch id id search tree bgt greater branch id id search tree offset load vmt entry second method move address count register branch preserving contents lr offset load vmt entry method move address count register branch preserving contents lr id compare hidden parameter id third method bgt greater branch id id search tree offset load vmt entry third method move address count register branch preserving contents lr offset load vmt entry fourth method move address count register branch preserving contents lr con ict resolution stub entries 
+jalape optimizing compiler inline interface calls reduce costs dynamic dispatching 
+interface public void foo class implements void foo 
+class extends class void bar instanceof foo foo new foo example interface usage patterns 
+known technique converts virtual dispatch statically bound direct call target dispatch uniquely determined compile time 
+similarly jalape optimizing compiler performs virtualization reducing interface invocation virtual method call 
+consider example code method bar 
+code transformed follows 
+compiler virtualize call foo determine program point sub class foo dispatched virtual method call foo 
+
+compiler virtualize call foo lacking conclusive information type 
+
+compiler rst virtualize call foo intra procedural type analysis determines contain objects concrete type optimizing compiler inline method calls virtual calls interface invocations 
+compiler inline call directly guarding analysis revealed exact target 
+inline selected potential targets virtual call compilers perform various forms guarded inlining 
+compiler decide targets speculatively inline call site static heuristics pro le information static examination program class hierarchy 
+jalape uses class tests method tests perform guarded inlining virtual calls class hierarchy analysis line pro le information 
+addition determining calls legal inline compiler identify set call sites attractive candidates inline 
+jalape optimizing compiler uses mix static heuristics line pro le information decisions 
+static heuristics identify candidates size estimates caller callee data ow properties known call site 
+furthermore static heuristics elect perform guarded inline virtual interface call analysis current class hierarchy program reveals possible target call 
+note adaptive optimization system generally optimize method hot spot program execution 
+expect dynamic class loading ects call site happen jalape optimizes speculatively inlines 
+static heuristics identify common interface methods inline candidates 
+common interfaces serializable enumeration di erent implementations 
+general compiler resort context sensitive inter procedural analysis virtualize call sites methods interfaces 
+analysis usually costs jit runtime compiler normally rely expensive solely intra procedural analysis 
+result jit fail statically determine target interface calls 
+jalape adaptive optimization system solves problem line pro le directed inlining identify candidates inlined guards hot call sites 
+normally method test guards inlined interface methods just guards inlined virtual methods 
+pro le directed inlining naturally tends minimize overhead con ict resolution stub execution 
+particular con ict resolution stub executes frequently adaptive optimization system tend ag target method hot 
+adaptive system heuristics inline method hot call sites 
+optimization reduce frequency con ict resolution stub execution 
+heuristics inline hot target method class hierarchy analysis determines call site currently invoke single target method callee method declared nal inlined guard relying invalidation mechanisms stack replacement code patching undo inlining class loading event invalidates 
+recovery mechanisms implemented jalape jalape pre existence partial substitute full edged invalidation mechanism 
+exceedingly rare cases compiler may speculatively inline method class proven compile time implement target interface example gure 
+case compiler insert dynamic type check ensure receiver implements interface executing inlined body 
+enumeration hasmoreelements common interface idiom requiring single dynamic type check 
+class public int foo 
+class extends implements interface public int foo class test int test return foo return return new anomalous example inlining compiler virtualize foo remove dynamic type check ensure object referred implements situation arise class modi ed longer implement class les test produced 
+big inline execution cost dominates overhead imposed con ict resolution stub 
+discussed section guarded interface invocation normal interface dispatch scheme require dynamic type check 
+compiler reduce overhead type check ways 
+compiler type analysis statically verify receiver implements target interface runtime check eliminated 
+secondly optimizing compiler represents dynamic type checks binary operators low level intermediate representation drive code motion redundancy elimination 
+compiler identify multiple type checks object particular interface remove redundant checks 
+partial redundancy elimination example hoist loop invariant type checks loop gure 
+similarly compiler optimize redundant loads dispatch sequence tib base pointer load object gure hoisted loop 
+discussed section virtual machine speci cation generates fringe cases compiler handle correctly 
+example compiler successfully virtualize interface call fail eliminate dynamic type check dispatch 
+suppose compiler analyzes test test intra procedural information inlining 
+suppose compiler inlines test doesn choose inline big 
+compiler virtualize call foo type propagation determines subclass remove dynamic type check doesn implement dynamic type check required detect raise return subclass implement 
+experimental results section empirically assesses interface method dispatch schemes na implementation itable variants 
+explores ectiveness various optimizing compiler techniques described section 
+subsection precisely describes implementation details alternative schemes 
+subsection presents micro benchmark results focus direct costs virtual interface dispatch alternative scheme 
+third subsection describes suite larger benchmarks presents data dynamic frequency interface invocation program 
+nal subsection rst assesses ectiveness compiler techniques avoiding interface dispatching entirely presents data comparing various dispatching techniques focusing impact application runtime space implications alternative 
+performance results reported obtained ibm rs enterprise server running aix 
+machine gb main memory mhz powerpc rs iii processors mb cache 
+interface dispatch implementations alternative implementations interface method dispatch follows 
+class object search na implementation invokeinterface speci cation 
+interface method dispatch vm invokes runtime service nd target method 
+service routine takes receiver object description desired interface method searches class hierarchy nd matching virtual method 
+search routine performs required dynamic type check 
+searched itables vm searches class list itables nd appropriate itable indexes itable nd target method 
+interface method dispatch runtime service routine invoked nd desired itable 
+service routine takes receiver object id desired interface 
+searches class list itables reachable tib object nds itable simply returns 
+fails nd itable perform dynamic type check ensure class implements interface 
+side ect performing dynamic type check itable target interface added class list itables 
+search routine employs move front algorithm exploit temporal locality interface usage partially mitigate search overhead class implements large number interfaces 
+directly indexed itables class array itables loaded tib indexed interface id nd appropriate itable indexed nd target method 
+interface dispatching schemes cacao jvm 
+interface dispatch compile time run time dynamic type check ensure class receiver object implements target interface 
+side ect dynamic type check adds itable interface class itables array 
+mechanism ensures required type check performed populated itable 
+imt interface method tables described section 
+directly indexed itables imt lazily initialized side ect dynamic type checking 
+data reported di erent imt sizes entries entries imt imt 
+fact jalape implemented java adds extra indirection overhead itable imt dispatch implementations 
+jalape tib implemented java array run time system 
+tib conform object model java object vm 
+result jalape ability grow tib directions 
+jalape variable size tables 
+vmt imt vmt itable list just pointer object header 
+schemes described current implementation adds extra indirection tib entry acquire rst level interface dispatch data structure 
+eliminate extra indirection circumventing java object model allow structures grow directions 
+evaluate cost extra indirection microbenchmark section 
+jvm implemented face diculty 
+micro benchmarks sections presents micro benchmarks compare direct costs interface virtual dispatching jalape core micro benchmark consists loop iteration performs method invocation times 
+loop executes times total wall clock time spent executing loop reported 
+results include cost method body provide upper bound cost interface dispatch 
+method inlining disabled experiments 
+micro benchmarks exercise categories invocation virtual method invocation interface invocation interface method interface invocation interface methods 
+nal category illuminates costs con ict resolution stubs 
+micro benchmarks call target methods 
+rst target callee simply returns integer constant 
+trivial method jalape optimizing compiler applies leaf method optimizations avoid normal method prologue epilogue sequences 
+fact generated code callee method contains machine instructions 
+second example normal callee invokes slightly complex target method 
+callee method conditionally returns invokes method value static eld 
+benchmark sets value static eld runtime method returns compiler statically fold branch apply leaf method optimizations 
+table presents results experiments 
+addition interface dispatching schemes previously described fth embedded imt included just micro benchmarks 
+embedded imt con guration simulates runtime system extra indirection imposed jalape restriction java objects eliminated growing tib directions supporting variable size vmt xed size imt classes interfaces implement 
+di erences embedded imt imt data appears extra dependent load dispatching sequence adds approximately cycles dispatching cost 
+supported observation primary difference con ict free imt dispatch dispatch directly indexed itable single dependent load data points di er approximately cycles 
+con ict free imt interface method dispatch ecient mechanism followed closely directly indexed itables 
+di erence con ict free dispatch embedded imt virtual dispatch insigni cant cycles 
+hardware successfully overlaps extra register move immediate set hidden parameter operations resulting zero observed overhead 
+dispatch con ict resolution stub surprisingly inexpensive 
+cost dispatching con ict resolution stub entries roughly equivalent cost prologue epilogue sequence 
+di erence trivial callee normal callee virtual cycles di erence imt method interface method interface cycles 
+imt dispatch con icts ecient interface dispatch directly indexed itable 
+fairly typical case callee non trivial con ict stub mediate small number candidate methods imt normal di erence cycles 
+searched itables class object search relatively slow interface dispatching mechanisms 
+class object search truly pathological costs greater virtual dispatch 
+interface dispatch searched itables slower equiv dispatching mechanism number methods interface trivial callee normal callee virtual applicable embedded imt interface method imt con ict embedded imt interface methods element stub embedded imt interface method imt con ict embedded imt interface methods element stub imt interface method imt con ict imt interface methods element stub imt interface method imt con ict imt interface methods element stub directly indexed itables interface method directly indexed itables interface methods searched itables interface method searched itables interface methods class object search interface method class object search interface methods table cost clock cycles round trip method dispatch jalape alternative interface dispatching mechanism 
+virtual dispatch 
+potentially improved inline caching techniques 
+application characteristics table describes application benchmark suite comprising specjvm benchmarks larger codes 
+improving interface invocation help application non negligible overhead due interfaces 
+trying quantify importance interface method invocation benchmark 
+experiment system employ techniques described particular compiler virtualize inline interface invocations 
+may inline static special virtual calls 
+instrumentation capability jalape adaptive optimization system optimizing compiler inserted counters generated code count categorize dynamic non inlined invocations benchmark execution 
+macro benchmarks run testing harness executes benchmark times printing clearing counters start run 
+shows rate non inlined invocations second tenth run di erent invoke bytecodes 
+bar compress appears invisible inlining compress method calls second 
+data expect little bene mpegaudio absolutely bene compress mtrt 
+fact compress mtrt exactly interface method invocation iteration 
+results compress mpegaudio mtrt reported 
+potential improvement db opt compiler appears signi cant calls interface methods invocations methods executed frequently selected optimizing recompilation counted 
+calling behavior infrequently executed methods substantially impact performance 
+represent substantial portion non inlined invocations 
+application performance provides data ectiveness various compiler techniques avoid performing full interface dispatch 
+shows dynamic percentage interface invocations handled dispatching mechanism 
+system dispatches interface method call mechanisms virtualized inlined results type analysis optimizing compiler virtualized interface call 
+compiler inlined virtual call 
+exception tiny fraction virtualized inlined calls compiler consistently omit method test guard inlined method body 
+virtualized optimizing compiler succeeded virtualizing call type analysis unable unwilling inline 
+compiler inline virtual call number reasons 
+prime candidates include adaptive system compiled caller method lowest optimization level inlining disabled inlining heuristics deem callee method big inline calling context call site dynamic frequency call graph pro le identi es multiple possible targets dynamically polymorphic call site identify receivers dominant target pro table inline 
+static guarded inline optimizing compiler failed virtualize call type analysis 
+time method optimized set loaded classes de ned implementation interface method 
+compiler exclusively size heuristics pro le information speculatively inlined benchmark description classes methods bytecodes compress lempel ziv compression algorithm jess java expert shell system db memory resident database exercises javac jdk java compiler mpegaudio decompression audio les mtrt thread raytracing algorithm jack java parser generator specjbb simulated transaction processing opt compiler jalape optimizing compiler hyper composition tool xerces xml parser table benchmark characteristics 
+benchmark table gives number classes loaded number methods compiled runtime number bytecodes compiled runtime 
+statistics include application code library code loaded runtime 
+rst rows comprise suite specjvm benchmarks 
+compress jess db javac mpegaudio mtrt jack specjbb opt compiler non inlined invocations second invokevirtual invokespecial invokestatic invokeinterface dynamic rate non inlined invocations categorized invoke bytecode 
+optimizing interface invocation improve performance applications signi cant rate interface invocation bottom white portion bar 
+jess db javac jack specjbb opt compiler interface invocations virtualized inlined virtualized static guarded inline profile directed guarded inline mispredicted profile directed guarded inline interface dispatch dynamic percentage interface invocations handled dispatch mechanism 
+single static target guarded runtime check 
+pro le directed guarded inline class hierarchy analysis determines interface method multiple possible implementations 
+online pro le information identi es dominant targets call site 
+information compiler speculatively inlined dominant target runtime guard 
+mispredicted pro le directed guarded inline runtime guard pro le directed inline site failed code fell back imt dispatch 
+occurs due inaccurate pro le information call sites dominant targets occasionally invoke targets 
+words call site dynamically polymorphic compiler inline receivers 
+interface dispatch technique applied compiler resorted full blown run time method 
+mix dispatching mechanisms varies widely program program 
+example fraction invocations dispatched full blown run time calls ranged 
+cases type analysis ectively virtualized interface invocations covering specjbb 
+expected initially implemented optimization principle runtime check fail class loaded de nes new receiver method call site 
+experiments case occurred 
+adaptive system delays compilation optimization method pro le information indicates method hot 
+practice time adaptive system ags method hot relevant classes loaded 
+handle common patterns interface usage compiler 
+pleasantly surprised virtualization success specjbb 
+note results optimizing compiler relies exclusively intra procedural analysis 
+expect better virtualization results aggressive inter procedural type analysis 
+static guarded inlining heuristic succeeded benchmarks impact applied interface invocations 
+practice expect static heuristic apply programs single implementation interface general component architecture library 
+static heuristic heavily interfaces java standard library java util enumeration compiler rely pro le directed inlining type analysis handle cases 
+benchmarks jess stands high rate mispredicted pro le directed inlined calls 
+investigated phenomenon bit discovered jess contains frequently executed interface invocation call site 
+site calls interface method implementations 
+call site invokes distinct receivers size benchmark run 
+top frequent targets account dynamic invocations respectively 
+targets accounts dynamic invocations 
+compiler heuristics inline frequently invoked targets 
+calls targets call site mispredicted 
+depicts performance impact alternative interface dispatching mechanisms 
+shows na scheme signi cantly jess db javac jack specjbb opt compiler execution speed imt imt performance impact alternative interface method dispatching schemes 
+speeds normalized 
+hurt performance slowing factor 
+itable variants imt variants performs best benchmark relative performance varies depending application 
+interface dispatch mechanism impacts performance largest benchmarks opt compiler 
+opt compiler directly indexed itables signi cantly outperform searched itable 
+factors account di erence polymorphic call sites defeat move front search heuristic fairly rich interface hierarchies 
+note searched itable performs jess previously discussed having hot polymorphic call site 
+hand searched itables outperform xml parser benchmark 
+possibly searched itable wins combining dynamic type check interface dispatch 
+section discusses possible enhancement imt dispatch sequence gain bene db performance result anomalous reports practically interface calls inlined 
+occasionally observed unstable db performance jalape possibly due instability tlb con icts resulting di erences memory layout 
+regarding imt con icts respectively dispatches imt went con ict resolution stub 
+benchmarks dispatched con ict resolution stubs 
+shows space costs alternative interface dispatch schemes 
+gure shows categories space usage 
+data structures category represents space allocated data structures introduced support interface dispatch 
+data structures include itables itable dictionaries tib slots holding pointers interface dispatch structures 
+
+con ict stubs category represents space allocated con ict resolution stub code imt variants 
+
+invocation sequence category represents space allocated inline code inserted compiled machine code support interface invocation 
+includes inline code dynamic type checks inlined interface dispatch sequences 
+na scheme introduces extra data structure overhead class loader data structures required purposes 
+gure shows cases space allocated inline invocation sequence exceeds space costs categories 
+jess exception discussed previously jess relies hot interface call sites uses fairly large number classes implement interface 
+results substantial space costs direct itable scheme 
+entries waste space compared entries imt entries blank 
+jalapeno jvm jess db javac jack specjbb opt compiler space usage kbytes class object search searched itables directly indexed itables imt imt data structures conflict stubs invocation sequence space usage alternative interface method dispatching schemes 
+bars plotted benchmark showing left right space usage class object search searched itables directly indexed itables imt imt 
+bar subdivided show code space consumed interface dispatching sequence code space taken con ict resolution stubs data space supporting data structures 
+rst set bars labeled jalape jvm reports space support interface dispatching approximately classes comprise jalape 
+xed space cost deducted bars benchmark bars benchmark represent space usage induced application code cost bare jalape vm 
+stands large space usage 
+imt imt pay signi cant space cost con ict resolution stubs 
+turns classes implement interfaces methods 
+cases coloring scheme avoid saturating slot tib resulting con icts tib slot 
+imt imt result number total targets embodied con ict resolution stubs 
+imt results con ict stubs fewer entries resulting improved run time performance 
+demonstrates scalability problems direct itable dispatch direct itable data structure space cost signi cant 
+cost dominated inlined invocation sequence space direct itable scheme appears practical platform medium sized applications 
+
+imt mechanism enjoys xed size tables cost extra space time con ict resolution stubs 
+jalape improve current trivial algorithm selector coloring analyzing line collection standard java classes discover sets interfaces simultaneously implemented classes 
+information pro le data standard register allocation algorithm minimize expected dynamic number collisions xed imt size 
+jvm execution new unexpected interface method signatures assigned empty infrequently slots expanded imt associated classes implemented unexpected interfaces 
+approach naturally limited set classes available line analysis 
+alternatively adaptive optimization system color interface method signatures line pro le information removing assignment selector color line entail signi cant code patching 
+anonymous reviewer borrowing idea polymorphic inline caches proposed folding dynamic type check con ict resolution stubs 
+stub shown assumes possible values hidden parameter interface method signatures generated handle 
+stub generated treat unexpected values hidden parameter signal dynamic type check needs performed stub extended 
+approach require interface method dispatches go con ict resolution stubs method mapped slot 
+expected cost stub dynamic type check similar con ict stub invisible compiler easily amenable optimizations code motion partial redundancy elimination 
+hand experiments jalape optimizing compiler able eliminate dynamic type check fewer interface calls dispatched imt 
+pro le directed inlining handles interfaces effectively virtual calls su er overhead runtime guard 
+currently implementing invalidation mechanism allow omit guards inlined interface virtual call sites order mitigate penalty failed 
+
+early conference jalape runtime admitted don interfaces performance overhead high call frequently executed methods 
+particularly part stated rationale writing jalape java hope doing give experience language help identify problematic features give insight implement eciently 
+anonymous reviewer observed comment interfaces sad 
+invites question performance interface invocations better 
+provided impetus reported 
+investigates potential sources interface ineciency implicit dynamic type checking actual interface method dispatch overhead possible opportunity costs optimizations 
+type checking overhead real quite small optimized away usually conjunction optimizations 
+interface method table imt mechanism dispatching interface methods cycles expensive counterpart virtual methods 
+third problem proved illusory jalape optimizing compiler performs similar optimization virtual interface method dispatch sites 
+number di erent interface dispatch mechanisms compared 
+direct itables provide performance moderate space overhead 
+naive class object search scheme provided truly performance 
+early implementations java interfaces perform reputation inherently inecient 
+java programmer program generating system feel free fully exploit interfaces concern performance degradation 
+acknowledgments possible orts entire jalape team 
+especially david bacon peter sweeney invaluable feedback harold ossher contributing benchmark 
+indebted anonymous reviewers earlier 
+team providing implementation java class libraries 
+
+alpern attanasio barton burke cheng 
+choi cocchi fink grove hind hummel lieber litvinov mergen ngo russell sarkar serrano shepherd smith sreedhar srinivasan whaley 
+jalape virtual machine 
+ibm systems journal 
+alpern attanasio barton cocchi lieber smith ngo 
+implementing jalape java 
+acm conference object oriented programming systems languages applications pages 
+alpern cocchi grove 
+dynamic type checking jalape usenix java virtual machine research technology symposium apr 
+andr 
+royer 
+optimizing method search lookup caches incremental coloring 
+proceedings oopsla pages oct 
+published acm sigplan notices volume number 
+arnold fink grove hind sweeney 
+adaptive optimization jalape jvm 
+acm conference object oriented programming systems languages applications oct 
+chaitin auslander chandra cocke hopkins markstein 
+register allocation coloring 
+computer languages pages 
+chambers dean grove 
+program optimization object oriented languages 
+technical report uw cse department computer science engineering 
+university washington june 
+chambers ungar 
+customization optimizing compiler technology self dynamically typed object oriented programming language 
+acm conference object oriented programming systems languages applications pages july 
+sigplan notices 
+chambers ungar 
+iterative type analysis extended message splitting dynamically typed object oriented programs 
+acm conference object oriented programming systems languages applications pages 
+cox 
+object oriented programming evolutionary approach 
+addison wesley 
+dean 
+program optimization object oriented languages 
+phd thesis university washington nov 
+tr 
+detlefs agesen 
+inlining virtual methods 
+th european conference object oriented programming 
+deutsch man ecient implementation smalltalk system 
+th annual acm symposium principles programming languages pages jan 
+dietz sleator 
+algorithms maintaining order list 
+proceedings nineteenth annual acm symposium theory computing new york city may pages may 
+dixon mckee vaughan schweizer 
+fast method dispatcher compiled languages multiple inheritance 
+proceedings oopsla pages oct 
+published acm sigplan notices volume number 
+
+selector table indexing sparse arrays 
+proceedings oopsla pages oct 
+published acm sigplan notices volume number 
+fitzgerald knoblock ruf steensgaard tarditi 
+marmot optimizing compiler java 
+technical report msr tr microsoft research june 
+gagnon hendren 
+sablevm research framework ecient execution java bytecode 
+technical report sable technical report school computer science mcgill university nov 
+gagnon hendren 
+sablevm research framework ecient execution java bytecode 
+usenix java virtual machine research technology symposium apr 
+gosling joy steele 
+java language speci cation 
+addison wesley 
+grove dean garrett chambers 
+pro le guided receiver class prediction 
+acm conference object oriented programming systems languages applications pages oct 
+chambers ungar 
+optimizing dynamically typed object oriented languages polymorphic inline caches 
+america editor proceedings ecoop lncs pages geneva switzerland july 
+springer verlag 
+chambers ungar 
+debugging optimized code dynamic deoptimization 
+proceedings acm sigplan conference programming language design implementation pages june 
+holzle ungar 
+optimizing dynamically dispatched calls run time type feedback 
+sigplan conference programming language design implementation pages june 
+sigplan notices 
+ibm research 
+www research ibm com hyperspace 
+nakatani 
+study techniques java just time compiler 
+acm conference object oriented programming systems languages applications oct 
+johnson 
+ts optimizing compiler smalltalk 
+acm conference object oriented programming systems languages applications pages 
+krall 
+personal communication sept 
+krall gra cacao bit just time compiler 
+concurrency practice experience 
+krasner 
+smalltalk bits history words advice 
+addison wesley 
+lindholm yellin 
+java virtual machine speci cation 
+java series 
+addison wesley 
+lindholm yellin 
+java virtual machine speci cation second edition 
+java series 
+addison wesley 
+myers 
+bidirectional object layout separate compilation 
+acm sigplan notices oct 
+ossher tarr 
+multi dimensional separation concerns hyperspace approach 
+software architectures component technology state art research practice 
+kluwer 
+appear 
+poletto sarkar 
+linear scan register allocation 
+acm transactions programming languages systems sept 
+proebsting 
+imple ecient burs table generation 
+sigplan conference programming language design implementation pages june 
+sigplan notices 
+ramalingam srinivasan 
+object model java 
+technical report ibm research division dec 
+shuf 
+personal communication 
+stroustrup 
+multiple inheritance 
+proceedings spring european unix users group conference helsinki 
+apache xml project 
+xml apache org xerces 
+standard performance evaluation 
+spec jvm benchmarks 
+www spec org osg jvm 
+standard performance evaluation 
+spec jbb 
+www spec org osg jbb 
+rai 
+pro ling ka jit compiler 
+technical report mcgill university feb 
+vitek horspool 
+compact dispatch tables dynamically typed object oriented languages 
+proceedings international conference compiler construction cc pages apr 
+published lncs vol 
+vitek horspool 
+taming message passing ecient method look dynamically typed languages 
+tokoro pareschi editors proceedings ecoop lncs pages bologna italy july 
+springer verlag 

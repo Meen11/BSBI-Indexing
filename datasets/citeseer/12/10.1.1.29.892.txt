@@ -1,0 +1,512 @@
+java bytecode veri cation overview xavier leroy inria rocquencourt trusted logic domaine de voluceau le chesnay france xavier leroy inria fr 
+bytecode veri cation crucial security component java applets web embedded devices smart cards 
+describes main bytecode veri cation algorithms surveys variety formal methods applied bytecode veri cation order establish correctness 
+web applets popularized idea downloading executing untrusted compiled code personal computer running web browser user approval intervention 
+obviously raises major security issues appropriate security measures malicious applet mount variety attacks local computer destroying data reformatting disk modifying sensitive data registering bank transfer home banking software personal information network modifying programs trojan attacks 
+things worse applet model transferred embedded devices smart cards java card architecture allows post issuance downloading applets smart cards sensitive application areas payment mobile telephony 
+raises stake enormously security hole allows malicious applet crash windows tolerable certainly acceptable allows applet perform non authorized credit card transactions 
+solution put forward java programming environment execute applets called sandbox insulation layer preventing direct access hardware resources implementing suitable access control policy 
+security sandbox model relies components 
+applets compiled machine executable code bytecode virtual machine 
+virtual machine manipulates higherlevel secure abstractions data hardware processor object memory addresses 
+
+applets direct access hardware resources serial port carefully designed set api classes methods perform suitable access control performing interactions outside world behalf applet 
+
+downloading bytecode applet subject static analysis called bytecode veri cation purpose sure code applet typed attempt bypass protections performing ill typed operations run time forging object integers illegal casting object class calling directly private methods api jumping middle api method jumping data code 
+bytecode veri cation crucial security component java sandbox model bug veri er causing ill typed applet accepted potentially enable security attack 
+time bytecode veri cation complex process involving elaborate program analyses 
+consequently considerable research orts expended specify goals bytecode veri cation formalize bytecode veri cation algorithms prove correctness 
+purpose survey brie formal bytecode veri cation 
+explain bytecode veri cation survey various algorithms proposed outline main problems faced give formal proofs correctness 
+thesis bytecode veri cation attacked di erent angles including data ow analyses interpretation type systems model checking machine checked proofs bytecode veri cation provides interesting playground applying relating various techniques computed aided veri cation formal methods computing 
+remainder organized follows 
+section gives quick overview java virtual machine bytecode veri cation 
+section presents basic bytecode veri cation algorithm data ow analysis 
+sections concentrate delicate veri cation issues checking object initialization dealing jvm subroutines 
+section presents view bytecode veri cation model checking interpretation 
+issues speci low resources embedded systems discussed section followed perspectives section 
+overview jvm bytecode veri cation java virtual machine jvm conventional stack machine 
+instructions pop arguments stack push back results stack 
+addition set registers called local variables provided accessed load store instructions push value register stack store top stack register respectively 
+architecture mandate java compilers registers store values source level local variables method parameters stack hold temporary results evaluation expressions 
+stack registers part activation record method 
+preserved method calls 
+entry point method speci es number registers stack slots method allowing activation record right size allocated method entry 
+control handled variety intra method branch instructions unconditional branch goto conditional branches branch top stack multi way branches corresponding switch java construct 
+exception handlers speci ed table pc pc quadruples meaning exception class subclass raised instruction locations pc pc control transferred instruction exception handler 
+instructions supported including arithmetic operations comparisons object creation eld accesses method invocations 
+example fig 
+give general avor jvm bytecode 
+source java code static int factorial int int res res res res return res corresponding jvm bytecode method static int factorial int registers stack slots iconst push integer constant istore store register res variable iload push register parameter negative null go pc iload push register res iload push register multiply integers top stack istore pop result store register decrement register goto go pc iload load register res ireturn return value caller fig 
+
+example jvm bytecode important feature jvm instructions typed 
+instance iadd instruction integer addition requires stack initially contains elements elements type int pushes back result type int 
+similarly getfield instruction access instance eld type declared class requires top stack contains instance class sub classes instance integer correspond attempt forge object unsafe cast pops pushes back value type value eld 
+generally proper operation jvm guaranteed code meets conditions type correctness arguments instruction types expected instruction 
+stack ow ow instruction pops argument empty stack pushes result full stack size equal maximal stack size declared method 
+code containment program counter point code method valid instruction encoding falling method code branches middle instruction encoding 
+register initialization load register follow store register terms registers correspond method parameters initialized method entrance error load uninitialized register 
+object initialization instance class created initialization methods class corresponding constructors class invoked class instance 
+access control method invocations eld accesses class respect visibility modi ers private protected public method eld class 
+way guarantee conditions check dynamically executing bytecode 
+called defensive jvm approach literature 
+checking conditions run time expensive slows execution signi cantly 
+purpose bytecode veri cation check conditions static analysis bytecode 
+bytecode passes veri cation executed full speed extra dynamic checks 
+basic veri cation data ow analysis rst jvm bytecode veri cation algorithm due gosling yellin sun 
+existing bytecode veri ers implement algorithm 
+summarized data ow analysis applied type level interpretation virtual machine 
+advanced aspects algorithm go standard data ow analysis described sections 
+section describe basic ingredients algorithm type level interpreter data ow framework 
+type level interpreter heart bytecode veri cation algorithms described interpreter jvm instruction set executes jvm instructions defensive jvm including type tests stack ow ow tests operates types values 
+interpreter manipulates stack types register type array associating types register numbers 
+simulates execution instructions level types 
+instance iadd instruction integer addition checks stack types contains elements top elements type int 
+pops top elements pushes back type int corresponding result addition 
+iconst 
+int jsj stack iadd int int 
+int iload 
+int int jsj stack istore int 
+rfn intg null 
+null jsj stack aload 
+object jsj stack astore 
+rfn object getfield ref 
+invokestatic 
+fig 
+
+selected rules type level interpreter 
+stack maximal stack size maximal number registers 
+de nes formally interpreter number representative jvm instructions 
+interpreter transition relation 
+instruction stack type register type executing instruction stack type register type executing instruction 
+errors type mismatches arguments stack ow stack ow denoted absence transition 
+instance transition iadd empty stack 
+notice method invocations invokestatic instruction fig 
+treated branching code invoked method concrete jvm simply assume ect method invocation stack described method signature invoke instruction 
+bytecode veri cation algorithms described proceed method method assuming methods typed verifying code method 
+simple coinductive argument shows case program collection methods typed 
+types manipulated interpreter similar types java language 
+include primitive types int long float double object types represented fully quali ed names corresponding classes array types 
+boolean byte short char types java identi ed int 
+extra types introduced null represent type null represent contents uninitialized registers value 
+load instructions explicitly check accessed register type detecting accesses uninitialized registers 
+subtyping relation types similar java language assignment compatibility relation de ned shown fig 
+
+object int long float double object int long null fig 
+
+type expressions veri er subtyping relation 
+user de ned classes extending types shown 
+data ow analysis verifying method body straight line piece code branches easy simply iterate transition function interpreter instructions stack type register type preceding instruction stack type register type instruction 
+initial stack register types re ect state jvm method entrance stack type empty types registers corresponding method parameters set types corresponding parameters method signature registers reg corresponding uninitialized local variables type 
+interpreter gets stuck transition intermediate states veri cation fails code rejected 
+veri cation succeeds interpreter correct approximation defensive jvm certain defensive jvm get stuck executing code 
+code correct executed safely regular non defensive jvm 
+branches exception handlers introduce forks joins control ow method 
+instruction predecessors di erent stack register types predecessor instructions 
+sun bytecode veri er deals situation manner customary data ow analysis state stack type register type instruction taken upper bound states predecessors instruction 
+instance assume classes extend analyze conditional construct stores value type register arm value type arm 
+see fig 
+arms meet register assumed type upper bound smallest common supertype lub fig 
+
+handling joins control ow precisely writing state instruction state algorithm sets data ow equations predecessor ig instruction plus pn start instruction types method parameters 
+equations solved standard xpoint iteration kildall worklist algorithm section instruction taken worklist state determined state interpreter replace lub successor enter successors changed worklist 
+xpoint reached worklist empty case veri cation succeeds 
+veri cation fails state transition encountered upper bounds unde ned 
+trivial optimization algorithm data ow equations set level extended basic blocks individual instructions 
+terms suces keep working memory states rst instruction extended basic block branch target states recomputed needed 
+upper bound states taken pointwise stack types register types 
+unde ned stack types di erent heights causes veri cation fail 
+situation corresponds program point run time stack di erent heights depending path point reached code rejected lead unbounded stack height stack ow 
+consider loop pushes entry stack iteration 
+upper bound register types causing register type merged state 
+corresponds situation register holds values incompatible types arms conditional int arm object treated uninitialized loads register merge point 
+upper bound stack slots case sun algorithm aborts veri cation immediately 
+alternatively entirely harmless continue veri cation setting stack slot merged state corresponding value typed instruction simply discarded instructions pop return 
+interfaces upper bounds data ow framework requires type algebra ordered subtyping relation constitutes semi lattice 
+pair types possesses smallest common supertype upper bound 
+unfortunately property hold take veri er type algebra java source level type algebra extended null subtyping relation java source level assignment compatibility relation 
+problem interfaces types just classes class implement interfaces 
+consider classes interface 
+interface 
+class implements 
+class implements 
+subtyping relation induced declarations object obviously semi lattice types common super types comparable subtype 
+ways address issue 
+approach manipulate sets types veri cation single types described earlier 
+sets types interpreted conjunctive types set fi jg conjunctive type represents values types suitable upper bound types fc fc example 
+approach followed qian 
+approach complete class interface hierarchy program lattice performing veri cation 
+example completion add pseudo interface extending claim implement obtain semi lattice object pseudo interface plays role set type fi jg rst approach described 
+di erence completion class interface hierarchy performed veri cation manipulates simple types sets types 
+keeps veri cation simple fast 
+simplest solution interface problem sun implementation jdk bytecode veri er 
+approach documented easily inferred experimentation 
+bytecode veri cation ignores interfaces treating interface types class type object 
+type algebra veri er contains proper classes interfaces subtyping proper classes simply inheritance relation 
+java single inheritance class implement interfaces inherit class subtyping relation tree shaped trivially forms lattice upper bound classes simply closest common ancestor inheritance tree 
+downside sun approach compared set approach veri er guarantee statically object implements interface 
+particular invokeinterface instruction invokes method interface object guaranteed receive run time object implements guarantee provided sun veri er receives argument type object object 
+invokeinterface instruction check dynamically object implements raise exception 
+formalizations proofs formalizations proofs correctness java bytecode veri cation published reasons believe developed internally academia industry 
+claims exhaustiveness mention works cohen qian rst formal speci cations jvm 
+qian speci cation written ordinary mathematics cohen uses speci cation language acl theorem prover 
+uses isabelle hol prover formalize dynamic semantics fragment jvm corresponding type level interpreter veri er proves correctness respect interpreter transition 
+concrete states matching concrete interpreter transition 
+nal concrete state matches 
+nipkow formalizes data ow analysis framework isabelle hol proves correctness 
+verifying object initialization object creation java virtual machine step process rst instruction new creates new object instance class instance elds lled default values numerical elds null elds second initializer methods class methods named resulting compilation constructor methods invoked newly created object 
+initializer methods just counterpart constructors typically initialize instance elds non default values perform nearly arbitrary computations 
+jvm speci cation requires step object initialization protocol respected 
+object instance created new instruction considered uninitialized regular object operations store object data structure return method result access elds invoke methods allowed uninitialized object 
+initializer methods class invoked new object return normally new object considered fully initialized usable object 
+register initialization property object initialization property crucial ensure type safety run time new instruction initializes instance elds new object correct values types type safety broken resulting default initialized object right away having called initializer method 
+object initialization property important ensure invariants instance elds established constructor class hold objects class 
+static veri cation object initialization complex fact initialization methods operate side ect uninitialized object returning initialized object simply take uninitialized object update elds return 
+code generated java compilers source level statement new arg generally form new create uninitialized instance dup duplicate instance code compute arg invokespecial call initializer astore store initialized object uninitialized instance held stack 
+topmost consumed invocation 
+initializer returns second top stack properly initialized object stored register allocated tricky point initializer method applied object stack object contained stack happens object status goes uninitialized fully initialized process 
+demonstrated static veri cation object initialization requires form alias analysis precisely alias analysis determine object current state guaranteed refer uninitialized object passed argument initializer method 
+alias analysis sun veri er uses fairly simple analysis uninitialized object identi ed position program counter value new instruction created 
+precisely type algebra enriched types denoting uninitialized instance class created new instruction pc invocation initializer method checks rst argument method type pops arguments stack type usual nally nds occurrences type interpreter state stack type register types replaces example shows works nested initialization corresponding java expression new new null new stack type dup new dup null null invokespecial invokespecial 
+particular rst invokespecial initializes instance created pc created pc 
+approach correct time machine state contains uninitialized object created pc 
+loops containing new instruction invalidate assumption distinct objects created new instruction ight uninitialized object type class pc creation 
+avoid problem sun veri er requires uninitialized object type appear machine state backward branch taken 
+control ow loop take backward branch guarantees initialized objects carried loop iteration ensuring correctness pc creation aliasing criterion 
+freund mitchell formalize approach verifying object initialization 
+bertot proves correctness approach coq theorem prover extracts veri cation algorithm proof 
+subroutines subroutines jvm code fragments called points inside code method 
+jvm provides instructions jsr branches label method code pushes return address instruction ret recovers return address register branches corresponding instruction 
+subroutines compile certain exception handling constructs general device 
+di erence subroutine call method invocation body subroutine executes activation record caller access modify registers caller 
+veri cation problem subroutines subroutines complicate signi cantly bytecode veri cation data ow analysis 
+obvious determine successors ret instruction return address rst class value 
+rst approximation say ret instruction branch instruction follows jsr method code 
+approximation coarse practice describe better approximations 
+second subroutine entry point acts merge point control ow graph causing register types points call subroutine merged 
+lead excessive loss precision register types inferred example fig 
+shows 
+register uninitialized jsr call subroutine 
+iconst istore register type int jsr call subroutine iload load integer register ireturn return caller 
+subroutine astore store return address register 
+execute code register ret return caller fig 
+
+example subroutine jsr successor 
+register type type int 
+register type upper bound int 
+subroutine body modify register type 
+ret successors instructions jsr 
+register type integer instructions 
+code rejected 
+behavior counter intuitive 
+calling subroutine register modify run time value register expect modify veri cation time type register 
+subroutine body expanded inline jsr sites bytecode veri cation succeed expected 
+subroutine compilation scheme try 
+construct produces code register uninitialized call site subroutine holding value preserved subroutine call site 
+crucial similar code passes bytecode veri cation 
+see re nements data ow veri cation algorithm achieve goal 
+sun solution rst describe approach implemented sun jdk veri er 
+described informally section formalized 
+approach implements intuition call subroutine change types registers subroutine body 
+need precise subroutine body jvm bytecode unstructured subroutines syntactically delimited code subroutine entry points easily detected targets jsr instructions immediately apparent instructions reached subroutine entry point 
+data ow analysis performed parallel main type analysis 
+outcome analysis consistent labeling instruction entry point subroutine logically belongs 
+labeling determine subroutine entry point return instruction ret subroutine set registers read written instructions belonging subroutine 
+data ow equation subroutine calls follows 
+instruction jsr instruction immediately jsr jsr state jsr ret ret ret state ret terminates subroutine 
+ret fr 
+ret jsr terms state instruction jsr identical state ret types registers subroutine taken state jsr 
+example ret register 
+type register instruction instruction jsr equal type instruction jsr int type register ret 
+ective practice sun approach subroutine veri cation raises challenging issue determining subroutine structure dicult 
+subroutines syntactically delimited return addresses stored general purpose registers subroutine speci stack tracking return addresses matching ret jsr pairs dicult 
+facilitate determination subroutine structure jvm speci cation states number restrictions correct jvm code di erent subroutines merge execution single ret instruction section 
+restrictions ad hoc speci particular subroutine labeling algorithm sun veri er uses 
+description subroutine labeling jvm speci cation informal incomplete 
+rational reconstructions part sun veri er published 
+rst due abadi stata non standard type system determines subroutine structure checking types 
+second due qian infers simultaneously types subroutine structure way closer sun implementation 
+simultaneous determination types sets complicates data ow analysis transfer function analysis longer monotonous special iteration strategies required reach xpoint 
+callahan hagiya give non standard type systems subroutines continuation types context dependent types respectively 
+papers give type checking rules ective veri cation type inference algorithms 
+works shed considerable light issue carried context small subset jvm excludes exceptions object initialization particular 
+delicate interactions subroutines object initialization discovered freund mitchell exposing bug sun veri er 
+exceptions exception handling complicates signi cantly determination subroutine structure 
+examination bytecode produced java compiler show possible situations exception handler covers range instructions entirely contained subroutine case code exception handler considered part subroutine branch back ret instruction terminates subroutine exception handler covers instructions belonging subroutine non subroutine instructions case code handler considered outside subroutine 
+problem second case branch exception handler subroutine instruction instruction branch ret instruction situation allowed abadi stata subroutine labeling system 
+polyvariant data ow analysis alternate solution subroutine problem java card card veri er relies polyvariant data ow analysis instructions inside subroutine bodies analyzed times call site subroutine 
+principles polyvariant ow analyses called context sensitive analyses known section monovariant analyses maintain state program point polyvariant analysis allows states program point 
+states indexed contours usually approximate control ow path led state 
+case bytecode veri cation contours subroutine call stacks lists return addresses jsr instructions led corresponding state 
+absence subroutines bytecode method analyzed empty contour 
+state associated instruction analysis degenerates monovariant data ow analysis section 
+jsr instruction encountered current contour treated branch instruction augmented contour similarly ret instruction treated branch restricts current context popping return addresses determined type register 
+example fig 
+jsr instructions analyzed empty context 
+causes states associated instruction contour assigns type register contains retaddr top stack state contour assigns type int register contains retaddr top stack 
+instructions 
+analyzed twice contours 
+contour ret treated branch register type 
+contour ret treated branch register having type int 
+analyzing subroutine body polyvariant way di erent contours avoided merging types int register subroutine entry point obtained desired type propagation behavior register jsr int jsr 
+formally polyvariant data ow equation jsr instruction followed instruction retaddr ret instruction equation ra type register state retaddr ra context obtained popping return addresses ra ra type retaddr represents return address instruction way view polyvariant veri cation exactly equivalent performing monovariant veri cation expanded version bytecode subroutine call replaced distinct copy subroutine body 
+copies subroutine body analyze times di erent contours 
+course duplicating subroutine bodies monovariant veri cation practical requires prior knowledge subroutine structure determine instructions part subroutine body shown section subroutine structure hard determine exactly 
+beauty polyvariant analysis determines subroutine structure way computations contours performed data ow analysis 
+determination takes advantage typing information retaddr ra types determine certainty point ret instruction branches case early return nested subroutines 
+advantage polyvariant veri cation problem dealing code reachable subroutine bodies main program exception handlers mentioned section deciding exception handlers part subroutine polyvariant analysis simply analyzes times empty contour times subroutine contours 
+downside polyvariant veri cation computationally expensive sun approach 
+particular subroutines nested depth subroutine called times instructions innermost subroutine analyzed times sun algorithm 
+typical java code low nesting subroutines methods 
+extra cost polyvariant veri cation entirely acceptable practice 
+model checking interpretations folk lore data ow analyses viewed model checking interpretations 
+large part bytecode veri cation obviously interpretation defensive jvm type level natural look remaining parts model checking perspective 
+posegga vogt rst 
+outline algorithm takes bytecode method generates temporal logic formula holds bytecode safe 
+shelf model checker determine validity formula 
+application uses small part power generality temporal logic model checker approach sounds interesting establishing ner properties bytecode go basic safety properties bytecode veri cation see section 
+unpublished extracts essence posegga vogt approach idea exploring reachable states interpreter 
+considers transition relation obtained combining transition relation type level interpreter fig 
+successor relation instructions 
+relation form 
+meaning interpreter started pc stack type register type abstractly execute instruction arrive pc stack type register type starting initial state pn corresponding method entry explore states reachable repeated applications transition function 
+encounter state interpreter stuck transition check failed veri cation fails bytecode rejected 
+correctness interpretation guarantees concrete defensive jvm interpreter get stuck execution method code bytecode safe 
+algorithm terminates number distinct states nite albeit large nite number distinct types program height stack bounded number registers xed 
+formalized proved correctness approach coq proof assistant extracted ml code bytecode veri er proof 
+approach conceptually interesting ultimate polyvariant analysis having stack register type control point sun veri er type control point subroutine contour section arbitrarily stack register types control point depending number control ow paths lead control point 
+consider instance control ow joint depicted fig 
+
+data ow algorithms verify instructions join point assumption lub algorithm veri es twice assumption assumption terms analysis polyvariant respect subroutine calls conditional way branches 
+renders analysis impractical runs time exponential number branches method 
+consider control ow graph conditional constructs sequence assigning di erent type registers causes code conditional veri ed times di erent register types 
+course precision algorithm degraded applying widening steps order reduce number states 
+transitions pc 
+pc replaced pc 
+pc interpreter stuck reachable states bytecode remains safe 
+monovariant data ow analysis section corresponds keeping state program point replacing multiple states upper bounds 
+polyvariant data ow analysis section similar merging states upper bounds relaxed subroutines controlled contours 
+interest approach allows reconsider design decisions explained sections 
+instance algorithm computes upper bounds types simply checks subtyping relations types 
+applied subtyping relation just relations form semi lattice 
+keep track interface types verify invokeinterface instructions accurately having deal sets types lattice completion 
+bytecode veri cation small computers java virtual machines run personal computers workstations variety embedded computers personal digital assistants mobile phones smart cards 
+extending java model safe post issuance code downloading devices requires bytecode veri cation performed embedded system 
+bytecode veri cation expensive process exceeds resources processing power memory space small embedded systems 
+instance typical java card java enabled smart card bytes ram bit microprocessor approximately times slower personal computer 
+fitting bytecode veri er devices requires new veri cation algorithms discuss 
+lightweight bytecode veri cation certi cates inspired necula lee proof carrying code rose rose propose split bytecode veri cation phases code producer computes stack register types branch targets transmit called certi cates bytecode embedded system simply checks code typed respect types certi cates inferring types 
+terms embedded system longer solves iteratively data ow equations characterizing correct bytecode simply checks types provided code certi cates solution equations 
+bene ts approach twofold 
+checking solution faster inferring avoid cost xpoint iteration 
+speeds veri cation extent second certi cates read modi ed veri cation 
+stored persistent memory eeprom flash 
+smart card class embedded systems er relatively large amounts persistent memory bytes 
+writing data memory slow times slower reading possible store rapidly changing data xpoint computed standard veri cation algorithm 
+rose rose certi cates written reception bytecode read veri cation comfortable eeprom memory space 
+speedup important expect experiments show xpoint usually reached examining instruction twice 
+limitations approach 
+currently known deal subroutines framework 
+sun proposed drop subroutines entirely order rose rose bytecode veri cation algorithm kvm sun embedded variants jvm 
+second certi cates relatively large compression size code annotate compression code size 
+certi cates stored persistent memory exceed available memory space 
+card veri cation card code transformation java card bytecode veri er described attacks memory problem angle 
+standard bytecode veri er solves data ow equations xpoint iteration 
+reduce memory requirements global register type shared control points method 
+terms solution infers register type method 
+similar reasons requires stack empty branch instruction branch target instruction 
+extra restrictions bytecode veri cation done space stack reg branch stack reg sun algorithm branch number branch targets 
+practice memory requirements small data structures comfortably ram smart card 
+drawback approach register initialization longer checked statically replaced run time initialization registers safe values null method entrance 
+drawback extra restrictions imposed card veri er cause perfectly legal bytecode passes sun veri er rejected 
+address issue rely card transformation performed bytecode applet transforms legal bytecode passes sun veri er equivalent bytecode passes card veri er 
+card transformations include stack normalizations branches register reallocation graph coloring increase size code 
+perspectives java bytecode veri cation researched technique de ned sun implementation formal works reviewed resulted complete formal speci cation guarantees 
+largely open question bytecode veri cation go basic type safety initialization properties statically establish advanced properties applets resource usage bounding amount memory allocated reactiveness bounding running time applet interactions outside world 
+controlling resource usage especially important java card applets java card guarantee presence garbage collector applets supposed allocate objects need installation time run constant space 
+properties interest include access control information ow 
+currently java security manager performs access control checks dynamically 
+various static analyses program transformations proposed perform checks statically 
+information ow applet leak con information access property essentially impossible check dynamically type systems proposed enforce statically 
+security sandbox model relies bytecode veri cation proper implementation api applet 
+majority known applet attacks exploit type safe way bugs api breaking type safety bugs veri er 
+veri cation api promising largely open area application formal methods 
+
+abadi banerjee heintze riecke 
+core calculus dependency 
+th symp 
+principles progr 
+lang pages 
+acm press 
+
+bertot 
+coq formalization type checker object initialization java virtual machine 
+research report inria 
+published proceedings cav 
+
+
+vers un eri eur de bytecode java certi seminar ecole normale sup erieure paris october nd 
+
+
+hostile activex control demonstrated 
+risks forum feb 
+
+chen 
+java card technology smart cards architecture programmer guide 
+java series 
+addison wesley 
+
+cohen 
+defensive java virtual machine speci cation 
+technical report computational logic 
+
+freund mitchell 
+type system object initialization java bytecode language 
+acm trans 
+prog 
+lang 
+syst 
+
+gong 
+inside java platform security architecture api design implementation 
+java series 
+addison wesley 
+
+gosling 
+java intermediate bytecodes 
+proc 
+acm sigplan workshop intermediate representations pages 
+acm 
+
+hagiya 
+new method data ow analysis java virtual machine subroutines 
+levi editor sas volume lncs pages 
+springer verlag 
+
+heintze riecke 
+slam calculus programming secrecy integrity 
+th symp 
+principles progr 
+lang pages 
+acm press 
+
+huisman jacobs van den berg 
+case study class library veri cation java vector class 
+technical report csi computing science institute university nijmegen 
+
+leroy 
+card bytecode veri cation java card 
+submitted publication available inria fr 
+
+leroy 
+security properties typed applets volume lncs pages 
+springer verlag 
+
+lindholm yellin 
+java virtual machine speci cation 
+java series 
+addison wesley 
+second edition 
+
+mcgraw felten 
+securing java 
+john wiley sons 
+
+muchnick 
+advanced compiler design implementation 
+morgan kaufmann 
+
+necula 
+proof carrying code 
+popl pages 
+acm press 
+
+nielson nielson hankin 
+principles program analysis 
+springerverlag 
+
+nipkow 
+veri ed bytecode veri ers 
+foundations software science computation structures fossacs 
+springer verlag 
+appear 
+
+callahan 
+simple comprehensive type system java bytecode subroutines 
+popl pages 
+acm press 
+
+posegga vogt 
+java bytecode veri cation model checking 
+workshop fundamental underpinnings java 
+
+pottier smith 
+systematic approach static access control 
+sands editor proceedings th european symposium programming esop volume lncs pages 
+springer verlag 
+
+
+proving soundness java bytecode veri er speci cation isabelle hol 
+cleaveland editor tacas volume lncs pages 
+springer verlag 
+
+qian 
+formal speci cation java virtual machine instructions objects methods subroutines 
+alves foss editor formal syntax semantics java volume lncs 
+springer verlag 
+
+qian 
+standard xpoint iteration java bytecode veri cation 
+acm trans 
+prog 
+lang 
+syst 
+
+rose rose 
+lightweight bytecode veri cation 
+workshop fundamental underpinnings java 
+
+schmidt 
+data ow analysis model checking interpretations 
+popl pages 
+acm press 
+
+stata abadi 
+type system java bytecode subroutines 
+acm trans 
+prog 
+lang 
+syst 
+
+sun microsystems 
+java platform micro edition technology creating mobile devices 
+white java sun com products wp pdf 
+
+trusted logic 
+card bytecode veri er java card 
+distributed part sun java card development kit 
+
+vigna editor 
+mobile agents security volume lecture notes computer science 
+springer verlag 
+
+volpano smith 
+type approach program security 
+proceedings tapsoft colloquium formal approaches software engineering volume lncs pages 
+springer verlag 
+
+volpano smith irvine 
+sound type system secure ow analysis 
+journal computer security 
+
+walker 
+type system expressive security policies 
+th symp 
+principles progr 
+lang pages 
+acm press 
+
+yellin 
+low level security java 
+proceedings fourth international world wide web conference pages 
+reilly 

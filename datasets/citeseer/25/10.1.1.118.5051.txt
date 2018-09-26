@@ -1,0 +1,564 @@
+practical transparent operating system support superpages juan navarro sitaram iyer peter druschel druschel alc cs rice edu rice university rice university universidad cat lica de chile general purpose processors provide support memory pages large sizes called superpages 
+superpages enable entry translation lookaside buffer tlb map large physical memory region virtual address space 
+dramatically increases tlb coverage reduces tlb misses promises performance improvements applications 
+supporting superpages poses challenges operating system terms superpage allocation promotion tradeoffs fragmentation control analyze issues propose design effective superpage management system 
+implement freebsd alpha cpu evaluate real workloads benchmarks 
+obtain substantial performance benefits exceeding benefits sustained stressful workload scenarios 
+modern general purpose processors provide virtual memory support page tables address translation 
+processors cache virtual physical address mappings page tables translation lookaside buffer tlb 
+tlb coverage defined amount memory accessible cached mappings incurring misses tlb 
+decade tlb coverage increased lower pace main memory size 
+generalpurpose processors today tlb coverage megabyte representing small fraction physical memory 
+applications larger working sets incur tlb misses suffer significant performance penalty 
+alleviate problem modern general purpose cpus provide support superpages 
+superpage memory page larger size ordinary page henceforth called base page 
+usually available multiple sizes megabytes 
+superpage occupies entry alan cox tlb tlb coverage dramatically increases cover working set applications 
+results performance improvements cases demonstrate section 
+research findings tlb performance modern applications state tlb misses increasingly performance critical 
+inappropriate large superpages result enlarged application footprints leading increased physical memory requirements higher paging traffic 
+costs easily outweigh performance advantages obtained avoiding tlb misses 
+operating system needs mixture page sizes 
+multiple page sizes leads problem physical memory fragmentation decreases opportunities large superpages 
+ensure sustained performance operating system needs control fragmentation penalizing system performance 
+problem effectively managing superpages complex multi dimensional optimization task 
+general purpose operating systems support superpages provide limited support 
+develops general transparent superpage management system 
+balances various tradeoffs allocating superpages achieve high sustained performance real workloads negligible degradation pathological situations 
+process allocates memory system reserves larger contiguous region physical memory anticipation subsequent allocations 
+superpages created increasing sizes process touches pages region 
+system runs contiguous physical memory may preempt portions unused contiguous regions processes originally assigned 
+regions exhausted system restores contiguity biasing page replacement scheme evict contiguous inactive pages 
+system implemented freebsd alpha architecture evaluated real applications benchmarks 
+shown yield substantial benefits memory plentiful fragmentation low 
+furthermore sustains benefits long term controlling fragmentation arising complex workload scenarios 
+contributions fold 
+extends previously proposed reservation approach multiple potentially large superpage sizes demonstrates benefits doing knowledge investigate effect fragmentation superpages proposes novel page replacement algorithm control fragmentation tackles issues date overlooked required solution practical superpage demotion eviction dirty superpages 
+section motivates problem establishes constraints complexities 
+section examines related superpages 
+section describe design implementation section presents results experimental evaluation 
+section concludes 
+superpage problem section discusses motivation hardware constraints issues tradeoffs operating system support superpages 
+motivation main memory grown exponentially size decade cause consequence memory requirements applications proportionally increased 
+contrast tlb coverage lagged 
+tlb usually fully associative access time kept low critical path memory access 
+tlb size remained relatively small usually fewer entries corresponding megabyte tlb coverage 
+depicts tlb coverage achieved percentage main memory size number sun sgi workstation models available 
+relative tlb coverage seen decreasing roughly factor years 
+consequence modern applications working sets larger tlb coverage 
+section shows real applications tlb misses degrade performance contrasting reported reported 
+trend contributed performance degradation machines usually shipped board physically addressed caches larger tlb coverage 
+result tlb misses require access memory banks find translation data cache making misses relatively expensive 
+tlb coverage main memory size year workstation manufacture tlb coverage percentage main memory workstations data collected various websites 
+sun sun sun personal iris sparcstation iris indigo sparcstation indy indigo sparcstation ultra ultra ultra ultra ultra ultra octane 
+seek method increasing tlb coverage proportionally enlarging tlb size 
+option base pages larger size say kb mb 
+approach cause increased internal fragmentation due partly pages induce premature onset memory pressure 
+demands higher due increased paging granularity 
+contrast multiple page sizes enables increase tlb coverage keeping internal fragmentation disk traffic low 
+technique imposes challenges operating system designer discussed rest section 
+hardware imposed constraints design tlb hardware processors imposes series constraints superpages 
+firstly superpage size set page sizes supported processor 
+example alpha processor provides kb base pages kb kb mb superpages processor family supports kb mb pages new itanium cpu provides different page sizes kb mb 
+secondly superpage required contiguous physical virtual address space 
+thirdly starting address physical virtual address space multiple size example kb superpage aligned kb address boundary 
+tlb entry superpage provides single bit dirty bit set protection tributes 
+implies base pages form superpage protection attributes read write execute 
+due coarse granularity dirty bits operating system determine part superpage accessed written distinguish base pages regard 
+issues tradeoffs task managing superpages conceptually broken series steps governed different set tradeoffs 
+forthcoming analysis issues independent particular processor architecture operating system 
+assume virtual address space process consists set virtual memory objects 
+memory object occupies contiguous region virtual address space contains application specific data shown 
+examples memory objects include memory mapped files code data stack heap segments processes 
+physical memory objects allocated pages accessed 
+allocation page memory object touched application os allocates physical page frame maps application address space 
+principle available page frame purpose just system superpage support 
+os wish create superpage object allocated pages may require relocation physical copying satisfy contiguity alignment constraints superpages 
+copying costs associated relocation allocation approach difficult recover especially busy system 
+alternative reservation allocation 
+os tries allocate page frame part available contiguous range page frames equal size alignment maximal desired superpage size tentatively reserves entire set process 
+subsequently process touches pages fall bounds reservation corresponding base page frames allocated mapped 
+os decide create superpage object allocated page frames satisfy contiguity alignment constraints 
+depicts approach 
+reservation allocation requires priori choice superpage size reserve memory accesses neighbouring pages 
+os may optimistically choose desired superpage size largest supported size smaller equal size memory object may bias decision availability contiguous physical memory 
+os trade performance gains large superpage option retaining contiguous region possibly critical 
+virtual address space object mapping physical address space allocated page frame mapped pages unused page frame superpage alignment boundary reservation reservation allocation 
+fragmentation control contiguous memory plentiful os succeeds superpages desired sizes achieves maximum performance due superpages 
+practice reservation allocation different page sizes file cache accesses combined effect rapidly fragmenting available physical memory 
+sustain benefits superpages os may proactively release contiguous chunks inactive memory previous allocations possible expense having perform disk 
+os may preempt existing partially reservation possibility reservation may superpage 
+os treat contiguity potentially contended resource trade impact various contiguity restoration techniques benefits large superpages 
+promotion certain number base pages potential superpage allocated assuming set pages satisfy aforementioned constraints size contiguity alignment protection os may decide promote superpage 
+usually involves updating page table entries constituent base pages superpage reflect new superpage size 
+superpage created single tlb entry storing translation address superpage suffices map entire superpage 
+promotion performed incrementally 
+certain number base pages allocated contiguous aligned subset reservation os may decide promote subset small superpage 
+superpages may progressively promoted larger superpages size original reservation 
+choosing promote partially allocated reservation os trade benefits early promotion terms reduced tlb misses increased memory consumption results constituent pages superpage 
+demotion superpage demotion process marking page table entries reduce size superpage base pages smaller superpages 
+demotion appropriate process longer actively portions superpage memory pressure calls eviction unused base pages 
+problem hardware maintains single bit superpage making difficult os efficiently detect portions superpage actively 
+eviction eviction superpages similar eviction base pages 
+memory pressure demands inactive superpage may evicted physical memory causing constituent base page frames available 
+evicted page faulted memory allocated superpage may created way described earlier 
+complication arises dirty superpage paged 
+hardware maintains single dirty bit superpage may flushed entirety constituent base pages may clean 
+managing superpages involves complex set tradeoffs researchers alluded issues 
+section describes previous approaches problem section describes design effectively tackles issues 
+related approaches operating systems superpages kernel segments frame buffers 
+section discusses existing superpage solutions application memory focus 
+approaches classified manage contiguity required superpages reservation schemes try preserve contiguity relocation approaches create contiguity hardware mechanisms reduce eliminate contiguity requirement superpages 
+reservations reservation schemes superpage aware allocation decisions page fault time 
+allocation policy decide preferred size allocation attempt find contiguous region free physical memory size 
+hill propose reservation scheme region reserved page fault time promoted number frames reaches promotion threshold 
+memory pressure reservations preempted regain free space 
+main goal hill design provide simple best effort mechanism tailored tlbs described section 
+contrast superpages hp ux irix operating systems eagerly created time 
+page faulted system may allocate contiguous frames fault surrounding pages immediately promote superpage regardless surrounding pages accessed 
+pages reserved eager promotion mechanism equivalent reservation approach promotion threshold frame 
+irix hp ux preferred superpage size memory availability allocation time user specified segment page size hint 
+hint associated application binary text data segments irix allows hint specified runtime 
+main drawback irix hp ux eager promotion transparent 
+requires experimentation determine optimum superpage size various segments application 
+suboptimal setting result lower performance due insufficient tlb coverage superpages small unnecessary paging page population costs superpages large 
+page relocation relocation schemes create superpages physically copying allocated page frames contiguous regions determine superpages beneficial 
+relocation approaches entirely transparently implemented layer operating system need relocate allocated base pages superpage prior promotion plenty contiguous available regions 
+romer propose competitive algorithm uses online cost benefit analysis determine benefits superpages outweigh overhead superpage promotion relocation 
+design requires software managed tlb associates potential superpage counter updated tlb handler 
+absence memory contention approach strictly lower performance reservation approach addition relocation costs tlb misses relocation performed reaction excessive number tlb misses tlb misses expensive factor romer due complex tlb handler 
+hand relocation approach robust fragmentation 
+reservations page relocation complement hybrid approach 
+way relocation reservations fail provide contiguity large number tlb misses observed 
+alternatively page relocation performed background task line memory compaction 
+goal merge fragmented chunks gradually restore contiguity system 
+irix coalescing daemon described evaluation 
+hardware support contiguity requirement superpages reduced eliminated means additional hardware support 
+hill study different tlb organizations 
+advocate partial subblock tlbs essentially contain superpage tlb entries allow holes missing base pages 
+claim approach benefits superpages obtained minimal modifications operating system 
+partial subblock tlbs yield moderately larger tlb coverage base system clear extend partial subblock tlbs multiple superpage sizes 
+fang describe hardware mechanism completely eliminates contiguity requirement superpages 
+introduce additional level address translation memory controller operating system promote non adjacent physical pages superpage 
+greatly simplifies task operating system supporting superpages 
+best knowledge partial subblock tlbs address remapping memory controllers supported commercial general purpose machines 
+approach generalizes hill reservation mechanism multiple superpage sizes 
+regain contiguity fragmented physical memory relocating pages biases page replacement policy select pages contribute contiguity 
+tackles issues demotion eviction described section addressed previous require special hardware support 
+design design adopts reservation superpage management paradigm introduced 
+extends basic design dimensions support multiple superpage sizes scalability large superpages demotion sparsely referenced superpages effective preservation contiguity need compaction efficient disk partially modified superpages 
+shown section combination techniques general efficiently range realistic workloads believed suitable deployment modern operating systems 
+high level sketch design contains components 
+available physical memory classified contiguous regions different sizes managed buddy allocator 
+multi list reservation scheme track partially memory reservations help choosing reservations preemption described section 
+population map keeps track memory allocations memory object described section 
+system uses data structures implement allocation preemption promotion demotion policies 
+controls external memory fragmentation performing page replacements contiguity aware manner described section 
+subsections elaborate concepts 
+reservation allocation operating systems allocate physical memory application demand 
+virtual memory page accessed program mapping exists page table os page fault handler invoked 
+handler attempts locate associated page main memory resident available page frame allocated contents zero filled fetched paging device 
+appropriate mapping entered page table 
+allocating physical memory frame time system determines preferred superpage size region encompassing base page access caused page fault 
+choice size policy described section 
+time system obtains buddy allocator set contiguous page frames corresponding chosen superpage size 
+frame address alignment faulted page fault page mapping entered page table page 
+entire set frames tentatively reserved potential superpage added reservation list 
+event page fault page frame reserved mapping entered page table base page 
+preferred superpage size policy describe policy choose desired superpage size allocation 
+decision usually early process execution hard predict behaviour policy looks attributes memory object faulting page belongs 
+chosen size turns large decision overridden preempting initial reservation 
+chosen size small decision reverted relocating pages 
+reason policy tends choose maximum superpage size effectively object 
+memory objects fixed size code segments memory mapped files desired reservation size largest aligned superpage contains faulting page overlap existing reservations allocated pages reach object 
+dynamically sized memory objects stacks heaps grow page time 
+policy fixed size objects able superpages time policy set preferred size base page 
+slightly different policy required 
+desired size largest aligned superpage contains faulting page overlap existing reservations allocations 
+restriction reservation reach object dropped allow growth 
+avoid wastage contiguity small objects may grow large size superpage limited current size object 
+policy uses large reservations objects reached sufficiently large size 
+preempting reservations free physical memory scarce excessively fragmented system preempt frames reserved 
+allocation requested extent frames desired size available system choose refusing allocation reserving smaller extent desired preempting existing reservation unallocated frames yield extent desired size 
+policy possible system preempts existing reservations refusing allocation desired size 
+reservation yield extent desired size reservation preempted page allocation occurred candidate reservations 
+policy observation useful reservations populated quickly reservations experienced allocations fully allocated near 
+fragmentation control allocating physical memory contiguous extents multiple sizes leads fragmentation main memory 
+time extents large sizes may increasingly scarce preventing effective superpages 
+control fragmentation buddy allocator performs coalescing available memory regions possible 
+coalescing effective system periodically reaches state main memory available 
+control fragmentation persistent memory pressure page replacement daemon modified perform page replacement 
+section discusses greater detail 
+incremental promotions superpage created soon superpage sized aligned extent reservation gets fully populated 
+promotion incremental instance pages memory object faulted sequentially promotion occurs smallest superpage size soon population count corresponds size 
+population count reaches larger superpage size promotion occurs size 
+possible promote size population count reaches certain fraction size 
+performing promotion system needs populate entire region artificially inflate memory footprint applications 
+promote regions fully populated application observe applications populate address space densely relatively early execution 
+speculative demotion occurs side effect page replacement 
+page daemon selects base page eviction part superpage eviction causes demotion superpage 
+demotion incremental necessary demote large superpage way base pages just constituent base pages evicted 
+superpage demoted smaller superpage size process applied recursively smaller superpage encompasses victim page 
+demotion necessary protection attributes changed part superpage 
+required hardware provides single set protection bits superpage 
+system may periodically demote active superpages speculatively order determine superpage actively entirety 
+recall hardware provides single bit superpage 
+operating system way distinguish superpage constituent base pages accessed subset base pages 
+case desirable demote superpage memory pressure unused base pages discovered evicted 
+address problem page daemon resets bit superpage base page memory pressure recursively superpage contains chosen base page certain probability current implementation 
+incremental occur base pages demoted superpages referenced 
+paging dirty superpages dirty superpage needs written disk operating system possess dirty bit information individual base pages 
+consider constituent base pages dirty write superpage entirety base pages may modified 
+large partially dirty superpages performance degradation due superfluous considerably exceed benefits superpages 
+prevent problem demote clean superpages process attempts write base pages 
+choice evaluated section 
+inferring dirty base pages hash digests alternative considered technique retains benefits superpages partially dirty avoiding superfluous clean memory page read disk cryptographic hash digest contents computed recorded 
+partially dirty set base pages promoted superpage clean superpage dirty constituent base pages considered dirty 
+page flushed hash base page recomputed compared determine modified written disk 
+bit sha hash collision probability smaller probability hardware failure 
+technique considered safe 
+preliminary microbenchmarks sha reveal significant overhead disk intensive applications 
+pathological case large sequential read cpu saturated incurs worst case degradation 
+technique implementation 
+overheads reduced variety optimizations 
+hash computation postponed partially dirty superpage fully clean fully dirty superpages base pages need hashed 
+second hashing cost eliminated critical path performing entirely idle loop cpu may frequently idle disk intensive workloads 
+evaluation optimizations subject 
+multi list reservation scheme reservation lists keep track reserved page frame extents fully populated 
+reservation list page size supported hardware largest superpage size 
+reservation appears list corresponding size largest free extent obtained reservation preempted 
+reservation frames allocated largest extents yield preempted page size smaller size 
+instance implementation alpha processor supports mb kb kb kb pages kb reservation list may contain reservations size kb mb 
+reservations list kept sorted time page frame allocations 
+system decides preempt reservation size chooses reservation head list size 
+satisfies policy preempting extent allocation occurred reservations list 
+preempting chosen reservation occurs follows 
+breaking reservation base pages broken smaller extents 
+extents transferred buddy allocator partially populated ones reinserted appropriate lists 
+example preempting kb reservation taken head kb list reservation broken kb extents 
+ones allocations freed ones partially populated inserted head kb reservation list 
+fully populated extents reinserted reservation lists 
+system needs contiguous region free memory obtain buddy allocator preempting reservation 
+mechanism best described example 
+context alpha cpu suppose application faults page reserved frame 
+assume preferred superpage size faulting page kb 
+system asks buddy allocator kb extent 
+fails preempts reservation kb reservation list yield kb extent 
+kb list empty system try kb list 
+list empty system resort base pages buddy allocator tried kb reservation list resource 
+population map population maps keep track allocated base pages memory object 
+serve distinct purposes page fault enable os map virtual address page frame may reserved address allocating contiguous regions physical address space enable os detect avoid overlapping regions assist making page promotion decisions preempting reservation help identifying unallocated regions 
+population map needs support efficient lookups queried page fault 
+radix tree level corresponds page size 
+root corresponds maximum superpage size supported hardware subsequent level corresponds smaller superpage size leaves correspond base pages 
+virtual pages represented node reserved extent frames node pointer reservation reservation back pointer node 
+non leaf node keeps count number superpage sized virtual regions lower level population counter fully populated counter respectively 
+count ranges ratio consecutive superpage sizes alpha processor 
+tree lazily updated object pages populated 
+absence child node equivalent having child counters zero 
+counters refer superpage sized regions upward propagation counters occurs transitions transitions shows tree 
+population map 
+base page level actual allocation pages shown 
+hash table locate population maps 
+population map entry associating memory object page index tuple map page index offset starting page map object 
+population map follows reserved frame lookup page fault virtual address faulting page rounded multiple largest page size converted corresponding memory object page index tuple hashed determine root population map 
+root tree traversed locate reserved page frame 
+overlap avoidance procedure yields reserved frame attempt reservation 
+maximum size overlap previous reservations allocations node path root counter zero 
+promotion decisions page fault serviced promotion attempted node path root faulting page fully populated associated reservation 
+promotion attempt succeeds faulting process pages mapped uniform protection attributes dirty bits 
+preemption assistance reservation preempted broken smaller chunks need freed reinserted reservation lists depending allocation status described section 
+allocation status corresponds population counts superpage map node reservation refers 
+implementation notes section describes implementation specific issues design 
+discussion solution necessarily os specific issues general 
+contiguity aware page daemon freebsd page daemon keeps lists pages approximate lru lru order active inactive cache 
+pages cache list clean unmapped easily freed memory pressure 
+inactive pages mapped address space process referenced long time 
+active pages accessed may may bit set 
+memory pressure daemon moves clean inactive pages cache pages dirty inactive pages deactivates unreferenced pages active list 
+changes factor contiguity restoration page replacement policy 
+consider cache pages available reservations 
+buddy allocator keeps coalesced free pages increasing available contiguity system 
+coalesced regions placed tail respective lists subsequent allocations tend respect lru order 
+contents cache page retained long possible buddy list reservation 
+cache page referenced removed buddy list reservation case reservation preempted 
+cache page reactivated contents reused 
+page daemon activated memory pressure available contiguity falls low 
+implementation criterion low contiguity failure allocate contiguous region preferred size 
+goal daemon restore contiguity necessary service requests failed time daemon woken 
+daemon traverses inactive list moves cache pages contribute goal 
+reaches list fulfilling goal goes sleep 
+chances restoring contiguity higher inactive pages choose clean pages backed file moved inactive list soon file closed processes 
+differs current behaviour freebsd page change status file closing process termination active pages closed files may deactivated memory pressure 
+terms performance system finds worthwhile favor likelihood recovering contiguity file backed pages keep longer time chance file accessed 
+controlling fragmentation comes price 
+aggressively system recovers contiguity greater possibility extent performance penalty induced modified page daemon due deviation lru 
+modified page daemon aims balancing tradeoff 
+judiciously selecting pages replacement attempts restore contiguity possible affecting pages possible 
+section demonstrates benefits design 
+wired page clustering memory pages freebsd internal data structures wired marked non evicted 
+system boot time pages clustered physical memory kernel allocates memory processes running tend get scattered 
+system mb main memory rapidly reach point mb chunks physical memory contain wired page 
+point contiguity large pages 
+avoid fragmentation problem identify pages wired kernel internal 
+cluster pools contiguous physical memory fragment memory necessary 
+multiple mappings processes map file different virtual addresses 
+addresses differ say base page impossible build superpages file page tables processes 
+processes alignment matches physical address pages constituting file process capable superpages 
+solution problem leverages fact applications specify address mapping file 
+gives kernel flexibility assign virtual address mapping process 
+system chooses addresses compatible superpage allocation 
+mapping file system uses virtual address aligns largest superpage smaller size mapping retaining ability create superpages process 
+evaluation section reports results experiments exercise system classes benchmarks real applications 
+evaluate best case benefits superpages situations system memory plentiful 
+demonstrate effectiveness design showing benefits sustained despite different kinds stress system 
+results show efficiency design measuring overhead pathological cases justify design choices previous section appropriate measurements 
+platform implemented design freebsd kernel loadable module hooks operating system call module functions specific points 
+points page faults page allocation deallocation page daemon physical layer vm system demote changing protections keep track dirty modified bits superpages 
+able seamlessly integrate module kernel 
+implementation comprises lines code 
+compaq xp machine characteristics alpha processor mhz page sizes kb base pages kb kb mb superpages fully associative tlb entries data instructions software page tables firmware tlb loader mb ram kb data kb instruction caches ally indexed way associative mb unified direct mapped external cache 
+alpha firmware implements superpages means page table entry pte replication 
+page table stores entry base page part superpage 
+pte contains translation information base page page size field 
+pte replication scheme promotion mb region involves setting page size field page table entries map region 
+workloads benchmarks applications evaluate system 
+cint spec cpu integer benchmark suite 
+cfp spec cpu floating point benchmark suite 
+web thttpd web server servicing requests selected access log cs departmental web server rice university 
+working set size trace mb data set gb 
+image degree rotation pixel image popular open source tools 
+povray ray tracing simple image 
+linker link freebsd kernel gnu linker 
+alpha beta search solver ply position connect game known benchmark 
+tree synthetic benchmark captures behaviour processes dynamic allocation large number small objects leading poor locality 
+benchmark consists operations performed randomly node red black tree operations lookups insertions deletions traversals 
+nodes tree contain pointer byte record 
+insertions new record allocated initialized lookups traversals half record read 
+sp sequential version scalar uncoupled equation system solver nas parallel benchmark suite 
+input size corresponds workstation class nas nomenclature 
+fftw fastest fourier transform west matrix input 
+matrix non blocked matrix transposition matrix 
+best case benefits due superpages set experiments shows classes real workloads yield large benefits superpages free memory plentiful non fragmented 
+table presents best case speedups obtained benchmarks contiguous memory regions need attempt allocate regions preferred superpage size defined section succeeds reservations preempted 
+speedups computed unmodified system mean elapsed runtime runs initial warm run 
+cint cfp entries table speedups reflect respectively improvement specint specfp defined spec geometric mean normalized throughput ratios 
+table presents superpage requirements applications snapshot measured peak memory usage percentage data tlb reduction achieved superpages 
+cases data tlb misses virtually eliminated superpages indicated reduction close 
+contribution instruction tlb misses total number misses negligible benchmarks 
+superpage usage bench reduc kb kb kb mb cint gzip vpr gcc mcf crafty parser eon perl gap vortex bzip twolf cfp swim mgrid applu mesa art equake ammp lucas fma apsi web image povray linker tree sp fftw matrix table speedups superpage requirements plenty memory available 
+nearly workloads table display benefits due superpages substantial 
+benchmarks show improvements speedup show 
+application slows mesa degrades negligible fraction 
+matrix speedup close maximum potential benefits possi bly gained superpages access pattern produces tlb memory accesses 
+commonplace desktop applications linker gcc bzip observe significant performance improvements 
+sufficient contiguous memory available applications stand benefit superpage management system 
+contrast web gains little system create superpages spite large mb footprint 
+web accesses large number small files system attempt build superpages span multiple memory objects 
+extrapolating results system limitation technically feasible high cost complexity bring web speedup closer attractive achieved reduction close 
+applications create significant number large superpages 
+fftw particular stands superpages size mb 
+section shows fftw large superpages speedup mb pages supported 
+mesa shows small performance degradation 
+determined due overhead implementation allocator differentiate zeroed pages free pages 
+os allocates page needs subsequently zeroed requests memory allocator preferentially allocate zeroed page possible 
+implementation buddy allocator ignores hint estimated cost omission comparing base system performance zeroed page feature 
+obtained average penalty maximum 
+side effect superpages subsumes page coloring technique freebsd operating systems reduce cache conflicts physically addressed especially direct mapped caches 
+carefully selecting free frames mapping page os keeps virtual physical mappings way pages consecutive virtual space map consecutive locations cache 
+superpages virtually contiguous pages map physically contiguous frames automatically map consecutive locations physically mapped cache 
+speedup results factor effect page coloring benchmarks run free memory unmodified system succeed page coloring attempts 
+unmodified modified system effectively benefit page coloring 
+benefits multiple superpage sizes repeated experiments changed system support superpage size kb kb mb compared resulting performance multi size implementation 
+tables respectively speedup tlb reduction benchmarks excluding speedup cases 
+benchmark kb kb mb cint vpr mcf vortex bzip cfp lucas apsi image linker sp fftw matrix table speedups different superpage sizes 
+results show best superpage size depends application 
+instance kb sp kb vpr mb fftw 
+reason applications benefit large superpages small fully populate large superpages 
+large superpages small applications population threshold promotion lowered suggested section 
+os populate regions partially mapped application 
+enlarge application footprint slightly change os semantics invalid accesses caught 
+tables demonstrate allowing system choose multiple page sizes yields higher performance system dynamically selects best size region memory 
+extreme case mcf percentage speedup system gets choose sizes doubles speedup single size 
+apparent anomalies different speedups tlb reduction linker due coarse granularity alpha processor tlb counter misses 
+short running benchmarks misses corresponds digit percentage total number misses 
+benchmark kb kb mb cint vpr mcf vortex bzip cfp lucas apsi image linker sp fftw matrix table tlb reduction percentage different superpage sizes 
+sustained benefits long term performance benefits superpages substantial provided contiguous regions physical memory available 
+conventional systems subject memory fragmentation moderately complex workloads 
+example ran instances grep emacs netscape kernel compilation freshly booted system minutes observed severe fragmentation 
+system completely exhausted contiguous memory regions larger kb candidates larger superpages mb mb free 
+system seeks preserve performance superpages time actively restores contiguity techniques described sections 
+evaluate methods fragment system memory running web server feeding requests access log 
+file backed memory pages accessed web server persist memory reduce available contiguity minimum 
+access pattern web server results interleaved distribution active inactive cache pages increases fragmentation 
+experiments web server 
+sequential execution requests trace serviced run fftw benchmark times sequence 
+goal see quickly system recovers just contiguous memory build superpages perform efficiently 
+compares performance contiguity restoration techniques 
+cache scheme treats cached pages available coalesces buddy allocator 
+graph depicts appreciable performance improvements fftw base system 
+observed system unable provide single mb superpage fftw 
+memory available mb run mb fragmented due active inactive wired pages 
+scheme called daemon implementation contiguity aware page replacement wired page clustering 
+time fftw runs web server page daemon activated due contiguity shortage able recover requested contiguous regions mb size 
+subsequent runs get progressively larger number mb superpages viz 
+
+fftw performance reaches runs speedup 
+speedup best case speedup cache daemon fftw runs time techniques fragmentation control 
+web server closes files exit page daemon treats file memory inactive described section 
+measure impact effect conjunction page daemon drive restore contiguity web server subsequent performance 
+run web server fftw replay trace 
+observe performance degradation base system indicating penalty web server performance small 
+analyze experiment monitoring available contiguity system time 
+define empirical contiguity metric follows 
+assign points base page belongs kb kb mb memory region respectively assuming region contiguous aligned fully available 
+compute sum page points normalize corresponding value page system free 
+shows plot contiguity metric experimental time 
+note metric unfavorable daemon scheme consider available extra contiguity regained moving inactive pages cache 
+start experiment scheme system mb available particular cache scheme lost contiguity due unclustered wired pages 
+minutes web server consumes memory decreases available contiguity zero 
+cache scheme recovers system contiguity seen graph short transitory bursts fftw executions 
+contrast daemon scheme recovers contiguity consumed fftw executes released time exits 
+fftw executions finish earlier minutes daemon scheme compared minutes cache scheme 
+available contiguity cache daemon experimental time minutes contiguity function time 
+estimate maximum contiguity potentially gained back fftw runs complete run synthetic application uses anonymous memory maximize number free pages system exits 
+point amount contiguity lost cache scheme due scattered wired pages 
+contrast daemon scheme unable recover original contiguity 
+reason active inactive pages remain experiment scattered physical memory mb chunks 
+experiment starts freshly booted system active inactive pages physically close time occupying chunks 
+part lost due inactive pages counted contiguity metric recovered page daemon 
+real loss long term daemon scheme bounded number active pages 
+concurrent execution experiment runs web server concurrently contiguity seeking application 
+goal measure effect page replacement policy web server single con run 
+isolate effect page replacement policy disabling superpage promotions experiment 
+warm web server footprint playing requests trace measure time taken service requests 
+wish avoid interference cpu intensive fftw application web server substitute dummy application exercises need contiguity 
+application maps touches mb memory times second forces page daemon recover contiguity just memory 
+web server keeps active files open running page daemon indiscriminately treat memory inactive 
+web server active memory pages get scattered limited amount contiguity restored compacting memory 
+course experiment dummy application needs contiguous chunks kb size 
+original page daemon satisfied requests contiguity aware page daemon fulfills requests 
+shows change replacement policy succeeds restoring significantly contiguity negligible overhead essentially performance penalty 
+overhead contiguity restoration operations page daemon web server suffers additional performance degradation consequence deviation page replacement policy lru 
+adversary applications section exercises system synthetic pathological workloads concludes measurement realistic overhead 
+incremental promotion overhead synthesized adversary application system pay costs incremental promotion gaining benefit 
+allocates memory accesses byte page deallocates memory renders tlb useless translation 
+adversary shows slowdown implementation overhead due hardware specific reason 
+pte replication described section forces page table entry traversed times incremental promotions incremental 
+remaining overhead mainly due maintenance population maps 
+sequential access overhead accessing pages sequentially adversary common behaviour usually byte page accessed overhead 
+tested cmp utility compares files mapping memory identical mb files input observed negligible performance degradation 
+preemption overhead measure overhead preempting reservations set situation mb memory available contiguous run process touches memory mb stride 
+situation pattern reservation preemption allocations 
+preemption splits reservation smaller chunks 
+remains reserved page original reservation taken page allocated returned free list 
+measured performance degradation process 
+overhead practice measure total overhead implementation real scenarios 
+benchmarks section perform contiguous memory allocation fragmentation management factor benefit superpages simply promoting 
+preserve promotion overhead writing new superpage size unused portion page table entries 
+observe performance degradations average 
+shows system imposes negligible overhead practice pathological situations described rarely observed 
+dirty superpages evaluate decision clean superpages writing discussed section coded program maps mb file reads page triggering superpage promotion writes th page flushes file exits 
+compared running time process writing 
+expected volume times larger performance penalty huge factor 
+design decision may deny benefits superpages processes write base pages potential superpage 
+policy choose pay price order keep degradation pathological cases low 
+scalability historical tendencies decreasing relative tlb coverage increasing working set sizes continue keep tlb overhead low support superpages larger mb needed 
+processors itanium sparc iii provide mb larger superpages superpage system designed scale sizes 
+architectural peculiarities may pose obstacles 
+operations implementation number distinct superpage sizes case preempting reservation ratio consecutive sizes modern processors 
+exceptions routines running time linear size base pages superpage operate 
+page daemon scans pages runs background process critical path memory accesses 
+routines promotion demotion dirty bit emulation 
+operate page table entry superpage owe hardware defined pte replication scheme described section 
+promotions memory pressure pages incrementally promoted early process life demoted program exit 
+case cost amortized pages process negligible benchmarks 
+exception adversary experiment section pays overhead due incremental promotions 
+memory pressure may happen times process life described sections 
+cost operations may significant large superpages linear cost pte replication 
+dirty bit emulation processors including alpha dirty bits emulated operating system 
+emulation done protecting page write triggers software trap 
+trap handler registers os structures page dirty referenced resets page protection 
+large superpages setting resetting protection expensive pte replication required done base page 
+problems motivate need superpage friendly page table structures defined hardware os order scalably support large superpages 
+clustered page tables proposed represent step direction :10.1.1.110.4178
+provides transparent effective solution problem superpage management operating systems 
+superpages physical pages large size may increase tlb coverage reduce tlb misses improve application performance 
+describe practical design demonstrate integrated existing general purpose operating system 
+evaluate system range real workloads benchmarks observe performance benefits cases show system robust pathological cases 
+benefits sustained complex workload conditions memory pressure overheads small 
+acknowledgments wish shepherd greg ganger anonymous referees helpful comments 
+supported part nsf ccr texas atp equipment donations compaq wrl hp labs 
+juan navarro supported part usenix student research 
+bailey harris van der woo 
+nas parallel benchmarks 
+report nas nasa ames research center moffett field ca 
+clark emer 
+performance vax translation buffer simulation measurement 
+acm transactions computer systems feb 
+fang zhang carter mckee hsieh 
+reevaluating online superpage promotion hardware support 
+proceedings th international ieee symposium high performance computer architecture mexico jan 
+fips 
+secure hash standard 
+technical report publication federal information processing standard fips national institute standards technology department commerce washington apr 
+johnson 
+fftw adaptive software architecture fft 
+proceedings international conference acoustics speech signal processing volume seattle wa may 
+
+general purpose operating system support multiple page sizes 
+proceedings usenix annual technical conference berkeley ca june 
+henning 
+spec cpu measuring cpu performance new millennium 
+ieee computer july 
+
+www org 
+
+characterizing tlb behavior spec cpu benchmarks 
+proceedings acm rics conference measurement modeling computer systems marina del rey ca june 
+kane heinrich 
+mips risc architecture 
+prentice hall upper saddle river nj 
+kessler hill 
+page placement algorithms large real indexed caches 
+acm transactions computer systems apr 
+khalidi nelson williams 
+virtual memory support multiple page sizes 
+proceedings fourth ieee workshop workstation operating systems napa ca oct 
+mogul 
+big memories desktop 
+proceedings fourth ieee workshop workstation operating systems napa ca oct 
+peterson norman 
+buddy systems 
+communications acm june 
+
+thttpd tiny turbo throttling server 
+www acme com software thttpd 
+romer karlin bershad 
+reducing tlb memory overhead online superpage promotion 
+proceedings nd annual international symposium computer architecture santa margherita italy june 
+rosenblum bugnion herrod witchel gupta 
+impact architectural trends operating system performance 
+proceedings th symposium operating systems principles copper mountain dec 
+sites 
+alpha architecture manual 
+digital press boston ma 
+subramanian peterson 
+implementation multiple pagesize support hp ux 
+proceedings usenix annual technical conference berkeley ca june 
+hill 
+surpassing tlb performance superpages operating system support 
+proceedings sixth international conference architectural support programming languages operating systems san jose ca oct 
+hill khalidi :10.1.1.110.4178
+new page table bit address spaces 
+proceedings th symposium operating systems principles copper mountain dec 
+kong hill patterson 
+tradeoffs supporting page sizes 
+proceedings th annual international symposium computer architecture gold coast australia may 
+uhlig nagle stanley mudge brown 
+design tradeoffs software managed tlbs 
+acm transactions computer systems aug 
+wood eggers gibson hill ritchie taylor katz patterson 
+cache address translation mechanism 
+proceedings th annual international symposium computer architecture tokyo japan 
+acm 

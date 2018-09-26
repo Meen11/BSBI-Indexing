@@ -1,0 +1,450 @@
+titan high performance remote sensing database chang moon anurag acharya carter shock alan sussman joel saltz institute advanced computer studies department computer science university maryland college park major challenges high performance remote sensing database 
+provide low latency retrieval large volumes spatio temporal data 
+requires effective declustering placement multi dimensional dataset large disk farm 
+second order magnitude reduction data size due post processing imperative performance perspective postprocessing done machine holds data 
+requires careful coordination computation data retrieval 
+describes design implementation evaluation titan parallel shared database designed handling remote sensing data 
+computational platform titan processor ibm sp fast disks attached processor 
+titan currently operational contains gb data advanced high resolution radiometer avhrr noaa satellite 
+experimental results show titan provides performance global queries interactive response times local queries 
+remotely sensed data acquired satellite sensors widely geographical meteorological environmental studies 
+typical analysis processes satellite data days year generates images area study 
+data volume major limiting factors studies involving remotely sensed data 
+coarse grained satellite data km pixel global query spans shortest period interest days gb finer grained research supported national science foundation asc nasa nag arpa project arpa dabt caltech subcontract 
+version data km pixel gb 
+output images usually significantly smaller input data 
+example multi band full globe image corresponding km dataset mentioned mb 
+data reduction achieved composition information corresponding different days 
+composition individual data processed correcting effects various distortions including instrument drift atmospheric effects 
+characteristics major challenges design implementation highperformance remote sensing database 
+database provide low latency retrieval large volumes spatio temporal data secondary storage 
+requires effective declustering placement multi dimensional dataset large disk farm 
+furthermore necessary disk farm suitably configured provide high bandwidth needed rapid retrieval large data volumes 
+second order magnitude reduction data size imperative performance perspective correction composition operations performed machine data stored 
+requires careful coordination computation data retrieval avoid slowing process 
+database systems designed handling geographic datasets 
+systems capable handling map raster images geographic entities map points cities line segments rivers roads 
+systems provide powerful query operations including various forms spatial joins 
+systems suitable storing raw remote sensing data processed map coordinate system 
+means suitable output images described original data 
+maintaining remote sensing data raw form necessary reasons significant amount earth science research devoted developing correlations raw sensor readings satellite various properties earth surface composition operation performed longer possible retrieve original data process generating map image requires projection globe dimensional grid results spatial distortion data 
+different projections various purposes earth scientists single projected product adequate potential uses 
+systems implemented uniprocessor platforms 
+targeted configurations large disk farms believe important volume data retrieved query 
+describes design implementation evaluation titan parallel shared database designed handling remote sensing data 
+computational platform titan processor ibm sp fast disks ibm attached processor 
+widely micro benchmark indicated maximum aggregate application level disk bandwidth configuration mb unix filesystem interface 
+titan currently operational contains gb data advanced high resolution radiometer avhrr sensor national oceanic atmospheric administration noaa satellite 
+focuses aspects design implementation titan data placement disk farm query partitioning coordination data retrieval computation communication entire machine 
+section provides overview system 
+section describes declustering data placement techniques titan 
+data layout decisions titan motivated format avhrr data common query patterns identified nasa researchers collaborators university maryland geography department 
+section describes indexing scheme titan 
+section describes mechanisms coordinate data retrieval computation interprocessor communication processors 
+goal mechanisms overlap operations possible maintaining computation communication balance entire machine 
+section describes experiments performed evaluate system analyzes results 
+section describes lessons learned endeavor 
+believe experiences suggest useful guidelines go remote sensing databases scope 
+particular expect techniques coordinating balancing computation communication useful unconventional databases need perform substantial post processing 
+similarly believe results provide additional evidence utility minimax algorithm declustering multidimensional datasets large disk farms 
+section provides summary results describes ongoing 
+system overview titan consists parts ffl front interact querying clients perform initial query processing partition data retrieval computation ffl back retrieve data perform post processing composition operations 
+bandwidths reported measured aix 
+system upgraded aix able configure system achieve reported bandwidth 
+front single machine located network configuration shares dedicated network back preferred data reduction compositing result image usually quite large 
+back consists set processing nodes store data computation 
+volume data transferred preferable nodes share dedicated network 
+current implementation titan uses node processor ibm sp front remaining nodes back 
+data stored disks front node 
+titan partitions entire sensor data set coarse grained chunks 
+spatio temporal keys search retrieve chunks stored simplified tree 
+partitioning indexing schemes described fully sections respectively 
+index front identify data blocks needed resolving query partition load efficient parallel execution 
+size titan index gb sensor data mb small front retain main memory 
+titan queries specify kinds constraints temporal bounds specified universal coordinated time utc spatial bounds specified quadrilateral surface globe sensor type number resolution grid image generated result 
+result query composited multi band image 
+value pixel result image generated composition sensor readings corresponding pixel 
+current implementation supports max min composition functions 
+front receives query searches index data blocks intersect query window space time 
+search returns list requests data blocks 
+location information block stored index front partitions list data block requests back nodes list corresponding node contains requests data blocks stored node 
+addition front partitions result image back nodes 
+currently result image evenly partitioned blocks rows columns assigning back node approximately number output pixels 
+front distributes data block requests output partition information back nodes 
+back node receives query information computes schedule retrieving blocks local disks 
+data blocks retrieved disks back node generates communication necessary move blocks back nodes need resolve parts output image pipelined fashion 
+back node process data blocks requires arrive local disks communication network 
+details scheduling various back operations described section 
+data block available back node retrieved local disk forwarded back node simple quadrature scheme search sensor readings intersect local part partitioned output image 
+locations corner sensor readings data block mapped output image 
+locations fall inside image readings data block mapped pixels output image composed existing value pixel 
+corner location outside local part output image data block divided approximately equal sub blocks searched recursively rejecting portions wholly outside image 
+data blocks processed result image returned front forwarding querying client stored file locally retrieval 
+data placement titan addresses problem low latency retrieval large volumes data ways 
+titan takes advantage avhrr data format common query patterns identified earth science researchers partition entire dataset coarse grained chunks allow hardware configuration deliver disk bandwidth 
+second titan tries maximize disk parallelism declustering set chunks large disk farm 
+titan attempts minimize seek time individual disks clustering chunks assigned disk 
+subsections describe techniques provide low latency data retrieval 
+data partitioning data partitioning decisions titan motivated format avhrr data common query patterns identified nasa researchers collaborators university maryland geography department 
+avhrr data organized file satellite orbit 
+noaa satellites orbit earth approximately times day 
+file consists sequence scan lines line containing pixels 
+pixel consists readings different band electromagnetic spectrum 
+avhrr files provided nasa organized band interleaved form values single pixel stored consecutively 
+satellite data processing programs aware process band data band data 
+grouping due properties bands bands provide information estimate amount region bands estimate cloud cover surface temperature 
+take advantage query patterns titan stores avhrr data parts containing data bands containing data bands 
+primary avhrr data determine land cover region ground common queries correspond geo political regions world india taiwan korea africa 
+individual files units data storage retrieval result necessary 
+hand retrieving data small units individual scan lines efficient 
+compromise achieved smallest data unit retrieved disk efficiently 
+factor taken consideration selecting data layout geometry individual data units square groups pixels provide better indexing elongated data units 
+know sp configuration best performance achieved blocks larger kb 
+chose partition avhrr data tiles pixels 
+tiles containing data band contain kb data including kb geolocation data navigating pixels 
+tiles containing data band tile size kb including geo location data 
+minimize disk seek time tiles band data stored contiguously disk tiles band data 
+scheme allows queries common patterns described earlier access multiple tiles sequentially disk 
+declustering key motivation declustering exploit disk parallelism distributing database files multiple processors disks aiming minimize number data blocks fetched single disk minimizing query processing time 
+numerous declustering methods reported literature 
+multidimensional datasets declustering methods classified approaches grid graph theoretic 
+grid methods developed decluster cartesian product files graph theoretic methods aimed declustering general spatial access structures grid files trees 
+survey declustering methods 
+titan index similar behavior tree see section adopted graphtheoretic algorithm moon minimax spanning tree algorithm 
+algorithm originally proposed declustering grid files large disk farm shown outperform fang short spanning path algorithm task 
+graph theoretic algorithms fang minimal spanning tree mst liu iterative partitioning algorithms selected mst guarantee partitions balanced size means partitions may impractically large multi pass algorithm requires fewer theta operations number data blocks number passes 
+number passes usually low complexity polynomial bounded 
+minimax declustering algorithm requires operations achieves perfectly balanced partitions disk assigned dn data blocks number disks 
+apply minimax algorithm complete graph generated data blocks vertices 
+edge associated cost represents probability vertices data blocks accessed single query 
+generate edge costs chosen proximity index proposed kamel faloutsos 
+alternative considered euclidean distance suitable point objects occupy zero area problem space capture distinction pairs partially overlapped spatial objects non zero area volume key idea minimax declustering algorithm extend prim minimal spanning tree algorithm construct spanning trees disks disk farm assign blocks associated single spanning tree single disk 
+prim algorithm expands minimal spanning tree incrementally selecting minimum cost edge vertices tree vertices tree 
+selection policy ensure increment aggregate cost sum edge weights inclusive group vertices associated spanning tree due newly selected vertex minimized 
+minimax spanning tree algorithm uses minimum maximum costs policy 
+partially overlapped objects mean disjoint dimensional objects projected images dimensions intersect 
+illustration expanding spanning trees vertex selected algorithm computes maximum edge weights vertex vertices selected 
+selection procedure picks vertex smallest value 
+example minimum minimum costs policy pick vertex add spanning tree weight edge minimum 
+decision leads putting vertices connected edge heavy weight vertex group represented spanning tree hand minimum maximum costs policy pick vertex add spanning tree weight edge minimum maximum costs 
+summary minimax algorithm ffl seeds spanning trees choosing vertices choosing single vertex 
+ffl expands spanning trees round robin fashion 
+ffl uses minimum maximum costs policy edge selection minimum minimum costs policy 
+detailed description minimax declustering algorithm 
+clustering addition maximizing disk parallelism declustering important reduce number disk seeks suitably ordering data blocks assigned single disk 
+achieve clustering multidimensional datasets considered clustering techniques hilbert space filling curves short spanning path ssp algorithm 
+methods map multidimensional objects dimensional disk space 
+widely believed hilbert curve achieves best clustering space filling curves 
+advantage space filling curves linearization mapping linear cost number objects ssp quadratic algorithm 
+empirically shown ssp algorithm achieves better declustering hilbert curve algorithm 
+clustering dual declustering conjecture ssp algorithm achieve better clustering 
+addition remotely sensed image database static minimax declustering quadratic algorithm ssp algorithm selected clustering method 
+finding shortest spanning path np complete 
+ssp algorithm employs heuristic generate path short necessarily shortest 
+algorithm works picking vertex randomly set vertices 
+suppose generated partial path covering vertices pick vertex randomly vertex set find position path vertex placed trying positions path length resulting path minimized 
+proximity index measure distance vertices 
+indexing scheme titan index contains spatio temporal bounds retrieval keys coarse grained data blocks described section 
+due relatively small number blocks database implemented index simplified tree 
+index binary tree interior nodes bounding quadrilaterals children 
+leaf nodes index correspond data blocks contain spatial temporal extent meta data sensor type satellite number position disk data block 
+position data block described disk offset pair 
+leaf nodes arranged ordering index built 
+sorting leaves spatially allows access index range tree 
+furthermore allows interior node keys index better approximate spatial extent children reduces overlap different interior node keys level tree 
+result searching index efficient 
+quadrilaterals rectangles achieve better fit spatial bounds 
+chose binary tree simplicity entire index held memory making disk efficiency index unimportant 
+scheme provides adequate performance system data block indexing closely examined large scale implementation 
+report performance results index 
+coarse grained index advantages 
+index supports efficient retrieval data disks 
+second index supports quick winnowing large portions data base localized queries 
+third index allows query previews enable users quickly refine queries forcing large volumes data retrieved disks 
+index extensible easy include data sensors re engineering indexing scheme re indexing existing data 
+query processing described section titan consists front set back nodes 
+front uses query client search index described section identifies data blocks intersect spatial temporal extent query 
+front partitions query evenly back nodes 
+data blocks selected index front generates block request 
+block request consists disk id offset obtained position information stored index list back nodes assigned part result image intersects spatial extent associated data block 
+refer back nodes consumers data block 
+consumers data block easily identified front complete partitioning information result image 
+front computes back node number data blocks node expecting receive back nodes 
+information description assigned part result image set associated block requests communicated back node 
+back node receives information front computes schedule 
+schedule set lists block requests 
+list identified local disk id back node id pair 
+block request back node receives front consumers chosen representative 
+disk id block request node id representative identifies list schedule block request joins 
+representative block request chosen follows 
+block request consumer consumer representative 
+block request multiple consumers cases 
+local node consumers local back node representative 
+back node chosen randomly consumers data block representative 
+schedule back node effectively partitions set block requests disk representative consumer queues 
+allows local node issue read requests local disks balanced fashion full available disk bandwidth 
+scheme allows back node schedule read requests local disk back nodes get fair share disk bandwidth allowing entire system global progress 
+schedule generated back node asynchronously executes loop body consists phases disk read phase block send phase block receive phase remote block read phase block consume phase shown 
+back node generates empty result image assigned partition 
+implementation motivated observation answer query titan data declustering query partitioning schemes significant amount data read disks transferred network 
+hide large latency incurred accesses interprocessor communication titan back nodes issue multiple asynchronous operations file system network interface communication computation may overlapped 
+keeping track various pending operations issuing asynchronous operations necessary back nodes move data blocks disks memory consuming back nodes pipelined fashion 
+addition communication proceeding back node process data blocks arrive local disks network 
+disk read phase back issues asynchronous reads disks possible 
+asynchronous read requires pre allocated buffer space hold returned data 
+number asynchronous reads issued execution phase limited number available buffers 
+disks provide upper bound number outstanding requests allowed little benefit gained outstanding asynchronous reads disk 
+block send phase back checks completion asynchronous sends issued block consume phase described shortly 
+sends data blocks reside local disks required processing nodes 
+asynchronous sends data block complete buffer space released 
+block receive phase back node posts multiple asynchronous receives receive data blocks processed local node stored nodes 
+buffer needs reserved pending receive 
+activities done disk read phase issue asynchronous disk reads blocks possible block send phase check pending block sends freeing send buffers completed ones block receive phase check pending block receives completed add receive buffer list buffers processed locally non local blocks obtained issue asynchronous receive remote block read phase check pending disk reads retrieve blocks processed remote back nodes completed generate asynchronous sends remote nodes block consume phase block available processing process block perform mapping compositing operations readings block check pending disk reads blocks local node possibly remote back nodes completed read generate asynchronous sends remote consuming nodes process block endif endwhile main loop overlapping computation communication 
+remote block read phase disk reads issued data blocks reside local disks processed remote nodes checked completion 
+asynchronous sends generated disk reads completed 
+block consume phase back node processes ready data block obtained network local disk 
+ready data block arrived network node performs required mapping composition operations block exits block consume phase 
+node polls pending disk reads issued blocks processed locally possibly remote back nodes 
+pending disk read completed asynchronous send posted remote consumer data block 
+addition ready data block processed block consume phase exited 
+ready data block processed block consume phase iteration 
+policy prevents system failing monitor various outstanding asynchronous operations processing ready data blocks 
+experimental results titan currently runs ibm sp university maryland 
+sp consists rs processing nodes called thin nodes running aix 
+titan node frontend uses nodes back 
+current database stores approximately months avhrr level global area coverage data containing gb data stored disks distributed back nodes 
+titan uses ibm mpl library interprocessor communication compiled ibm compilers version optimization level 
+declustering clustering section evaluate performance minimax spanning tree algorithm short spanning path algorithm declustering clustering methods respectively 
+compare methods random block assignment static measurements simulation experiments synthetically generated query sets 
+static measurements selected static measures evaluate declustering clustering methods ffl number nearest neighbor blocks placed disk declustering 
+ffl aggregate probability pair adjacent data blocks fetched clustering 
+measures depend actual data placement independent distribution sizes shapes queries 
+nearest neighbors random assignment minimax declustering improvement table number nearest neighbor blocks assigned disk counted number nearest neighbor data blocks assigned disk unit varying total data blocks distributed disks sp nodes back titan 
+results summarized table values 
+closer pair blocks higher chance accessed 
+reduction percent measure indicates potential substantial performance improvement declustering 
+computed aggregate probability pair adjacent data blocks disk unit fetched 
+precisely value measured gamma proximity index block block number blocks assigned disk block block pair adjacent blocks disk 
+call measure probability path length disk 
+high probability path length indicates data blocks clustered disk require small number disk seeks retrieval 
+short spanning path algorithm cluster data blocks disk average probability path length twice high value random block assignment 
+simulation synthetic queries metrics interest metrics interest block transfer time seek time 
+models metrics formally defined follows call metrics model block transfer time model seek time respectively 
+definition model block transfer time query defined max fn number disks number data blocks fetched disk answer query disks assumed independently accessible definition implies time required fetch blocks answer set query max fn units unit bounding boxes covering land masses time required disk access retrieve block 
+ignoring effects disk caching maximum number data blocks fetched disk max fn considered plausible measure actual block transfer time 
+definition cluster blocks group data blocks contiguous disk 
+query model seek time defined number clusters answer set metric definition originally proposed analyze clustering properties space filling curves 
+pointed small gaps fetched blocks immaterial 
+section total distance traveled disk arm model seek time evaluate clustering scheme 
+experimental results common query patterns identified earth science researchers generated synthetic queries uniformly cover land masses world 
+divided land masses disjoint regions shown 
+synthetic queries dimensional including temporal dimension days sizes queries governed selectivity factor 
+selectivity factor denotes percentage total area space time synthetic query contiguous data blocks may considered contiguous logical block numbers assuming logical block numbers represent relative locations physical data blocks 
+selectivity percent percent percent declustering random minimax impr random minimax impr random minimax impr land region land region land region land region land region land region table model block transfer time selectivity percent percent percent clustering random ssp impr random ssp impr random ssp impr land region land region land region land region land region land region table model seek time covers total area land region space time 
+example spatio temporal query region size lat theta long theta time requires query size lat theta long theta time achieve query selectivity simulate processing synthetic queries accessed titan index described section computed model block transfer time model seek time queries retrieving data blocks 
+experiments varied percent 
+table table show experimental results individual land regions query selectivities 
+land region query selectivity averaged model block transfer time model seek time synthetic range queries 
+table selectivities columns show average model transfer time random block assignment minimax declustering method respectively 
+third column displays improvement shown minimax method 
+model transfer time minimax random assignment observed percent performance improvements experiments 
+table selectivities columns show average model seek times improvement ratio 
+minimax declustering applied cases isolate effects clustering blocks disk unit 
+cases data blocks declustered disk units minimax algorithm 
+random case data blocks randomly arranged disk data blocks clustered short spanning path algorithm ssp case 
+ssp clustering achieved percent improvement reduction disk seeks relative random assignment experiments 
+measured average distance disk arm needs move synthetic query 
+disk arm travel distance modeled highest offset lowest offset blocks answer set query 
+experiments observed percent improvement disk arm travel distance ssp clustering relative random block assignment 
+preprocessing preprocessing phase executed load entire database 
+preprocessing includes segmenting raw avhrr gac files blocks building index bounding boxes blocks determining placement blocks disks declustering clustering algorithms writing blocks appropriate locations disks 
+sample gb data set preprocessing takes hours sp 
+raw file segmenting index construction running declustering clustering algorithm tasks performed single node sp 
+tasks majority time spent declustering clustering algorithm took hours process data blocks 
+final step moves data raw avhrr gac files blocks disk locations specified declustering algorithm takes node hours 
+words node server takes minutes find process write blocks assigned disks 
+query processing evaluate performance titan ran set sample queries 
+queries generates day composite image sensor measurements bands 
+simplicity sample queries specified rectangular boxes cover land masses united kingdom ireland australia africa north america south america 
+addition ran global query spatially covering entire globe 
+resolution output images sample queries degrees longitude degrees latitude 
+sample queries run different system configurations 
+configurations allowed selectively disable system components interprocessor communication computation observe components interact 
+disabled back nodes resolved global query back node 
+data stored local disks active back node retrieved answer global query effectively disables interprocessor communication component titan 
+ran global query computation component turned separate experiments 
+computation turned back node performs mapping compositing operations data blocks read local disks described section 
+computation turned back throws away retrieved data blocks performing computation 
+turning computation allowed measure effective disk bandwidth seen back node 
+comparing effective disk bandwidth disk bandwidth measured disk benchmark program reveal amount software overhead added titan 
+computation turned output images generated configuration complete th data stored database retrieved 
+shows results answering global query node 
+left right bars show execution times computation turned respectively 
+computation turned total time spent performing computation measured separately shown right bar area labeled computation 
+remaining time represents non overlapped resolve global query back node retrieved data blocks mb effective disk bandwidth observed back node mb sec 
+comparing value aggregate application level disk bandwidth mb sec achievable sp node measured micro benchmark unix filesystem interface results show little overhead incurred titan 
+difference heights left bar part right bar indicates amount overlap disk operations computation node 
+overlap sec means time spent doing asynchronous disk reads overlaps computation 
+experiment ran queries back nodes 
+table shows total amount data read disk communicated processors resolve sample queries 
+back nodes data blocks read disks forwarded consumer back nodes described section 
+effectively enables interprocessor communication component titan 
+ran sample queries computation turned previous experiment 
+computation turned titan back nodes perform mapping computa tion computation resolving global query single back node 
+sample query total data read total data communicated data blocks messages global mb mb africa mb mb north america mb mb south america mb mb australia mb mb united kingdom mb mb table total number data blocks read communicated resolve sample queries 
+compositing operations data blocks read disks 
+data blocks needed resolve queries retrieved processed titan returns complete result images configuration 
+execution times obtained computation turned results completely resolving sample queries 
+hand computation turned titan back nodes read necessary data blocks disks forward data blocks consumer back nodes data blocks discarded consumers 
+shows execution times resolving sample queries back nodes computation turned 
+query shown bars 
+comparison disk read time estimated bandwidth mb sec back node plotted query leftmost bar 
+middle right bars show respectively execution times computation turned broken interprocessor communication computation components 
+comparing heights parts leftmost bars sample query see time sec computation communication computation communication computation communication global america africa america australia united kingdom resolving sample queries back nodes 
+query large significant part asynchronous disk read time overlapped interprocessor communication 
+query small back node reads data blocks disks achieve maximum disk bandwidth 
+estimated times mb sec australia united kingdom queries measured times left performing non overlapped rightmost bars show computation component overlap components 
+previous experiment showed disk reads overlap quite computation conclude interprocessor communication component overlap computation 
+lack overlap communication computation sp processor mainly current implementation ibm mpl communication library 
+mpl processor participates communication protocol copy messages user space network adapter 
+memory copy operation major memory bandwidth bottleneck thin sp node leaving time processor perform computation interprocessor communication takes place 
+snir report better overlap computation communication achieved wide sp nodes higher memory bandwidth 
+evaluation experimental results section show titan delivers performance small large queries 
+particular titan provides interactive response times local queries 
+declustering clustering schemes allow titan effectively utilize high aggregate bandwidth available disk farm 
+data placement coupled post processing algorithm overlaps interprocessor communication computation causes titan query processing mainly computation bound task 
+room improvement 
+current implementation uses equal partitioning output image partition load back nodes 
+data blocks retrieved back node forwarded consuming back nodes resulting large amount interprocessor communication major performance bottleneck 
+communication problem pronounced small queries resolved back nodes employed system 
+problem worsens cases spatial extent sub image comparable smaller single data block data block intersect subimage forwarded multiple back nodes 
+seen table average data block retrieved disks back node sent nodes global query nodes africa query nodes united kingdom query 
+communication problem stems conflict declustering strategy partitioning blocks satellite data processors strategy partitioning workload straightforward partitioning pixels output image 
+choices force data blocks back node requires compute portion output image retrieved disks back nodes 
+problem amplified ibm sp experiments run lack overlap communication computation 
+performance issue equal partitioning output image back nodes correspond equal partitioning input data processed back node 
+particularly true data blocks uniformly distributed entire spatial extent database 
+avhrr satellite data titan currently stores property 
+table shows sample queries section minimum maximum numbers data blocks read processed back node 
+table shows declustering algorithm achieves reasonable load balance back nodes workload partitioning scheme results imbalanced computational workload back nodes 
+back node data blocks process bottleneck query processing 
+currently working new scheme partitioning computational workload declustering input image 
+proposed scheme processor process data blocks retrieved local disks response query 
+effectively requires output image query data blocks read data blocks processed min max min max global africa north america south america australia united kingdom table number data blocks read processed back nodes 
+replicated combined processors final step data blocks processed 
+output image large replicated memories processors output image partitioned produced piece time processors working part output image time 
+scheme significantly reduce interprocessor communication communication required combine results output image 
+addition partitioning scheme improve computational load balance workload processor directly proportional amount data stored local disk 
+help declustering algorithm minimax new scheme produce computational load balance 
+design evaluation titan high performance image database efficiently accessing remotely sensed data spatial non uniformity 
+titan partitions data coarse grained chunks distributes chunks disk farm declustering clustering algorithms 
+system consists front doing query partitioning back performing data retrieval post processing 
+back runs parallel coordinates interprocessor communication computation processors allow overlap operations 
+experimental results show titan provides performance queries widely varying sizes 
+currently investigating techniques efficiently handling multiple concurrent queries image database 
+issues addressed include resource management data reuse 
+resource management issues arise trying optimize limited amount buffering space available processing node 
+data reuse refers scheduling processing queries overlap space time achieve system throughput 
+plan add support tertiary storage systems 
+practice terabytes data stored database far exceeding capacity disk farm reasonable size 
+data need placed tapes permanent storage staged disks query processing 
+provide performance extend optimization techniques currently provide high performance titan include support tertiary storage system 
+acharya bennett mendelson hollingsworth saltz sussman 
+tuning performance intensive parallel applications 
+proceedings fourth acm workshop parallel distributed systems may 
+web site avhrr data nasa goddard distributed active archive center 
+gsfc nasa gov campaign docs ftp site pal html 
+ling tony chen doron rotem 
+declustering objects visualization 
+proceedings th vldb conference pages dublin ireland 
+dewitt kabra luo patel yu 
+client server paradise 
+proceedings th vldb conference 
+doan plaisant shneiderman 
+query previews networked information systems 
+technical report cs tr department computer science university maryland oct 
+available car tr isr tr 
+du 
+disk allocation cartesian product files multiple disk systems 
+acm transactions database systems march 
+jeff jim 
+source code las xid 
+eros data center sioux falls 
+michael shapiro grass programmer manual 
+army construction engineering research laboratory 
+christos faloutsos pravin bhagwat 
+declustering fractals 
+nd international conference parallel distributed information systems pages san diego ca january 
+fang lee chang 
+idea de clustering applications 
+proceedings th vldb conference pages kyoto japan 
+michael garey david johnson 
+computers intractability 
+freeman new york 
+dye yang 
+normalized difference vegetation index measurements advanced high resolution radiometer 
+remote sensing environment 
+nsf arpa grand challenge project university maryland land cover dynamics 
+www umiacs umd edu research gc 
+guttman 
+trees dynamic index structure spatial searching 
+proceedings acm sigmod conference pages boston ma june 
+jagadish 
+linear clustering objects multiple attributes 
+proceedings conference pages atlantic city nj may 
+ibrahim kamel christos faloutsos 
+parallel trees 
+proceedings acm sigmod conference pages san diego ca june 
+kernighan lin 
+efficient heuristic procedure partitioning graphs 
+bell system technical journal february 
+liang davis chellappa krishnamachari roussopoulos saltz samet shock srinivasan 
+land cover dynamics investigation parallel computers 
+proceedings international geoscience remote sensing symposium quantitative remote sensing science applications pages july 
+liang 
+retrieval atmospheric water vapor land surface temperature avhrr thermal imagery 
+proceedings international geoscience remote sensing symposium quantitative remote sensing science applications pages july 
+ren liu shekhar 
+similarity graph approach declustering problems application parallelizing grid files 
+th inter 
+conference data engineering pages taipei taiwan march 
+moon anurag acharya joel saltz 
+study scalable declustering algorithms parallel grid files 
+proceedings tenth international parallel processing symposium pages honolulu hawaii april 
+extended version available cs tr umiacs tr 
+moon jagadish christos faloutsos joel saltz 
+analysis clustering properties hilbert space filling curve 
+technical report cs tr umiacs tr university maryland college park md march 
+submitted ieee transactions knowledge data engineering 
+moon joel saltz 
+scalability analysis declustering methods cartesian product files 
+technical report cs tr umiacs tr university maryland college park md april 
+submitted ieee transactions knowledge data engineering 
+
+arc info geographic information system 
+computers geosciences international journal august 
+nievergelt hinterberger 
+grid file adaptive symmetric multikey file structure 
+acm transactions database systems march 
+orenstein 
+class data structures associative searching 
+rd acm sigact sigmod symposium principles database systems pages waterloo canada april 
+prim 
+shortest connection networks generalizations 
+bell system technical journal november 
+shock chang davis saltz sussman 
+high performance image database system remote sensing 
+th workshop tools techniques modeling simulation washington october 
+peter smith bin bin ding 
+source code avhrr pathfinder system 
+main program avhrr land pathfinder effort nasa goddard 
+snir hochschild gildea 
+communication software parallel environment ibm sp 
+ibm systems journal 
+
+montage extensible architecture 
+proceedings acm sigmod conference page may 
+van 
+geo system extensible gis 
+proceedings fifth international symposium spatial data handling pages august 
+

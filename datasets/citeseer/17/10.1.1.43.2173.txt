@@ -1,0 +1,380 @@
+efficient variable consistency replicated file service carl tait dan duchamp computer science department columbia university new york ny cs columbia edu previous introduced new method file replica management designed address problems faced mobile clients 
+goals shaped design minimizing synchronous operations letting clients determine level consistency desired 
+previous high level view fundamental issues refine previous ideas flesh rest design 
+investigates design replicated file system serve mobile clients 
+idea file service clients mobile natural marriage exploding trends portable computers wireless networks 
+previous argued client mobility major new development requires re thinking file system design existing approaches replica management cope mobile clients 
+proposed alternative lazy server update scheme new service interface allows applications select strong weak consistency semantics particular read call 
+earlier addressed aspects see complete problem developed solution certain amount depth 
+finishes design 
+assumptions operating conditions 
+client movements constrained patterns movement may exist 
+
+latency remote operations degrades distance hosts increases 
+
+load ousterhout called engineering office applications 
+model workload sequential sharing uncommon simultaneous sharing read read rare 
+
+file cache modest size maintained client 
+
+file service sites synchronize clocks 
+assumption controversial satisfied clock synchronization protocols 
+assumptions client clocks 
+flowing assumptions design goals paramount importance handling mobile clients minimize synchronous operations ease addition deletion server sites allow incomplete replication servers 
+discuss reasoning turn 
+minimize synchronous multi server operations 
+assumptions lead file systems frequently global communication perform clients move wide area remain mapped fixed set servers 
+reason latency contacting distant server lower bound latency entire multi server operation 
+file service operations involve global communication slow client moves away current set servers 
+ease addition deletion server sites 
+order avoid global communication features desirable 
+primary secondary server organization client communicates primary primary communicates asynchronously servers 
+second ensuring primary located near client 
+client moves unpredictably service ready regularly add new replication site typically new primary 
+model mobile operation envision client moves wide area areas visited 
+new milieu negotiate local machine new primary 
+presumably need regular replica deletion order limit degree replication sensible number case highly mobile client 
+regular addition deletion replicas especially primary marks design unusual 
+allow incomplete replication 
+identities servers specifically primary changing frequently unpredictably replication sites expected store complete copies client file set 
+provide incomplete replication client files need replicated subset server sites 
+previous addressed concerns limited detail 
+address goals replica site addition deletion incomplete replication refining expanding previous ideas 
+particular describe design manages changing relationships clients servers files provide careful analysis failure cases 
+operation absence failures suggested design reduces global communication primary secondary server hierarchy 
+client communicates synchronously primary 
+employ write back caching primary client choosing updates copied client cache 
+primary periodic clients servicing propagates updates back secondaries asynchronously 
+allows client write operation return immediately placing new value define global communication operation servers contacted synchronously 
+coda close operation example category 
+cache 
+number secondaries acknowledged receipt update primary informs client associated cached update discarded 
+notification piggybacked pickup request called purge notice 
+client retain update cache receiving purge notice service latitude constrained size client cache wait secondary server failures disruption accepting write calls 
+periods heavy update activity client cache may fill primary server 
+case provide synchronous blocking forced write operation causes immediate pickup 
+asynchronous update propagation known benefits dangers design replicated file systems 
+significantly different ways 
+requiring client retain update sufficient number secondaries new value trade cache space low latency reliable write operation 
+systems typically block number replicas written remainder written asynchronously return immediately guarantee update safely propagated 
+push back blocking point client typically involved propagation process 
+second feature sets apart couple asynchronous update propagation read interface allows application choose lazy unix semantics read basis described 
+little sequential sharing design achieves high fault tolerance low latency reads writes 
+experimental data earlier supports feasibility potential value dual read call interface 
+design key issues ffl interface 
+ffl clients primaries bind 
+ffl files replicated secondaries 
+address issues subsections 
+dual read call interface split traditional read interface strict read loose read 
+guarantee concerning value returned loose form implementation shown 
+principle strict form returns consistent value defined precisely explained operation strict read 
+strict read write exclusively system provides replicated analogue copy unix semantics usr semantics centralized unix system 
+usr equivalent copy serializability sr due caching usr clients conflicting updates file knowing doing 
+compatibility generic read library call simply call strict read 
+convenience applications library routine defined look client cache copy cache check primary server copy primary check secondaries order loose read algorithm semantics strictly read requested file possible return available copy 
+loose read allowed return convenient value analysis file trace data previous indicates best effort implementation return date value 
+supported study baker third percent open calls read data written client seconds previously 
+study concluded automatic cache consistency desirable prevent clients stale data system clients strict read operation enforce cache consistency 
+currency tokens naive implementation strict read contact servers clients read file retrieve date copy finds 
+currency tokens cts avoid naive approach 
+cts rely idea potential consistent writer pcw 
+pcw client site process strictly read file write permission file 
+words client declared pcw demonstrating desire strict read ability write permission update consistent fashion 
+ct response strict read file client pcw 
+client receive ct strict read loose read 
+holding ct allows client know file question potential updates localized primary secondary hierarchy 
+client performs strict read ct initiates relatively complex series actions 
+recall update replicated secondaries client allowed purge update cache 
+assuming total secondaries secondaries contacted file caches ensure value located 
+condition simply quorum consensus read write quorums overlap 
+files tagged timestamps copies different replicas compared recency 
+reading copies primary compares timestamps gives client copy file plus indication ct ensure consistency lists clients hold cts maintained non client sends primary phase primary multicasts secondaries secondary evaluates client pcw records fact non volatile storage secondary returns timestamped file primary timestamped lists cts file phase block max majority secondaries reply date pcw list received primary determines client ct iff client pcw new ct granted fact recorded non volatile storage majority secondaries old cts revoked due arrival pcw primary performs revocation phase primary reads cached copies primary returns date replica gathered secondaries ct appropriate strict read ct volatile storage majority secondaries information initial strict read 
+complete algorithm sketched 
+subsequent strict reads currency token considerably simpler faster 
+algorithm case shown note similarity loose read algorithm 
+cts effect allowing strict reads implemented executing sequence actions performed loose read 
+difference level secondaries search gets far strict reader ct contact secondaries ensure copy located 
+initial strict read point design synchronous operation required secondaries contacted 
+pcw ct lists updated secondaries simple process update time 
+necessary wait line pcw ct added look client cache copy cache check primary server copy primary check secondaries return value strict read ct operation quorum requirement initial strict read read file secondaries read write pcw ct lists majority secondaries strict read ct read file secondaries secondaries read table quorum conditions strict read deleted list 
+furthermore allow initial strict reads different clients execute simultaneously necessary read quorums intersect client learn 
+initial strict reads contact secondaries majority secondaries whichever larger 
+complete statement quorum conditions table 
+correctness simultaneous operations 
+mechanisms combined fixed sequence operations involved gaining ct implicitly serialize initial strict reads 
+overlapping strict reads file assured functional correctness 
+see true assume clients start initial strict read time 
+non problem course 
+
+read quorums overlap client guaranteed learn existence 
+whichever client finds revokes cts 
+
+non pcw pcw reasoning additional tricky case 
+non pcw may update ct list pcw read 
+pcw ensure ct list changed read timestamp comparison 
+list modified re read re analyzed 
+repeated list stabilizes 
+proof ct list stabilize quickly new strict readers arrive list stabilizes immediately 
+new non pcw arrives notices pcw pcw list 
+prevents ct granted new non pcw ct list modified 
+pcw shows cts revoked list stabilizes empty list 
+small complication arises allow incomplete replication requirement file replicated secondary 
+possible secondaries file version 
+scheme described ensure initial strict read find replica assuming sufficient number secondaries available 
+secondary replica file question acts kind witness server may counted part quorum contains explicit information file 
+reducing initial strict reads 
+order reduce number initial strict reads require global communication cts apply groups files individual files 
+expand scope ct letting cover file entire directory files directory 
+assuming existence standard hierarchical name space 
+addition file names symbolic links example covered single ct necessary gain ct name 
+rejected seemingly attractive notion expanding ct confines single directory 
+major problems doing 
+expansion time consuming general case number files covered increases exponentially move name space 
+second spending time expansion single additional pcw carefully constructed ct 
+hand single directory expansion advantages ffl expanding cts fast easy 
+ffl don lose pcw shows 
+ffl directories generally contain files approach dramatically superior single file cts 
+currency token revocation 
+cts revoked reasons 
+guiding principle presence pcw file requires clients give cts file 
+provide short circuit optimization multi reader case reads directed unique pcw 
+clients hold cts short circuit scheme ruled 
+happens service needs contact currently unreachable client revoke ct read file pcw cache 
+straightforward solution involves timeouts client contacted certain length time deemed permanently disconnected 
+record client cts pcw status discarded users strict reads allowed proceed 
+approach completely close window error client disconnected suddenly reappear cache full updates missed strict readers interim 
+eliminate errors entirely eliminate delay timeouts concluded demand disconnection convenient simplification 
+service needs contact client client unreachable reason give immediately automatically revoking cts client holding 
+applies equal force system making server attempting contact explicitly revoking cts 
+important realize cts equivalent read write tokens systems 
+simply hints improve performance strict reads 
+systems tokens prerequisites performing operations design strict reads take place currency tokens performance optimal 
+cts somewhat akin callbacks coda pessimistic nature cts provides stronger consistency guarantee ct granted client potential consistent update 
+client primary attachment client primary assignments special module called matchmaker conveniently implemented process service machine 
+client wishes obtain primary server sends request convenient matchmaker selects primary criteria choice 
+coping mobile clients criterion physical proximity 
+making choice matchmaker sends client address selected primary forgets transaction 
+new primary server performs pickup client learn identity new primary 
+client saves primary address volatile storage subsequent read operations 
+newly selected primary starts empty cache client servicing 
+necessary prevent consistency problems occur due currency token expansion 
+example client strictly reads usr local bin emacs client typically ct covers usr local bin 
+primary guaranteed version emacs file directory 
+ensure level version example gprof returned strict read just primary happens copy lying 
+non volatile state retained matchmaker list servers act primaries 
+necessary modify list potential primary crashes 
+matchmaker ping machine chosen client response matchmaker simply choose different server 
+modifying list primaries trivial 
+adding new server poses problems deletion difficult 
+client attempts primary deleted list response message rejected ex primary 
+case client need apply matchmaker obtain new primary 
+relative calls matchmaker anticipate scalability problems 
+availability desirable run matchmaker different machines 
+matchmaker stateless list potential primaries multiple executions different machines operate independently necessary 
+client may ask matchmaker new primary time reason 
+client discard cached updates receiving confirmation stored required number secondaries switching primaries arbitrary way threat correctness 
+similarly primary may safely pull client primary relationship time 
+cases client obtain new primary resume normally 
+reasons requesting new primary include failure old primary movement leading reduced performance client 
+letting client drive selection process substantially simplifies design especially face failures see section details 
+cost changing primaries matchmaking protocol run cts updates picked new primary client requesting new primary 
+switch new primary client learn new primary job inform client identity 
+order handle primary gracefully resorting explicit disconnection messages old primaries services longer needed 
+straightforward client knows identity current primary 
+putative primary goes client pickup verifies primary server client 
+client serviced new primary old goes away leaves client 
+example suppose client moved away primary called matchmaker obtain new primary 
+pickup learns new primary 
+immediately stops making tempting blur line clients primaries run primary server code client machine 
+reduce number messages required initial strict read 
+unfortunately clients trusted allow access secondaries directly 
+malicious client invalidate consistency guarantees ignoring protocols writing inconsistent values secondaries 
+filesystem secondary attachment primary servers principally intermediaries clients secondaries 
+primaries function replication sites se 
+groups secondary servers replicate file systems 
+file system corresponding group secondary servers handles replication files file system 
+support incomplete replication necessary file replicated server 
+practice server simultaneously act primary secondary 
+group machines may replicate files act primary servers clients 
+logically necessary maintain functional distinction primaries secondaries 
+primary server learns filesystem secondary mappings calling mapping server specified client 
+ordinarily map function called file system mounted 
+comparatively infrequent operation scalability adversely affected 
+assume secondary server mappings rarely changed provide modification method gray idea leases 
+mappings returned map valid limited period time relatively long say minutes decidedly non infinite 
+lease period map called revalidate mapping 
+modify filesystem secondary mapping wait leases mapping expire 
+point update mapping map start handing new information 
+order prevent starvation waiting leases expire mm ms file 
+system organization mapping server hand shorter leases request re map 
+example know leases expire minutes provide minute leases information 
+organization system shown 
+client primary secondaries mm matchmaker ms mapping server 
+table shows state information held component system state needs held non volatile volatile storage 
+table notation file timestamp cache refers fact client may store updates associated timestamp information volatile non volatile storage clients store updates non volatile storage lose data crash 
+connection distant site desirable feature design client move location network access available continue access files home site way access locally 
+example new york visiting berkeley call berkeley matchmaker obtain local primary server 
+assume form negotiation local resources 
+locally chosen primary calls mapping server new york locate files client wishes access 
+client need remember address address mapping server home site 
+addresses need retained non volatile storage 
+previous mobile internetworking ioannidis demonstrated feasibility scheme networking perspective 
+normal circumstances expect primary server play im component non volatile storage volatile storage client address current primary mapping server address cts held file timestamp cache 
+file timestamp cache 
+primary list clients filesystem mappings files propagated secondary list list cts matchmaker list primaries mapping filesystem mappings server table state held component portant role intermediate cache 
+muntz honeyman report intermediate caches experience surprisingly low hit rate client megabyte cache 
+blaze alonso achieve better results dynamic hierarchical caching scheme 
+model clients assumed minimally shared hierarchies home directories temporary files stored local disks assumption wish system 
+primary far secondaries relatively low intermediate cache hit rate significant advantage client files shipped distant site 
+failure recovery major advantage design algorithms failure recovery extremely simple 
+section describe crashes partitions dealt 
+secondary server failure failure secondary server noticed secondaries fail initial strict read longer guarantee consistency 
+recovery easy recovering secondary required comes back initial strict read contact secondaries ensure correctness 
+finding copying versions files idea increase likelihood loose read return date values 
+process getting date done simultaneously accepting updates need synchronous update phase 
+consequence quorum requirement assumptions secondaries values 
+primary server failure client responsibility detect primary server crashed 
+requests go unanswered client asks matchmaker new primary 
+letting client drive process recognizing new primary required date versions files avoid complexity traditional election scheme 
+furthermore primary crash just drop time causing updates lost 
+client required hold update cache receiving purge notice point update replicated secondaries impossible primary hold copy update 
+newly chosen primary automatically restart update propagation process updates remaining client cache 
+special logic required new primary treats case exactly way regular update propagation 
+minor inconvenience client currency tokens immediately attaching new primary client primary secondary hierarchy cts rely may temporarily disrupted crash 
+recovery trivial state primary held regenerated 
+primary come back simply waits matchmaker pair clients 
+recovering primary retain state pertaining interactions previous clients 
+client failure write back caching system possible lose data held client client crashes 
+due asynchronous update propagation window danger somewhat wider systems 
+client cache nonvolatile updates need lost unavailable client disconnected 
+primary server unable pickup client assumes client crashed stops making 
+client crashed harm done client eventually ask matchmaker new primary 
+exactly client recovery crashed 
+reaction partition network partition initial strict read performed partition containing fewer majority secondaries whichever greater 
+secondaries needed locate version file majority needed read update pcw ct lists 
+similarly fewer secondaries reachable write operation block client cache fills due primary inability propagate updates sufficient number secondaries 
+resolution conflicting updates general version file determined timestamp retained 
+timestamps assigned clients clients trusted timestamps validated primaries pickup 
+client assigned timestamp falls outside range plausibility primary assigns timestamp informs client correct time 
+strict read exclusively conflicts occur 
+example clients may strictly read file conflicting updates caches 
+ideally client updates file client modifying cached copy client eventually learn updates stale data 
+client updates written secondaries explicit authorization conflict occurs 
+conflict detection particularly important network partition heals want updates overwritten inconsistent versions happen timestamps 
+detect conflicts system timestamps augmented unique identifier ip address indicates client modified replica question 
+read successful write signified receipt purge notice timestamp client pair associated version file retained client 
+writes service determines newer version written different client superseded cached copy message concerning conflict sent client currently attempting write 
+guarantee conflict message arrive client problem 
+worst case message sent round pickup propagation 
+asynchronous update propagation client maintain timestamp client pairs file cache base timestamp indicating version updates eventual timestamp id assigned current version propagation complete 
+client pcw file base eventual timestamps identical 
+eventual timestamp clients read file pcw cache initial strict read version clients updates version fully propagated 
+client id necessary detect conflicts order mandated update propagation 
+knowing client responsible update possible tell difference order updates single client fine order conflicting updates multiple clients flagged 
+possible client loosely read file modify write back 
+central themes cost consistency borne users demand 
+client write access file refuses strict read modifying file client problem 
+user refuses bear cost consistency guaranteed receive 
+write access presumably granted clients willing take responsibility modifying file properly conflicts resulting problem rare practice 
+accommodation wandering users case unique mobile operation call wandering user 
+suppose client strictly reads file just network partition occurs 
+person version vectors powerful conflict detection mechanism timestamps added power provide significant advantage system 
+version vectors useful detecting conflicts optimistic system coda returns best value find 
+contrast strict read operation return value certain level consistency assured preventing potential conflicts occurring 
+version vectors requires synchronously executing protocol exchange update vectors ruled 
+updates file propagated reachable secondaries 
+partition heals client wanders different partition updates file propagated different subset secondaries 
+appears potentially chaotic works quite 
+client updates desired partition unavailable replicas cause write operations block 
+partition heals timestamps easy decide versions secondaries retain 
+wandering users updates file partition conflict detection scheme described sort divergent versions 
+semantics having reviewed operation design normal failure conditions summarize semantics operations 
+ffl value returned loose read unpredictable fate write loose read 
+ffl write operation strict read returns client assured remains reachable long update stored secondaries superseded conflicting update installed latest value 
+ffl presence arbitrary combination writes loose readers strict readers value returned strict read unpredictable 
+ffl presence writes strict reads strict read operation return value latest 
+latest value written strict reader secondary server 
+propagation values secondaries subject variation depending pickup schedules primaries 
+
+latest value cache reachable client pcw 
+failures strict read returns latest value failures fact detected returned user 
+details variable consistency file service emphasizing dynamic relationships clients servers files 
+addition described analyzed recovery procedures various types failures including detection conflicting updates 
+mobile operation served initial motivation thinking think proposal contains profound advantages regular operation 
+major novel features design 
+interface required consistency declared reader 
+
+currency tokens drastically reduce cost strict reads overhead initial strict read 
+
+asynchronous update propagation scheme driven primary server client cache space traded low latency reliable write operation 
+extra information provided service interface allows implementation write loose read completely lazy fast scalable 
+major benefit considerable simplification internal algorithms especially recovery little state need kept non volatile storage 
+essence design heaps entire burden implementing consistency initial strict read 
+currency token persists explicitly revoked independent cache occupancy initial strict read need done infrequently 
+design primary server true replication site bigger cache reading coordinator asynchronous update propagation 
+primary way client ignorant actual location file replication sites 
+important elimination blocking typical write operations courtesy primary 
+see major drawbacks design need program new interface mitigated generic read calls suggested section mediocre performance initial strict read 
+evaluation file service usability question clear prototype implementation 
+supported part national science foundation cda ibm center telecommunications research nsf engineering research center funded ecd 
+baker measurements distributed file system 
+proc 
+thirteenth acm symp 
+operating system principles pages october 
+blaze alonso 
+dynamic hierarchical caching large scale distributed file systems 
+proc 
+twelfth intl 
+conf 
+distributed computing systems june 
+garcia molina 
+elections distributed computing system 
+ieee trans 
+computers january 
+gifford 
+weighted voting replicated data 
+proc 
+seventh acm symp 
+operating system principles pages december 
+gray cheriton 
+leases efficient fault tolerant mechanism distributed file cache consistency 
+proc 
+twelfth acm symp 
+operating system principles pages december 
+ioannidis duchamp maguire jr ip protocols mobile internetworking 
+proc 
+sigcomm pages september 
+mann hisgen swart 
+algorithm data replication 
+technical report digital systems research center june 
+mills 
+network time protocol version specification implementation 
+network working group rfc september 
+muntz honeyman 
+multi level caching distributed file systems 
+technical report citi tr university michigan august 
+ousterhout douglis 
+beating bottleneck case log structured file systems 
+operating systems review january 
+
+paris 
+voting witnesses consistency scheme replicated files 
+proc 
+sixth intl 
+conf 
+distributed computing systems pages 
+satyanarayanan coda highly available file system distributed workstation environment 
+ieee trans 
+computers april 
+siegel birman marzullo 
+deceit flexible distributed file system 
+proc 
+summer usenix technical conf pages 
+usenix june 
+tait duchamp 
+service interface replica management algorithm mobile file system clients 
+proc 
+intl 
+conf 
+parallel distributed information systems pages ieee december 
+

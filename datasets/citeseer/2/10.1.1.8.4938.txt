@@ -1,0 +1,558 @@
+appears proc 
+usenix annual technical conference design evolution eros single level store jonathan shapiro jonathan adams systems research laboratory distributed systems laboratory johns hopkins university university pennsylvania cs jhu edu jonathan adams ofb net file systems undesirable characteristics addressing model consistency semantics differ memory leading change programming model storage boundary 
+main memory single flat space pages simple durability persistence model 
+file content durability complex function implementation caching timing 
+memory globally consistent 
+file systems offer global consistency model 
+crash recovery individual files may lost damaged may collectively inconsistent individually sound 
+single level stores offer alternative approach memory system extended way disk level 
+extension accompanied update mechanism ensures globally consistent durability 
+single level stores simpler potentially efficient file system design relatively little appeared public literature 
+describes evolution eros single level store design generations 
+third partially implemented 
+identify critical design requirements successful single level store complications arisen design resolution complications 
+performance eros system discussed focuses exclusively design 
+objective clearly express single level store works expose non obvious details designs proven important practice 
+single level stores simplify operating system design removing unnecessary layer abstraction system 
+implementing new different semantics file system layer single level store extends memory mapping model downwards include disk 
+conventional operating systems memory mapping hardware translate virtual page addresses physical pages single level stores map virtual page addresses logical page addresses physical memory software managed cache hold pages 
+widely single level store design probably ibm system commonly known ibm 
+hardware level capability object system 
+design treats entire store unified bit address space 
+object assigned megabyte segment space 
+persistence managed explicitly changes objects rewritten disk directed application 
+protection architecture object structure described sol key details single level store implementation unpublished 
+eros capability single level research supported darpa contract 
+additional support provided panasonic information technology laboratories vmware author sun microsystems store design 
+eros manages persistence transparently efficient checkpoint system runs periodically background 
+applications rely kernel transparently handle persistence leaving applications free build data structures algorithms regard disk level placement need protect recoverability careful disk write ordering 
+eros system performance described ssf 
+describes eros single level store design integrated system key components evolution design decade 
+initial intuition single level stores imagine system design begins assuming machine crashes 
+system need file system entirety disk large paging area 
+design clearly eliminate large body code conventional operating system 
+eros system including user mode applications implement essential functions currently lines code 
+excluding drivers networking protocols include files linux kernel contains lines code implement support various file systems file mapping 
+systems implement different semantics functionality comparable eros code provides features eros drivers network stack implemented outside kernel 
+driver network code size included estimation code size 
+linux lacks restart eros recovers processes interprocess communication channels addition data objects 
+design challenges single level store address problem systems crash ensure consistency preserved occurs devise efficient means addressing large paging area provide means specifying desired locality preferably fashion informed application level semantic knowledge 
+describes designs meet challenges different eros kernel designs 
+potential applications design ideas include database storage managers storage attached networks logical volume systems 
+design keykos inherited original eros system 
+design suffered minor caused revise design 
+decided remove drivers eros kernel entirely forced rethink partially rebuild single level store 
+aside storage allocator designs identical external semantics applications 
+balance proceeds follows 
+provide brief overview eros object system storage model mechanism ensure global consistency 
+discussion introduces critical requirements satisfied single level store design 
+describe user level storage allocator bears responsibility locality management storage reclamation 
+describe existing design generations turn motivation revision 
+concludes related lessons learned hints plans 
+object system overview eros microkernel design 
+kernel implements small number object types leaves storage allocation fault handling address space management traditional kernel functions user level code 
+important function implemented user level code space bank section 
+space bank responsible storage allocation storage quota enforcement bulk storage reclamation disk level object placement 
+kernel interface accomplished allocating deallocating objects appropriately selected unique object identifiers 
+object unique object identifier oid 
+oids directly correlate disk locations enables space bank perform object placement 
+eros kernel design consists layers fig ure 
+machine layer stores process memory mapping information representation convenient hardware 
+process state representation determined design hardware context switch mechanism 
+memory mapping state determined design hardware memory management unit 
+layers managed cache selected objects logically reside object cache 
+necessary entries process cache memory mapping tables written back invalidated 
+entries process cache correspond entries process table conventional design processes may moved process cache times lifespan 
+process cache node cache checkpoint area mapping tables page cache object cache main memory home locations eros design layers 
+machine layer object cache object store object cache occupies bulk main memory 
+layer types objects pages nodes 
+pages hold user data 
+nodes hold capabilities 
+node page corresponding location home location portion object store 
+machine layer object cache software managed cache state disk 
+implied higher level operating system abstractions composed fundamental units storage 
+process state stored nodes loaded process cache need 
+address space mappings likewise represented trees nodes 
+traversed construct hardware mapping data structures memory faults occur 
+details transformations ssf sfs 
+object store layer object system exists disk 
+layer system divided parts home locations provide space object system checkpoint area provides means building consistent snapshots system 
+object writes performed checkpoint area 
+revised objects migrated home locations complete system wide transaction successfully committed 
+checkpoint mechanism described section 
+collectively layers implement level caching design 
+need entire user visible state system reduced pages nodes written disk 
+storage model main reason having types sizes objects preserve partition data capabilities 
+data resides pages capabilities reside nodes 
+certainly possible design single level store objects size page proved inconvenient eros reasons storage efficiency 
+current implementation capabilities occupy bytes nodes bytes sizes exposed external system interface 
+leaves free change size capabilities compatibly done transition bit bit addresses 
+object store unique object identifier oid 
+objects disk named operating system protected capabilities dv contains object type node page process oid object names set permissions 
+eros object capability similar page table entry pte contains swap location memory page 
+object capability actively eros kernel rewrites capability internally point directly memory copy object 
+pages contain user data 
+nodes contain fixed size array capabilities indirect blocks memory mapping tables underlying representation process state 
+store nodes packed page sized containers called node pots store performed page sized units 
+home locations object eros store uniquely assigned home location disk 
+versions eros implement optional object mirroring case object may appear disk multiple locations updated needed locations 
+additional mirroring raid storage may performed storage controller 
+invisible eros kernel 
+bulk disk space eros system contain home locations objects 
+basic design requirements part store pte case object type needed ptes name pages 
+object fetch store efficient 
+result simple memory strategy directly translating oid value disk page frame home location contains object 
+eros expose physical locations objects outside kernel oids visible selected applications 
+purposes locality management welldefined relationship oid values disk locations 
+memory algorithm translate oid disk object address store require disk level directory data structures turn require additional sequentially dependent accesses locate fetch object 
+elimination additional accesses performance critical imperative 
+encoding object locations organization disk locality management home locations main focus evolution design storage manager 
+checkpointing ensure global consistency processes objects maintained restarts sufficient kernel periodically write instantaneous snapshot state corresponding pages nodes 
+accomplish eros implements efficient asynchronous system wide checkpoint mechanism derived checkpoint design keykos lan 
+checkpoint system dedicated area disk 
+area normal paging conceptually equivalent swap area conventional paging system 
+node page dirty space reserved checkpoint area 
+memory pressure induces paging dirty objects paged necessary reread checkpoint area 
+object locations checkpoint area recorded memory directory 
+periodically checkpoint area reached predefined occupancy threshold kernel declares snapshot dirty object memory marked copy write simultaneously watermark checkpoint area 
+modified prior snapshot written beneath watermark modified snapshot written 
+kernel allows execution proceed initiates background processing flush pre snapshot dirty objects previously reserved space checkpoint area 
+checkpoint area append 
+object multiple times attempt reclaim previously occupied space checkpoint area 
+ensures checkpoint sequential 
+objects written checkpoint area area directory written log header rewritten capture fact consistent system wide transaction completed 
+background copies objects back home locations store 
+checkpoint transaction completes checkpoint area space occupied previous transaction released 
+ensure space checkpoint area checkpoint migration required complete new checkpoint transaction completed 
+net effect checkpoint system capture consistent system wide image system state 
+desired checkpoints run frequencies comparable conventional buffer cache flushes making potential loss data identical conventional systems 
+support requirements database logs special escape hatch mechanism permitting immediate transaction individual pages 
+intuitions latency eros running application code keykos doing supporting transaction processing briefly general purpose workloads 
+performance checkpoint design rests empirical observations keykos disk reads satisfied checkpoint area 
+dirty objects die migrated 
+objects require migration 
+facts alter seek profile system reducing effective seek latencies reads 
+alter rotational delay profile system reducing effective rotational latencies writes 
+goal section provide intuition true 
+specific measurements obtained keykos probably hold eros years expect performance checkpointing remain robust 
+discuss reasons expectation 
+typical amount data included checkpoint comparable size main memory 
+checkpoint area able hold checkpoints 
+machine megabytes memory expected checkpoint area megabytes 
+seagate cheetah st lc cylinders gbytes region occupy disk cylinders 
+normal writes reads occur region arm position remains narrow range disk high probability 
+estimating disk latencies deceptive computations published minimum average maximum seek times actual behavior 
+seek time profiling required effective estimation 
+seek time calculations profiling data collected jiri schindler sg 
+emphasize computed measured results 
+assume disk layout checkpoint area placed middle cylinders drive 
+expected read behavior disk head position keykos non uniform distribution 
+compute expected seek time consider location preceding read current table giving expected seek time reads ms drive average seek time ms expectation robust face changes checkpoint region size reasonable reductions checkpoint locality 
+increasing checkpoint area size cylinders raises expected seek time ms reducing checkpoint hit rate yields expected seek time ms conventional file system read performance largely determined average seek delay case ms 
+comparing read delays rotational latencies ignored expected rotation delay systems half rotation read 
+difference expected performance largely immune changes extent size prefetching techniques equally systems 
+techniques reduce total number seeks performed alters underlying seek latency distribution 
+similarly low utilization yields similar benefits systems reducing effect long seeks 
+read performance designs converges performance checkpointing design utilization falls sufficiently small packed data sets meaningful difference seek behavior 
+expected write behavior log file systems checkpointing design potentially performs writes dirty block checkpoint area second home locations 
+migration skipped data deleted time checkpoint time migration 
+thresholds interest current preceding distance time weighted checkpoint checkpoint cyl ms ms checkpoint cyl ms ms checkpoint cyl ms ms cyl ms ms weighted seek time ms table expected read latency 
+seek profile seagate cheetah st lc 
+reported average seek time drive ms 
+objects live long get checkpointed 
+
+live long migrated 
+best available data file longevity probably data collected baker bhk 
+indicates files live seconds files live seconds files live seconds checkpoint interval 
+estimate half files checkpointed survive migrated 
+consistent measured behavior keykos checkpoint data survives migrated 
+impact surprising 
+imagine kilobytes file data written conventional file system 
+key question proves run lengths 
+baker measurements bhk shows file run lengths small 
+differentiate read write run lengths table suggests write run lengths primarily driven file size bytes written file writes 
+shows files kilobytes 
+taken numbers mean cost bulk flushes data cache dominated rotational delay 
+kilobytes question written nearly distinct locations require rotation bring head correct position track 
+cheetah rotational delay comes ms seek delays depend heavily filesystem layout considerations apply checkpointed conventional designs 
+runs uniformly spread drive seeks cheetah come additional ms total ms consider checkpointing design 
+keykos eros perform write bulk track operations 
+depending drive kilobytes written checkpoint area seek weighted cost ms cheetah plus rotations start complete total ms consider cost migration 
+keykos eros migration behavior looks exactly file cache uses deferred writes 
+file semantics unchanged similar run lengths buffer cache flush done bulk sorted seek times amortized similarly large number available blocks write 
+difference migrated blocks longer time die amount data migrated half data written buffer cache 
+half data die migration ms spent rotational delay rewriting ms seek times uniform distribution assumption 
+combined total cost checkpoint migration writes ms locality object allocation primary issues impact design single level store 
+common disk storage designs locality 
+necessary object allocation mechanism provide means arrange placement objects reasonable locality 
+generations eros store accomplished preserving correlation oid values disk positions 
+second object allocation objects recoverable crash allocations logically recorded disk data structures 
+content locality value locality general purpose workloads misunderstood 
+sequential data placement file content extremely important case single request stream important multiple accesses disk occur concurrently 
+disk level traces collected ruemmler wilkes rw show rare see kilobytes sequential level disk arm 
+average file sizes grown time presume modern sequential accesses longer kilobytes underlying reasons limited dynamic sequentiality changed paging limited size page 
+file os involve sequentially dependent accesses traversing metadata 
+directory os frequent 
+directories usually small corresponding os short 
+read ahead helps excessive read ahead counterproductive 
+successful read ahead works equally designs thought achieving larger extent size 
+request streams compete attention disk arm 
+second potentially sequential request initiated quickly application operating system interrupt level logic initiated arm motion multiple requests preventing immediate service sequential request 
+facts suggest file system sequentiality may important limited extent size 
+log structured designs organize data temporal locality spatial locality 
+spite read performance generalpurpose workloads degraded significantly log structured designs ssb 
+established file system aging ultimately significant impact performance logging clustering choice ss 
+eros store design effectively optimizes cases 
+newly modified objects stored checkpoint area temporal locality small size checkpoint area ensures physical locality 
+data home locations placed locality determined object allocation time maximal semantic knowledge maximal knowledge patterns available 
+single level stores implement directories indirect blocks style file systems corresponding concepts implemented operating system basic usage patterns involved ultimately driven application behavior 
+similar extent size arguments apply single level stores 
+introduces significant degree freedom file system single level store design plan leverage generation store 
+metadata locality pressing issue eros single level store metadata locality 
+berkeley fast file system design example block location occurs stage hybrid translation scheme 
+stage translates inode number inode data structure 
+translation performed file open time result cached memory inode 
+second stage traverses file indirect blocks locate individual blocks file 
+indirect blocks cached memory rules data blocks due higher frequency access remain memory active files 
+eros address space mapping offsets bytes 
+address spaces need associated processes eros uses hold file data application memory images 
+result eros metadata closely analogous conventional file metadata eros address space metadata 
+eros address space organized tree nodes leaves pages unix file organized tree indirect blocks leaves data blocks 
+eros nodes narrower typical indirect blocks height address space tree address space taller height indirect block tree unix file file 
+tree traversal type implies sequential disk accesses associated seek delays 
+ruemmler data shows seeks frequently interspersed accesses multiple request streams 
+request interleave turn interacts badly typical disk arm scheduling policies lead full disk seek block tree fetched 
+greater tree height eros address spaces potentially involve levels traversal correspondingly important managing locality prefetching nodes address space 
+discussion eros space bank section describes locality achieved 
+allocation performance final performance issue single level stores efficiency object allocation particularly respect ephemeral allocations heap pages short lived file content 
+conventional file system ephemeral blocks allocated swap space survive system shutdown failure 
+expectation allocations preserved restarts inmemory data structures algorithms implement 
+linux example keeps memory allocation bitmap swap area bc 
+way persistently store ephemeral allocation newer drives implement backtracking seeks doing raises convergence variance issues avoided operating system real time applications 
+node node pages node node eros address space 
+page capability void capability node capability data incurring disk overhead 
+challenge single level store keep overhead minimum 
+eros accomplishes ways 
+recording allocation performed objects allocated deallocated checkpoint interval 
+largely efficiency advantages conventional swap area allocations 
+
+current previous versions eros store store divided regions overhead page containing bits indicate object region empty zero 
+sequential allocations pull overhead page avoid successive objects region 
+update bit disk object similar reductions 
+space bank eros storage manager known space bank user mode application performs storage allocation eros system 
+hierarchy logical space banks implemented single server process 
+logical bank allocates deallocates individual pages nodes request 
+remembers objects allocated logical bank bulk reclaimed bank destroyed 
+provides locality allocation long feasible underlying disk limit system designed extent size 
+impose optional limits quotas total number pages nodes allocated logical bank 
+provides means create child banks storage comes parent creating hierarchy storage allocation 
+extent caching naive implementation space bank allocate object time recording allocation suitable ordered collection 
+typically dynamically allocated object system associated logical bank 
+example address spaces implemented copy write versions existing space copied pages nodes allocated space bank 
+impact space bank invocations frequent 
+result single object approach provide locality 
+obvious solution allocate storage bank extents allow bank objects extent 
+unfortunately doesn 
+imagine extent contains pages variation address space sizes conclude address space process synthesized object completely allocated remain bank partially allocated extent 
+absence empirical data expect residual extent average half allocated 
+unfortunately simple way know banks done allocating 
+means large number outstanding banks process file committed page frames disk storage allocated 
+solution extent caching 
+associating individual extent bank space bank maintains cache lines active extents 
+extents begins oid corresponding page boundary disk contains page frames worth oids may allocated 
+extent caches typed nodes pages allocated distinct extents helps preserve metadata locality 
+extent cache design relies fact sequential oids correspond high likelihood sequential disk locations 
+bank associated line extent cache hash address logical bank data structure 
+bank needs allocate object checks availability designated cache line 
+extent available space cache occurs attempt allocate fresh extent underlying disk space 
+proves impossible disk space near exhaustion needed object allocated extent extent cache available space 
+effect extent cache ensure banks receive sequential objects probabilistic fashion limits extent size 
+possible banks simultaneously active hash extent observed problem 
+secondary effect extent cache disk page frame allocation map consulted reduced frequency 
+desirable consulting allocation map involves linear search page consequently flushes cpu data cache significant impact allocation speed 
+space bank implementation cost data cache reconstruction allocation overwhelmed costs 
+objects deallocated restored extent cache containing extent cache 
+returned directly free map 
+newly freed objects reused aggressively reusing objects memory eliminates extra disk os record deallocation 
+reuse old objects deferred 
+assumption objects allocated bank share common temporal extent tend deallocated group 
+better wait long possible reusing available space older extent order maximize likelihood entire extent free 
+support address space metadata locality space bank implements level allocation scheme nodes 
+extent cache caches page frames 
+space bank nodes sequentially frames 
+address spaces constructed copy write methods copy write process proceeds top node tree usual entire path nodes root page allocated single page frame disk 
+top node fetched containing page frame cached page cache 
+effect entire sequence nodes address space root node referenced page brought memory single disk record keeping locality conceptually space bank record allocated objects kept convenient balanced tree structure 
+current eros implementation uses red black tree 
+potential complications need considered building tree 
+sheer size 
+collectively number rb tree nodes order number disk objects 
+structures fit space bank virtual address space current machines certainly fit physical memory large system configurations 
+clever data structure care taken ensure traversals structures suffer poor locality due space bank heap fragmentation 
+type poor locality translates directly paging 
+current space bank implementation attempt manage issue potentially serious flaw 
+simple solution allocate tree nodes extent caching mechanism similar nodes pages slab allocation mechanism bon ba 
+second space overhead 
+oid occupies bits disproportionate spend additional pointers object record allocations 
+result current bank tree nodes record extents oids extent allocation bitmap record objects extent allocated 
+banks simultaneously performing allocations extent cache entry net space overhead lower oid recording 
+current implementation relies fitting virtual memory 
+intel family implementation adequate attached disk space exceeds terabytes 
+early disk level designs original eros system including store design followed published design keykos har 
+disk divided ranges sequentially numbered objects 
+ranges partitioned object type range contains nodes pages 
+object oid consists bit coded disk address concatenated bit allocation count coded disk address describes location object allocation count indicates times particular object allocated 
+order capability valid allocation count capability match allocation count recorded disk corresponding object 
+original storage layout startup kernel probes disks identifies ranges builds memory table entry range node page disk scans checkpoint area rebuild memory directory object locations 
+nodes allocation count recorded node 
+nodes numbered sequentially range packed page sized units called node pots node disk split pages 
+containing range identified disk location relative disk page frame containing node computed pages allocation count recorded page available bytes 
+page ranges subdivided subranges 
+subrange begins allocation pot page contains allocation counts pages subrange 
+allocation pot contains byte containing various flags page including indicating page known hold zeros 
+allocation pot page frames page frames page range layout 
+truncated page 
+allocation pot hold information pages page range organized sequence subranges pages long consisting allocation pot followed associated pages 
+depending size underlying partition final subrange may truncated 
+containing range identified disk location relative disk page frame containing page computed case relative frame combined value yield starting sector unified object spaces design section suffers irritating flaw partitions disk typed ranges 
+easy way know advance correct proportion nodes pages design provide simple means reorganize disk forwarding pointers ranges type 
+continuously adjusting directions disk formatting program add remove objects type 
+solution adopt page range layout ranges available bit allocation pot indicate type node page corresponding disk page frame 
+frame type page allocation count allocation pot allocation count page max allocation counts nodes contained frame 
+oid encoding reorganized bits index object frame upper bits frame oid frame offset computation proceeds previously described page frames caveat oid value shifted performing computation 
+allocation pot truncated node frames unified range layout 
+revised design kernel converts frame type object wrong type allocated space bank 
+kernel assumes space bank kept track available storage unintentionally reallocate storage 
+minor complication kernel ensure allocation count decreased conversion 
+assured setting allocation count converting frame nodes pages setting node allocation counts page allocation count converting frame pages nodes 
+switch unified ranges simplifies kernel object management code importantly simplifies allocation disk storage 
+disk frames traded back forth types needed 
+addition allowing address space metadata data placed localized fashion facilitating readahead object types new design potentially extended perform order improve extent effectiveness 
+individual banks effectively record relationships pages nodes containing objects ability frames supports storage compaction 
+perform compaction additional bits taken flags field lock object copy content new destination frame old frame record new location second flags bit mark object forwarded 
+space bank helper application iterate nodes rewriting capabilities reflect new object location 
+embedded eros early part exploratory research collaboration panasonic started investigate possibility embedded version eros selected realtime applications 
+part decision remove remaining drivers kernel 
+decisions introduced new requirements system design 
+order support dma needed way support pages nodes physical memory address known driver 
+
+kernel needed mechanism allocation non non checkpointed objects 
+
+ordinary disk ranges needed served user mode drivers 
+address requirements range notion generalized notion object sources 
+object source implements sequential range oids 
+range may partially populated 
+known convention ranges oids reserved 
+corresponds physical memory pages allocates non objects 
+eros uses main memory object cache 
+physical page object source allocate oid range relative frame index corresponds physical memory page frame part page cache 
+effect allocating capability oid evict current resident page cache entry relabel entry physical page object 
+non object range similar guarantee object occupy particular physical address 
+physical memory pages non objects checkpointing eviction 
+objects freed corresponding cache locations returned object cache free pool reuse 
+embedded design system partitioned non persistent space contains drivers object store manager persistent space operates exactly 
+driver portion system loaded rom uses object source registry capability register support persistent range implemented 
+persistent oid range backed user mode object source driver kernel defines protocol driver insert remove objects oids fall range controls 
+completed protocol persistent source driver indicates dirty objects permitted range time 
+implementation checkpoint mechanism design relocated persistent source driver kernel remains responsible snapshot writing back checkpointed objects persistent source driver 
+vertical view conventional file systems effectiveness single level store design relies interaction temporal spatial referential efficiencies implemented cooperatively vertical layers system 
+section briefly critical points single place combined effect readily seen 
+item annotated section discusses 
+temporal efficiency kernel ensures objects allocated deallocated single checkpoint interval generate home locations provided capabilities written disk 
+space bank eagerly reuses young dead objects reduce unnecessary recording aggressively reuse allocation pots knows memory 
+spatial efficiency space bank allocates objects bank wise extents helps preserve disk level locality 
+separate extents pages nodes 
+direct correspondence oids page frame placement store eliminating need directory indirection blocks object store 
+referential efficiency address space copy write implementation combines dedicated bank dedicated extent top metadata traversal ensuring indirect blocks traversal tend fetched single operation 
+checkpoint migration systems bulk sorted reducing total seek latency spite performing larger number object writes 
+empty zero objects written read home locations allocation pots revised 
+checkpoint directory range table kept memory 
+additional disk os required determine location target page node 
+combined effect may illustrated describing detail happens object loaded 
+page node fetched eros kernel consults memory object hash table determine object memory 
+includes checking containing node pot allocation pot appropriate 
+checkpoint area directory consulted see current version object located checkpoint area 
+object checkpoint area range table consulted initiated objects containing page frame needed allocation pot 
+typical case ignoring read ahead performed 
+effectiveness node allocation strategy tends yield nodes nodes fit node pot 
+similarly allocation pot performed frame region home locations overhead os 
+total effectiveness single level store relies collaboration storage allocator clients kernel underlying store design 
+pieces taken individually relatively straightforward 
+conceptually layering different happens file system 
+important difference file system design layering opaque 
+eros straightforward implement customized memory managers multiple space banks explicit extent management 
+related idea single level store widely known operating system implementors relatively little published design 
+mentioned best known implementation widely available design sol provides inadequate details 
+ibm information implementation closely held 
+previously published 
+system lie implemented transparent checkpointing mechanism user level address space manager 
+keykos eros checkpointing designs implementation uses asynchronous copy write interactive responsiveness 
+fluke similarly implemented experimental system wide checkpoint mechanism user level implementation copy implementation 
+disk writes performed execution proceed making fluke implementation unsuitable interactive real time applications 
+fluke perform sort systemwide consistency check prior writing checkpoint introducing likelihood system state errors resulting imperfect implementation ambient background radiation rendered permanent 
+checkpoint design similar respects behavior log structured file systems lfs 
+log structured file systems checkpoint mechanism converts random writes sequential writes 
+log structured design eros checkpointing design quickly converts temporally localized data physically localized data migrating locations allocated desired long term locality 
+resulting performance remains faster conventional file systems decay file system utilization increases 
+store designs described sections reflect mature placement strategy tested long period time 
+effective placement strategy suffers significant limitation difficult administer changes underlying disk configuration 
+eros system implements software allow storage rearranged rearrangement process efficient hands free better automated means take advantage new larger stores 
+grasshopper single level stores 
+published details storage system 
+persistence system explicitly managed 
+grasshopper transparent strategy computing transitive dependencies complex expensive 
+consistent checkpointing subject previous papers notably elnozahy chandy lamport cl 
+current eros space bank implementation theoretically handle stores slightly larger pages terabytes 
+corresponds approximately raid subsystem containing drives providing gigabytes storage 
+common desktop configurations appear frequently servers 
+paging behavior current space bank implementation quite bad size store 
+space bank keykos eros design derived uses mented eliminate thrashing allocation better single level store consistent checkpoint mechanism approach loosen association described lan 
+design store tween oids disk page frames 
+extent level locality essential sparsely oid space eliminate need red black trees currently record object allocations 
+addressing standpoint larger stores immediate problem eros 
+underlying oid space handle stores pages 
+basic problem key question manage growth sequential allocation strategy space bank effective job balancing load disk arms absence raid controller 
+current mapping strategy oids disk page frames lend physical rearrangement objects available storage grows 
+issues point need logical volume mechanism 
+hope final version eros single level store randomization extent placement 
+nearly complete departure designs described node page oid spaces partitioned 
+allocation counts abandoned 
+oids reallocated space bank knows capability oid exists disk 
+direct map oids disk ranges abandoned entirely 
+objects placed randomization strategy 
+extent object placement continues honored best effort basis low order bits oid longer direct association oid location object disk 
+ranges dynamically grown shrunk disks added removed 
+previous operations ranges allocate deallocate new design separates object allocation parts storage reservation object name binding 
+inspiration departure new disk placement strategy explored systems research laboratory prior scheideler bss 
+plan adopt variant strategy eros single level store 
+key motivation change ability divorce oids physical placement losing ability directly compute object addresses 
+disk drive industry produce pages total disk storage lifespan industry soon cross mark 
+new strategy disks partitions added removed system needing garbage collect oids data transparently shifted balance load available disk arms 
+renders system easily scalable provides type load balancing latency properties needed multimedia applications 
+keykos single level store designed norm hardy charles landau helpful patient describing workings keykos encouraging development evolution eros system 
+bryan ford kind explain fluke checkpointing implementations detail 
+jochen liedtke similarly took time explain checkpointing implementations 
+jochen continuous advances performance design microkernel operating systems led improvements eros implementation drove deeper careful understanding operating system design 
+describes working implementations single level store 
+knowledge time single level store design comprehensively described public literature 
+code available online eros web site sha 
+describing design attempted identify critical performance issues arise single level store designs solutions issues 
+key effective single level store interaction temporal spatial referential efficiency 
+possible eros fact disk level locality information rendered directly available application 
+file systems locality decisions time file closed file cache flushed eros space bank decisions corresponding storage allocated point maximal semantic knowledge intended usage hand 
+interesting challenge randomization design preserve effective balance spatial locality adaptive scalability 
+surprising attribute eros single level store spite vertical integration undergone major changes minimal application level impact 
+changed capability size oid encoding checkpoint design removed object driver kernel 
+application code changed space bank 
+kernel cache management code gone largely unchanged modifications occurred 
+design perspective illustrated single level stores simplify operating system design removing unnecessary layer abstraction system 
+implementing new different semantics file system layer single level store extends memory mapping model downwards include disk allowing applications control placement directly 
+eros placement controls generally provided standard fault handling programs applications simply handlers require code storage management separation concerns effectively maintained 
+hand applications unusual requirements replace fault handlers needed 
+total eros system size roughly linux 
+microbenchmarks ssf show performance critical object allocations eros fast 
+hand examination shows mechanisms described generating disk level locality 
+eros specific benchmarks show eros effective available sustained disk bandwidth 
+practice main problem checkpointing finding heuristic associated os slowly avoid interfering interactive processing 
+know keykos database system disk performance critical delivered exceptionally strong performance 
+said key missing piece application level benchmarks 
+process porting server client applications eros plan measure application level performance done 
+dedicated memory prof dr jochen liedtke 
+authors jonathan shapiro assistant professor computer science department johns hopkins university 
+current research interests include secure operating systems high assurance software development adaptive storage management 
+key participant hopkins information security institute 
+jonathan adams graduate california institute technology member technical staff solaris kernel development group sun microsystems 
+ba jeff jonathan adams 
+magazines extending slab allocator cpu arbitrary resources 
+proc 
+usenix technical conference 
+usenix association 
+bc daniel marco 
+understanding linux kernel 
+reilly press october 
+bhk mary baker john hartman michael kupfer ken shirriff john ousterhout 
+measurements distributed file system 
+proceedings th acm symposium operating systems principles pages 
+association computing machinery sigops 
+bon jeff 
+slab allocator object caching kernel memory allocator 
+usenix summer pages 
+bss scheideler 
+efficient distributed data placement strategies storage area networks 
+proc 
+th acm symp 
+parallel algorithms architectures spaa pages 
+cl mani chandy leslie lamport 
+distributed snapshots determining global states distributed systems 
+acm transactions computer systems 
+alan red di bona james frans anders lindstrom john rosenberg francis 
+grasshopper orthogonally persistent operating system 
+computer systems 
+dv dennis van horn 
+programming semantics multiprogrammed computations 
+communications acm march 
+nabil elnozahy david johnson willy 
+performance consistent checkpointing 
+proceedings th ieee symposium reliable distributed systems houston texas 
+har norman hardy 
+keykos architecture 
+operating systems review october 
+heiser kevin jerry stephen russell jochen liedtke 
+single address space operating system 
+software practice experience 
+ibm machine internal functional 
+number sc 
+ibm 
+lan charles landau 
+checkpoint mechanism keykos 
+proc 
+second international workshop object orientation operating systems pages 
+ieee september 
+lie jochen liedtke 
+improving ipc kernel design 
+proc 
+th acm symposium operating system principles pages 
+acm 
+marshall mckusick william joy samuel leffler robert fabry 
+fast file system unix 
+acm transactions computer systems 
+ousterhout rosenblum 
+design implementation log structured file system 
+acm transactions computer systems february 
+rw chris ruemmler john wilkes 
+unix disk access patterns 
+proc 
+usenix winter technical conference pages san diego california january 
+seltzer bostic mckusick staelin 
+implementation logstructured file system unix 
+proceedings usenix winter technical conference pages san diego ca usa 
+sfs jonathan shapiro david farber jonathan smith 
+state caching eros kernel implementing efficient orthogonal persistence pure capability system 
+proc 
+th international workshop persistent object systems pages cape may nj usa 
+sg jiri schindler gregory ganger 
+automated disk drive characterization 
+technical report cmu cs carnegie mellon university november 
+sha jonathan shapiro 
+eros web site 
+www eros os org 
+sol frank 
+inside 
+duke press loveland colorado 
+ss keith smith margo seltzer 
+file system aging increasing relevance file system benchmarks 
+proc 
+usenix technical conference pages new orleans la usa january 
+ssb seltzer smith balakrishnan chang padmanabhan 
+file system logging versus clustering performance comparison 
+proc 
+usenix technical conference pages new orleans la usa january 
+ssf jonathan shapiro jonathan smith david farber 
+eros fast capability system 
+proc 
+th acm symposium operating systems principles pages kiawah island resort near charleston sc usa december 
+acm 
+patrick jay lepreau bryan ford mike hibler 
+user level checkpointing kernel state 
+proc 
+th ieee international workshop object orientation operating systems pages october 

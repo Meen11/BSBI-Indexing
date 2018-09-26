@@ -1,0 +1,482 @@
+design implementation tradeoffs wide area resource discovery david oppenheimer albrecht david patterson amin vahdat eecs computer science division department computer science engineering university california berkeley university california san diego patterson cs berkeley edu vahdat cs ucsd edu describes design implementation sword scalable resource discovery service widearea distributed systems 
+contrast previous systems sword allows users describe desired resources topology interconnected groups required inter group node characteristics utility application derives various ranges values characteristics 
+design gives users flexibility find geographically distributed resources applications sensitive node network characteristics allows system rank acceptable configurations quality application 
+explore variety architectures deliver sword functionality scalable manner 
+node modelnet evaluation workload measurements collected planetlab shows architecture node server cluster sites network peering facilities outperforms decentralized dht resource discovery infrastructure smallest number sites 
+centralized architecture shows significant promise find decentralized implementation emulation running continuously planetlab nodes performs dht self healing properties 
+
+grid applications ranging distributed scientific computations long running network services increasingly important part computing landscape :10.1.1.14.7680
+time prevalence scale geographic distribution deployment platforms applications grown 
+example grid consists cpus sites planetlab offers machines sites 
+significant difficulty practical shared largescale infrastructures centers resource discovery service placement locating appropriate subset platform host distributed computation experiment service 
+refer combined task resource discovery service placement simply resource discovery 
+considers architectural tradeoffs involved building resource discovery system targeting grid settings 
+system scale thousands nodes sites 
+highly available system entry point launching maintaining applications 
+system accurately report dynamically changing node network characteristics 
+distributed applications sensitive inter node latency bandwidth system support queries just node characteristics inter node characteristics 
+applications widely varying needs desired resources scarce users able specify ranges resource quantities application needs utility lost selection imperfect acceptable nodes 
+number efforts explored global resource discovery :10.1.1.1.2787:10.1.1.13.2446
+knowledge existing system meets requirements 
+particular resource discovery systems support specifying required inter node characteristics relative utility node inter node characteristics assessing tradeoffs competing potential configurations 
+contribution semantics sword resource discovery infrastructure allows users easily describe desired resources topology interconnected groups required intra group inter group characteristics penalty functions indicate utility characteristics application 
+implementation sword supports query language condor classads deployed continuously running planetlab service months tracking metrics machine combination sources :10.1.1.1.3606
+resource discovery service incur significant load terms monitoring target infrastructure answering resource discovery queries 
+
+high level sword architecture 
+second principal contribution exploration architectural space efficient robust resource discovery 
+initial intuition variety distributed architecture required scale target settings approach adopted related efforts :10.1.1.1.2787:10.1.1.13.2446
+appropriate architecture depends system workload deployment scenario distributed architectures offer number advantages 
+large scale deployment evaluation multiple instances sword embodying different architectures find centralized architecture performs competitively decentralized architectures number realistic settings 
+rest organized follows 
+section presents overview sword architecture section describes implementation 
+section evaluates sword section presents related section concludes 
+
+system architecture queries 
+target usage scenarios sword designed usage scenarios mind 
+best effort environment planet lab sword matches user resource specification node characteristics time request 
+sword returns ordered list consisting sets nodes 
+list ranked closeness set match user desires 
+users deploy application set nodes deemed best match requirements periodically re query sword configuration time varying system characteristics 
+alternatively sword may conjunction external resource allocation admission control mechanism 
+resource allocation system augment sword measurement database information resources user access cost time periods 
+queries specify period time requested resources candidate nodes filtered exclude nodes available user requested period 
+deployment sword best effort environment expect integrate resource allocation tools sharp snap support arbitrated usage scenarios 
+
+query semantics architecture observations distributed scientific applications distributed network services guide design sword query representation 
+noted distributed scientific applications desire collections tightly coupled groups nodes 
+enable discovery groups sword supports requests number equivalence classes called groups defined required number nodes range acceptable characteristics acceptable inter node measurements latency bandwidth group nodes 
+applications may wish constrain group location network topology connectivity groups 
+example content distribution network may desire small clusters nodes near distinct geographically distributed user populations low latency high bandwidth links clusters 
+sword allows user request group desired latency specified network point specify required ranges inter node measurements nodes distinct groups 
+second observation guiding sword query language varying application sensitivity deviations specified node inter node constraints 
+wish allow users specify absolute requirements inter node characteristics similar classad constraints sensitivity deviations preferred node inter node characteristics similar classad ranking functions 
+way nodes value attribute fall required range ranked suitability deviation preferred range 
+users describe sensitivity attribute penalty functions thought inverse utility functions 
+penalty functions described detail 
+sword consists parts illustrated schematically 
+user describes desired configuration native sword xml syntax condor classad system returns lowest penalty mapping ranked set mappings available nodes groups user query 
+group na required load preferred load penalty required max mb preferred max penalty required os linux required allpairs latency ms allpairs latency penalty required allpairs bw max mb allpairs bw max penalty required location ms group europe required load preferred load penalty required max mb preferred max penalty required os linux required allpairs latency ms allpairs latency penalty required allpairs bw max mb allpairs bw max penalty required location europe intergroup required bw na europe max mb preferred bw na europe max penalty query grp 
+grp 
+req pref group string integer req required attrname double min double max required attrname true 
+false 
+required attrname string required attrname location double min double max required attrname double min double max required allpairs attrname double min double max pref preferred attrname double min double max penalty penalty preferred attrname true penalty 
+false penalty 
+preferred attrname string penalty preferred attrname penalty preferred attrname double min double max penalty preferred allpairs attrname double min double max penalty penalty required attrname double min double max required allpairs attrname double min double max preferred attrname double min double max penalty penalty preferred allpairs attrname double min double max penalty penalty penalty double 
+sample sword query requests groups 
+group na requests linux nodes ms network coordinates node north america 
+query shows preferred required range values desired attributes penalty outside preferred range 
+example nodes load operator willing accept nodes load normalized penalty units load values 
+group europe similarly defined 
+inter group bandwidth constraint na europe specified 
+specification sword native query language ebnf 
+
+expressing queries putting group penalty function features consider example 
+small internet search engine large user populations north america europe 
+service architecture groups nodes constitute site sharing search index parallelizing search functionality 
+service operator decides request group nodes near network point north america group near point europe 
+enable close cooperation site operator specifies low latency high bandwidth links nodes site 
+sites periodically communicate newly crawled data operator requires high bandwidth link connecting pair nodes different groups 
+operator places requirements free disk space load 
+sword supports query languages 
+shows sample query issued search engine operator sword xml specification language slightly modified clarity 
+provides ebnf description query syntax 
+sword endeavors locate lowest penalty mapping available nodes groups user query penalty mapping defined sum groups member node penalty accounting node inter node inter group con straints 
+compatibility existing grid applications sword supports condor classads depicted search engine query 
+standard classad syntax support specifying inter node properties sword constrain rank node properties syntax 
+
+implementation main components sword query processor optimizer 
+query processor finds nodes matching user specifications 
+optimizer finds lowest penalty mapping candidate nodes groups specified penalty functions 
+
+query processor node wishes offer resources sword joins sword infrastructure collects resource monitoring data locally 
+reporting node periodically sends measurement report sword servers 
+node need part sword infrastructure submit queries 
+issue query client node sends query node sword infrastructure 
+query node receiving request acts proxy sword infrastructure potentially issuing name na constraint load os linux rank load load name europe constraint load os linux europe rank load load 
+sample query classad syntax 
+sub queries remote servers depending query processor algorithm 
+deployments reporting node server client query node roles implemented set nodes 
+
+design alternatives storing retrieving node attributes core query processing primitive interest multiattribute range search 
+example consider query requests group nodes load average free disk space mb 
+approach handling query centralized architecture central database collects stores reports load free disk space identity sending node timestamp maintains indices load disk space quickly find nodes required ranges 
+simple implement centralized architecture potentially suffers limited scalability availability 
+improve scalability availability distribute database nodes 
+case partition data space servers attribute value 
+example server responsible handling updates machines load loads free disk mb mb free disk mb mb scalable available satisfying distributed range queries architecture require contacting servers increasing amount communication complexity searching algorithm 
+way reduce implementation complexity approach distributed hash table dht automatically partition data space servers 
+dhts scalable self configuring highly available traits match target large federated platforms eschew centralized management 
+sword maps attribute value measurement server mapping dht key described asking dht route measurement corresponding key 
+
+constructing dht key attribute value pair 
+key bits clarity sword uses analogous mapping technique produce bit keys 
+dht delivers message node responsible key automatically keyspace nodes dht nodes fail recover join 
+enable query visit nodes responsible contiguous range keys sword uses existing dht successor pointers organize nodes linked list sorted ascending key ranges 
+shows sword maps measurement dht key 
+top bits partition attributes evenly dht servers 
+middle bits map value servers responsible attribute 
+bottom bits spread measurements value multiple servers load balance attributes take small number values booleans 
+middle bottom bits defined administrator specified attribute function aims balance load keys expected values attribute 
+global configuration state nodes agree number key bits attribute bits 
+nodes issuing updates queries know mapping function attribute wish update query 
+system fewer attributes allowed number configured attribute bits function correctly resulting suboptimal load balance corrected long time scales active load balancing dht nodes reallocate mapping keys responsible nodes 
+implement evaluate distributed range query approaches index fixed preceding methodology 
+dht fourth 
+techniques return list nodes meeting query node requirements corresponding measurements 
+illustrated includes measurement report attribute values reporting node 
+reporting node transmits measurement reports implemented scheme follows dht routing table pointers successor pointers workloads approaches performed 
+
+example query routed key chosen randomly key 
+forwarded dht successor pointers nodes responsible values 
+nodes return lists nodes store matching criteria 
+query routed key 
+forwarded dht successor pointers 
+nodes sub region return lists nodes store matching criteria nodes sub region return lists nodes store matching criteria 
+querying node intersects node lists sub regions find set nodes match criteria 
+nodes client part sword dht 
+containing attribute values servers dht node responsible key derived value attributes illustrated 
+introducing relatively high overhead updates multi attribute query need sent set servers responsible target range queried attributes 
+particular query routed node responsible key query range attribute query range search attribute chosen goal minimizing number dht nodes visited satisfy query forwarded dht successor pointers nodes responsible keys query range attribute 
+technique similar mercury multi attribute distributed range queries esearch multi keyword text search 
+shown places single value measurement report 
+node reporting attributes transmits attribute measurement reports dht keys servers 
+approach uses update bandwidth storage 
+downside set servers queried attribute query 
+server stores information attribute server filter attribute approach potentially return nodes server filter attributes 
+query node sends copy query server group parallel intersects re turned nodes find satisfy attributes query 
+approach inspired search strategy keyword search 
+fixed approximation non replicated geographically distributed model varying number servers 
+send update sword node sends copy measurement report infrastructure servers assigned random reporting node starts approximately sword nodes assigned server reporting node population 
+query node sends copy query server forwards remaining servers collects results returns results querying node 
+updating nodes querying performed approach workloads 
+truly centralized solution instance approach 
+index hybrid fixed approaches 
+fixed infrastructure servers hold index maps contiguous dht key ranges ip address dht node responsible range 
+updates handled approach 
+queries sent index server responsible key range interest index servers forward query directly dht nodes responsible requested key range routing dht 
+queries handled hops 
+implementations bamboo dht approaches generalize dht 
+dht architectures build soft state distributed data repository top key routing interface 
+measurement reports time fixed multiple update interval automatically deleting dead nodes old measurements 
+determining appropriate measurement update rate depends number factors including measurement stability time required accuracy desired update bandwidth consumption 
+experiments planetlab showed nodes meeting typical load constraint minute load average point time continuously met subsequent minute interval nodes meeting load constraint point time continuously met subsequent minute interval suggesting update interval order minutes provides high accuracy nodes 
+amount node network transmit bandwidth showed similar behavior 
+new attributes added sword runtime 
+new attribute installed reporting node sword distribute attribute identity attribute value key mapping function nodes periodically query special attribute node reports associated value mapping function reporting node added system 
+
+storing retrieving inter node attributes process described retrieves identities reporting nodes matching node requirements query values attributes 
+resolve queries need inter node measurements 
+reduce resource consumption gathering inter node measurements sword leverages observation nodes typically fall equivalence classes inter node attributes 
+example latency node autonomous system node approximately equal latency node node 
+sword allows arbitrary groups nodes define representative node collects inter node measurements behalf 
+choosing appropriate representatives orthogonal issue address leverage existing network aware clustering 
+storing inter node measurements dht representatives store inter node measurements 
+saves bandwidth periodically publishing potentially large number inter node measurements dht 
+receiving node reports node attribute range query querying node issues second distributed query representative nodes indicated obtain inter node attribute interest representative nodes 
+mapping node representative attributes reported node 
+bootstrap node need know identity representative nodes typically know ip address dns server 
+representative node boots performs standard sword distributed query find identities representatives system begins measuring 
+
+optimizer implementation node inter node measurements retrieved optimizer finds lowest penalty mapping nodes groups specified query 
+optimizer computation parallelized running node received initial query client 
+clients may contact sword node initially computation effectively distributed request basis 
+task creating groups specific size satisfy inter node inter group constraints np hard 
+optimizer finds penalty possible node combinations optimizer biases exponential search groups low penalty search terminated prior completion severely impacting result quality 
+allows user trade result quality running time 
+optimizer generates set candidate groups meeting node inter node requirements group 
+group query optimizer enumerates combinations nodes meeting node requirements labels combination total node penalty set nodes 
+combinations computes total internode penalty infinite set meet requirements 
+combinations nodes infinite penalty candidate groups 
+sword allows user specify time limit phase computation evaluates combination order increasing labeled node group penalty 
+time limit expires optimizer evaluated combinations evaluated sets nodes lowest total node penalty sets generally lowest total group penalty inter node penalty added 
+optimizer tests ranks candidate groups inter group requirements preferences 
+algorithm similar described searching groups nodes searches groups groups starting lowest penalty candidate groups 
+full exponential search lowest penalty solution may take long time complete 
+implemented simple heuristics stopping search early 
+second timeout stops search th percentile latency ms updates hour node queries hour node updates hour node queries hour node workload updates hour node queries hour node 
+th percentile latency single query vs approaches workload updates hour node queries hour node 
+seconds 
+case divide allotted time evenly second phases described subdivide phase time evenly groups top half candidates searches lowest penalty half candidate groups 
+top candidates eliminates lowest penalty candidates group running search 
+lowest penalty candidate groups processed search answer may sufficient answer heuristic stops valid solution 
+evaluate performance accuracy heuristics section 
+evaluation 
+emulation evaluation emulation experiments focus performance overhead sword distributed query processor 
+choose latency performance metric sword clients may periodically re query sword adapt application changing node network conditions resource needs application changes 
+choose aggregate bandwidth consumption overhead metric potentially represents real financial cost users operators infrastructure 
+section evaluates distributed query processor 
+evaluate optimizer performance separately section performance planetlab section 
+evaluated sword query processor cluster ibm pcs dual ghz pentium iii processors gb ram gigabit ethernet 
+modelnet inet topology transit nodes client nodes client nodes stub 
+transit transit links mb oc bandwidth th percentile latency ms index fixed fixed fixed fixed updates hour node queries hour node updates hour node queries hour node workload updates hour node queries hour node 
+th percentile latency fixed index node attribute range query approaches 
+workload updates hour node queries hour node 
+client stub links kb bandwidth 
+latencies inet topology 
+nodes chosen representatives evaluating fixed index approaches infrastructure servers grouped node stub domains mb ms latency connections upstream transit node emulate environment service provider distributed servers number geographically distributed connected location centers 
+approaches bamboo dht available august 
+baseline workload consisted updates measurement reports queries issued virtual nodes 
+content updates taken representative hour portion trace ganglia vivaldi measurements collected planetlab 
+updates contained metrics collected ganglia time period network coordinates computed vivaldi attributes debugging total attributes 
+queries contained node attributes fifteen minute load average free disk space free memory bytes second received bytes second sent inter node attribute inter node latency 
+queries formulated distribution requested minimum amount disk space zipf distributed mb mb biased high range fifteen minute load average uniformly distributed value minimum amount free memory zipf distributed mb mb biased high range bytes second competing traffic mb half queries unconstrained queries inter node latency range search technique normalized bandwidth fixed fixed fixed fixed index table 
+bandwidth consumption workload normalized fixed consumed average mb run 
+network traffic overhead includes measurement reports queries node attributes retrieving inter node attributes maintaining dht periodically computing network coordinates 
+ms ms trace contained valid data planetlab nodes emulated node system duplicating entries average times 
+median number nodes returned query nodes total system th percentile 
+dht approaches attribute bits assigned attributes mapped sub region containing nodes 
+
+distributed query latency shows impact range search approach workload intensity latency satisfy range query compared 
+higher workload rates emulation cluster cpus overloaded approach 
+experiments reveal clearly outperforms multi query typical resource discovery workload consider 
+primary reason difference network bandwidth consumed larger number nodes returned querying node compared creates sufficient congestion overwhelm benefit derives sending attribute update 
+shows impact range search approach workload intensity latency satisfy range query compared remaining approaches 
+see index outperforms dht approaches 
+reasonable queries index take hops parallel index server dht server storing measurements back querying node approaches query may visit nodes maximum number nodes attribute range mapped 
+fixed max result set time 
+number candidate nodes returned range query function time killing reporting nodes seconds 
+approaches vary greatly performance see workload fixed infrastructure cluster relatively small number nodes high bandwidth network connection better support typical resource discovery workload tested infrastructure nodes organized dht 
+fixed configurations performed poorly congestion 
+set experiments varied number representatives 
+electing half nodes representatives reduces query latency fixed approaches approach compared electing nodes representatives improvement increases quarter nodes representatives 
+
+bandwidth consumption table shows sword bandwidth consumption 
+centralized fixed approaches bandwidth 
+send copy attribute measurement report server copy servers index approaches 
+query fixed average distributed smaller number nodes dht approaches 
+electing half nodes representatives reduces bandwidth consumption compared electing electing quarter reduces 
+
+robustness perturbations sword takes advantage dht self healing property automatically remap keys nodes node fails recovers voluntarily joins leaves system 
+verify robustness mechanism applied workload 
+runtime optimizer different heuristics shown percentage runtime complete full exponential search 
+axis shows total number possible group combinations checked complete exponential search run 
+total runtime exponential search indicated top bars 
+sword configuration killed dht nodes seconds run 
+plots percentage maximum result set returned minute interval 
+nodes servers dht storing measurement reports load generators killing nodes removes reporting nodes expect initial maximum result set returned system recovers 
+see soon nodes killed time seconds queries receiving new result set containing original result set bamboo heals stale data times sword new measurement reports issued 
+
+optimizer performance measured performance optimizer single ghz pentium node 
+update workload came ganglia pairs pings measurements planet lab query workload consisted representative mix queries containing groups 
+shows running time optimizer heuristics percentage optimizer running time full exponential search 
+see larger problems savings gained heuristic significant reducing second search seconds 
+reducing running time search useful result returned maintains acceptable level accuracy 
+shows accuracy various heuris optimal penalty full exp seconds top half answer top equal weight heavy cross group weight equal weight heavy cross group weight equal weight total searches possible heavy cross group weight equal weight heavy cross group weight 
+accuracy optimizer heuristics relative optimal solution full exponential search 
+axis shows total number group combinations checked full exponential search run 
+missing bar indicates solution 
+tics relative results full exponential search 
+equal weight bars represent queries penalties assigned attributes equally 
+heavy cross group weight bars represent queries penalty assigned cross group constraint times greater attributes 
+see second heuristic performs small searches top half heuristic performs cases workload finds optimal solution 
+answer approach accurate heuristic top heuristic find feasible solution half test cases 
+
+performance planetlab compared modelnet configuration planetlab smaller number nodes cpu contention 
+ran experiments planetlab july sets nodes subset usable nodes connected commodity internet ii subset set universities north america tend highbandwidth low latency network paths 
+sword configuration 
+nodes report metrics modelnet experiments 
+measured query latency single query time measured times show best case latency 
+issued series queries requesting groups nodes inter node latency nodes group ms ms load node varied query query cover integers range query latency ms non nodes nodes load requested 
+range query median latency versus upper bound requested load planetlab 
+number candidate nodes returned ranged top line bottom line increasing numbers nodes returned upper bound requested load increased 
+inclusive 
+shows sword range search performs reasonably planetlab returning results optimizer seconds nodes returned range query 
+shows optimizer running time full exponential search ranged twelve seconds 
+completion time appeared strongly correlated load machine performing optimization size optimization problem 
+sword currently resource discovery planetlab services bellagio 
+sum distributed query optimization steps sacrifice accuracy latency find typical queries resolved seconds emulated node system seconds planetlab larger planet lab latency caused cpu load node performing optimization step 
+
+related sword builds resource discovery query processing distributed range search 
+kee describe virtual grids 
+description language allows users describe resource requirements hierarchies homogeneous heterogeneous groups nodes poor connectivity reminiscent sword groups node inter node inter group constraints coarser grained specifications support arbitrarily deep hierarchies 
+re optimizer latency ms non nodes nodes load requested 
+optimizer median latency versus upper bound requested load planet lab 
+data experiment 
+source mapping component stores resource measurements centralized database contrast sword distributed architecture computes bounded set pre fabricated groups stores database dynamically forming query query basis 
+condor classads language provide similar functionality virtual grids sword absent notion groups inter node connectivity constraints 
+gang matching extends condor original bilateral matching scheme multilateral allowing allocation multiple resources 
+set matching allows requests express aggregate constraints 
+formulates matching problem constraint satisfaction problem 
+systems allow expression resource groups offer concise method express network topologies 
+date implementations centralized 
+gma relational model track query dynamic static node attributes respectively 
+features nondeterministic queries allowing users trade reduced response time number results received 
+supports dht multi attribute range queries manner similar approach uses separate dht instance attribute creates query routing structure explicitly built dht successor pointers provides approximate answers bloom filters 
+additionally sword allows users define groups inter node intergroup requirements penalty functions rank nodes meeting requirements 
+globus mds allows indexing servers aggregate measurement data grip information providers obtained gris 
+sword query processor connecting peer peer fashion 
+mds mds emerged successors mds 
+pier sophia irisnet astrolabe provide internet scale query processing 
+satisfy node resource queries offer expressive language specifying requirements sword 
+contact data storing nodes perform range search disseminates measurement data globally sword targets range search nodes storing measurements target attribute range 
+dht range search suggested initially karger ruhl implemented enhanced mercury 
+approach similar mercury additional passive load balancing provided attribute value dht key functions 
+pht offers alternative range search strategy tries top dhts 
+network topology embedding problem formulated constraint satisfaction problem wide area networks optimization problem cluster networks 
+
+described sword scalable resource discovery service wide area distributed systems 
+users define requested system topology terms groups required intra group inter group node characteristics relative importance sensitivity expressed penalty functions 
+explore number distributed query algorithms finding nodes meeting required constraints heuristics finding best mapping nodes groups 
+evaluation shows fixed server cluster network peering facilities typically outperforms dht resource discovery infrastructure 
+find fully decentralized version sword emulation planetlab performs reasonably benefiting dht resilience 
+results specific architectures workloads examined believe experience considering variety architectures provide interesting insights regarding appropriate architectures variety systems depending available resources expected level load required levels performance availability 
+important area security 
+nodes sign measurement reports queries form authentication 
+authentication infrastructure rate limiting ensure node utilizes predefined amount bandwidth optimizer cpu time unit time single node 
+note technique vulnerable sybil attack requires trusted identity creation service 
+ensure nodes truthful measurement reports verification service run micro benchmarks verify resource availability matches earlier advertisements 
+ensure modulo collusion nodes truthful run optimizer client issue query query nodes compare results 
+privacy challenging security issue distributed versions sword 
+reporting nodes encrypt attribute names hide values range search mechanism relies monotonic mapping function measured values dht keys encrypting values standard techniques mapping dht key break monotonicity 
+dht range search interesting topic 
+studied system dynamics result multiple large scale applications periodically querying sword determine migrate application instances 
+anticipate mechanisms needed damp potential oscillations 
+sword planetlab deployment accessed www org 
+chun snoeren vahdat 
+resource allocation federated distributed computing infrastructures 
+oasis october 
+balazinska balakrishnan karger 
+ins twine scalable peer peer architecture intentional resource discovery 
+international conference pervasive computing august 
+bowman chun culler karlin muir peterson roscoe 
+operating systems support planetary scale network services 
+nsdi 
+bharambe agrawal seshan 
+mercury supporting scalable multi attribute range queries 
+proceedings sigcomm 
+chang govindan jamin shenker willinger 
+capturing representative level internet topologies 
+sigmetrics june 
+chen bindel song katz 
+algebraic approach practical scalable overlay network monitoring 
+acm sigcomm 
+wolski 
+chaff distributed sat solver grid 
+supercomputing 
+considine byers mayer patel 
+constraint approach testbed embedding services 
+proceedings acm hotnets ii november 
+czajkowski fitzgerald foster kesselman 
+grid information services distributed resource sharing 
+proceedings hpdc 
+czajkowski foster kesselman sander tuecke 
+snap protocol negotiating service level agreements coordinating resource management distributed systems 
+lecture notes computer science number pages 
+dabek cox morris 
+vivaldi decentralized network coordinate system 
+sigcomm 
+dinda lu 
+nondeterministic queries relational grid information service 
+supercomputing 
+douceur 
+sybil attack 
+iptps 
+
+bcm tmc edu homes doc intro html 
+fisher 
+relational model information monitoring 
+technical report gp grid forum 
+freedman 
+content publication coral 
+nsdi 
+fu chase chun schwab vahdat 
+sharp architecture secure resource peering 
+sosp october 
+gardner 
+grid production grid principles practice 
+hpdc 
+
+huang steenkiste 
+network sensitive service discovery 
+usits 
+huebsch hellerstein lanham loo shenker stoica 
+querying internet pier 
+proceedings vldb september 
+karger ruhl 
+simple efficient load balancing algorithms peer peer systems 
+iptps 
+karp ratnasamy rhea shenker 
+adoption dhts public dht service 
+iptps february 
+
+kee logothetis huang casanova chien 
+efficient resource description high quality selection virtual grids 
+technical report cs university california san diego 
+krishnamurthy wang 
+network aware clustering web clients 
+sigcomm 
+kubiatowicz bindel chen czerwinski eaton geels gummadi rhea weatherspoon weimer wells zhao 
+oceanstore architecture global scale persistent storage 
+proceedings acm asplos november 
+li hayes birnbaum reyes quinn casanova ang berman miller bourne 
+encyclopedia life project 
+new generation computing february 
+litzkow livny mutka 
+condor hunter idle workstations 
+icdcs 
+liu foster 
+constraint language approach matchmaking 
+international workshop research issues data engineering ride 
+liu yang foster 
+design evaluation resource selection framework 
+hpdc 
+nath ke gibbons karp seshan 
+iris net architecture enabling sensor enriched internet services 
+technical report irp tr intel research pittsburgh june 
+oppenheimer albrecht patterson vahdat 
+scalable wide area resource discovery 
+technical report ucb csd uc berkeley 
+overview mead 
+www ncsa uiuc edu mead pdf 
+pai 
+slice top planetlab 
+cs princeton edu 
+pai wang park pang peterson 
+dark side web open proxy view 
+proceedings hotnets ii 
+ratnasamy hellerstein shenker 
+prefix hash tree 
+podc 
+raman livny solomon 
+matchmaking distributed resource management high throughput computing 
+hpdc 
+raman livny solomon 
+policy driven heterogeneous resource allocation 
+hpdc 
+reynolds vahdat 
+efficient peer peer keyword searching 
+proceedings international middleware conference june 
+rhea geels roscoe kubiatowicz 
+handling churn dht 
+proceedings usenix annual technical conference 
+sacerdoti katz culler 
+wide area cluster monitoring ganglia 
+proceedings ieee cluster conference 
+spence harris 
+distributed resource discovery open platform 
+proceedings hpdc 
+stribling 
+planetlab pairs pings 
+www pdos lcs mit edu pl app 
+tang dwarkadas 
+hybrid global local indexing efficient peer peer information retrieval 
+nsdi 
+tuttle snoeren vahdat 
+tool remote deployment management debugging 
+submission worlds 
+vahdat walsh mahadevan chase becker 
+scalability accuracy large scale network emulator 
+technical report duke university may 
+van renesse birman vogels 
+astrolabe robust scalable technology distributed system monitoring management data mining 
+acm tocs 
+peterson roscoe 
+sophia information plane networked systems 
+proceedings acm hotnets ii november 
+white lepreau stoller ricci hibler barb 
+integrated experimental environment distributed systems networks 
+osdi 
+zhang schopf 
+performance analysis globus toolkit monitoring discovery service mds 
+proceedings international workshop middleware performance mp april 

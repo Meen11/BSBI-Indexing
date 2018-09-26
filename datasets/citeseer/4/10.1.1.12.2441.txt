@@ -1,0 +1,639 @@
+appears proceedings nd usenix conference file storage technologies fast 
+pond oceanstore prototype sean rhea patrick eaton dennis geels hakim weatherspoon ben zhao john kubiatowicz university california berkeley eaton geels cs berkeley edu oceanstore internet scale persistent data store designed incremental scalability secure sharing long term durability 
+pond oceanstore prototype contains features complete system including location independent routing byzantine update commitment push update cached copies overlay multicast network continuous archiving erasure coded form 
+wide area pond outperforms nfs factor phases andrew benchmark nfs factor phases 
+microbenchmarks show write performance limited speed erasure coding threshold signature generation important areas research 
+microbenchmarks show pond manages replica consistency manner quantify latency cost imposed bandwidth savings 
+dominant costs storage today management maintaining health performance characteristics data long term 
+trends help ameliorate problem 
+rise internet decade spawned advent universal connectivity average computer user today increasingly connected internet high bandwidth link 
+second disk storage capacity unit cost assuming growth continues moore law terabyte eide storage cost years 
+trends unique opportunity file system designers time imagine providing truly durable storage computer user 
+oceanstore internet scale cooperative file system designed harness trends provide research supported nsf career award ani nfs itr award ccr california micro award :10.1.1.115.4299
+dennis geels supported fannie john hertz foundation 
+high durability universal availability users tiered storage system 
+upper tier hierarchy consists powerful connected hosts serialize changes archive results 
+lower tier contrast consists powerful hosts including users workstations mainly provide storage resources system 
+dividing system tiers manner allows powerful hosts provide services demand resources time harnessing vast storage resources available powerful hosts 
+unit storage oceanstore data object applications map familiar user interfaces 
+example pond includes electronic mail application unix file system 
+allow greatest number potential oceanstore applications place requirements object interface 
+information universally accessible ability read particular object limited user physical location 
+second system balance tension privacy information sharing applications demand ability aggressively read write share data users require data kept strictest confidence 
+third easily understandable usable consistency model crucial information sharing 
+fourth privacy complements integrity system guarantee data read written 
+interface mind designed oceanstore guidance assumptions 
+infrastructure untrusted aggregate 
+expect hosts routers fail arbitrarily 
+failure may passive host snooping messages attempt violate users privacy may active host injecting messages disrupt protocol 
+aggregate expect hosts trustworthy specifically assume fraction set hosts faulty malicious 
+second assumption infrastructure constantly changing 
+performance existing communication paths varies resources continually en name meaning description block guid secure hash block data version guid root block version active guid names complete stream versions table summary globally unique identifiers guids 
+ter exit network warning 
+constant flux historically proven difficult administrators handle 
+minimum system self organizing self repairing ideally 
+achieving level adaptability requires redundancy tolerate faults dynamic algorithms efficiently utilize redundancy 
+challenge oceanstore design system provides expressive storage interface users guaranteeing high durability atop untrusted constantly changing base 
+pond oceanstore prototype 
+prototype contains features essential full system built self organizing location routing infrastructure automatically allocates new replicas data objects usage patterns utilizes faulttolerant algorithms critical services stores data erasure coded form 
+importantly pond contains sufficiently complete implementation oceanstore design give reasonable estimate performance full system 
+remainder organized follows 
+oceanstore interface section followed description system architecture section 
+discuss implementation details particular current prototype section sections discuss experimental framework performance results 
+discuss related section conclude section 
+data model section describes oceanstore data model view system client applications 
+model designed quite general allowing diverse set possible applications including file systems electronic mail databases full acid atomicity consistency isolation durability semantics 
+describe storage layout 
+storage organization oceanstore data object analog file traditional file system 
+data objects ordered sequences read versions principle version object kept forever 
+versioning simplifies issues oceanstore caching repli indirect blocks data blocks root block backpointer copy write copy write data object sequence read versions collectively named active guid 
+version tree read blocks child pointers secure hashes blocks point called block guids 
+user data stored leaf blocks 
+block guid top block called version guid 
+version data blocks changed version new blocks new parents added system blocks simply referenced previous version 
+cation model 
+additional benefit allows time travel popularized postgres elephant file system users view past versions file directory order recover accidentally deleted data 
+illustrates storage layout data object 
+version object contains metadata actual user specified data previous versions 
+entire stream versions data object named identifier call active globally unique identifier short cryptographically secure hash concatenation application specified name owner public key 
+including key securely prevents namespace collisions users simplifies access control 
+provide secure efficient support versioning version data object stored data structure similar tree block child cryptographically secure hash child block contents 
+hash called block guid define version guid top block 
+versions data object share contents small difference versions requires small amount additional storage 
+named secure hashes child blocks read 
+shown hierarchical hashing technique produces cryptographically secure hash entire contents version 
+table enumerates types guids system 
+application specific consistency section describe consistency mechanisms provided readers writers data objects 
+define update operation adding new version head version stream data objects 
+oceanstore updates applied atomically represented array potential actions guarded predicate 
+choice inspired bayou system 
+example actions include replacing set bytes object appending new data object truncating object 
+example predicates include checking latest version number object comparing region bytes object expected value 
+encoding updates way allows oceanstore support wide variety application defined consistency semantics 
+example database application implement optimistic concurrency control acid semantics letting predicate update check changes read set applying write set update action 
+contrast operation adding message mailbox stored data object implemented append operation vacuous predicate 
+important design decision oceanstore support explicit locks leases data rely update model provide consistency necessary atomicity updates allows locks built application layer 
+predicates updates oceanstore allows client applications specify predicates reads 
+example client may require data read older seconds may require written data may require data specific version past 
+system architecture discuss architecture oceanstore system implements application level interface previous section 
+unit synchronization oceanstore data object 
+consequently changes particular object coordinated shared resources changes different objects independent 
+oceanstore exploits parallelism order achieve scalability adding additional physical components allows system support data objects 
+virtualization tapestry oceanstore constructed interacting resources permanent blocks storage processes managing consistency data 
+resources virtual permanently tied particular piece hardware move time 
+virtual resource named globally unique identifier guid contains state required provide service 
+caches blocks storage state data 
+complicated services state involves things history pending queues commit logs 
+virtualization enabled decentralized object location routing system dolr called tapestry 
+tapestry scalable overlay network built tcp ip frees oceanstore implementation worrying location resources 
+message sent tapestry addressed guid ip address tapestry routes message physical host containing resource guid 
+tapestry locality aware resources guid locates high probability closest message source 
+hosts resources named guids 
+physical host joins tapestry supplying guid identify hosts route messages 
+hosts publish guids resources tapestry 
+hosts route messages resources 
+overlay networks tapestry restrict placement resources system 
+course node may resource leave network time 
+replication consistency data object sequence read versions consisting read blocks securely named 
+consequently replication blocks introduces consistency issues block may replicated widely convenient simply knowing block allows host verify integrity 
+reason oceanstore hosts publish blocks store tapestry 
+remote hosts read blocks sending messages addressed desired tapestry 
+contrast mapping name data object latest version object named may change time file changes 
+limit consistency traffic oceanstore implements primary copy replication 
+object single primary replica serializes applies updates object creates digital certificate mapping version 
+certificate called heartbeat tuple containing timestamp version sequence number 
+addition maintaining latest mapping primary replica enforces access control restrictions serializes concurrent updates multiple users 
+securely verify receives latest heartbeat object client may include nonce signed request case resulting response primary replica contain client name nonce signed primary key 
+procedure rarely necessary common applications tolerate somewhat looser consistency semantics 
+nfs client example requests new heartbeats seconds old 
+implement primary replica small set cooperating servers avoid giving single machine complete control user data 
+servers collectively called inner ring byzantine faulttolerant protocol agree updates data object digitally sign result 
+protocol allows ring operate correctly members fail behave maliciously 
+inner ring implementation discussed detail section 
+primary replica virtual resource mapped variety different physical servers lifetime object 
+fact objects independent provides maximal flexibility distribute primary replicas physical inner ring servers balance load 
+addition primary replica types resources store information object archival fragments secondary replicas 
+mapped different oceanstore servers handling inner ring 
+discuss turn 
+archival storage simple replication provides fault tolerance quite inefficient respect total storage consumed 
+example creating replicas data block achieve tolerance failure addition storage cost 
+contrast erasure codes achieve higher fault tolerance additional storage cost 
+erasure code mathematical technique block divided identically sized fragments encoded fragments quantity called rate encoding 
+rate code increases storage cost factor key property erasure codes original object reconstructed fragments 
+example encoding block rate code produces fragments arbitrary sufficient reconstruct original block 
+intuitively see erasure encoding produces far higher fault tolerance storage replication 
+detailed analysis confirming intuition earlier :10.1.1.121.9064
+prototype cauchy reed solomon code 
+erasure codes utilized oceanstore follows 
+update applied primary replica newly created blocks erasure coded resulting fragments distributed oceanstore servers storage 
+machine system may store archival fragments primary replica uses tapestry distribute fragments uniformly system deterministic function fragment number block encode 
+reconstruct block time host simply uses tapestry discover sufficient number fragments performs decoding process 
+caching data objects erasure coding seen provides high durability storage 
+reconstructing block erasure codes expensive process fragments recovered assuming fragments block stored distinct machines failure independence recovery requires distinct network cards disk arms 
+avoid costs erasure codes frequently read objects oceanstore employs block caching 
+read block host queries tapestry block available host retrieves fragments block tapestry performs decoding process 
+case host publishes possession block tapestry subsequent read second host find cached block 
+cost retrieval archive amortized readers 
+importantly reconstructed blocks soft state reconstructed archive time cost discarded convenient 
+soft state nature reconstructed blocks allows caching decisions locally greedy manner pond uses lru 
+reading particular version document technique described previous paragraph sufficient ensure correct result 
+application needs read latest version document 
+utilizes tapestry retrieve heartbeat object primary replica 
+heartbeat signed dated certificate securely maps object latest version 
+oceanstore supports efficient push update secondary replicas object organizing application level multicast tree 
+tree rooted primary replica object called dissemination tree object 
+time primary tapestry manner yields degree failure independence fragments encoding block preferable achieve independence explicitly 
+proposal doing implemented 
+app app archive inner ring primary replica replica secondary replica secondary replica secondary hop req agree disseminate time archive path oceanstore update 
+update proceeds client primary replica target data object 
+serialized updates applied target 
+heartbeat generated certifying new latest version multicast update dissemination tree replicas 
+simultaneously new version erasure coded sent archival storage servers 
+replica applies update create new version sends corresponding update heartbeat dissemination tree 
+updates multicast directly secondary replicas 
+dissemination tree built selforganizing fashion new secondary replica utilizes tapestry locate nearby pre existing replica serve parent tree 
+sophisticated version algorithm examined 
+full update path section review full path update 
+postpone description primary replica section 
+shows path update oceanstore 
+shown updates object passed tapestry primary replica object 
+updates serialized committed primary replica passed dissemination tree secondary replicas currently caching object 
+updates applied replicas keeping date 
+updates applied visible clients sharing object 
+simultaneous updating secondary replicas primary replica encodes new data erasure code sending resulting fragments oceanstore servers long term storage 
+note illustrates path updates single object 
+shown section process committing updates primary replica computationally intensive 
+important aspect system primary replicas distributed inner ring servers balance load 
+primary replica section shows data object oceanstore assigned inner ring set servers implement object primary replica 
+servers securely apply updates create new versions 
+serialize concurrent writes enforce access control check update predicates sign heartbeat new version 
+construct primary replica fault tolerant manner adapt byzantine agreement protocol developed castro liskov 
+byzantine agreement distributed decision process non faulty participants reach decision long thirds participants follow protocol correctly 
+group size servers may faulty 
+faulty machines may fail arbitrarily may halt send incorrect messages deliberately try disrupt agreement 
+unfortunately byzantine agreement requires number messages quadratic number participants infeasible synchronizing large number replicas infeasibility motivates desire keep primary replicas object small number 
+castro liskov algorithm shown perform quite fault tolerant network file system 
+modify algorithm distributed file system important ways 
+public key cryptography byzantine agreement protocols require participants authenticate messages send 
+versions castro liskov protocol 
+version authentication accomplished public key cryptography 
+version symmetric key message authentication codes macs performance reasons mac computed orders magnitude faster public key signature 
+macs downside common symmetric key cryptography authenticate messages fixed machines 
+machine subsequently prove authenticity message third party 
+macs complicate castro liskov algorithm feel resulting improvement performance justifies extra complexity 
+oceanstore aggressive replication improve data object availability client perceived access latency 
+third party verification machine communicate directly inner ring validate integrity data stores 
+computation communication required keep replica consistent limit maximum number copies data object read data 
+modified castro liskov protocol macs communication internal inner ring public key cryptography commu machines 
+particular digital signature certifies agreement result 
+secondary replicas locally verify authenticity data received replicas archive 
+consequently read traffic satisfied completely second tier replicas 
+clients insist communicating directly ring maximum consistency need provide heartbeat certifying latest version data blocks sourced secondary replicas 
+computing signatures expensive amortize added cost agreement number replicas receive result 
+public key cryptography allows inner ring push updates replicas authenticating result individually 
+increased ability secondary replicas handle client requests contacting inner ring may significantly reduce number agreements performed inner ring 
+analyze full performance implications digital signatures section 
+proactive threshold signatures traditional byzantine agreement protocols guarantee correctness servers fail life system restriction impractical long lived system 
+castro liskov address shortcoming rebooting servers secure operating system image regular intervals 
+assume keys protected cryptographic hardware set servers participating byzantine agreement fixed 
+oceanstore considerable flexibility choosing membership inner ring 
+employ proactive threshold signatures allow replace machines inner ring changing public keys :10.1.1.9.2061:10.1.1.9.2061
+threshold signature algorithm pairs single public key private key shares 
+servers uses key share generate signature share correctly generated signature shares may combined party produce full signature 
+set correct signature proves inner ring decision byzantine agreement algorithm 
+proactive threshold signature scheme threshold signature scheme new set key shares may computed independent previous set new shares may combined produce correct signature signature shares generated key shares distinct sets combined produce full signatures 
+change composition inner ring existing hosts ring participate distributed algorithm new hosts compute second set shares 
+shares independent original set shares sets combined produce valid signature 
+new shares generated distributed new servers old servers delete old shares 
+byzantine assumption old servers faulty remainder correctly delete old key shares rendering impossible generate new signatures 
+public key changed clients verify new signatures public key 
+final benefit threshold signatures revealed combined routing location services tapestry 
+directly publishing guids hosts inner ring publish objects serve 
+composition ring changes new servers publish manner 
+ring public key change clients ring need worry exact composition knowledge key presence tapestry sufficient contact 
+responsible party byzantine agreement allows build fault tolerant primary replica data object 
+public key cryptography threshold signatures tapestry achieve ability dynamically change hosts implementing replica response failures changing usage conditions 
+difficulty remains chooses hosts place 
+solve problem rely entity known responsible party named responsibility choose hosts inner rings 
+entity server publishes sets failure independent nodes discovered offline measurement analysis 
+currently access server tapestry simply publishing sets secure web site suffice 
+inner ring created selecting node independent sets 
+superficially responsible party introduce single point failure system 
+true extent limited 
+responsible party sees private key shares primary replica generated distributed algorithm involving servers inner ring new groups shares generated manner 
+compromise privacy data stored responsible party endanger integrity file data 
+primary replicas responsible parties system responsible party presents scalability issue 
+furthermore online interface responsible party provides readonly results offline computation known solutions building scalable servers provide service 
+prototype section describes important aspects implementation prototype ways differs system description 
+software architecture built pond java atop staged event driven architecture seda prior research indicates event driven servers behave gracefully high load traditional threading mechanisms 
+pond subsystem implemented stage selfcontained component state thread pool 
+stages communicate sending events 
+shows main stages pond interconnections 
+components required oceanstore machines stages may added removed reconfigure server 
+stages left necessary servers inner ring stages right generally associated clients machines 
+current code base pond contains approximately semicolons core graduate student developers undergraduate 
+language choice implemented pond java reasons 
+important speed development 
+java strongly typed garbage collected 
+features greatly reduce debugging time especially large project rapid development pace 
+second reason chose java wanted build system event driven architecture seda prototype readily available 
+furthermore multithreaded code written multithreaded code java quite easy port 
+illustrate portability code base implemented tested solely debian gnu linux workstations ported windows week part time 
+unfortunately choice programming language introduced complications foremost unpredictability introduced garbage collection 
+current production java virtual machines jvms surveyed called world collectors thread system halted garbage collector runs requests currently processed garbage collection starts stalled order milliseconds 
+requests travel machines may stopped collections serial 
+event currently jdk linux ibm 
+see www ibm com developerworks java jdk linux 
+inner ring update object agreement init exec read object get heartbeat applications byzantine agreement prepare commit disseminate generate archive store frag get frag dissemination tree replica tree tree interface client create object update object tree msg tapestry network java prototype software architecture 
+pond built atop seda 
+components single host implemented stages shown boxes communicate events shown arrows 
+stages run host inner ring hosts run byzantine agreement stage example 
+happen add seconds delay task normally measured tens milliseconds 
+adjust anomalies report median value th th percentile values experiments severely effected garbage collection typical mean standard deviation 
+feel decision justified effects garbage collection merely artifact choice language inherent property system implementation system exhibit behavior 
+inner ring issues core functionality inner ring implemented pond exception 
+currently implement view changes checkpoints components castro liskov algorithm handle host failure 
+deficiency sufficiently affect results castro liskov performance degradation due recovery operations running andrew benchmark system 
+lastly current signature scheme threshold version rsa developed shoup :10.1.1.134.1633
+plan implement proactive algorithm rabin soon mathematics schemes similar expect similar performance :10.1.1.9.2061:10.1.1.9.2061
+experimental setup experimental test beds measure system 
+test bed consists local cluster machines berkeley 
+machine cluster ibm pc ghz pentium iii cpus gb ecc pc sdram total storage consumed object size object size kb storage overhead vs object size cauchy rate fragments cauchy rate fragments archive storage overhead 
+objects size block size kb require block storage 
+sufficiently large objects metadata negligible 
+cost added archive function encoding rate 
+example rate code increases storage cost factor 
+gb ibm hard drives 
+machines single intel pro xf gigabit ethernet adaptor connect packet engines gigabit switch 
+operating system node debian gnu linux woody running linux smp kernel 
+disks run software raid striping mode md 
+experiments cluster unused 
+second test bed planetlab open global test bed developing deploying accessing new network services see www planet lab org 
+system currently operates nodes spread sites north america europe australia new zealand 
+hardware configuration machines varies slightly nodes ghz pentium iii cpus gb memory 
+experiments subset planetlab distributed san francisco bay area california usa 
+machines comprise group bay area servers include machine sites university california berkeley ca lawrence berkeley national laboratories berkeley ca intel research berkeley berkeley ca stanford university palo alto ca 
+results section detailed performance analysis pond 
+results demonstrate performance characteristics system highlight promising areas research 
+key update update latency ms size size archive median kb mb kb mb table results latency microbenchmark local area 
+nodes hosted cluster 
+ping latency nodes cluster ms run archive enabled disabled varying update size key length 
+storage overhead measure storage overhead imposed data model 
+discussed section data object represented tree metadata appended top block 
+user data portion data object smaller block size overhead top block dominates storage overhead 
+user data increases size overhead top block interior blocks negligible 
+shows overhead due tree varying data sizes 
+storage overhead increased erasure coding block 
+shows increase proportional inverse rate encoding 
+encoding kb block rate code increases storage overhead factor 
+overhead somewhat higher inverse rate encoding additional space required fragments self verifying 
+see details 
+update performance benchmarks understand raw update performance pond 
+latency microbenchmark microbenchmark single client submits updates various sizes node inner ring measures time request signed signature result checked 
+warm jvm update mb data perform updates depending size update tested 
+pause seconds allow system perform number updates pausing ms response update request 
+report java code generally optimized runtime executions line code generally slow runtime system optimizing 
+performing passes code allow optimization occur called warming jvm 
+time ms phase kb update mb update check validity serialize update archive sign result table latency breakdown update 
+majority time small update performed cluster spent computing threshold signature share result 
+larger updates time apply archive update dominates signature time 
+inner avg 
+update update latency ms ring client ping size median cluster cluster kb mb cluster ucsd kb mb bay ucsd kb area mb table results latency microbenchmark run wide area 
+tests run archive enabled bit keys 
+avg 
+ping average ping time milliseconds client machine inner ring servers 
+ucsd university california san diego 
+latency median fifth percentile fifth percentile 
+run benchmark variety parameters placing nodes various locations network 
+table presents results experiments running benchmark cluster show performance system apart wide area network effects 
+isolation highlights computational cost update 
+bit rsa keys provide sufficient security latency system estimate effect increasing processor performance 
+signature computation time quadratic number bits bit key signature takes times long compute bit 
+performance system bit keys conservative estimate speed iterations moore law roughly months 
+table presents breakdown latency update cluster 
+check validity phase client signature object checked 
+serialization phase inner ring servers perform half byzantine agreement process ensuring process updates order 
+update archive phases update applied data object resulting version archived 
+final phase completes process producing signed heartbeat new version 
+clear table time small update spent computing total update operations second total bandwidth mb size update kb update throughput vs update size ops archive disabled ops archive enabled mb archive disabled mb archive enabled throughput local area 
+graph shows update throughput terms operations second left axis bytes second right axis function update size 
+ops number falls quickly update size throughput bytes second continues increase 
+experiments run bit keys 
+data shown average trials standard deviation points mean 
+threshold signature share result 
+larger updates time apply archive update large signature time important 
+quantified cost increasing ring size serialize phase requires quadratic communication costs size ring 
+phases contrast scale worst linearly ring size 
+table presents cost update including network effects 
+comparing rows see moving client ucsd adds network latency inner ring total update time small updates 
+comparing rows see distributing inner ring bay area increases median latency small updates 
+increased geographic scale yields increased failure independence point encouraging 
+larger updates bandwidth limitations planetlab machines prevent optimal times wide area important service provider implementing distributed inner ring supply sufficient bandwidth sites 
+throughput microbenchmark second microbenchmark number clients submit updates various sizes node inner ring 
+client submits updates different data object 
+clients create objects synchronize update object times possible second period 
+measure number updates completed clients report update data throughput 
+shows results running throughput ir location client location throughput mb cluster cluster cluster planetlab bay area planetlab table throughput wide area 
+throughput distributed ring limited wide area bandwidth 
+tests run archive bit keys 
+latency ms read size kb read latency vs read size read archive read remote cache latency read objects archive 
+latency read data archive depends latency retrieve fragments reconstruction 
+test cluster 
+running test local area illustrates computational limitations inner ring 
+lines sloping downward show number operations completed second function update size archival policy lines sloping upward show corresponding throughput megabytes second 
+inner ring agrees update individually maximum possible number operations completed second bounded speed threshold signature generation approximately operations second 
+inner ring batches updates agrees groups suggested throughput system change bit keys 
+unfortunately costs associated update batching helps degree 
+suggested table update size increases signature phase small part load throughput megabytes second continues increase 
+see maximum throughput prototype archive disabled roughly mb throughput prototype archival subsystem enabled significantly lower 
+surprising effect computationally intensive archiving process observed table 
+see maximum sustainable throughput archival process roughly mb plan focus significant component tuning archival process 
+table shows results running throughput test archive running hosts located network 
+wide area throughput limited bandwidth available 
+archive retrieval performance read data object oceanstore client locate replica tapestry 
+replica exists reconstructed archival fragments 
+latency accessing replica simply latency tapestry 
+reconstructing data archive complicated operation requires retrieving fragments tapestry recomputing data 
+measure latency reading data archive perform simple experiment 
+populate archive submitting updates various sizes node inner ring 
+delete copies data reconstructed form 
+single client submits disjoint read events synchronously measuring time request response received 
+perform reads warm jvm pause seconds perform ms response read subsequent request 
+comparison measure cost reading remote replicas tapestry 
+report minimum median th percentile latency 
+presents latency reading objects archive running cluster 
+archive rate code system retrieve fragments reconstruct block archive 
+graph shows time read object increases number kb blocks retrieved 
+median cost reading object archive times cost reading previously reconstructed remote replica 
+secondary replication section describe benchmarks designed evaluate efficiency performance dissemination tree connects second tier replicas 
+stream benchmark benchmark measures network resources consumed streaming data dissemination tree content creator number replicas 
+define efficiency tree percentage bytes sent high latency links distributing update replica 
+assume high latency links low bandwidth high contention local low latency links possible 
+cumulative percentage bytes sent link rtt ms replicas replicas replicas results stream benchmark 
+graph shows percentage bytes sent links different latency number replicas varies 
+benchmark create tapestry network virtual oceanstore nodes spread hosts planetlab sites 
+create single shared oceanstore data object bay area inner ring variable number replicas hosted largest planetlab sites 
+sites lies united kingdom united states 
+single replica repeatedly submits updates append data object 
+measure bandwidth consumed pushing updates replicas 
+shows percentage bytes sent network links various latencies benchmark 
+metric dissemination tree distributes data efficiently 
+replicas replicas site average bytes sent transmitted links latency greater ms replicas average replicas site bytes sent links latency greater ms tag benchmark benchmark measures data sharing interactive scenario chat room 
+arrange group oceanstore replicas play distributed game tag 
+play tag replicas pass small piece data token group measure quickly token passed 
+benchmark create tapestry network virtual oceanstore nodes spread planetlab sites stream benchmark 
+create single shared data object bay area inner ring replicas hosted large planetlab sites 
+pass token replica holding writes name replica data object 
+replica receives token reads new version finds name 
+measure average latency passes 
+put latencies perspective run control experiments pond 
+experiments coordinator node placed ma tokens passed latency tag ms oceanstore tapestry tcp ip table results tag microbenchmark 
+experiment run times standard deviation experiments mean 
+experiments run bit keys archive disabled 
+chines hosted inner ring node oceanstore experiment 
+pass token replica sends message coordinator coordinator forwards token recipient 
+control experiment tapestry communicate nodes tcp ip 
+demonstrated stream benchmark dissemination tree bandwidth efficient tag benchmark shows efficiency comes cost latency 
+table presents results tag benchmark 
+control cases average time pass token ms ms depending tcp ip tapestry 
+oceanstore passing token requires average ms subtracting minimum time perform update ms table see latency pass token dissemination tree times slower passing token tapestry times slower tcp ip 
+andrew benchmark illustrate performance pond workload familiar systems researchers implemented unix file system interface oceanstore nfs loopback server ran andrew benchmark :10.1.1.23.8213
+map nfs interface oceanstore store files directories oceanstore data objects 
+file nfs file handle directories represented simple lists files contain 
+information normally stored file inode stored metadata portion oceanstore object 
+application file replica code creates local replica integrates corresponding object dissemination tree 
+point changes object proactively pushed client dissemination tree need consult inner ring read operations 
+write operations sent directly inner ring 
+nfs semantics require client writes imposes ordering 
+inner ring applies updates atomically enclosing write operation single update sufficient satisfy specification writes abort 
+directories handled carefully 
+directory lan wan linux oceanstore linux oceanstore phase nfs nfs ii iii iv total table results andrew benchmark 
+experiments run archive disabled bit keys indicated column headers 
+times seconds data point average trials 
+standard deviation points mean 
+change specify change applied directory changed read 
+policy theoretically lead livelock expect contention directory modifications users rare 
+benchmark results shown table 
+lan case linux nfs server oceanstore inner ring run local cluster 
+wan case linux nfs server runs university washington planetlab site inner ring runs ucb stanford intel berkeley uw sites 
+predicted microbenchmarks oceanstore outperforms nfs wide area factor phases iii iv benchmark 
+conversely write performance phases ii worse factor 
+difference due largely threshold signature operation wide area latencies bit keys oceanstore factor slower nfs 
+writes interspersed reads computation phase oceanstore performs factor nfs large keys 
+related number distributed storage systems preceded oceanstore notable examples include 
+unreliability hosts distributed setting studied byzantine fault tolerant services popular 
+farsite aims build enterprise scale distributed file system byzantine fault tolerance directories 
+project coca project build certificate authorities cas threshold signatures combines scheme quorum byzantine fault tolerant algorithm 
+fleet persistent object system uses quorum algorithm 
+quorum byzantine agreement requires communication replica state machine agreement oceanstore tolerates proportionally faults 
+tradeoff led architecture primary copy replication reduce communication costs implement primary replica small set servers state machine byzantine agreement achieve fault tolerance 
+way oceanstore built atop tapestry number peer peer systems constructing self organizing storage distributed routing protocols 
+past project producing storage system data replication durability 
+cooperative file system cfs targets wide area storage 
+chose tapestry locality properties functionally routing protocols 
+oceanstore past cfs provide probabilistic guarantees performance robustness oceanstore designed write sharing 
+ivy fully peer peer read write file system built atop cfs storage layer 
+oceanstore provides single point consistency data objects conflicting writes repaired application level 
+similarly pangaea provides eventual consistency presence conflicting writes 
+supporting bayou style update semantics having single point consistency object oceanstore able support higher degrees consistency including full acid semantics ivy pangaea distributing single point byzantine agreement protocol oceanstore avoids losses availability due server failures 
+distributed storage systems durability 
+earliest intermemory large scale distributed system provides durable archival storage erasure codes 
+pasis system uses erasure coding provide durability confidentiality distributed storage system 
+pasis intermemory focus archival storage consistent write sharing 
+combines erasure codes client directed refresh achieve durability clients rewrite data rate sufficient guarantee desired survival probability 
+final class systems related oceanstore techniques focus design 
+publius freenet eternity service focus preventing censorship distributed data way 
+publius uses threshold cryptography allow host store data knowing content method allowing deniability host operators 
+freenet uses coding deniability built routing overlay similar interface tapestry 
+eternity service uses erasure coding censoring data resources entity 
+described characterized pond oceanstore prototype 
+important challenges remain prototype working subset vision original oceanstore 
+building prototype refined plans research 
+initially feared increased latency distributed byzantine agreement process prohibitive fear relieved 
+threshold signatures proven far costly anticipated requiring order magnitude time compute regular public key signatures 
+plan spend significant time researching efficient threshold schemes possibly alternate methods achieving benefits provide 
+likewise plan focus improving speed generating fragments archival data 
+discussed overhead virtualization 
+latency overhead tapestry examined quantifying additional storage costs imposes topic research 
+focus entirely performance 
+interesting property current system self maintaining algorithms employs 
+tapestry automatically builds overlay network efficiently finds network resources dissemination tree self organizes keep replicas synchronized 
+threshold signatures allows inner ring change composition affecting rest system 
+hope aspects system self maintaining 
+example algorithms predictive replica placement efficient detection repair lost data vital lowering management costs distributed storage systems oceanstore 
+increased stability fault tolerance important pond research vehicle interesting projects 
+benchmarking tapestry peers started intention improving stability lowest layer pond 
+network partitions problem overlay networks research needed study behavior tapestry partition 
+stability tapestry improves focus shift higher layers system 
+oceanstore data model proven expressive support interesting applications including unix file system time travel distributed web cache email application 
+developement applications pointed areas oceanstore api improved intuitive api hopefully spur developement oceanstore applications 
+availability pond source code benchmarks published bsd license freely available oceanstore cs berkeley edu 
+ibm providing hardware cluster groups contributed planetlab 
+testbeds possible 
+brent chun mike howard particularly helpful experiments 
+anthony joseph timothy roscoe provided valuable input design implementation pond 
+jeremy stribling debugging skills instrumental bringing large tapestry networks 
+grateful anonymous reviewers frans kaashoek steward comments advice greatly improved 
+anderson 
+eternity service 
+proceedings 
+xor erasure resilient coding scheme 
+technical report tr international computer science institute berkeley ca 
+bolosky douceur ely theimer 
+feasibility serverless distributed file system deployed existing set desktop pcs 
+proc 
+sigmetrics june 
+castro liskov 
+proactive recovery byzantine fault tolerant system 
+proc 
+osdi 
+chen katz kubiatowicz 
+scan dynamic scalable efficient content distribution network 
+proc 
+international conference pervasive computing 
+clark sandberg wiley hong 
+freenet distributed anonymous information storage retrieval system 
+proc 
+workshop design issues anonymity unobservability pages berkeley ca july 
+dabek kaashoek karger morris stoica 
+wide area cooperative storage cfs 
+proc 
+acm sosp october 
+demers bayou architecture support data sharing mobile users 
+proc 
+ieee workshop mobile computing systems applications 
+goldberg yianilos 
+archival intermemory 
+proc 
+ieee adl pages april 
+gray neil shasha 
+dangers replication solution 
+proc 
+acm sigmod conf june 
+hand roscoe 
+peer peer steganographic storage 
+proc 
+iptps march 
+hildrum kubiatowicz rao zhao 
+distributed object location dynamic network 
+proc 
+acm spaa pages august 
+kistler satyanarayanan 
+disconnected operation coda file system 
+acm transactions computer systems february 
+kubiatowicz oceanstore architecture global scale persistent storage 
+proc 
+asplos 
+rubin waldman cranor 
+publius robust tamper evident censorship resistant web publishing system 
+proc 
+th usenix security symposium 
+malkhi reiter 
+persistent objects fleet system 
+discex ii 
+malkhi moni naor david 
+viceroy scalable dynamic emulation butterfly 
+proc 
+acm podc symp 
+maymounkov david mazieres 
+kademlia peer peer information system xor metric 
+proc 
+iptps 
+mazieres :10.1.1.23.8213
+toolkit user level file systems 
+proc 
+usenix summer technical conf june 
+merkle 
+digital signature conventional encryption function 
+proc 
+crypto pages 
+springer verlag 
+muthitacharoen morris gil chen 
+ivy read write peer peer file system 
+proc 
+osdi 
+rabin :10.1.1.9.2061
+simplified approach threshold proactive rsa 
+proceedings crypto 
+ratnasamy francis handley karp schenker 
+scalable content addressable network 
+proceedings sigcomm 
+acm august 
+rhea kubiatowicz 
+probabilistic location routing 
+proc 
+infocom 
+ieee june 
+rhea roscoe kubiatowicz 
+dhts need application driven benchmarks 
+proc 
+iptps 
+rhea wells eaton geels zhao weatherspoon kubiatowicz 
+maintenance free global storage oceanstore 
+proc 
+ieee internet computing 
+ieee september 
+rowstron druschel 
+pastry scalable distributed object location routing large scale peerto peer systems 
+proc 
+ifip acm middleware november 
+rowstron druschel 
+storage management caching past large scale persistent peer peer storage utility 
+proc 
+acm sosp 
+saito karlsson mahalingam 
+taming aggressive replication pangaea wide area file system 
+proc 
+osdi 
+feeley hutchinson veitch 
+deciding forget elephant file system 
+proc 
+acm sosp december 
+satyanarayanan 
+scalable secure highly available distributed file access 
+ieee computer may 
+shoup :10.1.1.134.1633
+practical threshold signatures 
+proc 
+eurocrypt 
+stoica morris karger kaashoek balakrishnan 
+chord scalable peer peer lookup service internet applications 
+proceedings sigcomm 
+acm august 
+stonebraker 
+design postgres storage system 
+proc 
+intl 
+conf 
+vldb september 
+weatherspoon kubiatowicz 
+efficient heartbeats repair decentralized object location routing systems 
+proc 
+sigops european workshop 
+weatherspoon kubiatowicz :10.1.1.121.9064
+erasure coding vs replication quantitative comparison 
+proc 
+iptps march 
+weatherspoon kubiatowicz 
+introspective failure analysis avoiding correlated failures peer peer systems 
+proc 
+international workshop reliable peer peer distributed systems october 
+weatherspoon wells kubiatowicz 
+naming integrity self verifying data peer peer systems 
+proc 
+international workshop directions distributed systems 
+welsh culler brewer 
+seda architecture conditioned scalable internet services 
+proc 
+acm sosp october 
+wu malkin boneh 
+building applications 
+proc 
+usenix security symp august 
+wylie strunk ganger khosla 
+survivable information storage systems 
+ieee computer august 
+zhou schneider van renesse 
+coca secure distributed line certification authority 
+technical report department computer science cornell university ithaca ny usa 
+

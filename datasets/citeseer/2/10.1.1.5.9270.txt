@@ -1,0 +1,585 @@
+language support lightweight transactions tim harris university cambridge computer laboratory jj thomson avenue cambridge uk cb fd tim harris cl cam ac uk concurrent programming notoriously difficult 
+current abstractions intricate hard design computer systems reliable scalable 
+argue problems addressed moving declarative style concurrency control programmers directly indicate safety properties require 
+scheme programmer sections code execute lightweight software transactions commit atomically exactly 
+transactions update shared data instantiate objects invoke library features 
+block waiting arbitrary boolean conditions true 
+transactions access shared memory locations commit concurrently 
+furthermore general performance penalty incurred memory accesses outside transactions 
+detailed design proposal implementation evaluation 
+argue resulting system easier mainstream programmers ii prevents lock priority inversion deadlock problems iii offer performance advantages 
+categories subject descriptors programming techniques concurrent programming parallel programming programming languages language constructs features concurrent programming structures computation devices modes computation parallelism concurrency general terms algorithms languages keywords concurrency conditional critical regions transactions nonblocking systems permission digital hard copies part personal classroom granted fee provided copies distributed profit commercial advantage copies bear notice full citation page 
+copy republish post servers redistribute lists requires prior specific permission fee 
+oopsla october anaheim california usa 
+copyright acm 
+fraser university cambridge computer laboratory jj thomson avenue cambridge uk cb fd fraser cl cam ac uk 
+developments mainstream programming language support concurrency 
+systems provide multiple threads mutual exclusion locks condition variables control access shared data 
+abstractions problems 
+instance consider implementing shared buffer array 
+core java style design public synchronized int get int result items wait items result buffer items notifyall return result synchronized keyword means caller obtain mutual exclusion lock mutex associated target object 
+wait notifyall invocations block thread finds buffer empty wake threads may blocked having buffer full 
+numerous difficulties 
+firstly idioms repeated loop call wait forgotten mis understood novice programmers 
+secondly check data accesses protected locks held 
+thirdly thread pre empted holding lock thread safely buffer 
+mutual exclusion prevents get operations buffer proceeding concurrently put operations conflict 
+solution problems returned oldest proposals concurrency control hoare conditional critical regions ccrs 
+general form ccrs allow programmers indicate groups operations executed isolation enforce concurrency control mechanism 
+programmer guard region arbitrary boolean condition calling threads blocking guard satisfied 
+core shared buffer ccrs look public int get atomic items items return buffer items style closely expresses safety properties underlie design 
+reason ccrs long popular teaching concurrency defining concurrent algorithms 
+unfortunately implementation technique known 
+key problem general form ccrs gives indication specific data items accessed thread blocks guard exactly may released 
+early implementations allowed ccr execute time re evaluated blocked ccr guard condition ccr completes 
+unsurprisingly performance poor 
+improve matters mutual exclusion locks introduced unrelated operations execute concurrently condition variables introduced control blocking unblocking 
+practical non blocking concurrent data structures led develop new implementation technique 
+map ccrs software transactional memory stm groups series memory accesses appear atomic 
+evaluate technique number different scenarios ranging small multi processors large server cpus 
+results algorithms ccrs vastly outperform simple mutual exclusion 
+times remain competitive engineered mutex scheme workloads ccrs perform scale better 
+contributions implementation ccrs allow dynamically non conflicting executions operate concurrently ii re ccr conditions shared variables involved may updated iii non blocking implementation preventing deadlock priority inversion 
+consider providing practical software transactions modern object oriented programming language 
+interesting problems arise integrate transactional non transactional access objects transactions interact existing mechanisms concurrency control memory consistency model 
+stm developed allow word size data held clear implementation needing reserve storage space object requiring programmer segregate objects may subject transactional access 
+stm consider synchronization threads simple atomic update 
+expanding motivation section survey related section 
+section describes integrate ccrs java programming language 
+section describes software transactional memory 
+section introduce current implementation evaluate performance 
+section concludes 
+
+motivation nowadays concurrency norm large cc numa servers modest symmetric shared memory multi processors single processors simultaneous multi threading pre emptive scheduling 
+pro vides compelling need practical mechanisms controlling concurrency 
+suspect programmers explicitly target parallel environments partially current complexity doing 
+programmers mutexes decide granularity locking appropriate 
+easy option protect data structure separate lock 
+straightforward reduces parallelism available 
+smaller locks allows better parallelism leads intricate code spends time juggling locks 
+optimal selection depends system workload meaning informed decision difficult general case 
+particularly difficult problem see existing multi threaded programs compose data structures perform internal locking 
+example tree structures specjbb benchmark provide get put remove operations safe multithreaded 
+build remove operation caller invoke method find minimum element invoke second perform removal compound operation appear atomic clients tree locking scheme potentially negating benefits scalable concurrency control provided trees 
+deadlock considered systems non trivial locking 
+unfortunately preventing deadlock requires knowledge complete system execution paths 
+deadlock programmer priority scheduling understand priority inversion 
+cases handled sophisticated schedulers priority inheritance require global knowledge priority ceiling protocol 
+root problems imperative style existing facilities concurrency control 
+programmers manually place lock management operations code 
+hand compilation hides real safety progress properties required 
+commits code time written particular locking discipline 
+
+related builds research areas 
+discuss section design implementation programming language features concurrency 
+second section construction non blocking algorithms software transactional memories 
+language features jvm microsoft clr posix pthreads apis provide mutexes condition variables 
+directly programmers built provide higher level abstractions 
+instance util concurrent library developed versions java programming language gives high quality implementations atomic variables special purpose locks queues thread pools 
+languages included ccr style constructions 
+dp provides style guarded region defined statement series boolean conditions blocks code statement blocks conditions jsr www jcp org en jsr detail id true executes corresponding code 
+scheduling follows routine model support mutual exclusion required 
+edison language provides alternative 
+statement may execute time 
+lynx includes await statement allows thread block boolean expression true 
+uses cooperative scheduling 
+rem shows build general ccrs semaphores 
+design exhibits classical problems overly pessimistic concurrency frequent expression re evaluation 
+schmid shows static analysis avoid 
+analysis limited expressions conditional values statically allocated shared counters 
+argus style transactions enter statement executing body code new transactional context 
+explicit leave allows transactions aborted 
+nested transactions permitted definition syntactically different top level ones hindering code re 
+flanagan qadeer investigating similar atomic construct java 
+static analysis prove blocks code guaranteed appear atomic 
+approach orthogonal interesting examine integrated system static analysis possible dynamic scheme atomicity proven advance 
+interesting note numerous examples incorrect locking disciplines existing library code 
+previous closest lomet atomic action statements 
+semantics close including ability block boolean conditions 
+suggests various implementation directions including twophase locking simple uni processor execution interrupts disabled 
+simplify implementation programs identify synchronization variables conditions 
+builds lomet providing concrete system avoids deadlock problems basic phase locking exhibit ii removes need identify synchronization variables advance 
+non blocking algorithms non blocking algorithms studied way problems caused mutual exclusion 
+design non blocking failure number threads prevent remainder system making progress 
+provides robustness poor scheduling decisions arbitrary thread termination 
+naturally precludes locks lock holder continues run lock released 
+non blocking designs classified kind progress guarantee 
+focus obstruction freedom suggestion felt easier design efficient algorithms 
+obstruction free algorithm guarantees thread progress long contend threads access location 
+strong prevent deadlock priority inversion requires outof band mechanism avoid livelock exponential backoff option 
+building practical non blocking algorithms directly available hardware primitives difficult task 
+reason great interest building higher level abstractions easier create non blocking systems 
+promising example transactional memory allows memory accesses grouped transactions commit globally visible instant time abort observed 
+original proposal transactional memory suggested hardware support shavit show similar design built entirely software 
+design practical limitations applied static transactions data sets operations known advance ii requires strong atomic primitive provided processor architecture 
+mechanisms exist build stronger primitives 
+complicated involve reserving space word may accessed 
+example word size values manipulated fragmenting multiple locations attendant space cost 
+herlihy designed practical software transactional memory obstruction free requires readily available compare swap cas instruction 
+design section introduces indirection explicit open step accessing object transaction 
+show stm provided library java programming language particular method calls manage transactions open objects access 
+interface attractions 
+hard directly basis construct atomic necessary insert appropriate open operations identify transactional objects type system 
+aside different level transparency performance trade offs different open step may costly large objects subsequent field accesses simpler 
+
+language integration sketched example construct providing style conditional critical region ccr java programming language 
+turn details design 
+operations method invocations permitted ccr 
+kinds shared data may accessed 
+guarantees concurrent access data items outside ccrs 
+ccrs interoperate existing features concurrency control 
+questions mind design motivated principles 
+firstly ccrs able enclose code restrictions possible 
+encourages code reuse allowing single threaded libraries wrapping invocation ccr 
+second principle system permit implementation impose high overhead parts application ccrs 
+instance unfortunate implementation mandate extra field object complicate field accesses outside ccrs 
+section describe high level aspects design showing integrate ccrs java programming language 
+turn implementation software transactional memory section 
+identifying ccrs basic syntax atomic condition statements defines ccr waits necessary condition true executes statements 
+may true applied method modifier place 
+thread executing ccr sees updates proceed usual single threaded semantics 
+threads observe ccr take place atomically point start completion long follow memory consistency rules section 
+provide exactly execution statements 
+consider offering semantics indicator contention 
+concluded may aid expert programmers uses ccrs require external looping retry operation succeeds 
+considered timeouts simplicity currently provide thread blocked ccr guard interrupted way java thread blocked condition variable 
+exceptions thrown ccr outside 
+consistent design principle allowing wrappers existing single threaded code 
+data accessible ccrs principle allowing code re suggests need indicate class hierarchy objects may accessed ccrs example requiring extend designated superclass 
+doing require library classes re implemented 
+allow ccr access field object 
+fact principle avoiding overhead outside ccrs led development word software transactional memory aids sharing memory locations transactional non transactional accesses 
+native methods practicable general allow native methods execute ccrs native code containing arbitrary memory accesses system calls raises problems hitherto difficult provide ccrs 
+native methods include standard libraries performing operations 
+current design generally raises runtime exception native method invoked ccr 
+treat number built native methods special cases behavior thread local instance cloning object computing object identity hash value relates synchronization requires special handling 
+nested ccrs ccrs nested dynamically entire assembly appears execute atomically time satisfying conditions 
+course programmer responsible ensuring time exist instance code containing incompatible conditions atomic atomic complete 
+course cases detected dynamically 
+existing synchronization mechanisms allowing code re requires consider concurrency control ccrs interacts existing mechanisms mutual exclusion locks condition variables mean block code manipulates locks communicates wait notify operations appear atomic 
+mutual exclusion locks ccr attempts acquire mutexes system ensures available point appears atomically take effect 
+means mutexes safely share data access ccrs external access 
+consequently ccr implementation non blocking precludes risk deadlock code atomic atomic synchronized synchronized synchronized synchronized 
+return consequences locks discussing consistency model section 
+condition variables possible ascribe useful semantics wait operation condition variable ccr 
+wait operation blocks selected resumption notification 
+impossible identify single point entire ccr appears atomic 
+symmetry forbid notification ccrs implementation impediment allowing 
+cases consistent fact java operations condition variables wait notify notifyall defined native methods 
+class loading java programming language defines times new classes loaded initialization code executed 
+happens class loading initialization attempted jvm executing ccr 
+options consider operations performed context ccr causes happen class appear loaded initialized time atomic block appears occur 
+raises difficult conceptual problems programmer viewpoint instance classes initialization involves creation thread calls native methods 
+second option select class loading initialization point ccr execution triggers 
+require class loading initialization occur point ccr begins point appears take place atomically 
+consistency model final decision highlight relationship ccrs proposed java memory model 
+model defines necessary memory access thread visible accesses may re ordered processor compiler optimizations 
+memory model sets rules developing correctly synchronized code guarantees programs rules appear run sequential consistency 
+elide details broadly model defines total ordering lock unlock operations mutex happens relationships lock operation subsequent memory accesses thread accesses subsequent unlock operation 
+different rules apply volatile fields effectively accesses re ordered 
+details definition intricate give rise simple programming rule location shared threads accesses ii volatile 
+extend ccrs natural way placing onus programmer order achieve atomicity data shared different kinds concurrency control 
+ordering induced ccrs access common memory locations ccr accesses volatile field access field ccrs hold mutex acquire release operations lock 
+intend formalize model 
+believe leads kind engineering rule currently proposed location shared threads accesses controlled mutex ii accesses ccrs iii marked volatile 
+
+software transactions turn stm developed basis implementation ccrs 
+terms software system hardware transactional memory available 
+return question hardware support discussing moment assume word sized memory accesses atomic word sized atomic compare swap cas instruction available 
+instruction equivalent available major architectures 
+existing stms design groups memory accesses transactions performs atomically 
+stm number notable features stem requirements reserved space needed locations accessed 
+means java fields hold full bit integers additional field storage 
+boolean done false done try condition statements done catch throwable done done throw ccr general form atomic condition statements expressed terms transaction start commit operations assuming done unused identifier 
+practise exception propagation complicated fact translated code retain expected throws clause 
+requires word sized updates atomic accessing heap locations 
+supporting double word data types poses problem 
+permanent structure ordinate transactions statically allocated outside application heap 
+trade likelihood nonconflicting transactions commit parallel size structure 
+temporary data structures allocated heap jvm held separately 
+outside transactions access non volatile heap locations uses standard memory reads memory writes 
+read operations transactions cause updates shared memory 
+important ensure effective caching 
+introduce stm interface section describe implementation sections 
+stm interface stm provides operations non nesting transactions accessing memory locations word addressed basis 
+define operations transaction management transaction management void void boolean boolean void usual meaning transaction processing 
+begins new transaction executing thread 
+aborts transaction progress executing thread 
+commit transaction progress executing thread returning true succeeds false fails 
+indicates current transaction able commit values read represent current mutually consistent snapshot locations updated subject conflicting updates transaction 
+error invoke current thread running transaction 
+similarly error invoke operations current transaction 
+fifth operation introduce allowing threads block entry ccr 
+ultimately effect aborting current transaction 
+doing delay caller may worthwhile attempting transaction 
+simplistic implementation equivalent leading callers spin waiting 
+implementation blocks caller update may committed locations transaction accessed 
+summarises non nesting atomic block may expressed terms explicit transaction management operations 
+nesting ccrs implemented transaction counting dynamic nesting depth invoking top level completes require support 
+second set operations exposed stm performing memory accesses memory accesses stm word addr void addr stm word may transaction active 
+implementation address ordinary pointer heap stm word simply integer machine word size 
+heap structure stm uses kinds data structure indicated 
+application heap data held 
+instance jvm objects allocated application held usual format including header fields needed 
+second kind structure ownership records ordinate transactions 
+ownership function maps address application heap associated orec 
+need correspondence addresses records orec object prototype fixed size table records addresses map hash function 
+orec holds version number current owner addresses associate 
+time location application heap updated version number incremented 
+version numbers detect transaction may committed 
+assume moment re orec return discussing implementation 
+final kind structure holds transaction descriptors set current status active transaction accesses application heap 
+access described transaction entry specifying address question old new values held application heap ownership records version transaction descriptors status active status asleep stm heap structure showing transactions 
+transaction commit operation performing read 
+second transaction asleep waiting updates read read 
+old new version numbers values 
+status field indicates transaction active able operations invoked committed aborted 
+descriptors move states attempting commit abort wait 
+formed associated ownership record orec ii contains multiple entries associated orec old version number new version number 
+version numbers assume descriptors re return implementation 
+structure introduce concept logical state address application heap 
+pair value conceptually held address version number associated value 
+define logical state disjunction cases 
+case orec contains version number ls version number taken orec value held directly application heap 
+instance logical state 
+second third cases orec refers descriptor ls descriptor contains entry address entry gives logical state 
+instance logical state descriptor shown committed holds entry updating 
+ls descriptor contain entry address descriptor searched entries addresses map orec requested address 
+value taken application heap version taken entry new version number transaction old version number 
+formed property ensures uniquely determined 
+instance logical state old version entry 
+run time logical state address determined consistent snapshot locations value depends address orec status owning descriptor information entries descriptor 
+fortunately general purpose snapshot algorithm necessary directly compute logical state reading locations described cases ls ls 
+non re descriptors version numbers lets employ simple re read check design re computing logical state orec value changes part way orec orec addr directly compute logical state orec orec addr orec shall see implementation stm operations orec value unchanged derived logical state consistent snapshot locations involved 
+ls value read application heap changed orec 
+ls ls locations accessed descriptor entries relating orec constant pointer installed record owner 
+location involved descriptor status change exactly active states 
+snapshot consistent time status read 
+stm operations describe implementation stm operations heap structure 
+outline ordinarily hold version numbers 
+orec refers descriptor transaction attempting commit sleep invoked transaction execution private building series entries descriptor set locations accessed 
+ways commit process seen development multi word compare swap algorithm applied involved directly application heap 
+starting transaction allocates fresh descriptor initializes status field active 
+aborting transaction writes aborted status field 
+read value consider cases 
+firstly current descriptor contains entry te location return te new value 
+determine logical state location initialize new entry value seen old value new value 
+record version seen old version 
+descriptor new version number entry order keep descriptor formed old version 
+describe operations terms searching copying streamlined implementation shall describe section 
+implementation ensures descriptor contains entry te relating location accessed 
+done performing read operation location 
+new value value written set te new version te old version copying new version number entries relating orec descriptor remains formed 
+commit proceeds temporarily acquiring ownership records needs acquire updates descriptor status field active committed updates application heap proceeds release ownership records 
+key operations logical states updated status field changed 
+details lie acquire release steps implemented particular happens transaction wishes acquire orec held 
+take parameters descriptor question td index descriptor table transaction entries 
+acquire transaction descriptor td int transaction entry te td entries orec seen seen cas orec te addr te old version td seen te old version seen td return true holds version number seen return false return busy attempts install td ownership record associated selected transaction entry 
+may called descriptor active aborted 
+possible update shared memory 
+succeeds preserves logical contents location case ls preserves logical contents locations alias ownership record case ls formedness 
+return case succeeded transaction td held orec 
+return case orec contained version number expected transaction transaction doomed fail 
+return case orec discovered owned acquired 
+proceeds invoking acquire entry turn 
+invocation returns false logical contents location consistent version expected entry commit release invoked entries successfully acquired 
+invocation returns busy transaction encountered active orec 
+simple reaction abort existing owner ii iii abort current transaction leave retry hopefully existing owner completed operation relinquished ownership 
+discuss alternative non blocking strategies section 
+locations acquired descriptor status field updated committed 
+effect atomically updating logical state locations point descriptor referred ownership records relating locations acted 
+transaction writes new values application heap note concurrent operations determining values held locations versions held descriptor unaware writes occur different times different locations 
+writes transaction invokes release entry turn 
+attempts remove descriptor ownership record release transaction descriptor td int transaction entry te td entries td status committed cas orec te addr td te new version cas orec te addr td te old version note preserves logical contents locations associated orec long descriptor state committed aborted locations updated necessary 
+validation entirely read operation 
+checks ownership records associated location accessed caller current transaction contain version number held transaction descriptor 
+validation succeeds returning true record holds expected value 
+validation fails returning false 
+function consider operation causes caller abort current transaction block update may committed locations transaction accessed 
+implementation initially proceeds attempting acquire relating transaction 
+successful confirms memory accesses far represent consistent snapshot thread sleeps settings status field asleep leaving descriptor installed acquired 
+act software signal presence sleeper transaction attempts commit update locations acquire operation return busy wake sleeper 
+illustrates situation showing transaction thread asleep waiting updates locations associated 
+optimizations basic design section provides safe concurrent transactions 
+limit practical performance atmost thread sleep particular ownership record ii read write operations involve searching current descriptor entries associated particular orec iii processing entry describing read access location involves updating orec twice harming data cache performance iv simple retry operation prompted busy return value prevents design non blocking 
+introduce remedies problems 
+separately avoid cluttering main design 
+multiple sleeping threads basic design respond busy signal waking thread currently holding orec asleep 
+means transaction asleep associated orec 
+allow multiple threads sleep location extend descriptor include list threads wish sleep locations acquired descriptor 
+read sharing modern cache coherence protocols allow multiple cpus concurrently hold cache block long attempt write 
+important avoid contended writes shared locations 
+basic design risks writes locations hold ownership records operation acquire release records underlying access transaction read 
+modify introduce additional phase deal read locations 
+tempting simply acquiring locations subject updates ii checking logical state locations just read old value old version descriptor iii attempting update transaction state committed 
+provide atomicity transaction may update locations read second third steps 
+prevent problem introduce new transaction state read phase entered checking readonly locations held checks point transaction commits aborts 
+transaction encounters read phase causes encountered abort 
+practice read phase short observed transactions non synthetic workloads encountered 
+avoiding searching observe transactions exhibit temporal locality locations access 
+exploit maintaining thread table mapping ownership records entries thread current descriptor 
+particular streamlines operations follow earlier transactional reads cache directly identifies entry update 
+designated value indicates multiple entries relating ownership record case search descriptor unavoidable 
+application heap ownership records version transaction descriptors status active status committed ownership records extended allow obstruction free operations 
+case transaction descriptor stolen ownership lower descriptor 
+includes updates descriptors write performed application heap 
+non blocking commit final intricate development describe operation non blocking currently thread encounters ownership record held wait current holder release 
+settings may academic concern practical holder making progress helping complete operation harm caching 
+settings stronger guarantees non blocking algorithms desirable reasons section 
+approach permit thread steal ownership atomic compare swap orec 
+problems allowing firstly ensure theft change logical contents location 
+secondly previous owner committed written underlying locations application heap control writes occur 
+ensure writes new owner succeed previous owner 
+problems solutions 
+illustrate solutions respect 
+ensure logical contents locations updated transaction steals ownership orec merge entries relating orec descriptor 
+merge transaction case commits doing risk changing logical state addresses stealing 
+avoided aborting victim committed 
+takes old value old version victim aborted value version committed 
+merged entry address 
+second problem means release ownership location guarantee transactions making writes location ii final value written relates transaction 
+deal introducing counter orec saying transactions process making transaction transaction atomic atomic true initially 
+system performs periodic validation transaction may enter endless loop reads transaction commits reads 
+updates locations manages 
+transactions making writes locations owned 
+stealing counter incremented atomically updating owner 
+releasing ownership counter decremented leaving owner unchanged counter remain zero restoring version number counter zero 
+thread discovers ownership stolen sees different descriptor orec re updates new owner ensuring final value written releasing ownership transaction 
+implementation non blocking uses transaction mutexes condition variables coordinate sleeping waking 
+design library facilities readily available 
+alternative scheme counting semaphores developed stronger progress guarantees required 
+
+implementation evaluation implementation version sun java virtual machine research 
+jvm implementation undergone extensive optimization comparing prototype best breed system 
+modifications jvm compilers implementation split source bytecode compiler bytecode native compiler 
+intermediate class file format unchanged 
+bytecode level implement atomic blocks method basis signalling run time system appending suffix method name 
+atomic block defined method source bytecode compiler extracts separate method 
+java bytecode provides separate operations accessing different kinds data local variables fields 
+distinction coupled separate methods atomic block means local variables continue accessed directly 
+operations necessary accessing fields 
+add second method table class 
+holds transactional versions methods compiled demand method invocations transactional methods 
+bytecode native compiler responsible calls detect internal looping transactions commit 
+occur transaction reads shows contrived example 
+run time compiler generates specialised code accessing volatile fields outside ccrs 
+moment translated small transactions performing single read write appropriate looping commit successfully 
+provides ordering required memory model section 
+access shared fields outside ccrs unordered implemented directly memory reads writes application heap 
+memory management design assumed descriptors managed garbage collector 
+simply allocate garbage collected heap implementation provides build time options allow re possible 
+options include simple counting designs due michael herlihy 
+experiments allocate descriptors heap pass buck algorithm reuse collections holding re usable descriptors thread local pools 
+descriptor allocation deallocation form time spent stm implementation 
+ownership records statically allocated 
+experiments table records indexed bits location address 
+tested implementation sensitivity number 
+long aliasing different locations orec rare precise number marginal effect performance difference experiments 
+version numbers represent version numbers odd integer values allowing distinguish ownership records aligned pointers descriptors 
+consider possibility overflowing remaining bits simple scheme periodically suspend threads abort active transactions reset version numbers 
+brief world situation exists garbage collector 
+double word width cas maintain counters non blocking commit operation 
+performance key performance shared memory multiprocessor avoiding contention cache blocks 
+application data responsibility programmer locks ccrs 
+implementation substantial separation common case code involved aspects design 
+instance optimistic commit assumes contention rare executes non blocking commit descriptor encountered code invoked fewer commit operations experiments 
+remember long running transactions remain private start commit 
+transaction commits contention reading locations updating locations involves cas operations acquire ownership reads check read locations updates status field writes application heap cas operations release ownership 
+experimental configuration wait test 
+threads conceptually arranged ring shared buffer 
+initially buffers contain tokens empty 
+case 
+experimental set results different experimental settings hashtable compares various implementations concurrent hashtables 
+hashtable implementation jdk java util library uses single mutex protect entire table 
+second implementation uses taken util concurrent package release 
+carefully engineered design allows read operations proceed locking allows non conflicting updates proceed concurrently 
+third implementation uses underlying simplistic design java util hashtable wraps access ccr locks 
+case table contains mappings perform mix reads updates 
+operations uniformly distributed keys 
+compound compares operations involving accesses hashtable 
+compound operation selects uniformly keys swaps values map combined update atomic 
+implement single mutex ii key locks iii atomic block 
+vary size table order vary likelihood contention 
+wait evaluates blocking operations 
+experimental configuration threads conceptually arranged ring shared buffer adjacent pair 
+buffers initially contain tokens remainder empty 
+thread loops removing item buffer right placing buffer left 
+illustrates configuration 
+compare implementation ccrs built mutexes condition variables provided jvm 
+case ran tests wall time seconds took median runs 
+section entry level symmetric shared memory system operation updates updates cpus ccr fg ccr fg size size cpus ccr fg ccr fg performance hashtable test update rates compound test table sizes entries entries 
+case record mean number microseconds complete operation ccrs single lock fine grained locking fg 
+section larger ccnuma server 
+aside trivial single threaded cases results simple implementation hashtable ccrs perform equivalent implementation locks 
+attempt consider single threaded execution special case 
+case simple ccr implementation remains competitive engineered locking cases performs better 
+small systems set measurements processor sun fire 
+compares performance ccrs lock implementations hashtable compound tests 
+individual operations hashtable test solution fine grained locking performs best factor just 
+implementation class involved simple comparison ccrs 
+benchmark performance difference attempting operations frequently possible real application duty cycle 
+compound test ccr solution continues outperform basic lock scheme singlethreaded 
+furthermore difference performance reduces eventually reversed higher contention 
+wait test measuring throughput blocking operations implementation ccrs operated lock rate threads irrespective number tokens circulating 
+large systems second set experiments uses processor ccnuma machine 
+shows results processors running hashtable compound tests 
+hashtable tests performance lock system deleterious multi threaded workloads 
+write contention low design performs best expected avoids transaction management overheads stm 
+write contention rises contention locks stm design performs best 
+course may possible specialise lock designs particular workload 
+point emphasise workload design ccrs na hashtable performance comparable techniques 
+furthermore aside performance programming ease nonblocking guarantees automatically providing robustness deadlock priority inversion 
+compound tests ccr designs fastest setting cpu single threaded case slower slower single lock 
+improved performance comes fact ccrs allows parallelism non conflicting operations contend fact occasional pre emption thread designs stall threads 
+note ccrs performing swap operations commit updates application heap number atomic operations acquire release locations number conventional lock implementation 
+shows performance wait test plotting put get operations achieved second machine number tokens available threads increases 
+principle results scale linearly practise scheme reaches plateau representing point threads time consumed managing shared buffers exchanging tokens 
+stm design performs marginally traditional 
+stm performance summary design stm algorithm results section observations workloads workloads perform poorly 
+key feature algorithm transactions contend ownership record execute commit entirely parallel 
+explains trends seen results 
+implementations single lock serialize execution operations 
+performs low levels contention lock management optimized jvm test lock acquired hashtable operations access data structure inplace 
+implementations fine grained locking fg scale better moderate numbers concurrent threads contention locks significant 
+crucially case results locks prevent concurrent operations dynamically conflict 
+contrast implementations ccrs higher initial costs caused accessing data structures stm interface place 
+scale cases operations require access ownership records 
+summary believe stm implementation suited applications concurrent operations dynamically non conflicting 
+instance perform augmented hashtable cpu time operation cpu time operation single lock fine grained locking cpus ccr cpu time operation single lock fine grained locking cpus individual hashtable operations writes individual hashtable operations writes fine grained locking single lock ccr cpus cpu time operation ccr single lock fine grained locking ccr cpus compound operations element table compound operations element table performance concurrent updates running threads 
+perform individual atomic updates single hashtable 
+perform compound operations making updates table atomic step 
+show threads confirming scalability combined absolute performance 
+single counter number updates performed 
+skill designer concurrent data structures moved ensuring correctness locking avoiding contention hot spots data 
+ease programming turn final aspect evaluation ccrs provide programming abstraction easier existing facilities java 
+moment offer anecdotal observations 
+firstly remarked section ccr style abstractions popular introducing topic concurrency students 
+suspect reasoning behaviour ccrs formal informal level easier ability consider enclosed statements single step operational model 
+contrast lock schemes simple monitors require reasoning interleavings parts operations 
+secondly provision ccrs close analogies concept database transactions 
+provide simple semantics isolated execution 
+leave exact implementation behaviour run time system requiring programmers identify acquire release locks 
+popularity transactional concepts acceptance model mainstream programmers gives confidence style ccr 
+compare design simple shared data structures java existing monitors corre token passes second traditional ccr number tokens performance blocking operations running threads 
+sponding design ccrs 
+data structures involve wait difference solely synchronized replaced atomic method result implementation may extract concurrency dynamically non conflicting operations risk accessing shared data outside locked object avoided 
+data structures involve blocking wait notify simplification greater ccr design expresses pre conditions directly avoid premature wake problems 
+hope able perform methodical user studies 
+
+discussion argued concurrent programming easier moving away locks condition variables facilities closely capture safety properties programmer trying enforce 
+final section turn number questions take forward complete implementation directions hope follow research 
+benchmarking evaluation plan explore performance wider range data structures suitable multi threaded benchmarks available study performance larger systems 
+unfortunate largely synthetic microbenchmarks 
+keen hear groups real multi threaded code 
+specjvm benchmarks suite contains multithreaded test mtrt threaded raytracer threads operating independent sections input model 
+benchmark provides strained concurrent environment modelling internet server managing connections large set clients typically 
+uses separate thread client results consequently reflect thread management subsystem 
+specjbb benchmark operate controllable number threads 
+intended configuration threads act disjoint data 
+language level interface currently provide atomic construct programmers exposing transactional concepts 
+readily provide reflective interface 
+example allow thread determine transaction active examine set updates proposed far explicitly create attempt commit transactions enter leave transactional contexts 
+exposing reflective interface may provide unified approach supporting kinds external database transactions 
+approach expose facilities leave re enter transaction register call backs execution commit process 
+operations external side effects executed outside current transaction queue callback perform proposed operation output perform directly input queue callback re buffer value read 
+callbacks execute phase commit allowing veto commit informing outcome 
+course operations file renaming inherently impossible support lower level support operating system 
+discuss techniques detail accompanying technical report 
+implementation level interface integration java virtual machine benefited simple word stm design 
+observed section provides different cost profile compared herlihy object scheme 
+interesting compare trade offs practical setting 
+aspect stm interface revisit support nested transactions directly stm interface level allowing enclosed transaction abort operations aborting contained 
+course kind question undergone substantial research context database transaction processing 
+alternative stm implementations plan investigate alternative stm implementations cases outside envelope current implementation performs 
+approach contention rare allow updates place indirection transaction descriptor 
+achieved acquiring ownership location updated descriptor hold update log overwritten values abort necessary 
+allied approach contention high transactions long running alternative mechanism implementing operations ownership records 
+possibility lock scheme appropriate deadlock avoidance instance aborting re trying transaction exponential backoff 
+course loses current benefit nonblocking implementation 
+hardware support question numerous viewpoints exist literature kinds hardware support benefit designs stm 
+proposals hardware transactional memories suggestions implementation techniques extended cache coherence protocols 
+interesting consider hardware software interface appropriate build tripwire locations registered cpu interrupt delivered updated 
+option support multi word atomic updates current single word operations fully general transactional model 
+algorithms simplified previous operation perform cas conditional location holding specified value 
+code availability source code core implementation stm available bsd style license www cl cam ac 
+uk research srg lock free 
+exposes api described section 
+summary shown implement general conditional critical regions commodity hardware 
+shown simplistic implementation data structure construct competitive engineered lock scheme 
+believe approach substantially easier write reliable concurrent systems coincidence construct frequently text books specification concurrent systems 
+
+supported donation valuable discussion scalable synchronization research group sun labs massachusetts 
+manuel fahndrich tony hoare jim larus david lomet qadeer david tarditi anonymous reviewers discussions feedback provided ideas 
+
+adve gharachorloo shared memory consistency models tutorial 
+ieee computer dec 
+agesen detlefs ramakrishna white efficient meta lock implementing ubiquitous synchronization 
+proceedings object oriented programming systems languages applications nov vol 
+acm sigplan notices pp 
+
+andrews concurrent programming principles practice 
+benjamin cummings publishing 
+bacon harris operating systems concurrent distributed software design 
+addison wesley 
+brinch hansen distributed processes concurrent programming concept 
+communications acm nov 
+brinch hansen edison multiprocessor language 
+software practice experience apr 
+flanagan qadeer types atomicity 
+proceedings workshop types language design implementation mar vol 
+acm sigplan notices pp 
+
+harris fraser pratt practical multi word compare swap operation 
+proceedings th international symposium distributed computing oct pp 
+
+harris design choices language transactions 
+university cambridge computer laboratory tech 
+rep aug 
+hennessy patterson computer architecture quantitative approach 
+morgan kaufmann publishers san francisco ca usa 
+herlihy moir scherer software transactional memory dynamic sized data structures 
+proceedings nd annual acm symposium principles distributed computing july pp 
+
+herlihy moir obstruction free synchronization double ended queues example 
+proceedings rd international conference distributed computing systems 
+herlihy moir repeat problem mechanism supporting dynamic sized lock free data structures 
+proceedings th international symposium distributed computing oct pp 
+
+herlihy moss transactional memory architectural support lock free data structures 
+proceedings th annual international symposium computer architecture may ieee computer society press pp 
+
+hoare theory parallel programming 
+operating systems techniques vol 
+studies data processing academic press pp 
+
+liang bracha dynamic class loading java virtual machine 
+proceedings object oriented programming systems languages applications oct vol 
+acm sigplan notices pp 
+
+lindholm yellin java virtual machine specification nd ed 
+addison wesley reading ma usa 
+liskov scheifler guardians actions linguistic robust distributed programs 
+acm transactions programming languages systems july 
+lomet process structuring synchronization recovery atomic actions proceedings acm conference language design reliable software mar 
+pugh semantics multithreaded java 
+tech 
+rep cs department computer science university maryland college park jan 
+michael safe memory reclamation dynamic lock free objects atomic reads writes 
+proceedings st annual acm symposium principles distributed computing july acm press pp 
+
+michael scott correction memory management method lock free data structures 
+tech 
+rep tr university rochester computer science department dec 
+moir transparent support wait free transactions 
+proceedings th international workshop distributed algorithms sept vol 
+lecture notes computer science springer verlag pp 
+
+platt introducing microsoft net 
+microsoft press 
+schmid efficient implementation conditional critical regions construction monitors 
+acta informatica aug 
+scott language support loosely coupled distributed programs 
+ieee transactions software engineering se jan 
+shavit software transactional memory 
+proceedings th annual acm symposium principles distributed computing aug acm press pp 
+

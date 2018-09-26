@@ -1,0 +1,325 @@
+thin locks featherweight synchronization java david bacon ravi chet murthy mauricio serrano ibm watson research center language supported synchronization source serious performance problems java programs 
+singlethreaded applications may spend half time performing useless synchronization due thread safe nature java libraries 
+solve performance problem new algorithm allows lock unlock operations performed machine instructions common cases 
+locks require partial word object implemented increasing object size 
+measurements implementation jdk aix demonstrating speedups factor micro benchmarks factor real programs 
+monitors language level construct providing mutually exclusive access shared data structures multithreaded environment 
+overhead required necessary locking generally restricted relatively heavy weight objects 
+incorporation java led renewed interest monitors prevalence associated performance problems 
+java uses monitor semantics derived mesa 
+java methods object may declared synchronized meaning object locked duration method execution 
+java explicitly multi threaded language designers general purpose class libraries classes thread safe 
+instance commonly public methods standard utility classes vector hashtable synchronized 
+classes single threaded programs locally thread substantial performance degradation absence true concurrency 
+measured slowdowns due synchronization factor compiled interpreted java programs 
+way speed synchronization dedicate appears proceedings acm conference programming language design implementation montreal canada sigplan notices volume number june 
+copyright fl acm 
+author contact bacon dfb watson ibm com 
+portion object lock 
+unfortunately java design inherently allows object synchronizable synchronized methods 
+adding synchronization words object unacceptable space time tradeoff 
+current sun jdk favors space time 
+monitors kept outside objects avoid space cost looked monitor cache 
+unfortunately inefficient scale monitor cache locked lookups prevent race conditions concurrent modifiers 
+addition large numbers synchronized objects created space overhead monitor structures may considerable 
+describe thin locks implementation monitors ibm version jdk aix 
+implementation desirable characteristics speed absence contention initial locking nested locking fast machine instructions 
+presence contention performance better jdk 
+compactness bits object locking object size increased due space compression techniques 
+scalability global locks synchronization instructions broadcast global bus kept absolute minimum allowing efficient execution large multiprocessors 
+simplicity scope changes required jvm small thin locks implemented veneer existing heavy weight locking facilities 
+maintainability thin lock code fully portable assuming existence compare swap operation 
+hand coded assembly language routines required maximum performance amount platform specific assembly language code small localized functions single file 
+goal locking algorithm low overhead single threaded programs excellent performance presence multithreading contention 
+parameters appropriate java server client running windowing network code involve multiple threads control 
+outline section describes locking algorithm detail 
+section presents measurements implementation compares jdk implementations 
+section discusses related section presents directions 
+locking algorithm order properly optimize java locking performance know common cases 
+implicit design assumption order frequency different locking scenarios follows scenario order magnitude common preceding 
+locking unlocked object 
+
+locking object locked current thread small number times nested locking 
+
+locking object locked current thread times deeply nested locking 
+
+attempting lock object locked thread threads waiting 
+
+attempting lock object locked thread threads waiting 
+provide detailed measurements supporting assumptions section 
+measurements show benchmarks median lock operations unlocked objects nesting shallow 
+software environment assume pre existing heavy weight system place support full range java synchronization semantics including queuing unsatisfied lock requests wait notify notifyall operations 
+system represent monitor multi word structure includes space thread pointer nested lock count necessary queues 
+refer multi word lock objects fat locks 
+hardware support modern high performance microprocessors designed multi processor systems 
+provide user mode instructions performing synchronization compare swap introduced ibm provided intel higher processors load reserve store conditional instructions powerpc alpha sparc allow various atomic primitives synthesized short instruction sequences 
+assume existence compare swap operation primitive instruction synthesized operation 
+older systems user level atomic primitives mechanism achieving atomicity required 
+implementation binary compatible powerpc machines older power architecture machines load reserve 
+case system call compare swap operation implemented kernel 
+compare swap operation takes inputs address old value new value 
+contents unlocked locked thread locked twice thread thread id count lock word structure thin lock lock data object layout showing lock word thin locks address equal old value new value stored address operation returns true contents address equal old value storage remains unchanged operation returns false 
+swap operation atomic 
+monitor implementation java run time system implementation ibm aix port jdk object consists word header followed data 
+order implement thin locks reserve bits header object shown 
+able obtain free bits various encoding techniques values typically stored header 
+allocating extra word object deemed unacceptable additional space overhead substantial body native code dependencies object size 
+bits share word lock field constant subject change object moved garbage collector concurrent treat bits constant values 
+structure bit lock field carefully engineered allow common locking unlocking operations performed minimum number machine instructions 
+lock field represents thin lock fat lock bit monitor shape bit lock thin fat 
+thin locks objects subject contention wait notify notifyall operations performed locked excessive nesting depth implementation define excessive 
+vast majority objects meet criterion locks implemented fat locks 
+locked thread unlocked monitor id lock word structure inflated lock inflated locks object lock inflated remains inflated lifetime object 
+discipline prevents thrashing thin fat states 
+considerably simplifies implementation 
+structure thin lock shown 
+monitor shape bit 
+remaining bits divided thread identifier bits nested lock count bits 
+thread identifier object unlocked count field 
+thread identifier non zero index table maintain maps thread indices thread pointers 
+object locked count field represents number locks minus 
+structure inflated lock shown 
+monitor shape bit remaining bits lock field contain index fat lock 
+maintain table maps inflated monitor indices fat locks 
+shows inflated lock fat lock lock index refers 
+fat lock contains thread identifier lock owner case thread count number locks number locks minus thin lock necessary queues fields 
+locking algorithm greatly simplified adopting discipline lock field object owned particular thread modified thread 
+major performance implications thread locked object subsequent operations including unlock performed loads stores atomic primitives 
+locking contention explain operation locking algorithm object series locking operations varying conditions 
+initially object unlocked entire lock field shown 
+thread wishes lock object 
+assuming object unlocked common case thread performs compare operation word containing lock field 
+old value supplied compare swap shown constructed loading lock word masking high bits 
+new value lock field containing monitor shape bit thread index corresponding thread count shown 
+new value constructed bitwise old value thread index shifted bits left 
+thread index currently running thread stored execution environment structure accessed single load instruction 
+thread index stored pre shifted bits locking code perform extra alu operation 
+compare swap succeeds object locked thread concurrently locking thread obtained lock 
+convention count field number locks minus compare operation properly set count lock operation complete 
+unlocking contention time thread unlocks object 
+common case unlocking current thread owns lock locked object construct old value new value 
+performing swap simply check value lock word equal old value store new value lock word 
+unlocking require compare swap discipline thread owns lock thread may modify lock word 
+locking stable property thread owns lock value stale thread lock matter value read stale possible stale value show thread lock 
+nested locking unlocking assume thread locks object attempts lock second time 
+performing compare swap operation fail object locked thread 
+locking routine check case nested locking owning thread 
+particular locking routine check monitor shape bit thread index thread index count field bits ones 
+lock word layout designed check implemented pre shifted thread index bitwise exclusive contents lock word checking resulting quantity shifted left bits happens fit bit unsigned immediate field risc architectures check succeeds count field incremented adding lock word 
+updated value shown written memory simple store instruction argument applied store instructions unlocking 
+thread unlocks object analogous procedure followed decrementing lock count 
+event nested lock count overflows inflate lock 
+lock inflation described fully 
+locking contention assume thread object locked thread attempts lock object 
+thread attempt lock object compare swap fail 
+check locked object test fail 
+object locked thread thread fact 
+thread needs force transition object thin lock monitor shape bit equal inflated lock monitor shape bit equal 
+locking discipline lock field modified owning thread 
+thread enters spin locking loop object 
+thread unlocks object thread obtains lock 
+thread creates fat lock assigns monitor index newly created monitor object changes lock field contain monitor shape bit new monitor index 
+shows resulting lock structure 
+monitor index indirect fat lock vector maps monitor indices monitor pointers 
+thread unlocks object remains inflated state shown 
+subsequent attempts lock object fat lock contention fat lock discipline handle necessary queuing 
+spin locking general undesirable deem acceptable assuming locality contention principle contention object contention 
+pay spin locking costs costs amortized lifetime object 
+general works 
+pathological case occurs object locked thread released long time time threads spinning object 
+standard back techniques reducing cost spin locking applied solve problem 
+measurements section evaluate implementation thin locks jdk ibm aix operating system powerpc 
+compare implementation straightforward port sun jdk aix posix threads package support locking ibm version jdk aix contains significant monitor optimizations 
+refer versions jdk ibm respectively 
+ibm implementation assumes applications small number heavily locks 
+pre allocates small number hot locks 
+system begins default fat locks slightly modified record locking frequency 
+fat lock detected hot pointer hot lock placed header object 
+full bit pointer displaced header information moved hot lock structure 
+bit header word indicates word hot lock pointer regular header data 
+hot lock scheme allows overhead monitor cache passed common cases 
+see suffers large numbers locks happens expect 
+performance measurements represent median sample runs 
+time measured elapsed time unloaded ibm rs workstation containing mhz powerpc microprocessor mb ram memory 
+kb way associative split caches entry way associative split tlb kb physically addressed level cache byte reservation grain size load reserve instructions 
+fairly aggressive superscalar processor generation 
+capable dispatching instructions cycle including alu operations 
+entry branch history table performs speculative execution instructions unresolved branches 
+processor characteristics play significant part low level design affect trade offs hand tuned assembly language code describe detail 
+macro benchmarks table summarizes macro benchmarks performance measurements 
+macro benchmarks real programs expected give indication type speed ups obtained practice 
+give sense scale benchmarks size bytes application library bytecode files 
+library bytecode size classes transitively reachable application bytecodes code java sun hierarchy considered library code 
+give characterization synchronization behavior measured total number objects created number objects synchronized total number synchronization operations 
+number synchronized objects generally tenth total number objects created 
+average number synchronizations synchronized object shows re synchronization quite common median number synchronizations synchronized object 
+benchmarks suffer disadvantages single threaded programs predominantly language processing tools 
+may initially nonsensical singlethreaded benchmarks measure speed ups gained locking implementation benchmarks illustrate point 
+thin locks designed highly efficient sharing despite sharing actual contention 
+evaluating thin locks single threaded benchmarks demonstrate able remove performance tax java single threaded applications price multithreaded language 
+characterization locking section assumptions relative frequency various types locking operations key aspects thin lock design 
+assumptions validated experimentally 
+shows frequency locking operations nesting depth 
+benchmark programs singlethreaded contention scenarios measured 
+measurements show locking unlocked objects far common case locks obtained benchmark applications unlocked objects median 
+program description source app lib objects sync syncs syncs size size objects obj 
+trans high performance java compiler ibm javac java source bytecode compiler sun java generic library java object request broker freie 
+java grammar parser sun java translator sriram java obfuscator toba java translator arizona lexical analyzer java jax java scanner generator sriram javacup java constructor parsers hudson java translator ibm espresso java source bytecode compiler ipd java obfuscator sriram java obfuscator van vliet janet java neural network toolkit javadoc java document generator sun java disassembler sun mocha java decompiler van vliet pizza java source bytecode compiler odersky java decompiler demo version table macro benchmarks nesting locks general shallow benchmarks obtained locks nested deep 
+measurements tell cases bits need allocated lock nesting count 
+bits lock count highly conservative bits probably sufficient 
+note locking behavior vary different releases java 
+pattern remained saw significant individual differences releases jdk 
+micro benchmark results micro benchmarks give accurate portrayal types performance improvements expected practice useful gaining insight different implementations behave various parts design space 
+table summarizes micro benchmarks 
+benchmark runs tight loop specified number iterations inside loop integer variable incremented 
+benchmarks differ occurs outer loop inner variable update 
+instance benchmark loop update 
+measures cost bytecode interpretation loop 
+sync benchmark loop containing synchronized block turn contains integer increment statement 
+object argument synchronized block unlocked sync benchmark measures cost initial locking bytecodes 
+sync object locked outside loop measures cost nested locking level 
+sync synchronizes objects iteration 
+designed simulate effects various working sets locks size working set 
+results shown 
+initial locking sync thin lock implementation times faster sun jdk ported aix jdk times faster ibm version jdk hot locks ibm 
+unsurprising locking overhead thin locks common case instructions implementations levels indirection fat lock structure performing system call acquire lock 
+addition jdk implementation looking fat lock monitor cache locked 
+nested locking performance advantage thin locks significantly reduced compared ibm hot lock implementation implementation nested locking hot lock essentially involves pointer comparing thread identifier incrementing memory location 
+vanilla jdk slower perform lookup monitor cache execute system call obtain thread identifier 
+benchmark demonstrates achilles heel hot lock approach number hot locks exceeds ibm implementation slows considerably 
+surprisingly jdk implementation slows number locked objects increases 
+due fact monitor cache free list working set monitors exceeds size monitor cache 
+call benchmarks analogues micro benchmarks call synchronized methods executing synchronized block 
+speedups achieved thin locks large slightly lower extra overhead involved performing method invocations 
+threads benchmark spawns threads runs tight loop synchronized blocks object 
+micro benchmarks trans javac toba jax javacup espresso janet javadoc mocha pizza lock operations fourth third second depth lock nesting benchmark 
+lock operations performed objects locked lock object 
+remaining lock operations vast majority second locks 
+program description locking benchmark sync initial lock synchronized statement nested lock synchronized statement sync synchronizes objects iteration call calls non synchronized method benchmark calls synchronized method obtain initial lock calls synchronized method obtain nested lock threads initial locking performed concurrently competing threads table micro benchmarks threads threads benchmark jdk ibm performance locking mechanisms various micro benchmark tests 
+measured performance lock thin state threads benchmark cause locks question inflated run thin lock implementation 
+threads benchmark shows real advantage hot lock approach ibm implementation significant contention small number objects hot locks twice fast jdk 
+performance hot locks suffers significantly working set size increases 
+thin locks achieve performance improvement monitor cache approach jdk locking monitor cache performing table lookup fat lock pointer simply obtained shifting monitor index right indexing vector maps indices pointers 
+note thin lock implementation scales linearly threads benchmarks 
+macro benchmark results obtained speedups factor micro benchmarks real applications usually consist tight loops performing synchronization operations 
+shows results running macrobenchmarks table 
+thin locks sped benchmark programs median maximum jdk implementation 
+ibm implementation achieved median speedup due fact significant number applications slowed 
+believe due frequent large working set synchronized objects 
+fact benchmarks effect tight loops performing synchronized operations 
+benchmark performs method calls synchronized 
+calls synchronized elementat method vector class 
+benchmark sped seconds 
+predict seconds speedup synchronized method invocations seconds speedup synchronized method calls 
+interesting example jax sped seconds 
+jax calls get method orders magnitude method 
+get method synchronized executes synchronized block checking error conditions 
+predict seconds speedup synchronized block executions seconds 
+tradeoffs section mentioned low level hardware characteristics significantly influenced implementation hand tuned assembly language code implements locking unlocking 
+explore issues detail 
+shows performance number variations thin lock implementation selected microbenchmarks ibm comparison purposes 
+benchmark cross sync performs nested locks object iteration 
+nop case represents speed light best implementation achieve framework existing system 
+measurements obtained removing instructions related synchronization assembly language version interpreter loop 
+overhead synchronization nop case extra bytecodes executed overhead significant amounts factor 
+nop results collected threads cases java vm unable initialize properly 
+inline case represents best implementation thin locks regardless portability maintenance concerns 
+assembly language code locking unlocking inlined relevant bytecode implementation specialized possible 
+sync benchmark time increases ms relative nop case 
+fact quarters time due synthesized compare swap operation load store conditional instructions 
+inlined specialized assembly code suited long term code maintenance 
+experimented single lock unlock routine case calling routines bytecode implementations 
+change resulted surprisingly small degradation performance presumably due pre fetching 
+architectural variations problem faced significant 
+aix runs powerpc uniprocessors powerpc multiprocessors old ibm power power uniprocessor machines 
+power power architectures userlevel synchronization instructions compare swap performed calling kernel routine 
+hand powerpc multiprocessor locking unlocking followed issuance sync instructions respectively ensure processor locks object observe consistent state 
+instructions needed uniprocessor measurements mp sync case show adding instructions resulted ms slowdown sync benchmark 
+architectural variations raise problem gain maximum performance need perform different lock unlock operations depending type hardware 
+unfortunately building differences java virtual machine resulted unacceptably complex change jdk source code 
+considered dynamically linked library cost calling aix dynamically linked library function significantly higher calling local function 
+availability surplus superscalar parallelism able solve problem testing architecture type lock unlock operation shown case labeled final implementation benchmark results 
+dynamic testing cpu type slowed sync benchmark additional ms slowdown adding function call 
+demonstrate advantages discipline owner lock allowed modify lock field modified code perform unlock operation compare swap load followed store 
+seen case cost additional atomic operation significant 
+trans javac toba jax javacup espresso janet javadoc mocha pizza speedup jdk ibm relative performance locking mechanisms various macro benchmarks 
+sync threads micro benchmark time ms nop inline mp sync ibm effect various performance tradeoffs selected micro benchmarks 
+related krall probst implemented monitors cacao java jit compiler 
+argue object size premium monitors kept externally hash table 
+bit thin locks java implementation words overhead object 
+overhead reduced converting class pointer class index unacceptable performance implications environments 
+bit dedicated monitors increase object size 
+hand dedicated monitors greatly reduce number instructions required obtain lock eliminating needs synchronize monitor cache 
+cacao implemented user level threads mutual exclusion monitor cache obtained setting flag disable pre emption 
+thin lock approach adapted user level threading require substantially fewer instructions fewer memory accesses monitor cache approach 
+krall probst rely assumption consecutive accesses bucket monitor cache hash table usually monitor 
+object unlocked leave monitor installed cache count zero 
+fast path monitor entry assumes monitor installed cache 
+approach similar ibm hot locks implementation measurements showed applications sufficiently large working set locks thrash cache pay substantial performance penalty 
+general locking research mcs locks similar thin locks require single atomic operation lock object common case 
+mcs locks require atomic operation release lock release lock expensive load store sequence 
+mcs locks designed maximal efficiency multiprocessor systems significant amounts contention thin locks designed maximal efficiency uniprocessor systems systems relatively small amounts contention 
+significant body achieve mutual exclusion atomic read write operations 
+solutions rendered obsolete instructions performed compound atomic operations exchange test compare swap 
+operations generalized fetch phi primitive multiprocessors particularly popular machines butterfly type interconnects concurrent fetch phi operations location combined network 
+microprocessors compound atomic operations relatively mutual exclusion generally considered province operating systems parallel processors 
+lamport stated concurrent processes time shared single processor mutual exclusion easily achieved inhibiting hardware interrupts crucial times 
+implicitly assuming mutual exclusion operating system overhead operating system trap acceptable lock unlock operation user level code 
+anderson mellor crummey scott provide thorough discussions synchronization algorithms multiprocessors include comparative performance measurements 
+thin locks method implementing monitors java programming language partial word storage object 
+thin locks implemented veneer top existing heavy weight locking subsystem 
+implemented technique sun jdk shown yields significant speedups 
+microbenchmarks thin locks times faster original jdk implementation 
+real programs thin locks achieve median speedup maximum speedup 
+thin locks increase size object fat locks created contention thin locks result significant savings space large numbers synchronized objects 
+efficiency technique due careful engineering allow common cases executed minimal number machine instructions design obviates need atomic operations unlocking acquiring nested locks 
+advice implementation rob strom help validating algorithm mark wegman suggesting key improvement kevin help optimizations pentium alex peter sweeney comments earlier drafts 
+anderson performance spin lock alternatives shared memory multiprocessors 
+ieee transactions parallel distributed systems jan 
+dijkstra solution problem concurrent programming control 
+commun 
+acm sept 
+gosling joy steele java language specification 
+addison wesley reading massachussetts 
+gottlieb rudolph basic techniques efficient coordination large numbers cooperating sequential processors 
+acm trans 
+program 
+lang 
+syst 
+apr 
+hoare monitors operating system structuring concept 
+commun 
+acm oct 
+ibm 
+ibm principles operation 
+krall probst monitors exceptions implement java efficiently 
+acm workshop java high performance network computing 
+kruskal rudolph snir efficient synchronization multiprocessors shared memory 
+proceedings fifth annual acm symposium principles distributed computing pp 
+
+lamport mutual exclusion problem 
+acm apr 
+lamport fast mutual exclusion algorithm 
+acm trans 
+comput 
+syst 
+feb 
+lampson redell experience processes monitors mesa 
+commun 
+acm 
+mellor crummey scott algorithms scalable synchronization shared memory multiprocessors 
+acm trans 
+comput 
+syst 
+feb 
+peterson new solution lamport concurrent programming problem small shared variables 
+acm trans 
+program 
+lang 
+syst 
+jan 
+raynal algorithms mutual exclusion 
+mit press series scientific computation 
+mit press cambridge massachussetts 
+translated french beeson 
+

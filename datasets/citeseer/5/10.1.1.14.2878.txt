@@ -1,0 +1,559 @@
+virtual machine multi language execution thorsten programming systems lab saarland university postfach germany ps uni sb de programming systems lab saarland university postfach germany ps uni sb de presents architecture virtual machine designed specifically execution multiple languages call seam 
+architecture consists number generic components usable languages number interfaces implementations provided language implementors 
+contribution identification generic services clean design parameterization language specific aspects 
+goal seam provide ample reuse simple language implementation concerning compilers runtime components platform language interoperation 
+implemented prototype version seam validated language implementations 
+full running implementation alice nave implementation java virtual machine running seam 
+presents implementation ort performance results prototype 
+categories subject descriptors software engineering software architecture software engineering interoperability general terms design languages keywords virtual machines interoperability pickling 
+practice programming language implementation years shown increasing interest reusable virtual machine technology 
+language implementors write compilers target existing virtual machines example spelling runtime stand runtime environment programs executed opposed run time things happen programs run 
+mlj active oberon 
+virtual machine providers design standardize virtual machines targets language implementors examples java virtual machine jvm microsoft net common language runtime clr 
+reasons trend obvious 
+language implementors want spare ort reimplement runtime services memory management operating system interfacing 
+targeting existing runtime environment yields easy reuse available libraries path interoperation languages 
+perspective virtual machine provider reusable runtime environment opens market tools debuggers profilers integrated development environments 
+performance elegance existing approaches remained unsatisfying virtual machines designed generality remained inadequate language paradigms :10.1.1.24.4194
+criticism includes missing support tail calls overhead defining data classes representing objects restrictive type systems code verifiers 
+presents seam simple extensible machine virtual machine designed specifically execution multiple languages 
+goal provide virtual machine language implementors want reuse technology common ground interoperate languages implement language faithfully having extend modify match virtual machine 
+seam attempt reconcile seemingly contradicting goals simplicity language compiler ease implementation language runtime ease interoperability languages language specification fidelity 
+design seam driven key idea assess runtime service generality define service interface generic adequate languages seam provides service interface service appear generic incarnation parameterize service 
+turns broad range services provided ort implementing new language greatly reduced language implementations gain elegance 
+validated claims complete implementation alice extension sml providing concur data flow synchronization laziness prototype implementation jvm top seam 
+structured follows 
+section presents seam architecture describing design generic components parameterization interfaces 
+section introduces generic synchronization support 
+section details language implements target seam 
+address interoperability languages section 
+section demonstrates expressivity seam architecture design generic persistence facility seam languages 
+evaluate prototype implementation section 
+section concludes outlook 
+
+virtual machine architecture virtual machine vm consists number components 
+store provides model data representation memory management 
+scheduler coordinates execution concurrent threads 
+execution unit executes code 
+subsystem abstracts away interface operating system input output channels 
+traditional virtual machines designed single language design components tuned language question 
+example virtual machine object oriented language represent data structures store objects object types class definitions drive services garbage collection 
+scheduler directly implement concurrency synchronization semantics language 
+execution unit know code representations particular language example byte code opcodes implementing elementary language concepts forth 
+seam di ers approach strictly separated language independent services language specific bindings services 
+possible seam provides generic components valid languages 
+feasible seam parameterized making language specific implementations components possible 
+sections describe realization abovementioned components seam turn 
+store seam store implements simple data graph basic node types integers chunks raw byte data arbitrary length blocks consisting number ordered directed edges nodes 
+data graph arbitrary directed graph sharing cycles 
+configurable allocation thresholds reached store sets flag seam global status register request garbage collection operation invoked 
+garbage collection frees memory taken unreachable nodes graph root set nodes graph 
+accomodate advanced garbage collection techniques interface distinguishes initializing edges di erent operations presence instance generational garbage collector 
+data graph designed simple possible conceptually separating store representation language data structures avoid premature commitment particular language 
+language implementors model language data structures terms data graph 
+control structures virtual machine task stacks threads scheduler queue runnable threads need encoded data graph 
+enable discriminating various internal control structures user defined data structures blocks tagged integer labels reserved sections 
+related 
+virtual machines represent specialized complex data store 
+mozart instance store knows oz rich data structures threads task stacks computation spaces 
+mozart store generic foreign function interface allows implementation user defined data types called extensions specialized garbage collection cloning routines specified 
+extensions considerably cient mozart built data structures valid basis support languages mozart vm 
+jvm net clr represent objects store 
+garbage collector know class definitions typing nodes store know static instance fields inheritance 
+experience shown object oriented store suitable cient implementation functional languages imposes large overhead numerous small allocations typically performed functional programs 
+scheduler seam supports concurrent execution multiple threads traditional way thread control structure maintains stack activation records frames 
+frame corresponds task executed execution task cause frame modified popped new frames pushed 
+scheduler coordinates execution multiple threads maintains queue 
+scheduler active fetches thread queue passes worker 
+worker obtains topmost frame thread stack executes see section details 
+worker returns control scheduler preemption condition signalled worker periodically checks 
+preemption condition met flags global status register set 
+timer periodically sets flag status register implement preemptive scheduling time slicing control returns scheduler preempted thread enqueued actions requested flags global status register performed thread dequeued 
+execution unit illustrated impossible design single intermediate language accomodate programming languages 
+consequence define concrete execution unit seam 
+control structures interpreted execution unit parameterized actual execution unit 
+seam defines task manager interface comprises neces sary functions interpreting stack frames includes executing task handling exceptions raising stack frame clearing longer needed store nodes stack frames prior garbage collection 
+chose frame parameterization thread stack frames store associated task manager slot operations stack frames retrieve actual task manager delegate 
+implies computation single thread carried task managers conjunction 
+accordingly need generic way create stack frames function application procedure call method invocation 
+seam defines task creator interface perform stack frame creation 
+class computation function closure procedure method pair code environment 
+representation block subnode stores code remaining subnodes store environment 
+code turn block subnode task creator implementation remaining subnodes code representation defined task creator 
+global register bank provides passing arguments 
+obtain generic way execute task regardless language implemented 
+downside parameterizing stack frames class computations extra indirection virtual call implies 
+overhead eliminated language implementor knows task manager task creator associated caller callee invocation intra language invocation 
+practice language implementors performance gracefully degrading increasing cross language calls 
+implementation described section 
+related 
+traditional virtual machines define single worker single type frame 
+mozart vm knows frames corresponding oz byte code special tasks calling built ins releasing locks handling exceptions encoded internal instructions look alike oz byte code frame 
+net clr defines single code representation called il intermediate language expressive jvm byte code influenced object oriented paradigm implemented microsoft languages visual basic net managed 
+vmgen despite name generates just interpreter complement approach generate task manager implementation 
+approach discusses bridging virtual physical machines considers extensibility regard bridging 
+virtual virtual machine designed safe dynamic reconfiguration systems 
+understanding extensibility lift virtual machine components application level 
+subsystem seam input output subsystem corresponds standard virtual machines provides primitives interacting files pipes sockets 
+thread immediately perform operation due data execution temporarily suspended threads executed data available 
+means thread states say runnable resides scheduler thread queue 
+executed running 
+thread waiting operation performed blocked 
+task popped thread stack thread terminated 
+scheduler periodically polls channels eventually blocked threads runnable 
+thread queue empty blocked threads scheduler enters idle loop blocking process thread runnable 
+thread queue empty thread waiting virtual machine terminates 
+operating systems separate system thread wait signal data availability asynchronously setting flag global status register avoid polling 
+section addresses general case thread synchronization reduces special case 
+
+concurrency transients concurrent systems need synchronization communication facility enable cooperation threads 
+seam provides data flow synchronization laziness form transients 
+transient placeholder value known 
+value known transient replaced value 
+computations find transient place value block value known 
+transients come flavors describe 
+transient explicitly replaced value 
+stores queue blocked threads reschedule replaced 
+need transient associated class computation see section 
+thread requires value need need turns requesting thread blocks simultaneously new runnable thread created tasks stack explicitly replace top task created class computation 
+words class computation executed 
+needs implement lazy demand driven computations 
+kinds transients supported implementation 
+transients ects virtual machine components follows 
+store represents transients blocks label denotes kind transient 
+furthermore reserved label internal store represent 
+replaced transient updates label place stores edge node transient replaced 
+garbage collector elim variant needs imaginable simply push tasks requesting thread dispense overhead explicit thread creation 
+di erence observable languages notion firstclass thread identity 
+
+store apis nodes transients handles replaced transients transparently chains tests transients nodes statically known transients preconditions assert nodes ectively transients 
+internal control structures languages support transients special contexts penalized seam support transients 
+design performance gracefully degrading increasing transients 
+scheduler extended handle di erent kinds transients requested computations 
+thread needs removed runnable queue new thread created 
+task manager implementations making execution unit need corresponding store api depending wish handle transients notify scheduler transient requests 
+subsystem builds transients handle blocking implies single mechanism block wake threads straightforward elegant formulation 
+related 
+transients supported seam implementation basis futures supported alice explored formal calculus 
+transients express data flow synchronization logic variables logic programming languages oz laziness haskell 
+needs closely related thunks implementation lazy functional languages 
+
+language implementation language implementor targeting seam reuses generic infrastructure shown providing components infrastructure parameterizes 
+set components call language layer 
+section outlines means practice implement language layer 
+data representation 
+store provides expressive low level model data representation 
+language implementors need high level interface data structures conciseness making representation invariants explicit 
+store currently provides data graph nodes form classes objects 
+high level interface specific language data structures specialize store node classes define data layout high level types subnodes 
+virtual functions simulated assigning distinct integer labels blocks dispatch 
+code representation 
+seam assumption code represented 
+language implementors define code representation 
+code subject garbage collection encapsulated store nodes 
+instance byte code native code alternative store code outside garbage collected wrapped store chunk 
+task manager 
+execute code language implementors implement task manager interface 
+define stack frame layout 
+arbitrary layouts possible represent activation record required language implicit subnode storing actual task manager hidden seam interface 
+stack frames arbitrary size 
+interpreter implemented operate code representation stack frame layout 
+task creator 
+allocate stack frame layout defined task creator interface implemented 
+class computations defined seam store task creator represented computation environment layout chosen language implementor 
+language primitives 
+language implementor provides primitives required language accompanying standard libraries 
+possibility represent primitive instruction code case native code inline directly call instance function 
+second alternative wrap primitives class computation individual task creator task manager 
+case handled seam generic interoperability features discussed section 
+
+interoperability language implementors language users interoperability desirable feature 
+language implementors interoperability reuse existing technology originally intended language facilitate implementation task 
+language users benefit interoperability enables write mixed language applications right tool task 
+prerequisite language interoperation common understanding idioms languages meant interoperate 
+idioms shared language implementations simpler interoperability language implementor provided ort required abide idioms low 
+seam provides common number idioms programming language designers widely agree 
+particular seam defines generic class computations invocation means task creator task manager interfaces 
+seam global argument register bank provides uniform way pass arguments return values 
+argument count register enables variable argument functions featured lisp conversion argument functions typically performed ml implementations 
+common light weight concurrency model generic synchronization primitives form transients enables mixed language concurrent applications 
+current implementation provides weak maps finalization mechanism explicitly free memory taken code 
+store uses relocating garbage collector course native code position independent 
+virtual machine architecture overview defines pc env argument bank runnable queue 
+store activation interpreter activation record creation procedure task manager task creator layers language stack frame threads code class computation admin data record environment instructions sr arg ctr cluding automatic data flow synchronization laziness 
+seam subsystem possible share input output channels 
+single store represents data specific languages unified data graph 
+course just technical side interoperation 
+semantic side language implementors take care compatibility matching number order arguments performing cross language calls 
+responsibility language implementors provide data representation conversion marshaling 
+real interoperability implies pairwise matching languages 
+improving situation subject 
+experiments far interoperability concept forms valid basis build foreign function resp 
+native method interface 
+discussed section 
+related 
+net common language specification cls defines rich set idioms languages encouraged share 
+standard microsoft set language implementations call cls compliant high high incurs performance cost languages match cls closely 
+argued cost paid interoperation boundaries actual applications may want cross boundaries arbitrarily fine granularity 
+distinguishing inter intra language calls increases complexity language compiler extreme support distinct data representations calling conventions convert 
+observer evolution visual basic visual basic 
+net regard concealed ort visual basic cls compliant 
+
+pickling generic service seam parameterization task managers expressive 
+demonstrate generic pickling service seam provides way configurable language implementors 
+providing services pickling interesting turning seam middleware just virtual machine 
+note pickling basis openness services components distribution exemplified mozart 
+section structured follows 
+introducing terminology pickling identify di erent types nodes require treatment pickling 
+outline basic process incrementally refine handle di erent types nodes 
+terminology 
+pickling called serialization process externalizing data graph sequence bytes called pickle 
+persistence stored file communicating data distributed computation sites transferred process 
+process reconstructing store nodes pickle called 
+reconstructed graph isomorphic graph existed time pickling particular sharing nodes contained pickle including cycles 
+node types 
+di erent types data require di erent treatments pickling 
+identify node pickling semantics nodes 
+nodes need cloned instance represent stateless data 
+stateful data structures cloned resulting snapshot state data structure time pickling 
+translated nodes 
+types nodes need transformed instance platform independent representation 
+conversely may construct platform specific representation 
+resource nodes 
+types nodes meaningful external representation instance represent resources pertinent local computation site operating system handles open files graphical windows 
+nodes 
+transient nodes 
+transients considered 
+pickling may sense clone constructed associated computation eventually replace 
+pickling generic service distinguish node types language implementors able associate appropriate pickling semantics data structures 
+basic process 
+basic pickling procedure nodes consists depth traversal data graph starting root node producing byte sequence isomorphic graph may reconstructed 
+seam provides builds seam infrastructure 
+define task manager perform traversal 
+task invoked output byte bu er argument activation record stores node visit 
+process nodes encountered need recognized 
+remembering nodes requires mapping nodes sets serialized representation 
+mapping supplied argument task 
+task consists writing serialized representation node kind label number edges pushing new tasks subnodes node contained mapping case node written 
+process similar 
+define task manager perform single task 
+task consists node requires edges initialized number edge initialize 
+arguments input byte sequence mapping sets byte sequence nodes reconstruct sharing 
+task manager reads node specification input byte sequence constructs corresponding node initializes parent edge specified stack frame updating stack frame advance parent edge pushing new tasks initializing subnodes 
+expressing task managers concurrent preemptable 
+state automatically saved task stack arguments thread switch occurs 
+note code modeled ordinary store nodes automatically part higher order data structures 
+translation 
+process outlined deals data 
+extend process deal translated nodes 
+externalized data intended cross platform information interchange data store intended computations 
+di ering goals require di erent representations 
+call externalized representation representation opposed concrete representation computation 
+concrete representation externalized needs abstracted conversely representation read needs instantiated 
+language defines concrete representations want able represent mixed language data graphs 
+reason abstraction instantiation functions need pointwise definitions definition type language 
+concepts introduced design defining concrete representations abstraction instantiation functions seam 
+concrete representations store data structures 
+nodes abstraction instantiation identity function 
+introduce new specialized store block kind representation 
+instantiated nodes nodes abstraction function identity user supplied 
+conversely nodes nodes instantiation function user supplied 
+instantiated concrete nodes store blocks reserved integer labels 
+subnode instantiated node handler queried representation function subnodes 
+result store node typically node 
+subnode node type identifier instantiation function expects node argument returns concrete representation typically concrete node 
+operationally nodes treated follows 
+encounters instantiated node queries handler representation processes place original node 
+parameterized mapping type identifiers instantiation functions 
+reconstructed node pickle applies instantiation function specified node type identifier inserts returned concrete representation constructed graph node 
+mapping table extended language specific type identifiers corresponding language layer initialized 
+typical data structure exist concrete representations code 
+representation byte code concrete representation native code 
+ers simple scheme implement demand driven run time compilation instantiation function code return need requested causes run time compiler run 
+representing code instantiated nodes modification need generic components order abstraction 
+resources 
+nodes represent resources allowed words representation 
+logical represent resource nodes instantiated nodes handler returns error value store node 
+checks error value raises exception 
+transients 
+want transients written pickle simply request 
+means pickling thread block middle writing pickle 
+fine preemptable state saved due explicit representation pickling tasks thread stack 
+say pickling incremental pickling thread woken continues node transient replaced needs start scratch 
+related 
+pickling related serialization programming systems instance java platform 
+contrast approach java approach support including code serialized data links classes referenced identifiers serialized representation 
+java serialization highly configurable handle node kinds described principled manner 
+application java serialization achieve similar semantics alice pickling corresponds described implemented dml 
+java serialization specification lot complex propose 
+
+prototype section prototype implementation seam language layers built top 
+section discusses implementation aspects generic virtual machine services 
+design validated language layers built top complete implementation alice programming language described section low ort implementation java virtual machine section 
+conclude performance evaluation section 
+generic services store 
+store implements data graph described section 
+tagging scheme heap layout inspired described leroy 
+tagged pointers type store nodes tag bit serving distinguish bit integers pointers data structures 
+pointers additional tag bit distinguish pointers transients pointers blocks chunks requiring memory access 
+improves ciency transient tests dereferencing 
+addition store provides built collection types weak maps provide finalization generic maps keys arbitrary non transient store nodes 
+require special handling garbage collector 
+nodes weak maps finalized garbage collector determines excluding weak map garbage 
+generic maps hashing token equality address hash function 
+garbage collection 
+store implements generational copying garbage collector cheney style scanning ungar remembered sets 
+scanning eliminates nodes transients replaced 
+execution unit 
+task manager task creator interfaces defined classes 
+define small number virtual functions language implementors provide derived classes 
+pointers task manager task creator objects represented integer nodes store casts 
+pickling 
+described section maintains mapping visited nodes sets emitted pickle 
+known technique destructively mark nodes visited heap similar forward pointers garbage collectors 
+technique applicable incremental pickling interrupted run threads may operate data structures 
+implementation represents mapping generic map 
+checking sharing constant time table component size overview component loc subcomponent loc generic store pickling alice run time compiler interpreter primitives java primitives pickling linear number nodes despite concurrency 
+implementation ort 
+implementation ort prototype system measured lines code shown table 
+left column shows total size implementation layers right column details code pertains subcomponent 
+numbers show implementation compact 
+related 
+java serialization concurrent needs represent visited nodes explicitly 
+java provides method compute class hash value object implemented representing field object lock index array locks 
+java sacrifices space hashed object pay price hashing lifetime generic map 
+alice seam alice extension sml concurrent open programming 
+features transients form lazy futures seam needs concurrent futures seam futures holes top construction data structures failed futures signaling failed computations raising exceptions request 
+alice component system builds pickling component triple import specification export specification function applied evaluates declarations body component 
+component manager implemented alice type checks links components lazily lazy futures 
+component manager bootstrapped boot linker provided alice language layer 
+stand alice application component executes application side ect evaluation 
+transients allowed data structures alice types primitive operations language implicitly synchronize pattern matching procedure application 
+similar oz 
+accordingly practically alice language layer uses transient aware store api 
+representation alice code designed compilation interpretation 
+representation form direct acyclic graph loops translated recursion nodes instructions 
+code static single assignment form 
+implemented concrete representations task managers code execution concrete representation corresponds representation task manager interprets instruction graph 
+second native code instantiation function returns need requested runs run time native code compiler 
+compiler allocates registers linear scan register allocation emits position independent machine code store chunks gnu lightning 
+corresponding task manager bridges generated native code 
+run time compilation recognizes intra language calls functions closure compiled code optimizes remove indirection imposed task creators 
+native code performance superior interpreter factor 
+alice implementation provides foreign function interface lines outlined section 
+dedicated task creator task manager handles invocation foreign functions 
+foreign functions higherorder call back alice 
+foreign function calls alice function non tail position needs define task manager push continuation implemented 
+java seam java seam implementation consists main components class file parser class loader byte code interpreter 
+class file parsing implemented atomic operation 
+class file read chunk symbolic type representation constructed 
+types represented symbolic constant pool 
+support class files specified jvm specification intend support classes 
+type loading performed class loader invokes class file parser obtain verify symbolic type representation 
+implemented succeeds 
+type prepared concrete type constructed symbolic representation run time constant pool consisting concrete 
+byte code interpreter executes java byte code 
+methods class computations environment run time constant pool 
+method activation records allocated task stacks provided seam 
+currently instructions implemented jvm specification 
+static field access static method invocation object creation acquire class lock check class object initialized 
+static initializer run 
+thread reentrant locks implemented class values futures waiting lock corresponds seam concept blocking 
+static method call special task manager pushed release class lock method returns 
+jvm specification gives implementations freedom timing type loading linking requires class interface initialized active 
+implementation fully lazy loading linking postponed active type 
+achieve preparation creates run time constant pool needs 
+need requested say method invocation triggers method lookup turn triggers performed class loading 
+jvm specification impose particular binary data layout java types objects straightforwardly mapped store blocks 
+try represent java integral types store integers 
+store integers bits size long integers boxed store chunk 
+compilation option experiments represents java bit integers bits losing bit 
+floating point values boxed 
+table summarizes implementation ort jvm language layer 
+want mention took person weeks complete 
+performance evaluation section experimentally assesses performance results current implementation 
+performance results section obtained sony mp mhz pentium processor running windows xp 
+system mb main memory 
+evaluate system benchmarks evaluate mozart vm 
+run di erent systems 
+alice seam java seam 
+alice compiler second backend emits oz byte code mozart vm 
+alice mozart third test system 
+jvm shipped sun java sdk named java sdk 
+compiled java benchmarks javac sun sdk 
+ran alice seam simple run time compiler quality deem roughly equivalent optimized byte code 
+systems interpreters jitter turned java sdk 
+configuration tuning done 
+focus common cases recursive computation simple integer arithmetic concurrent computation data flow synchronization symbolic computation 
+report minimum time obtained runs benchmark system preceeding dry run hide startup ects lazy component resp 
+type linking 
+table shows results 
+emphasize preliminary results 
+recursion 
+fib tak standard benchmarks 
+java sdk performs best resp 
+times faster alice mozart 
+java seam performs worst twice resp 
+times long alice mozart 
+reason seam bad performance benchmarks exhibit worst case behaviour current implementation 
+represent stacks arrays activation records 
+data allocated heap 
+real applications perform computations function applications generational garbage collector releases space consumed obsolete stack frames early special treatment stacks 
+contrast fib tak su er heavy allocation alice mozart performs roughly percent oz mozart 
+table benchmark results milliseconds fib tak nrev deriv alice mozart alice seam java sdk java seam frequent garbage collections youngest generation rapidly filled requires minor collection memory available youngest generation 
+cases performance vm su ers 
+see solutions 
+mozart vm circumvents problem free lists environments enable explicit deallocation reuse 
+solution flatten task stacks represent activation records inline separate nodes 
+prevent frequent allocation large blocks incur stacks handled specially store 
+concurrency 
+languages intended open programming java alice need support concurrency synchronization ciently 
+sequentially creates threads executing empty computation waits termination 
+computes fibonacci number creating thread recursive call 
+differs fib large number threads runnable time 
+alice implementation exploits alice implicit data flow synchronization java implementation uses thread methods start join 
+alice seam times faster alice outperforms java sdk order magnitude 
+best knowledge sdk longer support configurability green native threads presumably threads heavy weight system threads 
+java seam benefits seam lightweight threads 
+symbolic computation 
+nrev allocates list elements reverses list append 
+deriv computes times th symbolic derivation benchmarks perform algebraic data types recursion steps producing lots temporary heap allocation 
+considered average case applications 
+alice mozart performs best closely followed percent alice seam 
+result indicates design decision handle stacks specially adequate 
+evidences seam prototype competitive highly optimized virtual machine specifically designed single language 
+java sdk performs worse alice seam ranging percent slower nrev times slow deriv object allocation obviously expensive jvm 
+bad performance deriv indicates virtual method invocation java idiom corresponding alice pattern matching expensive 
+large applications 
+tested large application alice seam alice compiler recompiling system libraries 
+performance competitive alice mozart 
+
+architecture generic virtual machine extensible specialized runtime environment languages 
+demonstrated validity approach implementing language layers top functional concurrent language alice complete java virtual machine 
+identified number areas worthy research 
+strive improve system ciency 
+goal improve interoperability 
+pairwise matching languages necessary improved proposing seam common language specification microsoft net 
+particular suggest common representation program components obviate need implementing component managers class loaders provide generic way establish program components implemented di erent languages 
+
+acknowledgments seam developed follow project mozart owes numerous developers contributors mozart vm 
+authors ulrike becker comments 
+alice language layer joint alice project want mention andreas particular compiler frontend numerous discussions 
+go christian schulte distinction concrete representations pickling having brought name steam simple tiny extensible machine 
+go guido tack helpful comments 
+
+alice programming language 
+web site programming systems lab universitat des saarlandes 
+www ps uni sb de alice 
+benton kennedy russell 
+compiling standard ml java bytecodes 
+proceedings rd international conference functional programming icfp pages baltimore maryland sept 
+acm press 
+bertelsen 
+compiling sml java bytecode 
+master thesis department information technology technical university denmark jan 
+
+gnu lightning edition 
+www gnu org software lightning 
+
+kawa compiling scheme java 
+lisp users conference lisp mainstream berkeley california nov 
+henderson ross 
+compiling mercury net common language runtime 
+electronic notes theoretical computer science volume pages 
+elsevier science publishers 
+dybvig 
+guardians generation garbage collector 
+proceedings conference programming language design implementation pldi pages albuquerque new mexico june 
+acm press 
+ertl gregg krall 
+vmgen generator cient virtual machine interpreters 
+software practice experience 
+gutknecht 
+active oberon net exercise object model mapping 
+electronic notes theoretical computer science volume pages 
+elsevier science publishers 
+harris 
+extensible virtual machines 
+phd thesis churchill college university cambridge dec 
+hudak peyton jones wadler 
+report programming language haskell 
+sigplan notices volume may 
+
+alice land oz interoperability implementation functional language top relational language 
+electronic notes theoretical computer science volume pages 
+elsevier science publishers 
+le 
+compiling oz java bytecode 
+master dissertation national university singapore 
+leroy 
+zinc experiment economical implementation ml language 
+technical report rt inria feb 
+lindholm yellin 
+java tm virtual machine specification 
+addison wesley nd edition apr 
+mehl muller schulte 
+interfacing edition 
+mozart online documentation 
+mehl schulte 
+machine oz 
+proceedings plilp lncs utrecht netherlands 
+springer verlag 
+microsoft 
+common language specification 
+online documentation 
+msdn microsoft com library en html asp 
+milner tofte harper macqueen 
+definition standard ml revised 
+mit press 
+smolka 
+concurrent computation lambda calculus futures 
+programming systems lab universitat des saarlandes june 
+
+highly configurable operating systems approach 
+proceedings rd ecoop workshop object orientation operating systems cannes france june 
+poletto sarkar 
+linear scan register allocation 
+acm transactions programming languages systems 
+
+design implementierung und einer fur oz 
+doctoral dissertation fachbereich informatik universitat des saarlandes dec 
+schulte 
+programming constraint services 
+doctoral dissertation universitat des saarlandes technische fakultat informatik saarbrucken germany 
+simon 
+implementation programming language dml java runtime environment 
+diplomarbeit fachbereich informatik universitat des saarlandes feb 
+smolka 
+oz programming model 
+van leeuwen editor computer science today lecture notes computer science vol 
+pages 
+springer verlag berlin 
+steel 
+version 
+proceedings western joint computer conference pages 
+sun microsystems java sdk documentation object serialization edition 
+java 
+sun com se docs guide serialization 
+tc tg 
+language specification 
+technical report ecma 
+appear ecma 
+tc tg 
+common language infrastructure cli 
+technical report ecma 
+appear ecma 
+mozart consortium 
+mozart oz 
+web site sept 
+www mozart oz org 
+
+inside java virtual machine 
+mcgraw hill nd edition jan 
+walter 
+implementation programming language dml java compiler 
+diplomarbeit fachbereich informatik universitat des saarlandes feb 
+wilson 
+uniprocessor garbage collection techniques 
+proceedings international workshop memory management number lecture notes computer science saint malo france sept 
+springer verlag 

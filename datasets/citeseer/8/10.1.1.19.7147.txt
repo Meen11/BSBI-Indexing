@@ -1,0 +1,454 @@
+gpfs shared disk file system large computing clusters frank schmuck roger ibm almaden research center san jose ca gpfs ibm parallel shared disk file system cluster computers available rs sp parallel supercomputer linux clusters 
+gpfs largest supercomputers world 
+gpfs built ideas developed academic community years particularly distributed locking recovery technology 
+date matter conjecture ideas scale 
+opportunity test limits context product runs largest systems existence 
+cases existing ideas scaled new approaches necessary key areas 
+describes gpfs discusses distributed locking recovery techniques extended scale large clusters 
+computing problems big largest machines day 
+situation persists today powerful cpus shared memory multiprocessors 
+advances communication technology allowed numbers machines aggregated computing clusters effectively unbounded processing power storage capacity solve larger problems single machine 
+clusters composed independent effectively redundant computers potential fault tolerance 
+suitable classes problems reliability paramount 
+result great interest clustering technology past years 
+fundamental drawback clusters programs partitioned run multiple machines difficult partitioned programs cooperate share resources 
+important resource file system 
+absence cluster file system individual components partitioned program share cluster storage ad hoc manner 
+typically complicates programming limits performance compromises reliability 
+gpfs parallel file system cluster computers provides closely possible behavior general purpose posix file system running single machine 
+gpfs evolved tiger shark multimedia file system 
+gpfs scales largest clusters built proceedings conference file storage technologies fast january monterey ca pp 
+
+usenix berkeley ca 
+powerful supercomputers world including largest asci white lawrence livermore national laboratory 
+gpfs successfully satisfies needs throughput storage capacity reliability largest demanding problems 
+traditional supercomputing applications run cluster require parallel access multiple nodes file shared cluster 
+applications including scalable file web servers large digital libraries characterized parallel access 
+class applications data individual files necessarily accessed parallel files reside common directories allocate space disks file system data structures metadata accessed parallel 
+gpfs supports fully parallel access file data metadata 
+truly large systems administrative actions adding removing disks file system rebalancing files disks involve great amount 
+gpfs performs administrative functions parallel 
+gpfs achieves extreme scalability shared disk architecture 
+gpfs system consists cluster nodes gpfs file system applications run connected disks disk subsystems switching fabric 
+nodes cluster equal access disks 
+files striped disks file system disks largest gpfs installations 
+addition balancing load disks striping achieves full throughput disk subsystem capable 
+switching fabric connects file system nodes disks may consist storage area network san fibre channel iscsi 
+alternatively individual disks may attached number server nodes allow access file system nodes software layer running general purpose communication network ibm virtual shared disk vsd running sp switch 
+regardless shared disks implemented gpfs assumes conventional block interface particular intelligence disks 
+parallel read write disk accesses multiple nodes cluster properly synchronized user data file system metadata corrupted 
+gpfs uses distributed locking synchronize access shared disks 
+gpfs distributed locking protocols ensure file system consistency maintained regardless number nodes simultaneously reading writing file system time allowing parallelism necessary achieve maximum throughput 
+describes architecture gpfs details features contribute performance scalability describes approach achieving parallelism data consistency cluster environment describes design fault tolerance presents data performance 
+general large file system issues gpfs disk data structures support file systems disks tb size total petabytes file system 
+largest single gpfs file system production date tb asci white 
+gpfs supports bit file size interfaces allowing maximum file size bytes 
+desire support large file systems unique clusters data structures algorithms allow gpfs worth describing 
+data striping allocation prefetch write achieving high throughput single large file requires striping data multiple disks multiple disk controllers 
+relying separate logical volume manager lvm layer gpfs implements striping file system 
+managing striping affords gpfs control needs achieve fault tolerance balance load adapters storage controllers disks 
+provide similar function may adequate knowledge topology properly balance load 
+furthermore expose logical volumes logical unit numbers impose size limits due limitations bit logical block addresses 
+large files gpfs divided equal sized blocks consecutive blocks placed different disks round robin fashion 
+minimize seek overhead block size large typically configured 
+large blocks give advantage extents file systems veritas allow large amount data retrieved single disk 
+gpfs stores small files large files smaller units called subblocks small size full block 
+exploit disk parallelism reading large file single threaded application gpfs prefetches data buffer pool issuing requests parallel disks necessary achieve bandwidth switching fabric capable 
+similarly dirty data buffers longer accessed written disk parallel 
+approach allows reading writing data single file aggregate data rate supported underlying disk subsystem interconnection fabric 
+gpfs recognizes sequential reverse sequential various forms strided access patterns 
+applications fit patterns gpfs provides interface allows passing prefetch hints file system 
+striping works best disks equal size performance 
+non uniform disk configuration requires trade throughput space utilization maximizing space utilization means placing data larger disks reduces total throughput larger disks receive proportionally larger fraction requests leaving smaller disks utilized 
+gpfs allows administrator trade specifying balance data placement throughput space utilization 
+large directory support support efficient file name lookup large directories millions files gpfs uses extensible hashing organize directory entries directory 
+directories occupy disk block block containing directory entry particular name applying hash function name low order bits hash value block number depends size directory 
+directory grows extensible hashing adds new directory blocks time 
+create operation finds room directory block designated hash value new name splits block 
+logical block number new directory block derived old block number adding st bit position directory entries st bit hash value moved new block 
+directory blocks remain unchanged 
+large directory general represented sparse file holes file representing directory blocks split 
+checking sparse regions directory file gpfs determine directory block split bits hash value locate directory block containing name 
+lookup requires single directory block access regardless size structure directory file 
+logging recovery large file system feasible run file system check fsck verify restore file system consistency time file system mounted time nodes cluster goes 
+gpfs records metadata updates affect file system consistency journal write ahead log 
+user data logged 
+node separate log file system mounts stored file system 
+log read nodes node perform recovery behalf failed node necessary wait failed node come back life 
+failure file system consistency restored quickly simply re applying updates recorded failed node log 
+example creating new file requires updating directory block inode new file 
+acquiring locks directory block inode updated buffer cache log records describe updates 
+modified inode directory block allowed written back disk corresponding log records forced disk 
+example node fails writing directory block inode written disk node log guaranteed contain log record necessary redo missing inode update 
+updates described log record written back disk log record longer needed discarded 
+logs fixed size space log freed time flushing dirty metadata back disk background 
+managing parallelism consistency cluster distributed locking vs centralized management cluster file system allows scaling throughput single node achieve 
+exploit capability requires reading writing parallel nodes cluster 
+hand preserving file system consistency posix semantics requires synchronizing access data metadata multiple nodes potentially limits parallelism 
+gpfs guarantees single node equivalent posix semantics file system operations cluster 
+example processes different nodes access file read node see data written concurrent write operation node read write atomicity 
+exceptions access time updates immediately visible nodes 
+approaches achieving necessary synchronization 
+distributed locking file system operation acquires appropriate read write lock synchronize conflicting operations nodes reading updating file system data metadata 
+read read sharing common synchronizing atime multiple nodes prohibitively expensive 
+applications require accurate atime chose propagate atime updates periodically 
+
+centralized management conflicting operations forwarded designated node performs requested read update 
+gpfs architecture fundamentally distributed locking 
+distributed locking allows greater parallelism centralized management long different nodes operate different pieces data metadata 
+hand data metadata frequently accessed updated different nodes may better managed centralized approach lock conflicts frequent overhead distributed locking may exceed cost forwarding requests central node 
+lock granularity impacts performance smaller granularity means overhead due frequent lock requests larger granularity may cause frequent lock conflicts 
+efficiently support wide range applications single approach sufficient 
+access characteristics vary workload different different types data user data vs file metadata modified time vs file system metadata allocation maps 
+consequently gpfs employs variety techniques manage different kinds data locking updates user data dynamically elected centralized management file metadata distributed locking centralized hints disk space allocation central coordinator managing configuration changes 
+sections describe gpfs distributed lock manager discuss techniques listed improve scalability optimizing cases avoiding distributed locking 
+gpfs distributed lock manager gpfs distributed lock manager uses centralized global lock manager running nodes cluster conjunction local lock managers file system node 
+global lock manager coordinates locks local lock managers handing lock tokens convey right distributed locks need separate message exchange time lock acquired released 
+repeated accesses disk object node require single message obtain right acquire lock object lock token 
+node obtained token global lock manager referred token manager token server subsequent operations issued node acquire lock object requiring additional messages 
+operation node requires conflicting lock object additional messages necessary revoke lock token node granted node 
+lock tokens play role maintaining cache consistency nodes 
+token allows node cache data read disk data modified revoking token 
+parallel data access certain classes supercomputer applications require writing file multiple nodes 
+gpfs uses byte range locking synchronize reads writes file data 
+approach allows parallel applications write concurrently different parts file maintaining posix read write atomicity semantics 
+byte range locks implemented naive manner acquiring token byte range duration read write call releasing locking overhead unacceptable 
+gpfs uses sophisticated byte range locking protocol radically reduces lock traffic common access patterns 
+byte range tokens negotiated follows 
+node write file acquire byte range token file zero infinity 
+long nodes access file read write operations processed locally interactions nodes 
+second node begins writing file need revoke part byte range token held node 
+node receives revoke request checks file 
+file closed node give token second node able acquire token covering file 
+absence concurrent write sharing byte range locking gpfs behaves just file locking just efficient single token exchange sufficient access file 
+hand second node starts writing file node closes file node relinquish part byte range token 
+node writing sequentially offset second node offset node relinquish token infinity zero 
+allow nodes continue writing forward current write offsets token conflicts 
+general multiple nodes throughput mb number nodes node reading different file nodes reading file node writing different file nodes writing file read write scaling writing sequentially non overlapping sections file node able acquire necessary token single token exchange part write operation 
+information write offsets communicated token negotiation specifying required range corresponds offset length write system call currently processed desired range includes accesses 
+sequential access desired range current write offset infinity 
+token protocol revoke byte ranges nodes conflict required range token server large sub range desired range possible conflicting ranges held nodes 
+measurements shown demonstrate throughput gpfs scales adding file system nodes disks system 
+measurements obtained node ibm rs sp system disks configured raid devices attached sp switch server nodes 
+compares reading writing single large file multiple nodes parallel node reading writing different file 
+single file test file partitioned large contiguous sections node node reading writing sequentially sections 
+writes updates place existing file 
+graph starts single file system node raids left adding raids node added test file system nodes raids right 
+shows nearly linear scaling tested configurations reads 
+test system data throughput limited disks raid controller 
+read throughput achieved gpfs matched throughput raw disk reads subsystem 
+write throughput showed similar scalability 
+nodes write throughput leveled due problem switch adapter microcode 
+point note writing single file multiple nodes gpfs just fast node writing different file demonstrating effectiveness byte range token protocol described 
+long access pattern allows predicting region file accessed particular node near token negotiation protocol able minimize conflicts carving byte range tokens nodes accordingly 
+applies simple sequential access reverse sequential forward backward strided access patterns provided node operates different relatively large regions file coarse grain sharing 
+sharing finer grain node writing multiple smaller regions token state corresponding message traffic grow 
+note tokens guarantee posix semantics synchronize data blocks file 
+smallest unit sector byte range token granularity smaller sector nodes write sector time causing lost updates 
+fact gpfs uses byte range tokens synchronize data block allocation see section rounds tokens block boundaries 
+multiple nodes writing data block cause token conflicts individual write operations overlap false sharing 
+optimize fine grain sharing applications require posix semantics gpfs allows disabling normal byte range locking switching data shipping mode 
+file access switches method best test machine pre release versions rs sp switch adapters 
+early version adapter microcode sending data nodes single server node efficient sending server node nodes 
+write throughput mb sec granularity blocks throughput br locking throughput data shipping br token activity effect sharing granularity write throughput described partitioned centralized management 
+file blocks assigned nodes round robin fashion data block read written particular node 
+gpfs forwards read write operations originating nodes node responsible particular data block 
+fine grain sharing efficient distributed locking requires fewer messages token exchange avoids overhead flushing dirty data disk revoking token 
+eventual flushing data blocks disk done parallel data blocks file partitioned nodes 
+shows effect sharing granularity write throughput data shipping normal byte range locking 
+measurements done smaller sp system file system nodes servers disks 
+total throughput server limited switch 
+measured throughput nodes updating fixed size records file 
+test strided access pattern node wrote records second node wrote records 
+larger record sizes right half multiples file system block size 
+shows byte range locking achieved nearly full older rs sp switch nominal mb sec throughput 
+software overhead reduces approximately mb sec 
+token activity token server busy throughput sizes matched granularity byte range tokens 
+updates record size smaller block left half required twice required read modify write 
+throughput locking dropped far expected factor half due token conflicts multiple nodes wrote data block 
+resulting token revokes caused data block read written multiple times 
+line labeled br token activity plots token activity measured token server test throughput byte range locking 
+shows drop throughput fact due additional activity overload token server 
+throughput curve data shipping shows data shipping incurred read modify write penalty plus additional overhead sending data nodes dramatically outperformed byte range locking small record sizes correspond fine grain sharing 
+data shipping implementation intended support fine grain access try avoid read modify write record sizes larger block 
+fact explains data shipping throughput stayed flat larger record sizes 
+data shipping primarily mpi io library 
+mpi io require posix semantics provides natural mechanism define collective assigns blocks nodes 
+programming interfaces mpi io control data shipping available applications desire type file access 
+synchronizing access file metadata file systems gpfs uses inodes indirect blocks store file attributes data block addresses 
+multiple nodes writing file result concurrent updates inode indirect blocks file change file size modification time store addresses newly allocated data blocks 
+synchronizing updates metadata disk exclusive write locks inode result lock conflict write operation 
+write operations gpfs shared write lock inode allows concurrent writers multiple nodes 
+shared write lock conflicts operations require exact file size stat system call read operation attempts read past file 
+nodes accessing file designated file reads writes inode disk 
+writer updates locally cached copy inode forwards inode updates periodically shared write token revoked stat read operation node 
+merges inode updates multiple nodes retaining largest file size latest values receives 
+operations update file size trunc require exclusive inode lock 
+updates indirect blocks synchronized similar fashion 
+writing new file node independently allocates disk space data blocks writes 
+synchronization provided byte range tokens ensures node allocate storage particular data block 
+reason gpfs rounds byte range tokens block boundaries 
+periodically revocation byte range token new data block addresses sent updates cached indirect blocks accordingly 
+gpfs uses distributed locking guarantee posix semantics stat system call sees file size completed write operation inode indirect blocks disk synchronized centralized approach forwarding inode updates 
+allows multiple nodes write file lock conflicts metadata updates requiring messages write operation 
+particular file elected dynamically help token server 
+node accesses file tries acquire token file 
+token granted node nodes learn identity 
+traditional workloads concurrent file sharing node files uses handles metadata updates locally 
+file longer accessed ages cache node node relinquishes token stops acting 
+subsequently receives metadata request node sends negative reply node attempt take acquiring token 
+file tends stay set nodes actively accessing file 
+allocation maps allocation map records allocation status free disk blocks file system 
+disk block divided subblocks store data small files allocation map contains bits disk block linked lists finding free disk block subblock particular size efficiently 
+allocating disk space requires updates allocation map synchronized nodes 
+proper striping write operation allocate space particular data block particular disk large block size gpfs important disk data block written 
+fact allows organizing allocation map way minimizes conflicts nodes interleaving free space information different disks allocation map follows 
+map divided large fixed number separately regions region contains allocation status th disk blocks disk file system 
+map layout allows gpfs allocate disk space properly striped disks accessing single allocation region time 
+approach minimizes lock conflicts different nodes allocate space different regions 
+total number regions determined file system creation time expected number nodes cluster 
+gpfs file system nodes cluster responsible maintaining free space statistics allocation regions 
+allocation manager node initializes free space statistics reading allocation map file system mounted 
+statistics kept loosely date periodic messages node reports net amount disk space allocated freed period 
+nodes individually searching regions contain free space nodes ask allocation manager region try node runs disk space region currently 
+extent possible allocation manager prevents lock conflicts nodes directing different nodes different regions 
+deleting file updates allocation map 
+file created parallel program running nodes allocated blocks regions 
+deleting file requires locking updating regions stealing nodes currently allocating disastrous impact performance 
+processing allocation map updates node file deleted update regions known nodes sent nodes execution 
+allocation manager periodically distributes hints write throughput mb number nodes node writing different file nodes writing file node creating different file nodes writing newly created file file create scaling regions nodes facilitate shipping deallocation requests 
+demonstrate effectiveness allocation manager hints algorithms described previous section measured write throughput updates place existing file creation new file 
+measured nodes writing single file access pattern node writing different file 
+measurements done hardware data points write throughput fact points shown earlier 
+due extra required allocate disk storage throughput file creation slightly lower update place 
+shows create throughput scaled nearly linearly number nodes creating single file multiple nodes just fast node creating different file 
+file system metadata gpfs file system contains global metadata including file system configuration data space usage quotas access control lists extended attributes 
+space permit detailed description types metadata managed brief mention order 
+cases described previous sections gpfs uses distributed locking protect consistency metadata disk cases uses centralized management coordinate collect metadata updates different nodes 
+example quota manager hands relatively large increments disk space individual nodes writing file quota checking done locally occasional interaction quota manager 
+token manager scaling token manager keeps track lock tokens granted nodes cluster 
+acquiring relinquishing upgrading downgrading token requires message token manager 
+reasonably expect token manager bottleneck large cluster size token state exceed token manager memory capacity 
+way address issues partition token space distribute token state nodes cluster 
+best way important way address token manager scaling issues reasons 
+straightforward way distribute token state nodes hash file inode number 
+unfortunately address scaling issues arising parallel access single file 
+worst case concurrent updates file multiple nodes generate byte range token data block file 
+size file effectively unbounded size byte range token state single file unbounded 
+conceivably partition token management single file multiple nodes frequent case single node acquiring token file prohibitively expensive 
+token manager prevents unbounded growth token state monitoring memory usage necessary revoking tokens reduce size token state reason high load token manager node lock conflicts cause token revocation 
+node relinquishes token dirty data metadata covered token flushed disk discarded cache 
+explained earlier see cost disk caused token conflicts dominates cost token manager messages 
+applications require posix semantics course data shipping bypass byte range locking avoid token state issues 
+effective way reduce token manager load improve performance avoid lock conflicts place 
+allocation manager hints described section example avoiding lock conflicts 
+gpfs uses number optimizations token protocol significantly reduce cost token management improve response time 
+necessary revoke token responsibility revoking node send revoke messages nodes holding token conflicting mode collect replies nodes forward single message token manager 
+acquiring token require messages token manager regardless nodes may holding token conflicting mode 
+protocol supports token prefetch token request batching allow acquiring multiple tokens single message token manager 
+example file accessed time necessary inode token token byte range token read write file acquired single token manager request 
+file deleted node node immediately relinquish tokens associated file 
+file created node re old inode need acquire new tokens 
+workload users different nodes create delete files respective home directories generate little token traffic 
+demonstrates effectiveness optimization 
+shows token activity running multiuser file server workload multiple nodes 
+workload generated program simulates file system activity token activity requests second token activity run elapsed time seconds file server benchmark 
+ran file system nodes node running workload clients 
+client ran different subdirectory 
+shows initial spike token activity benchmark started nodes node acquired tokens files accessed clients 
+benchmark created deleted files run node reused limited number inodes 
+nodes obtained sufficient number inodes token activity quickly dropped near zero 
+measurements cpu load token server indicated capable supporting token requests second peak request rate shown consumed small fraction token server capacity 
+height peak artifact starting benchmark time nodes happen real multi user workload 
+fault tolerance cluster scaled large numbers nodes disks increasingly components working correctly times 
+implies need handle component failures gracefully continue operating presence failures 
+node failures node fails gpfs restore metadata updated failed node consistent state release resources held failed node lock tokens appoint replacements special roles played failed node allocation manager token manager 
+gpfs stores recovery logs shared disks metadata inconsistencies due node failure quickly repaired running log recovery failed node log surviving nodes 
+log recovery complete token manager releases tokens held failed node 
+distributed locking protocol ensures failed node held tokens metadata updated cache written back disk time failure 
+tokens released log recovery complete metadata modified failed node accessible nodes known consistent state 
+observation true cases gpfs uses centralized approach synchronizing metadata updates example file size updates collected 
+write operations causing updates synchronized distributed locking updates metadata disk protected distributed locking protocol case token 
+log recovery completes nodes acquire tokens held failed node take role 
+node sent metadata updates old time failure received updates committed disk re sends updates new 
+updates idempotent new simply re apply 
+token manager fail node take responsibility reconstruct token manager state querying surviving nodes tokens currently hold 
+new token manager know tokens held failed nodes new tokens log recovery complete 
+tokens currently held surviving nodes affected 
+similarly special functions carried failed node allocation manager assigned node rebuilds necessary state reading information disk querying nodes 
+communication failures detect node failures gpfs relies group services layer monitors nodes communication links periodic heartbeat messages implements process group membership protocol 
+node fails group services layer informs remaining nodes group membership change 
+triggers recovery actions described previous section 
+communication failure bad network adapter loose cable may cause node isolated failure switching fabric may cause network partition 
+partition indistinguishable failure unreachable nodes 
+nodes different partitions may access shared disks corrupt file system allowed continue operating independently 
+reason gpfs allows accessing file system group containing majority nodes cluster nodes minority group accessing gpfs disk re join majority group 
+unfortunately membership protocol guarantee long take node receive process failure notification 
+network partition occurs known nodes longer members majority notified accessing shared disks 
+starting log recovery majority group gpfs fences nodes longer members group accessing shared disks invokes primitives available disk subsystem accepting requests nodes 
+allow fault tolerant node configurations communication partition configuration resolved exclusively disk majority rule notification failure node node attempt fence disks node predetermined order 
+case network partition nodes successful continue accessing gpfs file systems 
+disk failures gpfs stripes data metadata disks belong file system loss single disk affect disproportionately large fraction files 
+typical gpfs configurations raid controllers able mask failure physical disk loss access path disk 
+large gpfs file systems striped multiple raid devices 
+configurations important match file system block size alignment raid stripes data block writes incur write penalty parity update 
+alternative supplement raid gpfs supports replication implemented file system 
+enabled gpfs allocates space copies data metadata block different disks writes locations 
+disk unavailable gpfs keeps track files updates block replica unavailable disk 
+disk available gpfs brings stale data disk date copying data replica 
+disk fails permanently gpfs allocate new replica affected blocks disks 
+replication enabled separately data metadata 
+cases part disk unreadable bad blocks metadata replication file system ensures data blocks affected rendering set files inaccessible 
+scalable online system utilities scalability important normal file system operations file system utilities 
+utilities manipulate significant fractions data metadata file system benefit parallelism parallel applications 
+example gpfs allows growing shrinking reorganizing file system adding deleting replacing disks existing file system 
+adding new disks gpfs allows rebalancing file system moving existing data new disks 
+remove replace disks file system gpfs move data metadata affected disks 
+operations require reading inodes indirect blocks find data moved 
+utilities need read inodes indirect blocks include quota check fsck 
+replication enabled group disks available gpfs perform metadata scan find files missing updates need applied disks 
+finishing operations reasonable amount time requires exploiting parallelism available system 
+gpfs nodes file system manager file system responsible coordinating administrative activity 
+file system manager hands small range inode numbers node cluster 
+node processes files assigned range sends message file system manager requesting 
+nodes different subsets files parallel files processed 
+process additional messages may exchanged nodes compile global file system state 
+running fsck example node collects block different section allocation map 
+allows detecting inter file inconsistencies single block assigned different files 
+maximum parallelism operations take significant amount time large file system 
+example complete rebalancing multi terabyte file system may take hours 
+unacceptable file system unavailable long time gpfs allows file system utilities run line file system mounted accessible applications 
+exception full file system check diagnostic purposes fsck requires file system 
+file system utilities normal distributed locking synchronize file activity 
+special synchronization diagnostic purposes verify file system consistency part normal mount 
+required reorganizing higher level metadata allocation maps inode file 
+example necessary move block inodes disk node doing acquires special range lock inode file efficient disruptive acquiring individual locks inodes block 
+experiences gpfs installed customer sites clusters ranging nodes terabyte disk node asci white system terabytes disk space file systems 
+learned affected design gpfs evolved 
+lessons sufficient interest warrant relating 
+experiences pointed importance intra node inter node parallelism properly balancing load nodes cluster 
+initial design system management commands assumed distributing starting thread node cluster sufficient exploit available disk bandwidth 
+rebalancing file system example strategy handing ranges inodes thread node described section able generate requests keep disks busy 
+greatly underestimated amount skew strategy encounter 
+frequently node handed inode range containing significantly files larger files ranges 
+long nodes finished node running single threaded issuing time 
+obvious lesson granules handed sufficiently small approximately equal size ranges blocks file entire files 
+lesson obvious large cluster intra node parallelism efficient road performance inter node parallelism 
+modern systems high degree smps high bandwidth relatively nodes saturate disk system exploiting available bandwidth running multiple threads node example greatly reduces effect workload skew 
+important lesson small amount cpu consumed gpfs centralized sixteen nodes drive entire gb bandwidth asci white 
+management functions token manager normally affect application performance significant impact highly parallel applications 
+applications run phases barrier synchronization points 
+described section centralized services provided file system manager dynamically chosen nodes cluster 
+node runs part parallel application management overhead cause take longer reach barrier leaving nodes idle 
+overhead slows application percent idle time incurred nodes equivalent leaving nodes unused node asci white system 
+avoid problem gpfs allows restricting management functions designated set administrative nodes 
+large cluster dedicate administrative nodes avoid running load sensitive parallel applications increase available computing resource 
+early versions gpfs serious performance problems programs ls incremental backup call stat file directory 
+stat call reads file inode requires read token 
+node holds token releasing may require dirty data written back node obtaining token expensive 
+solved problem exploiting parallelism 
+gpfs detects multiple accesses inodes directory uses multiple threads prefetch inodes files directory 
+inode prefetch speeds directory scans factor 
+lesson learned large systems rarest failures data loss raid occur 
+particularly large gpfs system experienced microcode failure raid controller caused intermittent problem replacement disk 
+failure rendered sectors allocation map unusable 
+unfortunately attempt allocate sectors generated error caused file system take line 
+running log recovery repeated attempt write sector error 
+luckily user data lost customer free space file systems allow broken tb file system mounted readonly copied 
+large file systems gpfs metadata replication addition raid provide extra measure security dual failures 
+insidious rare random failures systematic ones 
+customer unfortunate receive disk drives bad batch unexpectedly high failure rate 
+customer wanted replace bad drives system 
+think done successively replacing drive letting raid rebuild greatly increased possibility dual failure second drive failure rebuilding raid parity group consequent catastrophic loss file system 
+customer chose solution delete small number disks raid parity groups file system gpfs data deleted disks remaining disks 
+new disks parity groups created new drives added back file system rebalancing 
+tedious process repeated disks replaced file system compromising reliability 
+lessons include assuming independent failures system design importance online system management parallel rebalancing 
+related class file systems extends traditional file server architecture storage area network san environment allowing file server clients access data directly disk san 
+examples san file systems ibm tivoli veritas direct 
+file systems provide efficient data access large files gpfs metadata updates handled centralized metadata server type architecture inherently scalable 
+san file systems typically support concurrent write sharing sacrifice posix semantics 
+example allows multiple clients read write file san provides consistent view data explicit locking calls added application program 
+sgi xfs file system designed similar large scale high throughput applications gpfs excels 
+stores file data large variable length extents relies underlying logical volume manager stripe data multiple disks 
+gpfs xfs cluster file system runs large smps 
+cluster version xfs allows multiple nodes access data shared disks xfs file system 
+nodes handles metadata updates san file systems mentioned 
+frangipani shared disk cluster file system similar principle gpfs 
+symmetric architecture uses similar logging locking recovery algorithms write ahead logging separate logs node stored shared disk 
+gpfs uses token distributed lock manager 
+frangipani file system resides single large byte virtual disk provided petal redirects requests set petal servers handles physical storage allocation striping 
+layered architecture simplifies metadata management file system extent 
+granularity disk space allocation kb petal large virtual address space small simply reserve fixed contiguous virtual disk area tb file frangipani file system 
+frangipani needs allocation maps manage virtual disk space provided petal 
+gpfs frangipani mainly targeted environments program development engineering workloads 
+implements file locking allow concurrent writes file multiple nodes 
+example shared disk cluster file system global file system gfs originated open source file system linux 
+newest version gfs implements journaling uses logging locking recovery algorithms similar gpfs frangipani 
+locking gfs closely tied physical storage 
+earlier versions gfs required locking implemented disk device extensions scsi protocol 
+newer versions allow external distributed lock manager lock individual disk blocks kb kb size 
+accessing large files gfs entails significantly locking overhead byte range locks gpfs 
+similar frangipani petal striping gfs handled network storage pool layer created stripe width changed possible add new sub pools striping confined sub pool gfs stripe sub pools 
+frangipani gfs geared applications little sharing 
+summary gpfs built ideas developed academic community years particularly distributed locking recovery technology 
+date matter conjecture ideas scale 
+opportunity test limits context product runs largest systems existence 
+question distributed locking scales particular lock contention access shared metadata bottleneck limits parallelism scalability 
+somewhat surprise distributed locking scales quite 
+significant changes conventional file system data structures locking algorithms yielded big gains performance parallel access single large file parallel access large numbers small files 
+describe number techniques distributed locking large cluster byte range token optimizations dynamic selection meta nodes managing file metadata segmented allocation maps allocation hints 
+similarly question conventional availability technology scales 
+obviously components fail large system 
+compounding problem large clusters expensive owners demand high availability 
+add fact file systems tens terabytes simply large back restore 
+basic technology sound 
+surprises came measures necessary provide data integrity availability 
+gpfs replication implemented time raid expensive replicated conventional disk 
+raid taken price come high level integrity sufficient guard loss terabyte file system 
+existing gpfs installations show design able scale largest super computers world provide necessary fault tolerance system management functions manage large systems 
+expect continued evolution technology demand scalability 
+interest linux clusters inexpensive pc nodes drives number components 
+price storage decreased point customers seriously interested file systems 
+trend file system scalability area interest research continue foreseeable 
+large number people ibm locations contributed design implementation gpfs years 
+space allow naming people significantly contributed reported jim wyllie dan tom marc carol hartman mike roberts wayne dave craft brian dixon eugene johnson scott porter bob curran radha lyle mike dave shapiro yu wang irit loy benny mandler john itai shmueli roman zvi 
+roger tiger shark scalable file system multimedia ibm journal research development volume number march pp 
+
+mohan recovery coherency control protocols fast page transfer fine granularity locking shared disks transaction environment 
+vldb 
+ibm builds world fastest supercomputer simulate nuclear testing energy department 
+ibm press release june 
+www ibm com servers news jun asci white html asci white 
+www rs ibm com hardware largescale supercomputers asci white 
+www llnl gov asci platforms white home ronald fagin rg nievergelt nicholas pippenger raymond strong extendible hashing fast access method dynamic files acm transactions database systems new york ny volume number pages 
+frank schmuck james christopher wyllie thomas 
+parallel file system method extensible hashing 
+patent 
+gray notes database operating systems operating systems advanced course edited bayer springer verlag berlin germany pages 
+murthy distributed token management file system proceedings ieee symposium parallel distributed processing new york 
+benchmark 
+available ftp samba org pub benchmark 
+com benchmarks asp group services programming guide rs cluster technology document number sa second edition april international business machines south road ny usa 
+available www rs ibm com resource aix resource sp books index html ibm general parallel file system aix administration programming 
+document number sa second edition december international business machines south road ny usa 
+available www rs ibm com resource aix resource sp books gpfs index html charlotte brooks ron udo rauch daniel thompson 
+practical guide tivoli 
+ibm sg june available www ibm com veritas direct file access 
+whitepaper august 
+veritas software corporate headquarters plymouth street mountain view ca 
+sweeney hu anderson peck 
+scalability xfs file system proceedings usenix technical conference pages san diego ca usa 
+sgi clustered file system datasheet silicon graphics 
+mountain view ca 
+thekkath timothy mann edward lee 
+frangipani scalable distributed file system 
+proceedings symposium operating systems principles pages 
+edward lee thekkath 
+petal distributed virtual disks proceedings seventh international conference architectural support programming languages operating systems cambridge ma pages 
+kenneth andrew barry jonathan russell adam nygaard seth van david mike matthew keefe erickson agarwal 
+implementing journaling linux shared disk file system 
+seventeenth ieee symposium mass storage systems march pages 
+kenneth andrew barry jonathan erickson nygaard christopher steven david matthew keefe 
+bit shared disk file system linux 
+sixteenth ieee mass storage systems symposium march san diego california pages 

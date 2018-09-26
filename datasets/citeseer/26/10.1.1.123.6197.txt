@@ -1,0 +1,545 @@
+system support bandwidth management content adaptation internet applications david andersen deepak bansal dorothy curtis srinivasan seshan lambda hari balakrishnan laboratory computer science cambridge ma bansal srini lcs mit edu describes implementation evaluation operating system module congestion manager cm provides integrated network flow management exports convenient programming interface allows applications notified adapt changing network conditions 
+describe api applications interface cm architectural considerations factored design 
+evaluate architecture api describe implementations tcp streaming layered audio video application interactive audio application cm show achieve adaptive behavior incurring system overhead 
+flows including tcp benefit sharing congestion information applications able incorporate new functionality congestion control adaptive behavior 
+impressive scalability internet infrastructure large part due design philosophy advocates simple architecture core network intelligence state management implemented systems :10.1.1.160.7901
+service model provided network substrate primarily best effort implies packets may lost reordered duplicated delays may variable 
+congestion accompanying packet loss common heterogeneous networks internet overload demand router resources bandwidth buffer space exceeds available 
+systems internet incorporate mechanisms detecting reacting network congestion probing spare capacity network uncongested managing available bandwidth effectively 
+previous demonstrated result uncontrolled congestion phenomenon commonly lambda carnegie mellon university pittsburgh pa srini seshan org called congestion collapse :10.1.1.117.6702:10.1.1.112.5121
+congestion collapse largely alleviated today popular toend transmission control protocol tcp incorporates sound congestion avoidance control algorithms 
+tcp implement congestion control applications including web logically different streams parallel resulting multiple concurrent tcp connections pair hosts :10.1.1.53.1241
+researchers shown concurrent connections compete learn network conditions receiver unfair applications fewer connections :10.1.1.17.3677
+ability share congestion information concurrent flows useful feature promotes cooperation different flows adverse competition 
+today internet increasing number applications tcp underlying transport constraining reliability ordering semantics imposed order byte stream abstraction 
+streaming audio video customized image transport protocols significant examples :10.1.1.154.9133:10.1.1.33.2192
+applications custom protocols run user datagram protocol udp implementing form congestion control 
+unchecked proliferation applications significant adverse effect stability network :10.1.1.17.3677:10.1.1.112.5121
+internet applications deliver documents images stream audio video users interactive nature 
+simple useful interactive content delivery download latency users typically wait seconds aborting transfer observe progress 
+beneficial content providers adapt disseminate state network exceed threshold latency 
+fortunately content adaptation possible applications 
+streaming audio video applications typically encode information range formats corresponding different encoding transmission rates degrees loss resiliency 
+image encoding formats accommodate range qualities suit variety client requirements 
+today implementor internet content dissemination application challenging task application safe widespread internet deployment tcp suffer consequences fully reliable byte stream abstraction application specific protocol udp 
+option re implement congestion control mechanisms risking errors just implementation protocol implementation congestion controller 
+furthermore alternative allows sharing congestion information flows 
+common application programming interface api classes network applications berkeley sockets streams expose information state network applications standard way 
+difficult applications running existing host operating systems informed decision network variables account content adaptation 
+congestion manager previous provided rationale initial design simulation congestion manager endsystem architecture sharing congestion information multiple concurrent flows :10.1.1.17.3677
+describe implementation evaluation cm linux operating system 
+focus version cm changes current ip stack data sender feedback congestion successful data receptions provided receiver cm applications sending peers communicate information cm api 
+summary api applications adapt transmissions changing network conditions focus elements api changed transition simulation implementation 
+evaluate congestion manager posing answering key questions callback interface inform applications network state events effective diverse set applications adapt placing significant burden developers 
+robust congestion control algorithms rely receiver feedback natural expect cm receiver needed inform cm sender successful transmissions packet losses 
+facilitate deployment designed system take advantage fact protocols including tcp applications incorporate form application specific feedback providing utilities netstat provide information devices performance information adapting content 
+cm loss timing information needs function effectively 
+cm api implement case studies kernel showing applicability api different application architectures 
+implementation layered streaming audio video application demonstrates cm architecture implement highly adaptive congestion controlled applications 
+adaptation cm helps applications achieve better performance fair flows internet 
+modified legacy application internet audio tool vat mash toolkit cm perform adaptive real time delivery 
+lines source code modification required cm enable complex application adapt network conditions believe demonstrates ease cm applications adaptive 
+congestion control correct 
+trusted kernel module cm frees transport protocols applications burden implementing congestion management 
+show cm behaves network friendly manner tcp single flows 
+furthermore integrating flow information kernel protocols user applications ensure ensemble concurrent flows overly aggressive user network 
+today shelf operating systems cm place performance limitations applications 
+find implementation tcp uses cm congestion control essentially performance standard tcp added benefits integrated congestion management flows small cpu overhead 
+cm system changes receiver protocol stack udp applications implement congestion feedback mechanism resulting overhead compared tcp applications 
+show applications remain viable architectural change api calls reduce worst case throughput applications desire fine grained information network packet basis 
+knowledge implementation general application independent system combines integrated flow management convenient api enable content adaptation 
+result applications achieve desirable congestion control properties long running tcp connections flexibility adapt data transmissions prevailing network conditions 
+rest organized follows 
+section describes system architecture implementation 
+section describes network adaptive applications engineered cm section presents results experiments 
+section discuss miscellaneous details open issues cm architecture 
+survey related section conclude summary section 
+system architecture implementation cm performs important functions 
+enables efficient multiplexing congestion control integrating congestion management multiple flows 
+second enables efficient application adaptation congestion exposing knowledge network conditions applications 
+cm functionality linux implementation kernel choice convenient integrate congestion management tcp flows user level protocols tcp implemented kernel 
+perform efficient aggregation congestion information concurrent flows cm identify flows potentially share common bottleneck link en route various receivers 
+general difficult problem requires understanding paths taken different flows 
+today internet flows destined host take path common case group flows default granularity flow aggregation 
+call group group flows share congestion state control algorithms state information cm 
+flow sending application responsible transmissions call cm client 
+cm clients kernel protocols tcp user space applications 
+cm incorporates congestion controller performs congestion avoidance control basis 
+uses window algorithm mimics tcp additive increase multiplicative decrease aimd scheme ensure fairness tcp flows internet 
+modularity provided cm encourages experimentation schemes may better suited specific data types audio video 
+congestion controller determines current window rate ought scheduler decides constituent flows 
+currently implementation uses standard unweighted round robin scheduler 
+kernel cm clients tcp sender cm function calls transmit data learn network conditions events 
+contrast user space clients interact cm portable api described section 
+cm library responsible interfacing kernel clients described section 
+components shown strictly true presence network layer differentiated services 
+address issue section section 
+cm tcp tcp tcp udp udp ip network web video rtp callbacks application notification page 
+architecture congestion manager data sender showing cm library cm 
+dotted arrows show callbacks solid lines show datapath 
+udp cc congestion controlled udp socket implemented cm 
+
+client opens cm enabled socket cm allocates flow assigns flow appropriate destination 
+client initiates data transmission requesting permission send data 
+point depending available rate cm issues callback permitting client send data 
+client transmits data tells cm done 
+client receives feedback receiver past transmissions notifies cm continues 
+client request send flow scheduler checks corresponding window open 
+request granted client notified may send data 
+data transmitted sender ip layer notifies cm allowing charge transmission appropriate 
+client receives feedback remote counterpart informs cm loss rate number bytes transmitted correctly observed round trip time 
+successful transmission cm opens window congestion management algorithm pending request flow associated 
+scheduler timer driven component perform background tasks error handling 
+cm api cm api specified set functions callbacks client uses interface cm 
+specifies functions managing state performing data transmissions applications inform cm losses querying cm network state constructing splitting default destination aggregation unsuitable application 
+cm api discussed detail presents design rationale congestion manager :10.1.1.17.3677
+provide overview api discussion features changed transition simulation implementation 
+state management cm applications call cm open cm passing source destination addresses transport layer port numbers form struct 
+original cm api required destination address source address specification handle hosts 
+cm open returns flow identifier cm handle cm calls 
+applications may call cm mtu cm obtain maximum transmission unit destination 
+flow terminates application call cm close cm 
+data transmission ways application cm transmit data 
+allow variety adaptation strategies depending nature client application software structure 
+buffered send 
+api uses conventional write sendto call resulting data transmission paced congestion manager 
+implement generic udp socket content adaptation useful bulk transmissions require tcp style reliability fine grained control data gets sent point time 
+ii request callback 
+preferred mode communication adaptive senders alf application level framing principle 
+client send data cm calls cm request cm expects notification send cm callback request granted cm time client transmits data 
+approach puts sender firm control deciding transmit time allows sender adapt sudden changes network performance hard conventional buffered transmission api 
+client callback flow send mtu bytes data 
+call cm request implicit request sending mtu bytes simplifies internal implementation cm 
+api ideally suited implementation tcp needs decision stage retransmit segment send new 
+implementation send callback provides client id flow may transmit 
+allow client programming flexibility client may specify callback function cm register send 
+iii rate callback 
+self timed application transmitting fixed schedule may receive callbacks cm notifying parameters communication channel changed change frequency timer loop packet size 
+cm informs client rate round trip time packet loss rate flow update callback 
+implementation added registration function cm register update select rate callback function cm thresh function rate reduces factor increases factor cm calls update 
+transmission api ideally suited streaming layered audio video applications 
+application notifications goals investigate cm implementation requires changes receiver 
+performing congestion management requires feedback transmissions tcp provides feedback automatically udp applications may need modified systemwide changes 
+senders inform cm number sent received packets type congestion loss round trip time sample cm update cm rtt function 
+cm distinguishes persistent congestion occur tcp timeout versus transient congestion packet window lost 
+allows congestion notified explicit congestion notification ecn uses packet markings drops infer congestion :10.1.1.4.2118:10.1.1.4.2118
+perform accurate bookkeeping congestion window outstanding bytes cm needs know successful transmission host 
+clients reporting information modify ip output routine call cm notify cm transmission 
+ip layer obtains cm welldefined cm interface takes flow parameters addresses ports protocol field arguments 
+client decides transmit data send callback invocation expected call cm notify dst allow cm permit flows transmit data 
+querying client wishes learn flow available bandwidth round trip time cm query call returns quantities 
+especially useful stream clients informed decision data encoding transmit large color smaller greyscale image 
+cm library cm library provides users convenience callback api separating details kernel user callbacks implemented 
+direct function callbacks convenient efficient address space case kernel tcp client cm callbacks kernel user code conventional operating systems difficult 
+key decision implementation choosing kernel user interface maximizes portability minimizes performance overhead difficulty integration existing applications 
+resulting internal interface kernel 
+select single application cm control socket 
+write bit indicates flow may send data exception bit indicates network conditions changed 
+
+perform ioctl extract list flow ids may send receive current network conditions flow 
+note client programs cm see interface see standard cm functions provided 
+sockets signals change way application event handling loop interacts passing socket library performs appropriate calls back application 
+implementation alternatives considered number mechanisms implement 
+section discuss reasons choosing control socket select ioctl approach 
+research focused reducing cost crossing user kernel boundary extensible kernels spin fast generic ipc mach conventional operating systems remain limited primitive methods kernel user notification advantages disadvantages :10.1.1.53.1241:10.1.1.117.6702
+functionality mach port set ipc ideal purposes pragmatically considered common mechanisms kernel user communication signals system calls semaphores sockets 
+discussion merits follows 
+signals immediate drawbacks 
+cm appropriate existing signal conflict application signal 
+avoiding conflict require standardization new signal type process slow questionable value existence better alternatives 
+second cost application receive signal relatively high legacy applications may signal safe 
+new posix soft realtime signals allow delivering bit quantity signal applications need follow signal system call obtain information kernel wished deliver multiple flows may ready 
+reasons consider signals wrong course implementing kernel user callbacks 
+provide option processes receive control socket status changes akin posix asynchronous system calls block integrate applications event loop polling applications wait results multiple system calls 
+system call able return immediately data user needs impediments poses application integration large 
+system calls threaded environment presupposes threading support select mechanism describe threaded system major additional overhead 
+semaphores suffer immediate drawback commonly network applications 
+application uses array semaphores event loop cm semaphore best implementation avenue reasons chose sockets applications 
+network applications socket sets semaphore sets sockets benefits discuss 
+sockets provide defined flexible interface applications form select system call downside similar signals application wishing receive notification socket non blocking manner select socket perform system call obtain data socket 
+select interface meshes network applications select loop architecture 
+utilizing control socket helps restrict code changes caused cm networking stack 
+decided single control socket control socket flow avoid unnecessary overhead applications large numbers open socket descriptors select web servers caches 
+aspects select scale linearly number descriptors operating systems limits number open descriptors deemed doubling socket load highperformance network applications bad idea 
+extracting data socket select provides notification event occured 
+theory different events sent abusing read write exception bits applications need extract information 
+cm provides types callbacks 
+generally speaking permission send callback particular flow 
+maintain distribution bandwidth flows loose ordering preserved messages exact ordering unimportant provided flows ignored application receives updates starving flows 
+multiple permission notifications occur application receive send data available flows 
+second callback status changed notification 
+multiple status changes occur application obtains data kernel current status matters 
+weak ordering lack history prompted choose ioctl query read message queue interface minimizing state maintained kernel 
+status updates simply return current cm maintained network state estimate send queries perform operation flows maintained kernel requiring extra state potentially expensive process message queue data stream 
+returning available flows added benefit reducing number system calls flows ready simultaneously 
+engineering network adaptive applications section describe different classes applications describe ways applications cm 
+explore kernel clients user space data server programs examine task integrating cm 
+software architecture issues typical network applications fall categories ffl data driven applications transmit prespecified data single file exit 
+ffl synchronous event driven self timed data delivery servers streaming audio servers 
+ffl asynchronous event driven file servers ftp network clocked applications 
+cm library provides options adaptive applications wish services 
+data driven applications may buffered api efficiently pace data transmissions 
+
+application may operate entirely callback manner allowing provide event loop calling application flows ready 
+useful applications coded cm mind 
+
+signal driven applications may request notification cm event occurs 
+
+applications select event loops simply add cm control socket select set call dispatcher socket ready 
+rate clocked applications applications perform similar nonblocking select test descriptor awaken send data sleep replace sleep timed blocking select call 
+
+applications may poll cm schedule 
+remainder section describes particular clients different cm apis vat audio application kernel tcp implementation 
+note udp clients implement application level data order cm 
+tcp implemented tcp kernel cm client 
+tcp cm congestion control cm retaining tcp functionality connection establishment termination loss recovery protocol state handling 
+tcp uses request callback api low overhead direct function calls protection domain 
+gives tcp tight control needs packet scheduling 
+example arrival new typically causes tcp transmit new data arrival duplicate acks causes tcp retransmit old packet 
+connection creation 
+tcp creates new connection accept inbound connect outbound calls cm open associate tcp connection cm flow 
+pacing outgoing data connection controlled cm 
+application data available performing non congestion related checks nagle algorithm data queued cm request called flow 
+cm scheduler schedules flow transmission send routine tcp called 
+send tcp transmits retransmission retransmission queue 
+transmits data transmit socket buffer sending maximum segment size data call 
+ip output routine calls cm notify data sent 
+tcp input 
+tcp input routines feedback cm 
+round trip time rtt sample collection done usual rfc timestamps karn algorithm passed cm cm update :10.1.1.130.1539
+smoothed estimates rtt srtt round trip time deviation calculated cm obtain better average combining samples different connections receiver 
+available tcp connection cm query useful loss recovery 
+data 
+arrival ack new data tcp sender calls cm update inform cm successful transmission 
+duplicate cause tcp check dupack count dup acks 
+dup acks tcp 
+dup acks tcp assumes simple congestion caused packet loss calls cm update inform cm 
+tcp enqueues retransmission lost segment calls cm request 
+dup acks tcp assumes segment reached receiver caused ack sent 
+calls cm update 
+duplicate acks expiration tcp retransmission timer notifies sender serious batch losses calls cm update cm lost feedback option set signify occurrence persistent congestion cm 
+tcp enqueues retransmission lost segment calls cm request 
+tcp cm implementation 
+integration tcp cm required lines changes existing tcp code demonstrating flexibility cm api low programmer overhead implementing complex protocol congestion manager 
+congestion controlled udp sockets cm provides congestion controlled udp sockets 
+provide functionality standard berkeley udp sockets immediately sending data kernel packet queue lower layers transmission buffered socket implementation schedules packet output cm callbacks 
+cm udp socket created bound particular flow 
+data enters packet queue kernel calls cm request flow associated socket 
+cm schedules flow transmission calls udp cm udp module 
+function transmits mtu packet queue requests callback packets remain 
+kernel implementation cm udp api adds data copies queue structures supports standard udp options 
+modifying existing applications api requires providing feedback cm setting socket option socket 
+typical client cm udp sockets behave follows usual network socket initialization flow cm open dst port flow cm buf loop send data flow 
+receive data 
+cm update flow sent received 
+streaming layered audio video streaming layered audio video applications number discrete rates transmit data served cm rate callbacks 
+requiring comparatively expensive notification transmission applications notified rare event network conditions change significantly 
+layered applications open usual udp socket call cm open obtain control socket 
+operate clocked event loop listening status changes control socket signal 
+cm thresh inform cm network changes receive callbacks 
+real time adaptive applications applications desire minute control data transmission want buffering inside kernel request callback api provided cm 
+permission transmit send callback cm may cm query discover current network conditions adapt content 
+servers may simply wish send upto date content possible defer data collection know send 
+rough sequence cm calls achieve application flow cm open dst cm request flow receive send callback 
+cm query flow 
+send data 
+receive data acks 
+cm update flow sent lost 
+options exist applications wish exploit unique nature network utilization reduce overhead services congestion manager 
+discuss option manner adapted vat interactive audio application cm 
+audio lost app 
+buffer rate network 
+adaptive vat architecture interactive real time audio vat application provides constant bit rate source interactive audio 
+inability audio reduces avenues available bandwidth adaptation 
+best way vat behave network friendly backwards compatible manner preemptively drop packets match available network bandwidth 
+course complications 
+network applications experience types variation available network bandwidth long term variations due changes actual bandwidth short term variations due probing mechanisms congestion control algorithm 
+short term variation typically dealt buffering 
+unfortunately buffering especially fifo buffering drop tail behavior de facto standard kernel buffers network router buffers result long delay significant delay variation detrimental vat audio quality 
+vat needs act alf application managing buffer space drop head behavior queue full 
+resulting architecture detailed 
+input audio stream sent provides long term adaptation preemptive packet dropping 
+outputs application level buffer configured various sizes drop policies 
+buffer feeds kernel buffer demand packets available transmission 
+evaluation section describes experiments quantify costs benefits cm implementation 
+experiments show congestion manager kernel minimal costs worstcase overhead request callback user space api acceptably small 
+tests performed utah network testbed mhz intel pentium iii processors mb pc ecc sdram intel pro ethernet cards connected mbps throughput kbytes packet loss rate tcp linux 
+comparing throughput vs loss tcp cm tcp linux 
+rates mbps link ms rtt 
+ethernet intel express switch dummynet channel simulation 
+cm tests run linux linux freebsd clients 
+ensure proper behavior flow congestion control algorithm behave manner :10.1.1.117.6702
+cm implements window aimd algorithm slow start 
+shares bandwidth eligible flows roundrobin manner equal weights flows 
+shows throughput achieved linux tcp implementation tcp linux tcp congestion control performed cm tcp cm 
+linux kernel compare algorithmic differences congestion manager starts initial window packets assumes ack full mtu 
+congestion manager performs byte counting aimd algorithm 
+issue linux specific feature cm 
+kernel overhead measure kernel overhead measured cpu throughput differences optimized tcp linux tcp cm 
+midrange machines test environment sufficiently powerful saturate mbps ethernet tcp traffic 
+components overhead imposed congestion manager cost performing accounting data exchanged connection time connection setup cost creating cm data structures 
+microbenchmark connection establishment time tcp cm vs tcp linux indicates appreciable difference connection setup times 
+long megabytes gigabytes connections ttcp utility determine long term costs throughput kbytes second buffers transmitted congestion linux tcp 
+mbps tcp throughput comparison 
+note absolute difference worst case congestion manager native tcp axis begins megabytes second 
+imposed congestion manager 
+impact cm extremely long term throughput negligible gigabyte transfer congestion manager achieved identical performance mbps native linux 
+shorter runs throughput cm diverged slightly linux 
+throughput rates shown 
+difference due cm initial window mtu linux mtu cpu overhead 
+implementations able saturate network connection looked cpu utilization transmissions determine steady state overhead imposed congestion manager 
+see cpu difference tcp linux tcp cm converges slightly 
+user space api overhead overhead incurred adaptation api occurs primarily applications process acks user space kernel 
+programs incur extra data copies user kernel boundary crossings 
+quantify overhead test programs sent packets specified sizes udp socket waited packets server 
+compare programs tcp client data server performed select socket determine server sent data back 
+facilitate comparison disabled delayed acks tcp test ensure packet counts identical 
+shows wall clock time required send process packet transmitting packets 
+comparison cpu utilization buffers transmitted congestion linux tcp 
+cpu overhead comparison tcp linux tcp cm 
+long connections cpu overhead converges slightly unoptimized implementation cm 
+alf cm notify ioctl alf cm request ioctl extra socket buffered recv gettimeofday tcp cm baseline table 
+cumulative sources overhead different apis congestion manager relative sending data tcp 
+clude tcp statistics tcp programs set maximum segment size achieve identical network performance 
+variant tcp delayed acks 
+tests run mbps network losses occured 
+table breaks sources overhead different apis 
+cm udp requires applications compute round trip time rtt packets requiring system call gettimeofday requires process acks user space requiring system call recv accompanying data copy address space 
+alf api requires application obtain additional control socket select explicit call cm request transmitting data 
+kernel unable determine flow charge transmission unconnected udp socket application explicitly call cm notify test cases represent worst case behavior serving single high bandwidth client aggregation requests cm may occur 
+cm programs achieve similar reductions processing time delayed acks real api overhead determined comparing alf case tcp cm case 
+byte packets microseconds packet packet size bytes alf cm tcp linux 
+api throughput comparison mbps link 
+worst case throughput reduction incurred cm tcp cm alf 
+alf results reduction throughput relative tcp delayed acks 
+benefits sharing benefit integrating congestion information cm immediately clear 
+client sequentially fetches files webserver new tcp connection time loses prior congestion information concurrent connections cm server able information start subsequent connections accurate congestion windows 
+shows test performed vbns mit university utah unmodified non cm client performed retrievals file ms delay retrievals resulting improvement transfer time requests 
+file sizes delays yield similar results long overlap 
+benefits comparatively greater smaller files 
+cm requires additional rtt ms transfer linux sets initial congestion window mtus 
+pattern multiple connections quite common despite adoption persistent connections browsers open concurrent connections server client server combinations support persistent connections 
+persistent connections provide similar performance benefits suffer drawbacks discuss section 
+adaptive applications section demonstrate network adaptive behaviors enabled cm 
+complete request client request tcp linux 
+sharing tcp state client requests file times ms delay request 
+sharing congestion information avoiding slow start cm enabled server able provide faster service subsequent requests despite smaller initial congestion window 
+noted earlier applications require tight control data scheduling request callback alf api notified cm soon transmit data 
+behavior adaptive layering application run vbns api shown 
+application chooses layer transmit current rate sends packets rapidly possible allow client buffer data 
+see cm able provide sufficient information application allow adapt properly network conditions 
+self clocked applications base transmitted data bandwidth client conventional layered audio servers cm rate callback mechanism provides low overhead mechanism adaptation allows clients specify notification callbacks 
+shows application adaptation rate callbacks connection mit university utah 
+application decides layers send notifications cm rate changes 
+figures see increased oscillation rate transmitted layer alf application responsive smaller changes available bandwidth rate callback application relies occasionally short term kernel buffering smoothing 
+overhead vs functionality trade decision api higher overhead alf api applications face important decision behavior desire 
+applications may concerned overhead receiver feedback 
+mitigate application may delay sending feedback see minor inflexible way tcp delayed acks 
+rate kbps time sec rate callback application cm transmission reported cm 
+bandwidth perceived adaptive layered application request callback alf api 
+rate kbps time sec rate callback application cm transmission reported cm 
+bandwidth perceived adaptive layered application rate callback api 
+see delaying feedback cm causes burstiness reported bandwidth 
+feedback receiver delayed min acks ms 
+initial slow start delayed waiting application update causes large rate change 
+pipe sufficiently full acks come relatively rapidly normal bursty non timeout behavior resumes 
+discussion shown benefits integrated flow management adaptation api explored design features api easy 
+section describes optimization useful busy servers discusses drawbacks limitations current cm architecture 
+rate kbps time sec rate callback app cm delayed feedbacks min packets transmission reported cm 
+adaptive layered application rate callback api delayed feedback optimizations 
+servers large numbers concurrent clients sensitive overhead caused multiple kernel boundary crossings 
+reduce overhead batch sockets cm request call cm bulk request call likewise query notify update calls 
+multiplexing control information sockets cm call overhead kernel crossings mitigated expense managing complicated data structures cm interface 
+bulk querying performed multiple flows ready single ioctl determine flows send data completes interface 
+trust issues 
+goal architecture require modifications receivers devised system applications provide feedback cm update call 
+consequence potential misuse due bugs 
+example cm client repeatedly cm absence congestion path obtain higher bandwidth 
+increase vulnerability internet problems abuse trivial 
+important situations users machine potentially interfere 
+prevent congestion manager need ensure kernel mediated tcp flows belonging different users belong 
+current implementation attempt provide protection 
+savage presents methods malicious receiver defeat congestion control 
+solutions proposes easily cm implemented prevent ack division 
+construction 
+differentiated services system provides different service flows pair hosts start deployed cm reconsider default choice 
+expect able gain benefit including ip differentiated services field deciding composition 
+observe remote lans bottleneck outside communicator 
+suggested aggregating congestion information remote sites shared bottleneck sharing information local peers may benefit users network 
+may extended cover multiple destination hosts shared bottleneck link 
+efficiently determining bottlenecks remains open research problem 
+limitations 
+current cm architecture designed handle unicast flows 
+problem congestion control multicast flows difficult problem deliberately avoid 
+udp applications cm required perform loss detection requiring potential additional application complexity 
+implementing congestion manager protocol discussed eliminate need remains studied :10.1.1.17.3677
+related designing adaptive network applications active area research past years 
+clark tennenhouse advocated application level framing alf designing network protocols protocol data units chosen concert application 
+approach application greater influence deciding loss recovery occurs traditional layered approach 
+alf philosophy great benefit design multicast transport protocols including real time transport protocol rtp frameworks reliable multicast internet video :10.1.1.165.7150:10.1.1.154.9133:10.1.1.121.1027
+adaptation apis context mobile information access explored odyssey system :10.1.1.121.328
+implemented user level module netbsd operating system odyssey provides api calls applications manage system resources upcalls applications informing changes occur resources available 
+contrast cm system implemented kernel manage share resources applications tcp kernel 
+necessitates different approach handling application callbacks 
+addition cm approach measuring bandwidth network conditions tied congestion avoidance control algorithms compared instrumentation user level rpc mechanism odyssey 
+believe approach providing adaptation information bandwidth round trip time loss rate complements odyssey management disk space cpu battery power 
+cm system uses application callbacks upcalls abstraction old idea operating systems 
+clark describes upcalls swift operating system motivation lower layer protocol stack synchronously invoking higher layer function protection boundary 
+mach system notion ports generic communication abstraction fast inter process communication ipc 
+posix specifies standard way passing soft real time signals send notification user level process restricts amount data communicated bit quantity 
+event delivery abstractions mobile computing explored monitored events tracked polling triggered events pc card insertion notified ipc 
+defines language level mechanism objects event registration delivery handling 
+system implemented mach ports ipc 
+approach select call control socket communicate information kernel user level 
+banga improve performance type event delivery improve performance :10.1.1.53.1241:10.1.1.17.3677
+microsoft implementation largely callback callbacks implemented conventional function calls user level library protection boundary application 
+main reason implement cm user level daemon tcp implemented kernel unix operating systems important share network information tcp flows 
+quality service qos interfaces explored operating systems including nemesis :10.1.1.28.6923
+exokernel approach spin nemesis enables applications perform processing possible applicationspecific policy supported set operating system abstractions different unix :10.1.1.130.1539:10.1.1.117.6702
+nemesis treats local network interface bandwidth resource managed take approach discovering performance different hosts enabling sharing common network paths 
+furthermore api exported nemesis useful applications resource reservations cm api provides information network conditions 
+web switches 
+provide traffic shaping qos application information provide integrated flow management feedback applications creating data 
+multiple concurrent streams cause problems tcp congestion control 
+ensemble flows probes aggressively bandwidth single flow 
+second experiencing congestion path subset connections usually reduce window 
+third flows share information 
+propose gen eral solution problems application specific solutions proposed literature 
+particular importance approaches multiplex logically distinct streams single tcp connection application level including persistent connection part session control protocol scp mux protocol :10.1.1.165.7150
+unfortunately solutions suffer important drawbacks 
+application specific require class applications web real time streams file transfers reimplement machinery 
+second cause undesirable coupling logically different streams packets belonging stream lost stream stall packets lost order linear delivery forced tcp 
+independent data units belonging different streams longer independently parallelism downloads lost 
+cm system enables applications obtain unprecedented degree control response different network conditions 
+incorporates robust congestion control algorithms freeing application having re implement 
+exposes rich api allows applications adapt transmissions fine grained level allows kernel applications integrate congestion information flows 
+evaluation cm implementation shows callback interface effective variety applications unduly burden programmer restrictive interfaces 
+performance standpoint cm imposes little overhead remains due unoptimized nature implementation 
+architecture programs implemented udp imposes additional overhead cost cm architectural conversion quite small 
+systems exist deliver content internet tcp home grown udp protocols 
+believe providing accessible robust framework congestion control adaptation congestion manager help improve implementation performance systems 
+congestion manager implementation linux available web page nms lcs mit 
+edu projects cm 
+raman alex snoeren helpful feedback suggestions flux research group university utah providing network testbed 
+shepherd peter druschel anonymous reviewers numerous helpful comments 
+supported darpa 
+mda nsf ibm intel ntt 
+badrinath welling event delivery abstraction mobile computing 
+tech 
+rep rutgers university 
+balakrishnan padmanabhan seshan stemm katz tcp behavior busy web server analysis improvements 
+proc 
+ieee infocom san francisco ca mar 
+balakrishnan rahul seshan integrated congestion management architecture internet hosts :10.1.1.17.3677
+proc 
+acm sigcomm sep 
+banga mogul druschel scalable explicit event delivery mechanism unix :10.1.1.53.1241:10.1.1.17.3677
+proc 
+usenix annual technical conference june 
+barrera fast mach network ipc implementation :10.1.1.53.1241
+proc 
+second usenix mach symposium nov pp 
+
+berners lee fielding frystyk hypertext transfer protocol :10.1.1.53.1241:10.1.1.117.6702
+internet engineering task force may 
+rfc 
+bershad savage pardyak sirer fiuczynski becker chambers eggers extensibility safety performance spin operating system :10.1.1.117.6702
+pp 
+
+braden clark crowcroft davie deering estrin floyd jacobson partridge peterson ramakrishnan shenker wroclawski zhang recommendations queue management congestion avoidance internet :10.1.1.117.6702
+internet engineering task force apr 
+rfc 
+clark structuring systems upcalls 
+proceedings th acm symposium operating systems principles sosp dec pp 
+
+clark design philosophy darpa internet protocols :10.1.1.160.7901
+proc 
+acm sigcomm aug 
+clark tennenhouse architectural consideration new generation protocols 
+proc 
+acm sigcomm september 
+supported nsf ani darpa afrl cisco 
+fielding gettys mogul frystyk berners lee hypertext transfer protocol 
+internet engineering task force jan 
+rfc 
+floyd fall promoting endto congestion control internet 
+ieee acm trans 
+networking aug 
+floyd jacobson mccanne liu zhang reliable multicast framework light weight sessions application level framing 
+proc 
+acm sigcomm sept 
+gettys mux protocol specification wd mux 
+www org pub www protocols mux wd mux html 
+leslie mcauley black roscoe barham :10.1.1.28.6923
+design implementation operating system support distributed multimedia applications 
+ieee journal selected areas communications september 
+institute electrical electronics engineers ieee standard information technology portable operating system interface posix part system application programming interface api amendment realtime extension language 
+std 
+jacobson congestion avoidance control 
+proc 
+acm sigcomm aug 
+jacobson braden borman tcp extensions high performance :10.1.1.130.1539
+internet engineering task force may 
+rfc 
+kaashoek engler ganger brice hunt mazi eres grimm jannotti mackenzie application performance flexibility exokernel systems :10.1.1.130.1539
+proceedings th acm symposium operating systems principles sosp saint mal france october pp 
+
+karn partridge improving round trip time estimates reliable transport protocols 
+acm transactions computer systems nov 
+lepreau andersen large scale network testbed 
+unpublished sigcomm works progress 
+www cs utah edu flux testbed sept 
+mash project home page 
+www mash cs 
+berkeley edu mash 
+mccanne jacobson vetterli receiver driven layered multicast 
+proc acm sigcomm aug 
+microsoft windows media player 
+www 
+microsoft com windows 
+noble satyanarayanan narayanan flinn walker agile application aware adaptation mobility :10.1.1.121.328
+proc 
+th acm symposium operating systems principles oct 
+padmanabhan addressing challenges web data transport 
+phd thesis univ california berkeley sep 
+padmanabhan mogul improving latency 
+proc 
+second international www conference oct 
+postel user datagram protocol 
+internet engineering task force august 
+rfc 
+postel transmission control protocol 
+internet engineering task force september 
+rfc 
+quinn windows sockets network programming 
+addison wesley jan 
+ramakrishnan floyd proposal add explicit congestion notification ecn ip :10.1.1.4.2118
+internet engineering task force jan 
+rfc 
+raman mccanne scalable data naming application level framing reliable multicast 
+proc 
+acm multimedia sept 
+real networks 
+www real com 
+rejaie handley estrin rap rate congestion control mechanism realtime streams internet 
+proc 
+ieee infocom march 
+savage cardwell anderson case informed transport protocols 
+proc 
+th workshop hot topics operating systems hotos vii mar 
+savage cardwell wetherall anderson tcp congestion control misbehaving receiver 
+acm computer comm 
+review oct 
+schulzrinne casner frederick jacobson rtp transport protocol realtime applications :10.1.1.165.7150
+internet engineering task force jan 
+rfc 
+session control protocol scp :10.1.1.165.7150
+www org pub www protocols ng ng scp html 
+stevens tcp ip illustrated volume 
+addison wesley reading ma nov 
+tan zakhor real time internet video error resilient scalable compression transport protocol 
+ieee trans 
+multimedia may 
+touch tcp control block interdependence 
+internet engineering task force april 
+rfc 

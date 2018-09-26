@@ -1,0 +1,346 @@
+cjvm single system image jvm cluster michael factor avi ibm research laboratory haifa advanced technology center haifa israel il ibm com cjvm java virtual machine jvm provides single system image traditional jvm executing cluster 
+cjvm virtualizes cluster supporting pure java application requiring code modifications 
+distributing application cluster nodes cjvm aims obtain improved scalability java server applications 
+cjvm uses novel object model distinguishes application view object implementation different objects class may different implementations 
+allows exploit knowledge usage individual objects improve performance 
+cjvm progress 
+prototype runs cluster ibm win connected myrinet switch 
+provides single system image applications distributing application threads objects cluster 
+cjvm run change real java application containing kloc achieved linear speedup application large number independent threads 
+discusses cjvm architecture implementation showing provide single system image traditional jvm cluster 
+
+wanted cluster improve performance existing multi threaded java application distribute application cluster nodes 
+ensure application oblivious fact executing cluster 
+answers questions parts 
+focusing existing java applications constrained solutions look application conventional implementation java virtual machine jvm 
+part answer provide single system image ssi view cluster java application 
+words application execute multiple independent nodes composing cluster illusion cluster single computing resource 
+second part answer intelligently manage application threads objects achieve performance benefit large class real applications 
+focuses part answer required give java application ssi view cluster currently building address second part answer 
+approaches enabling java application see cluster single computing resource seen 
+provide implementation jvm third party java packages 
+taken approach due java introspection facilities approach implementation distributed nature completely hidden 
+words view single system image incomplete 
+second build jvm infrastructure distributed shared memory done 
+approach capable presenting single system image inherently incapable advantage semantics java order improve performance 
+provide implementation jvm aware cluster completely hides cluster application 
+approach 
+best knowledge implement approach 
+cjvm cluster enabled implementation java virtual machine 
+working jvm level enable exploiting optimizations java semantics 
+examples optimizations include caching individual fields migrating java thread nodes improve locality analyzing code prove certain accesses local cjvm progress 
+currently distributes application threads objects nodes cluster providing correct semantics application written pure java 
+jvm jvm java dsm jvm voyager supported java approach cluster enabled jvm cluster enabled 
+approaches cluster jvm major contributions report 
+architecture providing single system image jvm cluster 
+
+distributed memory model supports cjvm 
+
+novel object model distinguishes application view object class implementation enabling take advantage knowledge usage specific objects improve performance 
+
+thread implementation transparently supports distributed stacks 
+section highlights issues difficulties implementing jvm cluster defines cluster describes type applications interest 
+section highlights essential ingredients cjvm section describes cjvm detail 
+section summarizes status cjvm section describes related 
+final section summarizes major contributions describes directions 
+
+background 
+java virtual machine java virtual machine jvm platform specific program implements defined platform independent virtual machine 
+currently implementations jvms range platforms embedded systems mainframes 
+section presents brief overview jvm complete specification see 
+basic memory model jvm consists stacks heap 
+stack collection stack frames method invoked return 
+objects allocated garbage collected heap 
+enable jvm execute program internally maintains various system resources including meta data related program classes program instructions constant pool 
+class meta data includes object representing class class name class superclass information class methods kept method block structure meta data represented run time normal java objects allocated heap 
+program instructions represented set bytecodes code belongs method turn belongs class 
+executed bytecodes change state stack create objects heap 
+divide jvm bytecodes groups type memory access division helps elucidate required ensure correct semantics bytecode cluster 
+large set bytecodes access system resources stack frame current method load store stack frame control flow arithmetic operations 
+relatively easy ensure single system image bytecodes code replicated stack frame accessed single thread 
+smaller subset bytecodes access constant pool 
+accesses invocation resolve bytecode operand 
+resolved bytecode rewritten binary encoding previously symbolic information 
+group easy handle bytecode resolution idempotent 
+final group accesses heap access specific object fields static data 
+group interesting cluster jvm 
+nodes access object see values constraints java memory consistency 
+jvm powered interpreter loop iteration bytecode executed 
+interpreter loop viewed giant switch statement specifying distinct action bytecodes 
+jvm designed support multiple concurrent threads java language provides programmer convenient facilities define threads 
+programmer creates new thread creating instance java lang thread subclasses 
+thread behavior defined implementing method run subclass java lang thread passing constructor object implements java lang runnable interface 
+uni processor parallelism threads obtained time slicing 
+multi processor true parallelism possible 
+java comes rich set run time core classes 
+classes application code may native methods implemented language java 
+constant pool java equivalent symbol table 
+methods particular interface operating system 
+focus native methods 
+important note jvm java identical jvm support languages java translated bytecodes 
+puts emphasis jvm trying support classes part java platform 
+
+clusters focus dedicated compute clusters consisting collection homogeneous operating system architecture machines connected fast microseconds milliseconds latency communications medium 
+cluster node independent having copy operating system 
+assume interconnect physically shared resources cluster nodes physically shared memory 
+purposes prototype assume logically shared file system essential 
+examples cluster set pcs connected switch ibm rs sp computer 
+clusters scalability high availability look scalability 
+
+java server applications goal scale particular class java applications 
+call applications java server applications 
+second tier applications structure concurrent daemon ffl accepts sequence requests clients 
+ffl typically accesses external database processing request 
+ffl interactions sharing requests 
+general terms scalability jsa means increasing number client requests satisfy unit time 
+interested concurrent daemons assume application written java threads 
+trying parallelize existing serial code 
+
+cjvm approach stated approach virtualizing cluster java virtual machine cluster enable implementation jvm 
+prototype started sun implementation jdk win nt 
+shows basic approach 
+upper half shows threads objects java application seen programmer 
+traditional jvm 
+lower half shows java thread java thread java thread java object java object java object java thread java object java thread java object java object java cjvm process object java thread java object compliant java virtual machine fast interconnection master master master proxy proxy java server application cluster node cluster node cjvm process 
+cluster jvm objects threads java application distributed transparently java application nodes cluster implementation cjvm 
+cluster node cjvm process 
+collection processes constitutes jvm 
+cjvm process implements java interpreter loop executing part application java threads containing portion java objects defined application 
+support distributed access objects master proxy model 
+node object created master copy object proxies nodes access object 
+key challenges cjvm ssi giving application illusion single monolithic heap hiding distinction master proxy application 
+challenge met new memory model distributed heap 
+objects allocated local heaps cluster nodes referenced locally regular java 
+passing object argument remote operation assigned unique global identifier identifier locate corresponding proxy target node see section 
+help address second challenge define new object model 
+model allows multiple implementations single method coexist single class allows selecting specific instance object precise code execute method 
+node accesses proxy basic approach method shipping 
+proxy transparently application redirects flow execution node object master copy located 
+basic approach enhanced class object specific caching replication policies 
+alternative method shipping thread migration accessing remote object execution thread halted execution environment program counter stack serialized moved host containing master copy object 
+appropriate approach remote accesses infrequent coarse grained 
+uses overhead migration overwhelm speedup gained distributing application threads 
+applications target scaling see section frequent remote accesses shared objects java method invocations fine grained computations 
+alternative object migration 
+thread accesses remote object object brought node thread executing 
+choose base approach believe easier extend method shipping object shipping function caching opposite expensive difficult coordinate multiple threads read write fields object explicit synchronization see java implementation 
+enable scalability gain application threads need distributed different cluster nodes 
+base approach objects new thread object created best node determined pluggable load balancing function 
+method shipping drives threads distributed entities 
+new thread model detailed section 
+support method shipping additional functions cjvm process contains set server threads receive handle corresponding requests 
+remote dma approach efficient cases accessing primitive field remote object handle cases locking remote object 
+reasons simplicity implementation stage single implementation optimal implementation specific type remote operation 
+described section set bytecodes access heap 
+memory model distributed heap bytecodes accesses heap modified determine data accessing located node bytecode executed located node 
+case remote access required 
+mentioned ways take advantage cluster jvm rationale approach making jvm cluster aware able take advantage information obtained knowledge java 
+way obtain information code analysis 
+java application dynamically construct load class cjvm analyses code method class loaded similar analysis performed java bytecode verifier 
+analysis classifies methods way access heap 
+information optimize cjvm execution 
+example detect methods access object variables 
+invoke methods directly proxies reducing overhead method shipping 
+base approach supporting objects cjvm distributed heap method shipping code replication 
+application sees class object define single master copy class 
+node uses class create proxy class partial load invoking class initialization method direct way correctly build internal data structures supporting class code constant pool method blocks aspect node contacts class master object loads class way traditional jvm loads 
+large number additional changes traditional jvm turn cluster jvm 
+modifications jvm initialization node executes application main method entry point java program execution changes jvm termination changes numerous native methods 
+elaborate items 
+
+cjvm architecture section focuses novel aspects cjvm architecture object model thread model memory model 
+
+object model object model cjvm composed master objects proxies 
+master object object defined programmer 
+proxy surrogate remote object object accessed 
+proxy fundamental concept systems supporting access remote objects push idea step 
+smart proxies allow multiple proxy implementations class efficient implementation instance basis 
+motivate smart proxies consider different vector objects accessed multiple threads application ffl vector relatively small accesses bursty point time localized single thread accesses involve mix reads writes 
+ffl vector relatively large accesses sparse localized single thread accesses involve mix reads writes 
+clear different proxy implementations cases improve performance 
+vector beneficial caching proxy employs exclusive caching 
+vector requires simple proxy directs accesses master copy 
+data method table data method table data method table simple proxy array virtual method tables method block method block method block bytecode bytecode bytecode method table read proxy master object class object 
+cjvm object model challenges applying smart proxies context single system image 
+preserving application illusion executing single system unaware proxy master object 
+
+designing efficient proxy implementations violate java semantics 
+challenge met implementing proxy objects internal representation object header method tables master objects having proxy implementations coexist single class object 
+specifically virtual method table class logically extended array virtual method tables seen addition original table method code tables created class loaded refers code particular proxy implementation 
+class array virtual tables original method code code efficient proxy implementation 
+classes maintain additional proxy implementations see 
+creation master object proxy object points correct virtual table implementation distinguishes implementations distinction visible cjvm 
+application distinguish masters proxies 
+noted cjvm architecture allows changing proxy implementations run time 
+help address second challenge analyze class class loading classify methods way access heap 
+information help choose efficient proxy implementation method 
+examples proxy implementations implemented patent pending 
+simple proxy default implementation transfers operations master 
+read proxy implementation applies operation locally fact guaranteed access fields changed fields written constructor 
+proxy maintains replicas fields 
+proxy locally invoked stateless methods consider method stateless access fields object 
+semantically correct apply kind method directly proxy clear performance gain doing stateless methods 
+general case method remote access object fields overwhelming performance gained invoking method locally 
+representatives large set possible implementations logic range actions beneficial performance replicating read fields stateless methods actions depends run time conditions caching object node 
+addition proxy implementations code analysis currently designing proxy implementations determine run time apply methods locally remotely run time conditions 
+case method accesses objects collocated master target object invoking method remotely probably efficient 
+local invocation efficient remote 
+method applied times special proxy try ways measuring execution times 
+choose efficient way successive invocations method 
+construct proxies logic depends profiling information code analysis exploit static dynamic knowledge specific objects classes 
+
+thread model gain scalability cluster objects threads need distributed utilize loaded nodes dynamically balancing load improve locality objects access 
+cjvm thread model needs support accessing object master copy node 
+naturally supported traditional jvm need extend thread model context cjvm 
+discuss model detail rest section 
+thread creation 
+method shipping need distribute newly created threads order obtain scalability bytecodes cluster enabled 
+previous node previous thread stack frame node node system thread stack frames system thread stack frames logical 
+distributed stack improvements 
+described section code executed java thread specified subclass java lang thread class class implementing java lang runnable interface 
+cases need able create instances classes remotely allow distribution application threads 
+case thread distributed load balancing function case thread located see instance class specifying code distributed load balancing function 
+support remote thread creation modified semantics new opcode 
+specifically class loaded marked runnable implements java lang runnable interface 
+execution new opcode class marked runnable cjvm follows standard behavior jvm described 
+new opcode rewritten remote new pseudo bytecode private implementation cjvm 
+executed pseudo bytecode uses pluggable load balancing routine determines best node cluster create new runnable 
+current node sends node request create instance class creates local proxy instance pushes proxy stack original new opcode executed 
+subsequent executions rewritten bytecodes directly correctly apply local remote object creations 
+analysis bytecode rewriting demonstrate capabilities level jvm apply implicit solutions cluster enabled functionality 
+case thread creation supported localized bytecode rewriting locating thread runnable object 
+case apply heuristic techniques scope 
+distributed stacks 
+method shipping causes stack java thread distributed multiple system threads java lang thread class implements java lang runnable interface 
+monitor owner proxy proxy master master proxy node node logical thread system logical thread system thread logical thread system thread thread invoke invoke thread java master 
+logical identifiers cjvm handling remote operations different nodes seen 
+thread model traditional jvm needs modified maintain application illusion thread running code node 
+specifically new model guarantee ffl java thread stack traversed distributed different stack segments located different nodes 
+ffl consistent correct value returned thread regardless node invoked 
+ffl java thread identified owner monitors obtained frame distributed stack regardless system thread entered monitor 
+ffl change state running suspended system thread involved method shipping due methods apply system threads involved 
+enable traversing stack changing state system threads chain local segments stack concatenated seen 
+addition implementation methods change thread state access stack frames modified 
+help maintain thread identification java thread assigned logical identifier global address thread object passed remote operation 
+cjvm uses logical identifier identify owner object monitor refer current thread 
+demonstrates logical identifiers maintain thread identity multiple hosts 
+scenario system thread bound java application thread invokes stack accessed methods 
+method returns thread object invokes 
+local heap local heap node node 
+cjvm distributed heap method proxy 
+consequently method shipped node invoked master object system thread execution method method invoked proxy 
+method shipped applied system thread node master object resides 
+logical identifiers 
+thread invoked system thread return proxy java thread 
+
+threads involved system thread able enter monitor object held system thread logical identifiers 
+
+memory model cjvm object model provides uniform access proxies master objects new memory model required enable proxies locate refer master object provide application illusion single monolithic heap 
+cjvm maintains distributed heap built top local heap implementations traditional jvm 
+cluster nodes local heaps 
+masters noted empty ellipses proxies grayed 
+new objects master objects proxy objects allocated local heap way traditional jvm 
+node independently manages portion distributed heap 
+local object passed time remote node global remote node create proxy object local heap 
+local address master object local address proxy relationship 
+order nodes communicate objects objects node global addresses 
+global address identifier global object unique cluster 
+generated time object passed argument remote operation 
+practice time object passed nodes cluster pass tuple containing global address object gao global address class gac 
+target node global addresses resolved local hash table translate global addresses local objects 
+form gao gac construct new proxy additional messages determine class proxy incurs slightly higher overhead due locating packaging global address class object remote object passed argument node 
+don experience evaluate tradeoff real applications 
+
+status cjvm implemented cluster ibm stations running windows nt connected myrinet switch 
+communication mpi portability implemented 
+prototype provides single system image jvm applications distributing application threads objects cluster 
+prototype supports core classes pure java implementations portion core classes include native methods implementation 
+prototype sun java implementation win nt 
+cjvm run change java application containing kloc numerous smaller applications 
+internal embarrassingly parallel application limited interactions application threads cjvm achieves super linear speedups small cluster 
+application learn cjvm add significant overhead cases interactions threads required 
+
+related java distributed machines extensively studied java announced 
+programmer point view tools infrastructure supporting java applications cluster range completely explicit solutions implicit solutions similar cjvm 
+explicit approaches assume architecture multiple jvms handling remote objects threads master proxy model 
+example voyager programs mapped specific network configurations defined advance node runs daemon specific port 
+
+special framework classes restructure java program cluster objects improve object locality 
+java remote object created special utility method run time support class 
+supports implicit remote object creations 
+requires explicit remote attribute distinguish classes remote objects 
+cases applying java run time introspection type proxy different type master object 
+summarize cjvm systems completely hide underlying distribution model programmer 
+contrast aforementioned frameworks java dsm implicit approach level infrastructure 
+modified jvm heap implemented top page shipping 
+objects allocated shared dsm region 
+conceptually java dsm supports ssi implementation incomplete 
+example support thread migration thread location transparent 
+addition support wait notify threads different processors support synchronized methods 
+cjvm dsm technology take advantage java semantics gain better performance contrary potentially cause false sharing degrades performance 
+jvm implementation top object distributed shared memory respects hybrid implementation containing elements cluster enabled jvm jvm top cluster enabled infrastructure 
+features common cjvm mainly distributed heap implicit remote thread creation 
+differs object copy remote object brought accessing node 
+node uses local cached copy written back server java synchronization points required java memory semantics chapter 
+homogeneous approach contrasted cjvm uses smart proxies allows instance object cluster enabled appropriate way 
+
+presents approach implementation single system image jvm cluster machines cjvm 
+essence object model separates application view object object unique data structure implementation objects may consistent replications 
+enables exploitation knowledge usage individual objects improve performance object replica increase object locality 
+having completed prototype cjvm supports ssi step addressing issues defining handling multiple kinds implementations objects applying caching replications 
+read fields gaining high performance real java server applications 
+furthermore run time profiling detect behavior change objects switch proxies run time better performance 
+currently cjvm works interpreter loop plan integrate jit compiler stabilizing code current implementation 
+
+acknowledgments oded cohn zvi harel hillel kolodner schuster yoram input cjvm 
+special alain initiated research activity 
+barak ami 
+mos multicomputer distributed operating system 
+software practice experience 
+
+java framework seamless sequential multi threaded distributed programming 
+acm workshop java high performance network computing 
+inria sophia antipolis france 
+schuster 
+characterizations java memory behavior 
+pages 
+intl 
+par 
+proc 
+symp 
+st joint ipps spdp march 
+www mcs anl gov mpi 
+www microsoft com 
+www com 
+www objectspace com voyager 
+www org 
+gosling steele 
+java language specification chapter 
+addison wesley 
+jul levy hutchinson 
+fine grained mobility emerald system 
+acm transactions computer systems 
+
+framework parallel programming java 
+technical report irisa december 
+lindholm yellin 
+java virtual machine specification 
+addison wesley 
+macbeth hatcher 
+executing java threads parallel distributed memory environment 
+ibm center advanced studies conference canada 
+machine 
+user documentation august 
+pfister 
+clusters coming battle parallel computing 
+prentice hall 
+philippsen andm 
+zenger 
+transparent remote objects java 
+concurrency practice experience 
+pugh 
+fixing java memory model 
+acm java grande conference pages june 
+yu cox 
+java dsm platform heterogeneous computing 
+acm java science engineering computation june 

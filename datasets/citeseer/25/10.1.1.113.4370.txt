@@ -1,0 +1,246 @@
+
+vnodes architecture multiple file system types sun unix kleiman sun microsystems sun srk describes architecture accommodating multiple file system implementations sun unix kernel 
+file system implementations encompass local remote non unix file systems 
+file systems plugged kernel defined interface way unix device drivers currently added kernel 
+
+design goals split file system implementation independent file system implementation dependent functionality kernel provide defined interface parts 
+interface support require unix file system access semantics 
+particular support local disk file systems bsd file system stateless remote file systems sun nfs remote file systems rfs non unix file systems file system interface usable server side remote file system satisfy client requests 
+file system operations atomic 
+words set interface operations high level need locking hard locking user advisory locking operations 
+locking required left file system implementation dependent layer 
+example relatively slow computer running remote file system requires supercomputer server lock file operations users supercomputer noticeably affected 
+better give file system dependent code full information operation done decide locking necessary practical 
+
+implementation goals techniques implementation goals necessary order implementation easier kernel evolved 
+little performance degradation 
+file system independent layer force static table sizes 
+new file system types dynamic storage allocator create destroy objects 
+different file system implementations forced centralized resources inode table mount table buffer cache 
+sharing allowed 
+interface reentrant 
+words implicit global data base global side effect information passed operations dent 
+added benefit cutting size user global data area area 
+addition interface operations return error codes return value 
+overloaded return codes error 
+changes kernel implemented object oriented programming approach 
+data structures representing objects contain pointer vector generic operations object 
+implementations object fill vector appropriate 
+complete interface object unix trademark specified data structure generic operations 
+object data structures contain pointer implementation specific data 
+allows implementation specific information hidden interface 
+interface operation done behalf current process 
+permissible interface operation put current process sleep course performing function 
+
+operation pc file system floppy system calls vnode layer bsd file system disk 
+vnode architecture block diagram nfs nfs server network file system dependent independent split done just unix kernel inode layer 
+obvious choice inode main object file manipulation kernel 
+block diagram architecture shown 
+file system independent inode renamed vnode virtual node 
+file manipulation done vnode object 
+similarly file systems manipulated object called vfs virtual file system 
+vfs analog old mount table entry 
+file system independent layer generally referred vnode layer 
+file system implementation dependent layer called file system type implements bsd file system nfs file system 
+shows definition vnode vfs objects 
+vfs mounted vfs linked list mounted file systems 
+file system list root 
+private data pointer vfs data vfs points file system dependent data 
+bsd file system vfs data points mount table entry 
+public data vfs structure contains data vnode layer data mounted file system change 
+different file system implementations require different mount data mount system call changed 
+arguments mount specify file system type directory mount point generic flags read pointer file system type specific data 
+mount system struct vfs struct vfs vfs vfs list struct vfs op operations vfs struct vnode vfs vnode cover int vfs flag flags int vfs bsize native block size caddr vfs data private data struct int vfs mount int vfs int vfs root int vfs int vfs sync int vfs fid int vfs enum vreg struct vnode short flag vnode flags short count count short shared locks short exclusive locks struct vfs covering vfs struct op vnode operations union struct socket socket unix ipc struct stream stream struct vfs vfs enum type vnode type caddr data private data struct int vn open int vn close int vn int vn ioctl int vn select int vn getattr int vn setattr int vn access int vn lookup int vn create int vn remove int vn link int vn rename int vn mkdir int vn rmdir int vn readdir int vn symlink int vn readlink int vn fsync int vn inactive int vn int vn strategy int vn bread int vn 
+vfs vnode objects call performed vnode mount point looked see vfs mount operation file system type called 
+succeeds file system linked list mounted file systems vfs field set point vnode mount point 
+field null root vfs 
+root vfs list mounted file systems 
+mounted file systems named path name mount points 
+special device name longer remote file systems necessarily unique local device associated 
+changed takes path name file system mount point device 
+root vnode mounted file system obtained vfs root operation opposed referencing root vnode vfs structure 
+allows root vnode deallocated file system referenced 
+example remote mount points exist embryonic form contains just information contact server complete remote mount file system referenced 
+mount points exist minimal allocated resources 
+vnodes public data fields vnode contain data manipulated vfs layer data file change life file file type type 
+vnode contains count count maintained generic vnode macros vn hold vn rele 
+vnode layer file systems call macros vnode pointers copied destroyed 
+vnode destroyed vn inactive operation called tell vnode file system 
+file system may destroy vnode cache 
+field vnode points vfs file system vnode belongs 
+vnode mount point field points vfs file system 
+private data pointer data vnode points data dependent file system 
+bsd file system data points core inode table entry 
+vnodes locked vnode layer 
+hard locking user advisory locks done file system dependent layer 
+locking done vnode layer synchronization purposes violating design goal necessary 
+example shows example vnode vfs object interconnection 
+vnode file directory bsd type file system 
+private data pointer points inode bsd file system inode table 
+vnode belongs vfs root vfs vfs list 
+vfs private data pointer points mount table entry bsd file system mount table 
+vnode directory vfs mount point vfs 
+vfs nfs file system contains vnode 
+path name traversal path name traversal done routine lookup path name takes path name path name buffer returns pointer vnode path represents 
+takes place old namei routine 
+path name begins path name traversal starts vnode pointed root 
+starts vnode pointed current directory 
+traverses path component time vn lookup vnode operation 
+vn lookup takes directory vnode component arguments returns vnode representing component 
+directory vnode set mount point 
+mount point encountered going file system tree follows vnode pointer mounted file system calls vfs root operation obtain root vnode file system 
+path name traversal continues point 
+root vnode encountered flag flag set follows vfs pointer vnode associated vfs obtain covered vnode 
+symbolic link encountered calls vfs vfs vfs vnode data vfs data vnode data bsd file system nfs inode inode mount 
+example vnode layer object interconnection vfs vfs vfs vfs data vnode data vn readlink vnode operation obtain symbolic link 
+symbolic link begins path name traversal restarted root traversal continues directory 
+caller specifies component path name followed symbolic link 
+process continues path name exhausted error occurs 
+completes vnode representing desired file returned 
+remote file systems path name traversal scheme implies files remote file systems appear files normal unix file name space 
+remote files named special constructs current programs don understand path name traversal process handles indirection mount points 
+means remote file system implementation client maintains mount points 
+client mounts file system remote directory remote file system see new mount point 
+remote file system see root remote file system 
+example client mounted server usr usr local file system usr local path usr local bin access local root remote usr local usr local remote file system having knowledge usr local mount point 
+similarly path usr access local root remote usr local root remote file system server seeing usr 
+new system calls new system calls added order normal application interface file system implementation independent 
+system call added read directories manner independent disk directory format 
+reads directory entries open directory file descriptor user buffer file system independent format 
+directory entries fit buffer read 
+file pointer changed points directory entry boundaries call 
+system calls added get general file system statistics space left 
+take path name file descriptor respectively file particular file system return structure see 
+devices device interfaces hidden vnode layer devices manipulated vnode interface 
+special device file system implementation mounted provided facilitate 
+file systems notion associating name file system local device may redirect vnodes special device file system 
+buffer cache buffer cache routines modified act physical buffer cache logical buffer cache 
+local file system typically uses buffer cache cache physical disk blocks 
+file system types may buffer cache cache logical file blocks 
+unique blocks identified pair vnode pointer block number 
+vnode pointer points device vnode cached block copy physical device block points file vnode block copy logical file block 
+
+vfs operations descriptions vfs operations argument pointer vfs operation applied 
+vfs mount mount read superblock 
+points path name mounted recording purposes points file system dependent data 
+vfs sync superblock 
+vfs root vpp return root vnode file system 
+vpp points pointer vnode results 
+vfs sbp return file system information 
+sbp points structure results 
+struct long type type info long bsize block size long blocks total blocks long free blocks long non su blocks long files total nodes long free nodes fs file system id long spare spare vfs sync write cached information 
+note necessarily done synchronously 
+operation returns data vfs fid vp necessarily written scheduled 
+get unique file identifier vp represents file file system 
+points pointer fid structure results 
+struct fid short fid len length data char fid data variable size vfs vpp turn unique file identifier vnode representing file associated file identifier 
+vpp points pointer vnode result 
+
+vnode operations descriptions vnode operations vp argument pointer vnode operation applied argument pointer credentials structure contains user credentials uid operation nm argument pointer character string containing name 
+vn open vpp perform open protocol vnode pointed vpp devices 
+open clone open operation may return new vnode 
+open flags 
+vn close vp perform close protocol vnode devices 
+called vn vp rw closing vnode file table vnode device 
+called user close file descriptor 
+open flags 
+read write vnode 
+reads writes number bytes specified offset file 
+points uio structure supplies arguments 
+rw specifies direction 
+flags may specify done synchronously don return volatile data disk unit lock file write large unit 
+vn ioctl vp com perform ioctl vnode vp 
+com command pointer data open flags 
+vn select vp perform select vp 
+specifies direction 
+vn getattr vp va get attributes vp 
+va points structure 
+struct enum va type vnode type short va mode acc mode short va uid owner uid short va gid owner gid long va fs id long va nodeid node short va links long va size file size long va blocksize block size struct va atime acc struct va mod struct va ctime chg dev va dev long va blocks space vn setattr vp va map file system dependent attributes unix file attributes 
+set attributes vp 
+va points structure mode uid gid file size times may set 
+map unix file attributes file system dependent attributes 
+vn access vp check access permissions vp 
+returns error access denied 
+mode check access read write execute 
+map unix file protection information file system dependent protection information 
+vn lookup vp nm vpp lookup component name nm directory vp 
+vpp points pointer vnode results 
+vn create vp nm va vpp create new file nm directory vp 
+va points structure containing attributes new file 
+exclusive non exclusive create flag 
+open mode 
+vpp points pointer vnode results 
+vn remove vp nm remove file nm directory vp 
+vn link vp link vnode vp target name target directory 
+vn rename vp nm rename file nm directory vp target directory 
+node lost system crashes middle operation 
+vn mkdir vp nm va vpp create directory nm directory vp 
+va points structure vn rmdir vp nm containing attributes new directory vpp points pointer vnode results 
+remove directory nm directory vp 
+vn readdir vp read entries directory vp 
+points uio structure supplies arguments 
+uio offset set file system dependent number represents logical offset directory reading done 
+necessary number bytes returned vn readdir necessarily number bytes equivalent part disk directory 
+vn symlink vp lnm va symbolically link path pointed name lnm directory vp 
+vn readlink vp read symbolic link vp 
+points uio structure supplies arguments 
+vn fsync vp write cached information file vp 
+operation synchronous return complete 
+vn inactive vp vp longer referenced vnode layer 
+deallocated 
+may vn vp bn vpp map logical block number bn file vp physical block number physical device 
+pointer block number physical block vpp pointer vnode pointer physical device 
+note returned vnode necessarily physical device 
+paging system files paged 
+nfs null mapping 
+vn strategy bp block oriented interface read write logical block file buffer 
+bp pointer buffer header contains pointer vnode operated 
+copy buffer cache file system uses 
+buffer cache routines paging system read blocks memory 
+vn bread vp bn bpp read logical block bn file vp return pointer buffer header bpp contains pointer data 
+vn vp bp necessarily imply buffer cache 
+operation useful avoid extra data copying server side remote file system 
+buffer returned vn bread released 
+kernel interfaces veneer layer provided generic vnode interface easier kernel subsystems manipulate files vn open perform permission checks open vnode path name 
+vn close close vnode 
+vn build uio structure read write vnode 
+vn create perform permission checks create vnode path name 
+vn remove remove node path name 
+vn link link node source path name target target path name 
+vn rename rename node source path name target target path name 
+vn hold increment vnode count 
+vn rele decrement vnode count call vn inactive 
+system calls take names resolve name vnode call appropriate veneer routine operation 
+system calls file descriptors pull vnode pointer file table call appropriate veneer routine 
+
+current status current interface operation summer released sun product 
+general system performance degradation nil depending benchmark 
+date bsd file system sun network file system floppy disk file system implemented interface file system types follow 
+addition prototype proc file system implemented 
+possible configure disk file systems run just nfs 
+time interface definition stable minor additions radically different file system types implemented 
+vnodes proven provide clean defined interface different file system implementations 
+sun currently discussing berkeley merging interface file system switch technology 
+goal produce standard unix file system interface 
+current issues allow multiple component lookup vn lookup 
+require file systems implemented know mount points 
+cleaner replacements vn vn strategy vn bread vn 
+symlink handling file system independent layer 
+eliminate redundant lookups 
+
+bill joy designer architecture provided help implementation 
+dan walsh modified bio implemented parts device interface parts bsd file system port 
+russel sandberg primary nfs implementor 
+built prototype proc file system improved device interface 
+bill shannon tom lyon bob lyon invaluable reviewing evolving interface 
+
+mckusick joy leffler fabry fast file system unix acm tocs august pp 
+
+sandberg goldberg kleiman walsh lyon design implementation sun network filesystem usenix summer pp 
+
+ibm dos operating system version january 
+
+pike weinberger name usenix summer pp 
+
+killian processes files usenix summer pp 
+

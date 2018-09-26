@@ -1,0 +1,1756 @@
+alto platform object code modification robert muth copyright fl robert muth dissertation submitted faculty department computer science partial fulfillment requirements degree doctor philosophy graduate college university arizona alto platform object code modification robert muth ph 
+university arizona director saumya debray dissertation describes alto platform object code modification digital unix alpha executables 
+object code modification called binary rewriting allows change compiled linked programs extending process code generation past compilation phase program 
+object code modification increasingly important 
+reason trend making programs available executables corresponding source code 
+explain difficulties encountered object modification especially area program analysis show dealt alto 
+improvements register liveness analysis 
+alto implement optimizer allows evaluate benefits classical compiler optimizations applied object code 
+optimizer outperforms vendor supplied optimization tools significantly 
+alto instrument programs order generate sophisticated execution profiles value profiles 
+show profiles profitably exploited novel technique guarded code specialization optimization incorporated optimizer 
+consider issue code compression alto programs smaller faster 
+variety transformations able reduce code size programs substantially 
+statement author dissertation submitted partial fulfillment requirements advanced degree university arizona deposited university library available rules library 
+brief quotations dissertation allowed special permission 
+provided accurate acknowledgment source 
+requests permission extended quotation reproduction manuscript part may granted bt copyright holder 
+signed credit described dissertation belongs advisor professor saumya debray 
+provided excellent research environment left freedom things way thought done available discuss ideas problems 
+committee members peter downey william evans numerous helpful discussions patients revising early drafts document 
+people worked alto deserve gratitude koen de developed early prototype alto 
+bjorn de scott worked current version 
+parents 
+right decisions education young provided moral support encouragement decisions 
+supported part national science foundation ccr ccr 
+table contents list figures 
+list tables 
+
+chapter 
+motivation 
+related 
+contributions alto 
+chapter overview alto system 
+parsing 
+code discovery 
+control flow graph construction 
+computed indirect jumps 
+control flow anomalies 
+editing 
+scale problems 
+self modifying code 
+code generation 
+address translation 
+segment growing 
+chapter analyses 
+register liveness analysis 
+interprocedural data flow analyses 
+interprocedural register liveness analysis 
+improving precision register liveness analysis 
+register def chains 
+algorithm 
+performance 
+register alias analysis 
+alias analysis inspection 
+chapter optimizations 
+experimental setup 
+optimization constant expressions 
+interprocedural constant propagation constant folding strength reduction 
+constant generation 
+constant usage 
+direct execution 
+instruction elimination 
+useless instruction elimination 
+move elimination 
+load store avoidance 
+unreachable code elimination 
+code motion restructuring optimization 
+inlining 
+code positioning 
+effectiveness 
+profiles 
+profiles 
+chapter common case specialization 
+preliminaries 
+code specialization 
+estimating costs benefits specialization 
+identifying candidates specialization 
+value profiling 
+carrying specialization 
+experimental setup 
+experimental results 
+chapter code compression 
+local factoring 
+intraprocedural tail merging cross jumping 
+procedural abstraction 
+procedural abstraction individual basic blocks 
+single entry single exit regions 
+architecture specific idioms 
+experimental setup 
+experimental results 
+chapter 
+appendix alpha machine instructions 
+
+list figures generic executable format 
+modeling subroutine calls 
+compensation edges 
+translations switch statement computed jump 
+unrealizable path context insensitive analyses 
+unified fixpoint computation 
+code example addition complex numbers 
+impact enhancements liveness analysis 
+pseudo definitions 
+example alias analysis 
+phases optimizer alto 
+code generated 
+specialization region 
+specialization transformation 
+effect value specialization node ksim unspecialized code fragment ksim align 
+specialized code fragment ksim align 
+phases code compressor alto 
+local factoring 
+cross jumping 
+example basic block level register renaming 
+interference effects live range level register renaming 
+merging regions returns cross jumping 
+example function prolog factoring 
+example function epilog factoring 
+list tables characteristics specint benchmarks 
+performance liveness analysis 
+performance def chains 
+effectiveness constant propagation 
+execution time impact constant propagation 
+execution time impact constant generation 
+execution time impact constant usage 
+execution time impact useless instruction elimination 
+execution time impact move elimination 
+execution time impact load store avoidance 
+effectiveness unreachable code elimination 
+execution time impact inlining 
+execution time impact code positioning 
+execution time impact profiles 
+execution time impact profiles 
+extent profiling specialization 
+code growth due specialization 
+execution time impact value profile specialization 
+impact code compression code size 
+impact code compression execution time 
+dissertation describes alto platform object code modification digital unix alpha executables 
+object code modification called binary rewriting allows change compiled linked programs extending process code generation past compilation phase program 
+object code modification increasingly important 
+reason trend making programs available executables corresponding source code 
+explain difficulties encountered object modification especially area program analysis show dealt alto 
+improvements register liveness analysis 
+alto implement optimizer allows evaluate benefits classical compiler optimizations applied object code 
+optimizer outperforms vendor supplied optimization tools significantly 
+alto instrument programs order generate sophisticated execution profiles value profiles 
+show profiles profitably exploited novel technique guarded code specialization optimization incorporated optimizer 
+consider issue code compression alto programs smaller faster 
+variety transformations able reduce code size programs substantially 
+chapter motivation dissertation direct modifications object code 
+modifications may occur late stage linking link time linking post link time 
+approaches quite similar integrating modifications linker simplify parsing code give access slightly information code changing object code linking provides clean separation responsibilities require access potentially proprietary linker source 
+follows distinguish approaches 
+traditionally task compiler assembler generate object code complex cumbersome change object code produced 
+number applications object code modification successfully employed grows rapidly 
+partly due fact computers powerful cope quite high resource demands object code modification 
+list describes popular applications object code modification 
+customization software vendors ship software executable form 
+high maintenance testing cost reluctance produce version executable platform 
+ensure software works systems vendors aim executables lowest common denominator architecture 
+systems software runs quite different cpus slightly different instruction sets cache sizes pipelines functional units number cpus different 
+consider example windows operating system runs different cpus pentium pentium pro pentium ii pentium iii pentium celeron amd amd version software available 
+example consider alpha family cpus lack instructions loading storing individual bytes words 
+instruction sequences emulate elementary operations 
+members cpu family load store instructions bytes 
+typical software vendor compile programs new instructions ensure software runs cpus 
+consequently users state art systems experience suboptimal performance 
+object code modification help customizing program making new features cpu system requiring recompilation waiting new compiler releases supporting features 
+customization usually leads faster programs 
+imagine situation example reversed executable code compiled latest member alpha cpu family 
+want run old version cpu longer supported software vendor 
+object code modification replace instructions load store bytes words emulating instructions 
+customization combination profiling tune binary common input data program usage 
+suppose certain user exercises spell checker display rendering portion word processor 
+beneficial reorder components program reduce likelihood conflict instruction cache 
+furthermore assume person exclusively uses times font word processor documents 
+clearly change behavior display rendering code certain branches taken higher probability certain values populate certain registers 
+adapting display rendering code common case possibly expense slowdowns uncommon case helvetica font greatly beneficial particular user 
+binary translation customization extreme attempt translate object code run different platform 
+translators implemented commercially fx windows nt windows nt alpha translator express solaris sparc digital unix alpha translator vest translates vax alpha mx translates ultrix mips digital unix alpha 
+binary translation useful fast emulation new fictitious platform actual hardware available allowing compiler writers example test code generator advance 
+binary translation requires runtime software emulator source platform order cope code generated fly statically translated 
+translation falls back emulator source platform called hybrid translation 
+mentioned fx system uses emulation default apply binary translation frequently executed portions program separate offline step 
+translators obviate need porting software willing pay price small performance penalty 
+program analysis profiling program analysis profiling tools popular applications object code modification 
+tools instrument programs determine basic block execution frequencies common 
+information compiler profile driven optimizations developers help focus tuning efforts relevant parts code 
+architects profiling determine dynamic instruction mix applications data instruction cache behavior :10.1.1.35.8024
+tools instrument code examine accuracy branch predictions scheduling decisions compiler special hardware bus monitoring systems simulation 
+common class tools instrument object code obtain address traces help architects improve cache design 
+traces large consuming gigabytes disk space 
+writing disk processing offline trend adds processing code object code invokes new piece trace information normally written disk 
+approach typically causes instrumented program run times slower second approach reduces slowdowns factor 
+course ways obtaining profiling information 
+compiler instrument code statistical methods 
+instrumenting code higher level object code may yield accurate information type computer architects care critically changes program behavior want analyze analogously heisenberg uncertainty principle physics 
+statistical methods hand problems accuracy 
+debugging object code modification wide range useful applications debugging 
+suppose programming error memory cell accidentally overwritten 
+locating point overwrite occurs difficult task 
+hardware support cpu resort modifying compiler add checks slow libraries covered 
+approach past slow single step program continuously checking memory cell changed 
+efficient solution modify object code add checking code write instruction trap write memory cell question 
+purify uses object code modification detect memory leaks bounds memory array accesses uninitialized data 
+debugging aid somewhat different flavor inserts instrumentation code load store instructions parallel program assure loads stores occur observed order 
+enables deterministic replays shared memory parallel environments great help reproducing bugs 
+software fault isolation sandboxing software fault isolation closely related debugging techniques mentioned 
+describe scenario suppose piece untrusted object code want link trusted code 
+concern piece untrusted code accidentally modify data structures maintained trusted code corrupt system 
+address problem assign untrusted code segment applications address space add checking code read write instruction 
+checking code trap read write attempt outside segment 
+effect similar java achieves combination type checking runtime checks 
+application prevention certain security attacks exploit buffer overflows stack 
+attacks exploit buffer overflows inside programs create subroutine spawns root shell stack overwrite return address current stack frame start address newly created subroutine 
+prevent attack inserting checks indirect control transfer jump return validate address jumped lies valid range 
+code optimization intuitively code optimization domain compiler access high level information data types control structures alias information greatly aids generating efficient code readily available object code level 
+bother optimizing object code 
+ffl want compiler language independent 
+working object code optimizations essentially compiler language independent similar common back front ends 
+may need recognize certain compiler language specific idioms object code level computed jumps treat specially order improve effectiveness optimizations 
+ffl want add new optimization compiler 
+access compiler source 
+documentation compiler source poor adding new optimization difficult 
+popular try new optimizations simple documented compiler lcc source publicly available 
+questionable results obtained way transfer production quality compiler 
+applying optimizations link time hand allows essentially add optimizations best available compiler modifying 
+ffl program source parts thereof libraries unavailable 
+especially old programs legacy software source code unavailable unclear version source corresponds program want optimize 
+optimizing object code appears way improve performance programs 
+ffl optimization easily performed compile time 
+consider case want improve control transfer jump code subroutine invocations 
+depending distance jump number bytes different jump instructions chosen pc relative jump short displacement pc relative jump long displacement absolute jump 
+unfortunately compiler usually able estimate jump distance needs pick conservative suboptimal instruction viz 
+absolute jump 
+link time hand know exactly jump distance pick optimal instruction 
+ffl want perform program optimization 
+program optimization theory done compile time hindered missing source library code 
+problem exist statically linked object code 
+ffl want utilize profiling information obtained object code level 
+generating profiling information instrumenting object code lar tools atom cf 
+fairly easy 
+problem exploit information optimizing compiler 
+impedance mismatch information provided object code level profiling source level compiler 
+impedance mismatch problem source level debugger 
+debugger works object code level needs back map information source code 
+hard problem especially code highly optimized 
+optimizing object code level hand mapping problems 
+code compression compaction cost metric tried reduce previous cases time may concerned space 
+classical optimizations usually reduce code size reduce code size special compression techniques 
+compressed code decompressed execution called wire representation executed decompression 
+method results smaller compressed representation second requires overhead decompression execution 
+overhead may negligible fact compensated savings transmission retrieval cost 
+severe problem requires space decompressed code 
+second method preserves executability code amenable object code modification borders methods somewhat flowing 
+prepend piece code wire representation performs decompression runs decompressed executable technically preserved executability 
+tools popular computers equipped hard disk drives tried cram information possible floppy disks 
+possible add sort interpretive techniques executable reduce space requirements 
+example motorola st computer designers able fit entire operating system kb rom 
+replaced common opcode sequences illegal instructions installed handle illegal instruction exceptions 
+similar system specific mechanism factors common code sequences subroutine calls 
+principle done compiler intermediate representations compiler provide support kind transformation 
+addition code visible link time libraries increasing number opportunities factoring 
+dissertation describes alto link time optimizer platform modification object code 
+alto implemented digital unix alpha executables ported linux alpha 
+main emphasis dissertation object modification optimization code compression profiling 
+despite fairly system specific piece software experience gained alto transferable platforms architectures especially risc systems alpha generic risc cpu 
+fact instruction set similar low level code representations lir alto viewed backend monolithic compilation 
+illegal instructions taken pool reserved opcodes called line hexadecimal digit opcode 
+opcodes legal floating point instructions scheme abandoned 
+related section describes projects area object code modification points differences alto 
+om om optimizer executables initially implemented dec stations running ultrix mips ported digital unix alpha 
+om designed separate pass linking alto relies linker provide additional information executable 
+om profiling information 
+design goals om fairly light weight 
+compared alto perform optimizations ones perform restricted consume lot resources 
+list optimizations performed om ffl code size reduction unreachable code removal ffl compaction memory area holds compile time constants elimination unused duplicate constants ffl reordering global data structures variables provide efficient access ffl profile guided code positioning alignment ffl instruction re scheduling ffl peephole optimization ffl user directed procedure inlining atom atom analysis tool om instrumentation tool generator digital unix alpha platform originated om project diverged 
+atom mature user friendly tool extensively inside dec compaq 
+big applications including os kernels 
+atom strictly separates tool specific part common infrastructure needed tools 
+tool specific part consists analysis component instrumentation component 
+components written entirely high level language typically distinguishes atom tool including alto 
+instrumentation code linked atom instrumentation engine create instrumentation tool 
+tool parse executable insert function calls specific places atom api 
+functions called defined analysis code 
+calls functions inserted program execution shared library loading procedures basic blocks instructions 
+parameters passed functions determined instrumentation code 
+possible parameters current register values instruction fields symbol names addresses atom allows analysis code dynamically allocate memory 
+nontrivial memory allocated analysis code visible instrumented program order preserve program behavior possible values returned calls malloc original instrumented version program 
+registers modified analysis routine saved stack restored 
+attempts reduce overhead quite significant 
+programs instrumented atom pixie see typically suffer slowdown factor 
+tools re implemented atom ffl pixie 
+reimplementation basic block execution frequency profiling tool 
+profile generated pixie om guide optimizations :10.1.1.35.8024
+ffl third degree 
+memory leak detection tool 
+ffl 
+performance analysis tool collects data similar accurate gprof 
+spike spike adaptation om windows nt alpha platform 
+spike consists instrumentation part optimization part 
+embedded spike optimization environment soe transparently handles task collecting managing profiling information user 
+spike aimed call intensive programs loops span multiple procedures procedures complex control flow contain numerous basic blocks 
+instrumentation part pixie adaptation provides basic block control flow edge execution frequency counts 
+minimum basic blocks edges instrumented register liveness analysis find free scratch registers instrumentation code 
+instrumentation code bloat 
+plans replace instrumentation part statistical sampling dcpi 
+spike automatically scans executable dynamically linked libraries dlls uses processes 
+important transformations performed optimization part profile driven ffl pettis hansen style profile guided code placement improves instruction cache performance 
+ffl hot cold optimization hco reduces length frequently executed paths procedure 
+spike reportedly speeds program execution due profile guided code placement 
+hco optimization benefit unclear execution time improvements reported 
+spike effective call intensive programs 
+programs spend significant amount time inner loops fortran programs usually get little speedup 
+compared alto optimizations implemented 
+eel eel executable editing library library tries hide complexity system specific detail editing executables 
+developed university wisconsin madison runs solaris sparc ultrix mips 
+eel tries system machine independent possible 
+theoretically tool builders able modify executable aware details underlying architecture operating system concerned consequences deleting instructions adding foreign code 
+eel programming interface high level atom programmer control instrumentation process atom insert subroutine calls modify existing instructions 
+intermediate representation eel employs machine independent risc instruction set 
+instrumentation code called snippets consists concrete instructions rewritten machine language different architectures 
+register scavenging scheme takes advantage calling conventions provide scratch registers snippets reduce amount register spilling 
+snippet defined tool writer actual code added instrumentation executable differ allocation registers 
+changes wanted adjustments offset displacements tool writer needs back patch snippet just added binary 
+number instructions allowed change point 
+eel relocation information falls back runtime code static analysis insufficient 
+prevents user editing certain basic blocks typically basic blocks excluded instrumentation 
+authors claim case alternative basic blocks edited 
+reason eel instrumentation platform optimization platform 
+eel reimplement qp qpt tools obtain path profiles 
+etch etch binary modification tool windows nt executables 
+developed jointly university washington harvard university architecture strongly influenced atom 
+atom separates instrumentation analysis 
+instrument program etch invoked name executable dynamically linked library dll 
+dll contains analysis code form callback functions invoked etch modify executable 
+functions turn call etch api perform actual instrumentation 
+etch includes runtime library modified executable suitable optimizations 
+reported optimization code layout pettis hansen algorithm 
+spike handle dynamically linked executables instrument optimize dlls program 
+contributions alto alto implemented programming language works reliably programs tested 
+software downloaded free charge alto webpage www cs arizona edu alto 
+main contributions listed 
+
+program analysis section improvements register liveness analysis 
+show preserve correctness analysis presence control flow anomalies typically encountered high level languages frequently observed object code 
+novel insight fixpoint equations analysis exploited speed computation time 
+show consideration calling conventions callee saved registers decreases number live registers 
+furthermore examine space time tradeoffs space time precision tradeoffs 
+
+classical compiler optimizations chapter evaluate usefulness extensive set classical compiler optimizations context link time code modification 
+common sense suggests doing classical compiler optimization compiler 
+find significant optimization opportunities link time 
+programs optimized system typically run faster produced vendor supplied compiler infrastructure 
+
+common case specialization chapter discuss guarded code specialization new optimization value profiles incorporated ordinary compilers 
+show select program points value profiling cost benefit analysis automatically determine program points specialized value 
+guarded code specialization results additional speedup programs 
+
+code compression chapter examine opportunities code size reduction object code modification 
+code factoring transformations top classical compiler optimizations able reduce code size average 
+chapter overview alto system object code modification phase process consisting ffl parsing transformation object code intermediate representation ffl editing manipulation intermediate representation ffl code generation transformation intermediate representation back object code chapter discuss phases describe common problems encountered show alto handles 
+assume generic unix executable format depicted 
+file representation runtime organization memory shown 
+program header contains offsets sizes segments tables location address space 
+contains code address execution starts 
+text segment contains read data program code constants 
+data segment contains initialized data read writable 
+bss segment contains zero initialized read writable data reduced address size pair file representation 
+relocation table contains information allows change program run different absolute positions address space 
+symbol table contains information traditionally debugger establish correspondence source code object code derived 
+symbol table optional removed executable strip command 
+alto output user friendly 
+example reporting subroutine address ac inlined message subroutine memcpy inlined printed 
+program header text segment data segment bss segment text segment data segment relocation table symbol table file memory generic executable format parsing task parsing transform object code intermediate form suitable modifications 
+alto address intermediate language close alpha machine language 
+alto non portable address code fact similar low level intermediate representation compilers 
+code discovery code discovery tries locate parts object file contain executable instructions 
+locating code straightforward 
+read data string constants jump tables floating point constants program code interleaved text segment 
+problem aggravated architecture variable length instructions intel architecture 
+case careful start decoding instructions 
+usually couple code discovery control flow graph construction new branch target identified starts decoding instructions address encounters control flow changing instruction 
+presence indirect jumps impossible discover code 
+fortunately digital unix alpha platform compilers disciplined place code data separate areas text segment 
+furthermore instructions bits wide 
+program dynamically linked code discovery may try identify shared libraries program parse 
+alto currently support dynamically linked code 
+control flow graph construction important part intermediate representation control flow graph essential dataflow analyses performed subsequent phases 
+conceptually executable consists set subroutines functions denoted functions 
+distinguished subroutine designates execution program begins 
+subroutine consists collection nodes basic blocks nodes 
+node consists sequence instructions instructions control enters leaves intervening branches 
+instruction node called leader 
+collection basic blocks subroutines denoted nodes 
+simplify reasoning nodes assign types denoted type 
+wide variety types 
+relevant ones call nodes initiate subroutine invocation return nodes execution resumes subroutine call init nodes starting subroutine exit nodes subroutine 
+subroutine exactly node type init denoted exactly node type exit denoted 
+nodes connect directed edges indicating possible control flow 
+edge connect nodes subroutine case called intraprocedural edge nodes different subroutines case called interprocedural edge 
+collection edges denoted edges 
+set immediate successor resp 
+predecessor nodes node denoted succ resp 
+pred 
+interprocedural control flow graph consists directed graph created nodes edges 
+similar program supergraph described 
+intraprocedural control flow graph subroutine subgraph control flow graph induced nodes 
+creating control flow graphs programs high level languages straightforward 
+matters somewhat complex link time control flow obscured compilation process need deal machine level idioms control transfer computed jumps 
+algorithm alto construct control flow graph input program follows starting points text segment addresses appearing literal data object code file 
+relocation information helps differentiate real addresses random bit patterns just look addresses 
+included addresses start address program header 
+standard algorithm identify leaders basic blocks 
+leader reached call instruction begins subroutine init node 
+function assumed extend init node just init node instruction sequence order 
+ensures subroutine exactly init node 
+assumption control enters subroutine exactly point leaves exactly point occasionally violated resulting irregular interprocedural control flow analyses optimizations need cope 
+section describes compensation edges support analyses optimizations case 
+edges added control flow graph 
+subroutine calls modeled depicted 
+call edge leads basic block containing call instruction call node target block definition subroutine init node 
+link edge connects call node basic block right call instruction return node 
+return edge leads exit block called function callee return node 
+call node denotes corresponding return node callee denotes function called 
+similarly return node denotes corresponding call node callee denotes function called 
+leaders determined literal addresses mark function init blocks determined relocation information 
+caller callee callsite node init node exit node return call edge link edge return call edge node modeling subroutine calls unconditional branches eliminated intermediate representation information implicit edges 
+exact determination target control transfer possible alto estimates set possible targets conservatively special node special subroutine 
+simplifies implementation data flow analyses associate worst case data flow assumptions treat ordinary nodes subroutines 
+indirect jump unknown target add edge jump block indirect call unknown subroutine simulated call 
+conversely start address block appears literal data object code file assume target indirect jump add edge node 
+start address subroutine init node represents init init node 
+appears literal data object code file assume subroutine target indirect call simulate call 
+computed indirect jumps alto works hard find actual target indirect jumps calls adapt control flow graph accordingly 
+described previous section jump unknown target initially modeled jump 
+alto tries determine jump computed jump derived switch statement similar construct languages pattern matching code template code surrounding jump 
+pattern matching non trivial compiler reordered instructions peephole optimized instructions moved instructions different nodes 
+find match implicitly determined location dimension jump table refine control flow graph replacing edge edges actual target nodes 
+transformation done part editing phase greatly benefits transformations analyses liveness analysis 
+control flow anomalies machine code behaved high level source code 
+particular certain assumptions control flow reasonable higher level routinely violated machine code level 
+assumption control leaves subroutine exit node call sites 
+level executable code assumption violated escaping branches ordinary non subroutine call control transfers subroutine 
+template derived inspecting switch statement code produced various compilers typical causes escaping branches tail call optimization code sharing handwritten assembly code example numerical libraries 
+assumption subroutine call returns caller instruction immediately call instruction 
+assumption violated non local control transfers subroutines setjmp longjmp 
+alto handles cases inserting additional edges called compensation edges control flow graph depicted 
+escaping edge edge compensation caller callee node node node node exit exit init init escaping edge setjmp longjmp unknown exit init node exit node init node node compensation edges node setjmp longjmp compensation edges case escaping branch caller subroutine callee subroutine results single compensation edge exit node exit node conceptually ensures control flow entering exit important data flow analyses safely approximate program behavior 
+escape edge data flow facts propagated back originated 
+second case subroutine setjmp compensation edge exit node subroutine longjmp compensation edge exit node 
+models fact location invocation setjmp jumped unknown places calling longjmp cause jump unknown location 
+necessary insure safe approximation data flow analyses 
+escaping branches avoided duplicating code 
+may choose editing phase resulting code growth reasonable 
+editing editing phase intermediate representation transformed achieve desired goal instrumentation optimization code compression 
+chapters variety concrete transformations analyses necessary support 
+discuss issues general nature 
+alto restrict changing code code related pieces data jump tables 
+data portion program left unchanged 
+reason high level information necessary correct transformations data segment lost compilation extremely hard recover 
+example able change orders variables structure record 
+scale problems summarizes basic characteristics specint benchmark suite experiments thesis 
+benchmark programs statically compiled numbers include library subroutines 
+benchmark instructions edges nodes subroutines compress gcc go ijpeg li ksim perl vortex table characteristics specint benchmarks seen table benchmarks quite big gcc instructions 
+intermediate representation alto consumes mb 
+algorithm applied editing phase aware potentially huge size intermediate representation 
+algorithms conventional compilers operate module subroutine basis impractical object code modifications high time especially high space complexity 
+clearly algorithm quadratic number instructions feasible 
+algorithms preferably linear time space necessary 
+forced tradeoffs precision efficiency 
+furthermore memory locality algorithms data structures significantly influences performance 
+self modifying code self modifying code runtime generated code major hurdle object code modification 
+self modifying code somewhat fashion gaining popularity directly indirectly just time compilation :10.1.1.18.5716
+alto cope forms self modifying code circumstances 
+imagine piece code text segment changed runtime piece code note violates read character text segment change editing phase assumptions valid anymore 
+cause program incorrectly 
+case code generated fly dynamically allocated piece memory problems 
+code altered alto part text segment 
+invocation code look indirect control transfer 
+control transfer safely modeled making worst case assumptions runtime behavior code 
+code generation transformations intermediate representation finished need generate new version executable 
+converting address code back machine instructions pose problems 
+adding unconditional branches removed parsing straightforward 
+difficult part lies translating old code addresses new ones dealing changed segment sizes 
+unfortunately programmer system calls change access restrictions segments address translation problem address translation consequence fact object code modification code addresses particular subroutine start addresses changed 
+address translation historically major problem object code modification systems 
+solutions proposed implemented 
+approach avoid problem allowing transformations change code addresses old code deleted new code inserted 
+allowed substitute code substitute instruction unconditional branch piece code executes original instruction doing extra branches back 
+clearly approach useful instrumentation instrument running program address space running 
+second approach translates addresses statically dynamically viz 
+runtime 
+pc relative branches subroutine calls easily handled statically branches subroutine calls absolute addresses 
+targets branches procedure calls definition basic block beginnings 
+system remember basic block original address 
+code generation new addresses basic blocks known translate old addresses new addresses 
+control transfer instructions indirect control transfers handled runtime address translation 
+code snippet added indirect control transfer jump help additional table translates old addresses new addresses runtime 
+table array new addresses indexed old addresses appended text segment 
+snippet find address table leaves unchanged 
+allow runtime generated code properly 
+approach suited optimizing executables instrumentation third approach alto address translation statically :10.1.1.35.8024
+approach assumption indirect control transfers branch addresses ultimately loaded verbatim memory 
+static translator find memory locations containing code addresses replace corresponding new address 
+memory locations text segment data segment program header identified relocation information 
+approach relies compiler avoid certain coding styles break scheme 
+example consider translations switch statement computed jump 
+text lda table addq jmp table br br br bad implementation data targets word text lda targets addq ldq jmp implementation translations switch statement computed jump value switched resides register 
+targets switch statement labels shown 
+left meaning alpha machine instructions explained appendix hand side solution adds value table address obtain target indirect jump 
+indirect jump followed unconditional branch final destination 
+right hand side solution adds value address table containing possible jump targets loads target address jumps final destination directly 
+problems right hand side solution left hand side solution target computed jump result arithmetic computation indirect 
+alto way telling table unconditional branches part computed jump remain unchanged 
+fact alto removes unconditional branches intermediate representation maintains edges control flow graph 
+resulting empty nodes may moved possibly merged nonempty nodes 
+segment growing object code modification usually change size text segment 
+problem size shrinks pad original length 
+size grows original size example inlining instrumentation new text segment may overlap data segment address space forcing move data segment bss segment higher addresses 
+achieved statically relocation information identify memory locations containing addresses inside data segment bss segment updating accordingly 
+achieved dynamically inserting code load store instruction update load store address necessary 
+luckily digital unix alpha usually big gap text segment data segment eliminates problem 
+growth text segment exclusively stem code growth need extra space new read constants jump tables 
+instrumentation purposes want increase size data segment space profiling counters 
+gap text segment data segment digital unix alpha easily accomplished growing data segment lower addresses placing extra data structures original data segment 
+text segment typically start data segment 
+chapter analyses chapter describe techniques analyses data structures alto useful independently purpose object code modification 
+main focus register liveness analysis provide necessary scratch registers transformations performed editing phase 
+register liveness analysis liveness analysis attempts determine value kept variable storage location may program execution 
+variable said live case 
+liveness analysis variables understood technique employed compilers guide optimizations useless code elimination register allocation 
+liveness analysis performed object code registers take place variables 
+main purpose identify useless code provide scratch registers transformations performed editing phase 
+compared traditional variable liveness analysis usually intraprocedural register liveness analysis executable code interprocedural 
+interprocedural analysis registers simplified fact aliasing registers number registers processor bounded constant 
+difficult control flow anomalies cf 
+section scale issues cf 
+section 
+related closely related done srivastava wall om optimizer goodwin spike optimizer 
+improve liveness analysis ways 
+firstly changed underlying flow equations resulting sets identical equations simplifies implementation reasoning correctness 
+secondly accelerate fixpoint iteration exploiting novel insight interdependence various pieces data flow information 
+idea applicable liveness analysis variables 
+thirdly show reduce space requirement analysis recomputation exploitation new data flow equations 
+furthermore explore ways improve accuracy liveness analysis 
+known technique involving callee save registers point possible generalization 
+interprocedural data flow analyses intraprocedural data flow analyses consider possible paths control flow graph subroutine give estimate data flow facts hold node 
+conditionals interpreted assume sides branch taken 
+result may include paths executed reality estimate somewhat conservative 
+interprocedural data flow analyses simply adopt intraprocedural approach regard interprocedural control flow graph big ordinary control flow graph treating call return edges regular edges ignoring link edges 
+analyses performed fashion called context insensitive interprocedural analyses 
+analyses simple fast yield conservative estimates paths interprocedural control flow graph reflect real program executions 
+example shown call sites call subroutine consider path ex 
+path returns wrong call site occur execution 
+variable defined path conclude live fact dead defined 
+paths return wrong call site called realizable paths ex ex 
+see rigorous definition 
+callsite callsite call call callee ex return return return edge edge call edge call edge link edge link edge unrealizable path context insensitive analyses context sensitive interprocedural data flow analysis considers realizable paths interprocedural control flow graph 
+interprocedural register liveness analysis section discuss flavors interprocedural liveness analysis context sensitive context insensitive 
+tuning possibilities described performance numbers 
+context insensitive analysis described previous section context insensitive liveness analysis uses standard intraprocedural analysis applies program interprocedural control flow graph treating call return edges ordinary edges ignoring link edges 
+analysis iteratively computes fixpoint equations livein liveout gamma def nodes liveout succ livein nodes subject initial values liveout nodes livein nodes denotes set registers 
+node livein liveout contains registers live node def contains registers defined contains registers defined context sensitive analysis context sensitive liveness analysis restrict realizable paths interprocedural control flow graph 
+achieved considering intraprocedural paths modeling subroutine calls summary information called subroutine 
+conceptually call return edges removed interprocedural control flow graph 
+data flow link edges subject modifications described summary information called subroutine 
+pieces information necessary summarize effects subroutine liveness ffl mayuse 
+set registers may register may realizable path intervening definition mayuse describes set registers live independent calling context live call node calling typically registers pass arguments subroutine ffl bypass 
+set registers live live call node calling typically register define ffl 
+set registers defined written paths 
+ffl 
+set registers defined paths defined 
+clearly gamma mayuse bypass mayuse information computed subroutine liveness information computed follows phase live computation livein liveout iteratively compute fixpoint data flow equations listed livein nodes liveout gamma de liveout succ nodes type livein mayuse nodes type call bypass livein callee subject initial values liveout nodes livein nodes mayuse computed phase mayuse functions bypass computed phase bypass functions important aspect computation call nodes 
+register live call node register callee mayuse case live corresponding return node defined realizable path inside callee bypass case 
+gives choice selection computation bypass sets 
+register mayuse include bypass register live corresponding return nodes 
+srivastava choose bypass 
+problem approach introduces mutual dependency bypass information mayuse information complicates flow equations 
+goodwin chooses bypass problem preferable 
+fact set lies mayuse valid candidate bypass 
+choice bypass superset goodwin result uniform data flow equations 
+show bypass mayuse sets computed 
+phase mayuse computation mayuse iteratively compute fixpoint data flow equations listed difficult give intuitive description choice fixpoint equations nodes gamma de succ nodes type mayuse nodes type call bypass callee mayuse functions subject initial values nodes nodes mayuse functions bypass computed phase bypass functions phase bypass computation bypass iteratively compute fixpoint data flow equations listed nodes gamma def succ nodes type bypass callee nodes type call bypass functions subject initial values nodes type exit nodes type exit nodes bypass functions contrary intraprocedural liveness analysis context insensitive analysis choice starting values crucial initializing non exit nodes yields overly conservative results 
+differing goodwin approach modified equation adding right hand side 
+bypass sets strictly bigger holds lie mayuse 
+major virtue change equations phases sufficiently similar unified just simple compact set equations cf 
+
+code implementing analysis uses unified equations means subroutine call correspondingly simpler smaller 
+bigger sets affect performance realized bit vectors 
+unified dataflow equations gamma de nodes succ nodes type mayuse bypass nodes type call summary functions unified initial values nodes type exit nodes type exit nodes summary functions phase adaptations summary phase bypass bypass phase mayuse mayuse phase live livein liveout unified fixpoint computation tuning context sensitive analysis presentation data flow equations phases suggest certain ordering execution compute fix points simultaneously equations monotone 
+executed sequentially order bypass mayuse live space hold re hold turn reused hold livein liveout 
+spec benchmark gcc total amount memory needed hold bypass mayuse live fields kb 
+re space reduce memory require ments improve memory locality 
+comparing phase mayuse phase live evident fixpoint liveout resp 
+livein superset fixpoint resp 
+
+safe initialize livein liveout accelerating phase live having start fixpoint iteration scratch 
+describe improve phase live drastically exploiting observation 
+focus sets sets analogous 
+register node subroutine liveout conversely liveout liveout 
+hold initial values exit nodes pessimistic essentially assumed registers live 
+phase live turn registers live exit nodes 
+correct condition liveout liveout suggests alternative approach phase live benefit iterating exit nodes intraprocedural control flow graph 
+foreach nodes liveout livein repeat changed false foreach function new succ livein new liveout changed true liveout exit new foreach nodes liveout bypass new livein bypass new changed setting start values fixpoint iterations improvement mentioned lines 
+recompute liveness information exit nodes functions change lines 
+liveness information exit node changed propagate change nodes subroutine lines 
+note suffices propagate information return nodes 
+liveout resp 
+livein need kept separate locations merged occurrences liveout resp 
+livein replaced resp 
+contain liveness information completion fixpoint iteration 
+renders lines algorithm unnecessary 
+phase live usually improvement cuts execution time 
+cf 
+section experiments results 
+drawback space usage doubles bypass mayuse information kept node assuming live information merged mayuse information 
+enhancement applicable ordinary interprocedural liveness analyses variables 
+control flow anomalies control flow anomalies described section automatically handled associating worst case assumptions shown relying presence compensation edges 
+liveout livein mayuse unknown un bypass unknown un implementation performance liveness analyses implemented context sensitive context insensitive liveness analysis algorithms alto 
+speed analysis space consumption primary concern 
+usually better recompute data item store 
+alto stores various sets associated node 
+sets computed traversing instructions basic block backwards 
+def sets needed 
+relatively small number instructions typical node approach viable 
+maintain worklist nodes need reconsidered fixed point iteration incur cost pointer node 
+mark nodes need recomputation iterate alternatively keep sets recompute sets successor nodes 
+optimization needs determine registers live point node convenient sets readily available 
+nodes processing marked nodes marked ones left 
+total space requirement context insensitive liveness analysis bits node hold liveout information 
+bit registers alpha cpu 
+context sensitive analysis running phases sequentially need additional bits function hold bypass mayuse summary information simultaneously 
+improved version context sensitive analysis described previous section need additional bits node need access simultaneously 
+experiments specint benchmark suite 
+summarizes basic characteristics 
+shows experimental results liveness analyses 
+measurements obtained machine cf 
+section 
+time space usage measured precision 
+improved context sensitive analysis space time requirements square brackets precision affected 
+precision computed average number dead integer registers instructions number integer registers live averaged program points 
+column contains difference precision context sensitive insensitive analysis 
+benchmark context insensitive context sensitive improved sp 
+kb ti 
+sec prec 
+space kb time sec prec 
+prec 
+compress gcc go ijpeg li ksim perl vortex table performance liveness analysis context sensitive analysis typically finds additional dead integer registers node insensitive analysis takes roughly times long compute 
+improvement context sensitive analysis speeds computation approximately cost roughly twice memory usage 
+number available dead register suggest usually plenty scratch registers available program transformation insertion instrumentation code 
+improving precision register liveness analysis section explores precision liveness analysis improved 
+obvious source improvement overly pessimistic treatment 
+exploited 
+section shows registers analysis correctly identified live regarded dead contexts 
+callee save registers described goodwin information callee save registers exploited reduce number live registers 
+saved denoted registers saved restored defined saved subset mayuse saving register function entry regarded register liveness analysis 
+relevant register live return node call site 
+remove saved mayuse add bypass affecting safety 
+slight modification equations updating summary information phase bypass mayuse achieves desired effect 
+bypass saved functions mayuse gamma saved functions order get better insight optimization opportunity arises may generalized consider hypothetical code complex addition call sites 
+described section rely calling conventions determining saved need inspect meaning alpha machine instructions explained appendix addq addq ret ra callsite bsr ra addq ret ra callsite ldq ldq ldq ldq bsr ra move bsr ra ret ra code example addition complex numbers real imaginary part summand passed registers real imaginary part second summand registers result returned 
+callsite just prints real part result callsite computes squared norm 
+clearly registers live call sites just call 
+callsite uses real part result result computed second add useless 
+lazy programming language execute add instruction instructions computing values registers 
+unfortunately eliminate addq instruction callsite uses results 
+dead callsite consider registers dead subsequently eliminate corresponding load instructions 
+registers arbitrary values add instruction produces arbitrary result ignored light callee save register regarded additional argument result function 
+course denote register 
+moved new location live return node move operations useless 
+delete 
+mark dead corresponding call node exactly achieved moving mayuse bypass 
+calling conventions suppose function define register call function 
+liveness analysis determine bypass 
+assume function calling obey sort calling convention state register preserved procedure calls carry result 
+implies live return node call site safe remove bypass 
+fact irrelevant bypass 
+smaller bypass set desirable may introduce unwanted liveness information analysis partially eliminated smaller set 
+unfortunately control enforcement calling conventions general system calls 
+fact compilers violate calling convention perform interprocedural register allocation library functions invoked implement missing hardware features divide instruction 
+reasonable assume calls shared libraries calls function pointers respect calling convention 
+addq cause side effect overflow approach course valid 
+current version liveness analysis calls modeled call 
+enhancement model call different function special node context insensitive analysis 
+denote set registers potentially calling conventions set registers preserved function calls 
+liveness analysis augmented assignments 
+liveout livein mayuse bypass performance added enhancements described previous sections context sensitive analysis measured resulting gain precision 
+shows average number dead integer registers instructions enhancement enhancements enhancements 
+experiments show incorporating enhancements increases number dead registers 
+improvement due calling convention enhancement 
+reason lies mechanism related standard library function 
+function lets programmer register function called termination program typically return function main function pointers 
+calling convention enhancement function pointer invocation cause register live main propagate backwards subroutines 
+calling conventions system calls differ regular functions case digital unix alpha introduce function node calling convention benchmark save call 
+conv 
+compress gcc go ijpeg li ksim perl vortex impact enhancements liveness analysis register def chains register def chains provide register pointer definition 
+register occurs instruction uses register operand reads register 
+definition register instruction defines writes register 
+def chains directed graph nodes instructions edges def pointers 
+order preserve space allow pointer 
+definitions register reaching depicted left hand side register introduce pseudo instruction appropriate place defines register shadowing definitions 
+pseudo instruction register 
+resulting data structure cycle free ffl registers defined enforced inserting pseudo instructions init nodes 
+ffl code reachable enforced removing unreachable code 
+ffl definition enforced pseudo instructions 
+move move add pseudo def move add move pseudo definitions analogous functions static single assignment ssa form 
+def chains simplify implementation optimizations common subexpression elimination analyses alias analysis cf 
+section 
+algorithm difficult aspect def chains determine insert pseudo instructions 
+algorithm proposed uses sophisticated data structures dominator frontiers efficient quite memory intensive 
+implementation takes different route uses somewhat time memory efficient algorithm idea shapiro 
+approach treats register separately 
+intraprocedural forward data flow analysis propagates definitions register uses 
+definitions reach inserted pseudo instructions defining register 
+insert pseudo instructions appropriate confluence points restart algorithm 
+originally pseudo instruction init node subroutine 
+formally forward data flow analysis lattice depicted 
+meet operator def delta delta delta def gamma gamma gamma gamma def denotes instruction pseudo instruction defining phase subroutine iteratively compute fixpoint data flow equations listed 
+def 
+def endif nodes pred nodes subject initial values nodes nodes def definition register nodes fixpoint computation holds nodes 
+phase determine confluence points insert pseudo instructions 
+insert pseudo definitions nodes predecessor propagate 
+foreach nodes continue endif pseudo instruction continue endif foreach pred pseudo instruction ng break endif endfor endfor phase repeat steps pseudo instructions added 
+eventually nodes contain pseudo instruction 
+means data flow point view prevented reaching register pointers point valid definition 
+phase propagate uses 
+foreach nodes def iterate forward instructions fif uses set def pointers fi defines rg def endif endfor performance space requirements analysis moderate consists word byte basic block hold word hold def 
+dynamically computed def explicitly stored 
+maintain bit vector bits node describes registers pseudo instructions prepended node 
+keeps having insert pseudo instructions 
+total space requirements specint benchmark shown column table 
+give execution time machine cf 
+section column 
+column contains number pseudo definitions generated column total number instructions comparison 
+benchmark space kb time sec pseudo defs 
+instructions compress gcc go ijpeg li ksim perl vortex table performance def chains register alias analysis problem alias analysis memory disambiguation machine code level determine relationship memory regions identical disjoint intersecting 
+possible result allow conservative estimate known relationship regions 
+regions typically identified instruction store instruction stq describes region pointed byte offset 
+region bytes wide 
+memory disambiguation weak points object code modification lots high level information available ordinary compiler types greatly beneficial unavailable 
+various alias analyses implemented tried alto 
+early version described 
+describe current implementation 
+alias analysis inspection current version alias analysis essentially analysis inspection try derive symbolic description memory regions compare descriptions 
+short cuts general approach taken possible 
+stack pointer vs register memory region stack location containing function stack region intersect non stack region 
+stack pointer vs known address memory region stack location region lies inside text data bss segment regions disjoint 
+general case general case employ def chains form section analysis 
+describe algorithm example 
+interested relationship memory region accessed instructions labeled 
+algorithm tries symbolically express start address region tracing def chains depicted arrows def relationships omitted avoid clutter 
+start region accessed instruction 
+subscript means defined point 
+instruction point outgoing edges symbolically expand merely pseudo defi nition able expand 
+expanded obtain expansion possible 
+analogously processing region accessed instruction yields regions differ constant term conclude regions disjoint 
+regions differed term constant term relationship memory regions conservatively estimated unknown 
+addq addq pseudo def pseudo def pseudo def pseudo def pseudo def bne addq ldq addq addq stq ldq example alias analysis chapter optimizations chapter describes implementation experimental results optimizer alto 
+structure optimizer consists phases depicted 
+base optimizations 
+reading executable transforming intermediate form series base optimization performed 
+include classical compiler optimizations constant folding unreachable code elimination copy propagation optimization iterated fixpoint reached maximum iteration count exceeded 
+second round base optimizations performed just code positioning 
+time optimizations 
+phase performs optimizations done 
+reasons performing certain optimizations optimization may require costly analyses common case specialization repetition optimization undesirable side effects stack explosion repeated inlining stack merging repeating optimization give additional benefit 
+code positioning 
+optimizations executed interprocedural control flow graph arranged linear sequence nodes 
+unconditional branches eliminated intermediate form created reintroduced necessary 
+code positioning intended improve instruction cache hit rates reduce dynamic number taken branches 
+scheduling 
+scheduling reorders instructions inside node order improve performance pipelined cpu 
+scheduler slight extensions regular list scheduler allows instructions move nodes correctness program 
+base optimizations base optimizations constant propagation constant folding strength reduction block fusion nop removal constant generation conditional move 
+reload avoidance move elimination peephole unreachable code rem 
+dead code removal code positioning scheduling time optimizations analyses register liveness def chains register aliasing inlining specialization common case stack merging code motion copy propagation 
+phases optimizer alto optimizations supported analyses described previous chapter 
+experimental setup sections describe relevant optimizations performed optimizer evaluates effectiveness specint benchmark suite 
+noted benchmarks compiled dec compiler invoked cc additional linker options non shared retain relocation information produce statically linked executables 
+default optimizer uses execution frequency profiles obtained training input benchmarks 
+execution times reported generated inputs 
+timings obtained lightly loaded dec alpha workstation mhz alpha ev processor split primary cache kb instruction data cache kb chip secondary cache mb chip backup cache mb main memory running digital unix alpha rev 
+case execution time reported smallest time runs 
+optimization constant expressions interprocedural constant propagation constant folding strength reduction generally opportunities interprocedural constant propagation link time compile time 
+reasons 
+entire program including library routines eventual runtime system available inspection 
+constants propagated compilation unit boundaries source language boundaries 
+
+global data structures subroutines placed programs address space linker 
+addresses known constants link time unknown constants compile time 
+statically linked executables alto relies presence relocation information control flow graph construction 
+digital unix alpha linker ld refuses retain relocation information non statically linked executables 
+
+link time architecture specific computations available optimization visible intermediate code representation level typically compilers 
+example case computation gp register alpha processor value register generally recomputed init node subroutine return nodes subroutine calls ensure carries value code executed 
+cases recomputation unnecessary eliminated propagating value gp register program 
+noted optimization carried compile time value gp determined link time 
+analysis standard iterative constant propagation algorithm limited registers carried entire interprocedural control flow graph 
+effect communicating information constant arguments passed registers call site callee 
+improve precision determine inspection registers saved entry subroutine restored exit register saved restored subroutine manner contains constant just subroutine called inferred contain value return call 
+constant propagation interprocedural flow sensitive 
+context sensitive data flow information different call sites distinguished propagated subroutine 
+context sensitive require notion jump function memory 
+analysis sacrifice precision presence recursion 
+similar analysis extended interpretation conditionals 
+conditional unfortunately rely calling conventions observed hand written assembly code libraries obey conventions compilers may ignore doing interprocedural register allocation 
+tests register equal constant constant propagated correct branch conditional 
+simplifies implementation common case specialization cf 
+chapter 
+usual constant propagation interleaved constant folding 
+constant folder uses direct execution compute effect various opcodes cf 
+section 
+noteworthy load instructions folded 
+know memory address instruction loads location belongs read section address space fetch loaded value original executable 
+constant propagation interleaved strength reduction 
+unnecessary strength reduction change control flow graph help finding constants 
+example subroutine start address propagated indirect call instruction jsr callee known longer worst case assumptions 
+due architectural peculiarities alpha initially calls appear indirect calls program evaluable evaluated evaluated evaluable compress gcc go ijpeg li ksim perl vortex geom 
+mean table effectiveness constant propagation results constant propagation shown table 
+column lists static number instruction produce result evaluable instructions divided instructions 
+example instructions produce result non evaluable store instruction 
+column lists static number instructions result determined constant propagation evaluated instructions divided instructions 
+column ratio previous columns 
+numbers obtained second run constant propagation base optimizations 
+allows optimizations especially unreachable code elimination cf 
+section execute numbers meaningful ones obtained run 
+seen average possible evaluate instructions program link time 
+mean instructions program eliminated 
+may side effects control transfers elimination possible 
+eliminate propagate constant uses transform immediate operands 
+alpha possible small bit constants 
+section describes optimizations line 
+possible transform instruction computing loading constant cheaper instruction instruction sequence computing constant cf 
+section 
+program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact constant propagation shown table analysis profound impact performance generated code 
+example specint benchmarks li ksim perl vortex suffer slowdowns analysis turned 
+reason impact great part analyses transformations rely knowledge constant addresses computed program 
+example code generated compiler function call typically loads address called function register uses jsr instruction jump indirectly register 
+constant propagation determine address loaded fixed value callee far away indirect function call replaced direct call bsr instruction form strength reduction cheaper vital construction interprocedural control flow graph program optimizations inlining 
+example constant address information involves identification possible targets indirect jumps jump tables done indirect jump assumed capable jumping node interprocedural control flow graph significantly hamper optimizations 
+knowledge constant addresses useful alias analysis optimizations enables load store avoidance 
+constant generation described previous section possible determine constant propagation folding value computed loaded register constant 
+situation optimizer attempts find cheaper instruction compute constant register 
+optimization generalized cheap instruction sequences replace high latency operations integer multiplication 
+simplest case optimization involves computing values constants specific registers values known program point register value global pointer register gp value program point known link time 
+signed constant represented bits instruction compute constant register replaced instruction lda precisely basic block marked relocatable 
+abstracted cf 
+section 
+meaning alpha machine instructions explained appendix 
+similarly difference constant value gp register representable signed bit integer thing gp base register 
+basic optimization described srivastava wall generalized constant computed known value register just gp 
+furthermore limited address constants 
+care taken ensure constants involved code addresses addresses pointing code bearing parts text segment 
+optimizations change code code addresses change 
+constants excluded optimization 
+addresses data addresses cause problems transformations implemented optimizer leave unchanged 
+find constant code address information program header 
+describing structure segments start addresses length 
+answer naturally conservative far false positives benchmarks 
+ldq gp ldq gp ldq gp ldq gp lda lda ldq gp lda lda ldq ldq ldq ldq ldq ldq addq addq addq stq stq stq original code const 
+gen opt 
+const 
+usa 
+opt 
+code generated example optimization consider statement global bit variables type long addresses 
+shows code generated statement compiler 
+instructions gamma load addresses variables global address table global pointer register gp index table 
+instructions gamma implement actual addition 
+optimizer able determine addresses loaded registers gp constant subroutine global address table pointing read area memory 
+allows constant value optimization instructions replaces address loads cheaper lda instructions shown 
+optimizations possible described section 
+program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact constant generation performance impact optimization illustrated table 
+programs benefit optimization compress li ksim perl vortex improvements 
+constant usage generation constants results attempt optimize constants operands 
+alpha instructions allow small immediate value place second operand register 
+exploit feature possible 
+operand register determined constant try swap operands instruction 
+trivial instruction commutative operands 
+instruction commutative subtract instruction options 
+swap operands change instruction opcode change instruction subtracts second operand instruction subtracts operand second reverse subtract 
+possible instruction exist swap operands account fact instruction produces different result 
+example case subtract instruction produces negative original value modify uses result accordingly 
+optimizer exploits signed bit offsets load store instructions changes base register possible 
+transition shows example transformation 
+instructions modified new base register 
+compensated changing offsets difference value original new base register 
+note registers longer code subsequently deleted 
+note transformation create internal pointers hide pointers conflict conservative garbage collector described 
+turned applications 
+program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact constant usage performance impact optimization illustrated table 
+program benefits optimization gcc improvement 
+programs speedup marginal 
+direct execution constant folding difficult business 
+requires provide emulator machine constant folding ordinary compiler concrete machine constant folding link time optimizer 
+way emulating elementary operations high level language tedious error prone 
+high level language equivalent operators machine instructions bitwise rotate instruction need resort simpler bit manipulation operations provided language emulate rotate 
+language operator differs subtle ways equivalent operator provided machine unspecified divide modulo operations negative operands 
+case floating point operation outcome usually exactly defined certain number digits guaranteed accurate 
+constant folding portion gcc example consists lines kb source code implementation chosen different route resorted direct execution constant folding 
+order determine result addq operation known values execute addq instructions 
+guarantees perfect emulation machine behavior 
+requires little programming effort lines fast 
+course optimizer quite sources non portability minor sacrifice 
+implementation constant folder created little subroutine time needed fold constant runtime 
+case example routine consist addq ret instruction 
+operand destination registers addq instruction chosen mimic calling conventions routine invoked function pointers 
+reusing memory area little routine sure cpu see latest snapshot 
+accomplished invalidating instruction cache invoking routine 
+worked fine digital unix alpha caused problems linux alpha 
+implementation avoids instruction cache invalidation generating subroutine possible opcode initialization optimizer 
+certain opcodes excluded direct execution raise exceptions integer arithmetic instructions trap overflow opcodes file fold const gcc version sure arguments valid execute floating point operations operands number value nan positive infinity 
+instruction elimination useless instruction elimination implementation useless instruction elimination referred dead code elimination solely register liveness information 
+instruction computes value register execution paths register rewritten cases eliminate instruction 
+instruction side effects need careful instruction changes flow control computing value eliminate 
+rule relaxed load instructions side effect possibly causing segmentation fault 
+restrict liveness analysis registers detect useless computations value stored memory cell read 
+store avoidance optimization described section catch cases 
+curiously caused problems early version boehm conservative garbage collector useless load instruction probe boundaries address space 
+program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact useless instruction elimination performance impact optimization illustrated table 
+programs benefit optimization gcc li ksim perl vortex improvements 
+move elimination aim move elimination optimization identical copy propagation viz try reduce number move instructions 
+optimization general goal directed 
+move elimination optimization examines move instruction program turn tries eliminate register renaming 
+done locally basic block register liveness information 
+move elimination considers patterns 
+move ra rb move ra ra 
+rb ra 
+rb ra pattern target rb move instruction basic block move instruction source ra move instruction available target 
+convert uses target uses source eliminate move instruction 
+note pattern copy propagation yield effect 
+patterns handled copy propagation 
+pattern addq similar instructions move instructions operands constant constant combined uses 
+example addq ra rb eliminated 
+ldq rc rb ldq rc ra 
+addq rb rc addq ra rc note extension create internal pointers hide pointers conflict conservative garbage collector described 
+turned applications 
+
+def ra def rb move ra rb move rb rb 
+ra rb pattern definition source move ra instruction ra basic block move instruction 
+target rb move instruction live definition move instruction 
+rb available ra 
+convert uses target uses source eliminate move instruction 
+
+def ra def rc move ra rb move rc rc rb rc 
+rb rc ra rc pattern entire live range source ra target rb move instruction located basic block 
+find scratch register rc available definition ra live ranges ra rb rename uses definitions ra rb uses definitions rc 
+program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact move elimination performance impact optimization illustrated table 
+program benefits optimization gcc improvement 
+programs speedup marginal load store avoidance possible identify load store operations unnecessary 
+suppose instruction stores register memory region loads memory region followed soon instruction loads location register verified location modified instructions load avoidance attempts delete instruction replace register move may happen register overwritten instructions case optimizer tries find free register hold value instruction shown dead deleted 
+similar optimization applied store instructions accessing memory region 
+clearly useless deleted 
+note useless code elimination optimization focuses registers ignores memory regions catch case 
+employ basic liveness analysis stack locations eliminate useless stores stack 
+optimization opportunities ones described easily exploited compiler 
+encounter additional opportunities link time variety reasons variable may kept register compiler global compiler unable resolve aliasing adequately free registers available compiler 
+link time accesses globals different modules evident making possible keep registers 
+inlining module boundaries inlining library routines may possible resolve aliasing done compile time 
+link time optimizer may able scavenge registers hold values spilled memory compiler 
+code restructuring transformations basic block duplication convert partially redundant load fully redundant load 
+memory accesses result saving restoring callee save registers subroutine boundaries 
+accesses may unnecessary registers saved restored manner touched execution paths subroutine code registers unreachable outcome conditional branch predicted result inlining interprocedural constant propagation deleted 
+reduce number unnecessary memory accesses optimizer uses variation move register save restore actions away execution paths need 
+difference implementation shrink wrapping originally proposed chow allow execution path function contain save restore operation particular register 
+apart function saves subsequently restores callee save register change instructions save restore eliminated 
+program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact load store avoidance performance impact load store avoidance optimization illustrated table 
+programs benefit optimization gcc li perl improvements ranging 
+unreachable code elimination unreachable code code executed typically arises compile time due user constructs debugging statements turned setting flag result optimizations usually detected eliminated intra procedural analysis 
+contrast unreachable code detected link time usually different origins due inclusion irrelevant library routines code identified unreachable due propagation actual parameter values subroutine 
+case link time identification unreachable code fundamentally interprocedural nature 
+unreachable code executed elimination desirable number reasons 
+reduces amount code optimizer needs process lead significant improvements amount time memory 
+
+enable optimizations possible bringing basic blocks closer allowing efficient control transfer instructions allowing precise liveness analysis trigger optimizations 
+
+reduce amount cache pollution caused unreachable code loaded cache nearby reachable code executed 
+turn improve cache behavior program 
+
+simplifies certain analyses unreachable code elimination assume node reachable subroutine init node 
+unreachable code analysis involves straightforward depth traversal interprocedural control flow graph performed soon interprocedural control flow graph program computed repeated base 
+initially nodes marked dead nodes marked reachable reached node reachable 
+entry point program init node reachable 
+ignore return edges return node marked reachable corresponding call node reachable 
+program orig 
+code kb unreachable code kb ratio compress gcc go ijpeg li ksim perl vortex geometric mean table effectiveness unreachable code elimination due technical reasons currently possible disable unreachable code elimination disabling optimization optimizer report static improvements code size 
+amount unreachable code detected benchmarks shown table 
+seen amount unreachable code quite significant programs exceeds 
+average instructions benchmarks unreachable 
+somewhat higher results srivastava estimate amount unreachable code fortran programs 
+code motion restructuring optimization optimizations described previous sections beneficial applied possible optimizations best performed guided execution frequency profiles 
+inlining inlining replaces call subroutine copy body 
+useful optimization eliminates overhead associated call allows specialize body particular call site calling context 
+inlining edged sword 
+people unexpected performance degradation experimenting inlining 
+ffl inlining source level increase register pressure lead suboptimal register allocations 
+ffl fortran programs compiler able exploit alias requirement arguments subroutine calls subroutine inlined 
+ffl inlining recursive subroutines may lead stack explosion 
+ffl increase code size inlining hurt instruction cache performance 
+optimizer inlines subroutines object code level 
+avoids problems increased register pressure fortran calling conventions somewhat complex inlining source level inlining just syntactical transformation 
+subroutine contains computed jump example sufficient merely clone subroutine body insert call site 
+need clone jump table 
+order deal problem increased code size employ execution frequency profiles 
+optimizer inlines subroutine ffl small instructions 
+ffl call site 
+ffl called frequently call site 
+cases beneficial increase code size 
+case reduce call overhead expense code growth 
+take benefits call site specialization account making inlining decisions 
+program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact inlining performance impact optimization illustrated table 
+programs benefit optimization compress gcc li ksim improvements ranging 
+perl benchmark suffers slowdown indicating fine tuning optimization necessary 
+code positioning program opt sec opt sec compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact code positioning code positioning variation pettis algorithm 
+algorithm uses execution counts control flow edges achieve goals ffl minimization dynamic count control flow changes taken branches achieved rearranging basic blocks basic block transfers control basic block follows program text 
+decreasing control flow changes improves performance pipelined cpus alpha 
+ffl minimization instruction cache misses achieved grouping pieces code execute shortly close reducing probability cause conflict instruction cache 
+instruction caches usually small associativity conflicts translate misses 
+moving frequently executed code away frequently executed code reduces instruction cache pollution improves instruction cache utilization leads reduction capacity misses 
+performance impact optimization illustrated table 
+observed optimization yields substantial speedups 
+programs benefit optimization gcc li ksim perl vortex improvements ranging 
+effectiveness section measure effectiveness optimizer compare vendor supplied optimizers 
+profiles table compares execution times specint benchmarks compiled vendor supplied compiler additional run alto link time optimizer 
+profiling information 
+compiler invoked cc non shared wl wl wl lm exe cc list source files program 
+resulting executable optimized alto exe cc exe alto optimizer achieves average speedup 
+program cc sec alto sec alto cc compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact profiles profiles measured performance achievable existing capabilities static optimization available digital unix alpha 
+compiled benchmarks optimization level additionally profile directed inter file optimization link time optimization om 
+programs compiled follows 
+benchmarks compiled cc non shared lm exe cc list source files program 
+
+resulting executable exe cc instrumented pixie run spec training input benchmark produce execution profile 
+feedback file generated profile command prof pixie feedback fb cc exe cc 
+source files recompiled profile guided inter file optimization turned feedback file generated previous step cc ifo inline speed feedback fb cc non shared lm exe switch ifo turns inter file optimization inline speed instructs compiler inline routines enhance execution speed 
+
+resulting executable exe instrumented pixie spec training inputs 
+
+resulting profiling information exe recompile program final time time om link time optimizer turned cc ifo inline speed feedback fb om wl om compress wl om dead code wl om feedback exe non shared lm exe final reason necessary regenerate profile information om feedback directed optimizations change code addresses rendering original profile useless perspective om 
+notice step distinct sets profiles feedback file fb cc generated original profile obtained step profile exe obtained executable resulting feedback directed inter file optimization step 
+compared procedure just described optimizing benchmark utilizing profiling information alto optimizer simple 
+
+programs compiled cc non shared wl wl wl lm exe cc list source files program 
+
+resulting executable exe cc instrumented pixie run spec training input benchmark produce execution profile 
+
+alto optimizer run exploiting profiling information generated previous step alto exe cc exe final table similar table allow vendor supplied compiler alto optimizer utilize profiling information obtained training input specint benchmarks 
+seen table alto optimizer beats best optimization techniques provided vendor 
+program cc sec alto sec alto cc compress gcc go ijpeg li ksim perl vortex geometric mean table execution time impact profiles chapter common case specialization previous chapter discussed classical compiler optimizations context link time optimization 
+optimizations exploited profiling information simple execution frequency profiles 
+chapter describe highly speculative optimization exploiting additional sophisticated profiling information 
+optimization incorporated regular compiler context link time optimization 
+knowledge expression program guaranteed evaluate particular constant compile time profitably exploited constant folding cf 
+section 
+transformation sense optimizer able guarantee expression consideration evaluates compile time constant transformation applied 
+practice case expression point program takes particular value :10.1.1.40.2933
+example spec benchmark perl function called close times case argument giving size memory region processed value take advantage fact direct calls optimized version function significantly simpler faster 
+example spec benchmark li frequently called function contains switch statement case labels corresponding type list occurs time knowledge fact allows code restructured common case tested control go jump table relatively expensive 
+examples suggest know certain values occur frequently certain points program may able take advantage information improve performance program 
+unfortunately classical compiler techniques take advantage knowledge distribution values order optimize common case 
+idea common case specialization employ sophisticated value profiles allow optimization 
+number technical issues addressed accomplish 
+specializing piece code different values specializing code benefits specialization high lead performance degradation 
+necessary determine code specialize extent 
+necessary determine specialization carried common case efficient code remains correct 
+sections address questions show value profile specialization automated integrated link time optimizer previous chapter 
+related considerable body program specialization partial evaluation community jones give extensive discussion bibliography 
+focuses largely aggressive code specialization starting known values program inputs 
+issue specialization value profiles considered 
+implementations object oriented languages attempt mitigate high cost dynamically dispatched calls limited form value profile specialization 
+idea referred type feedback receiver class prediction monitor targets dynamically dispatched function calls information inline code frequently called targets 
+main limitation approach specialization restricted dynamically dispatched function calls applied ordinary code code benefit substantially knowledge values commonly encountered runtime 
+approach termed dynamic compilation specializes code run time 
+focuses values unknown compile time constant run time 
+values usually identified support programmer source code annotations process fully automatic 
+optimization usually performed producing machine code template compile time filling blanks run time causes additional overhead 
+furthermore approach implies code may optimized fullest extent template specialized filled value 
+calder investigated issues techniques value profiling extensively 
+implementation value profiling inspired theirs similar 
+calder consider profiling registers memory locations profile registers 
+stage profiling process order reduce time space overheads 
+idea profile application simple basic block profiler pixie execution frequency information obtained identify candidates value profiling specialization 
+different calder discuss value profile optimization hand transformed examples show value profile specialization yield significant speed improvements 
+contrast describes value profile specialization fully automatic integrated alto system 
+automation nontrivial requires careful cost benefit analysis optimizer avoid degradation performance 
+details cost benefit analysis specialization carried described sections 
+preliminaries suppose code fragment wish specialize particular value register variable conceptually value profile specialization transforms code hci hci represents residual code specialized value test needed guarantee take value program point 
+idea generalized multiple values probability distribution values collection tests organized optimal binary search tree choose specialized versions 
+simplicity discussion focus specialization single value illustrates technical issues arise 
+notice specialized code hci may efficient original code transformed code efficient original code values runtime test introduced 
+tradeoff associated transformation cost execution paths may reduced specialization accompanied increase cost execution paths 
+tradeoff assessed carefully specialization lead degradation performance 
+carry code specialization number decisions 
+specifically decide program point specialization corresponds point runtime tests values inserted discussed register values interested purposes program point refers points immediately instruction includes entry exit points basic blocks 
+particular value specialize actual code fragment subjected specialization 
+specialization triple triple form program point register value register triples identify runtime tests inserted context value profile specialization program points inserted 
+specialization region triple refers region code chosen specialization identifies code fragments appear branches runtime test corresponding triple 
+details specialization triples regions chosen discussed section 
+code specialization value profile code specialization step process 
+section describes cost benefit analysis fundamental approach 
+order reduce time space overheads value profiling far possible identify program point register pairs merit profiling 
+section discusses done avoid profiling instructions help speed program 
+second step discussed section carry instrumentation profiling obtain value profiles 
+final step discussed section uses value profiles carry specialization program points deemed profitable 
+general specialization carried value register variable memory location relationships values 
+simplify discussion current implementation carries specialization register values refer register values discussing specialization 
+estimating costs benefits specialization value profiling specialization decisions guided estimates benefit obtained code specialization knowledge register value program point denoted benefit 
+benefit tries approximate number saved cpu cycles 
+explain estimate gives lower bound actual benefit 
+components computation benefits instruction uses value available may benefit knowing value magnitude benefit general depend type operand position occurs actual value denoted savings 
+ii may happen knowing value operand register instruction allows determine value computed case said evaluable written evaluable 
+evaluable benefits obtained specializing instructions value computed particular value credited knowing value indirect benefits obtained knowing value instruction denoted 
+denote executed 
+uses denote set instructions value register available program point benefit knowing register value program point benefit uses theta savings indirect benefits knowing register value instruction 
+program point immediately denotes register computes result value denotes value computed instruction register value undefined evaluable false 
+benefit value evaluable approximation estimating indirect benefit fact equals forgotten case evaluable 
+information propagated case equals value 
+consider code example ldq load value memory addq compute want compute benefit knowing value load instruction 
+knowing addq instruction evaluable adding benefit making known 
+instruction appear evaluable just obtain sum benefits knowing separately 
+case rare approximation allows simplify implementation drastically equations computing benefits propagate information uses register definitions 
+equations general recursive corresponding cycle def chain 
+standard approach solving recursive equations context compile time program analysis compute usually iteratively fixpoint suitable domain 
+follow approach cycle free def chain datastructure cf 
+section propagate information bottom uses registers definitions single pass 
+benefits specialization weighed costs incurred due runtime tests 
+cost test depends register value tested testing value usually fairly cheap testing non zero floating point constant may incur load memory 
+cost testing register value denoted 
+cost tries approximate number additional cpu cycles needed 
+identifying candidates specialization order reduce time space overheads value profiling far possible attempt identify candidate program point register pairs specialization conceivably yield performance improvement sufficiently skewed runtime distribution values 
+done estimating pair maximum benefit achieved specialization value completely invariant dynamically value 
+case benefits discussed previous section computation quantity components 
+maximum savings incurred specialization instruction value register max savings implementation course compare values savings possible resort essentially table lookup 
+maximum benefit uses theta evaluable takes account type instruction operand positions occurs actual value known 
+division instruction div greater benefit div case offers greater possibilities strength reductions knowledge value hand div evaluable higher benefit strongly related latency div instruction 
+conditional branches evaluable compute value instructions assigned relatively high benefit branch optimized away condition register value known 
+analogously minimum cost testing register value min maximum benefits computed described candidates profiling chosen follows register value profiled point theta value profiling set program point register pairs value profiled scheme calder obtaining value profiles 
+mentioned earlier implementation value profiling obtains profiles registers memory locations 
+actual profiling carried function created purpose 
+function compares value register question contents fixed size table previously encountered values 
+current value table count value incremented table full value added table count initialized 
+table full value ignored 
+periodically table cleaned evicting frequently values table allows new values enter table 
+keep track total number times execution passes point incrementing counter associated point 
+implemented variant scheme call predicate profiling ask predicate satisfied program point 
+examples predicates value register non negative value register different register notice predicate profiles simply summaries value profiles value profiles registers general reconstruct predicate holds 
+predicate choose profile program point typically determined considerations possible optimizations enabled predicate profile 
+predicate profiles important reasons 
+conceptually generalize notion value profiles allowing capture distribution relationships different program entities 
+second predicate profile may skewed distribution enable optimizations value profiles constituents predicate profile skewed example predicate may true time values skewed distribution 
+implementation predicate profiling efficient general value profiling know evaluation predicate take values 
+carrying specialization value profiles obtained code specialization involves steps 
+necessary determine particular specialization triples considered corresponding specialization regions 
+code transformation carried cloning specialization region incorporating clone code tests register values described carrying actual specialization 
+identifying specialization triples benefit computation described section identify specialization triples code specialization worthwhile 
+know distribution values taken points profiled determine probability prob value occurs 
+specializing program point value register worthwhile benefit theta prob theta identified set specialization triples benefits specialization exceed runtime cost choose specialized 
+issue addressed specialization regions different triples may overlap 
+illustrated instruction sequence ldq load xff xff suppose value profiled register ldq instruction register instruction cost benefit analysis instructions candidates specialization 
+program points dependent computed specialization regions overlap 
+depending circumstances better specialize ldq instruction instructions result instruction situations better specialize instruction value distribution skewed 
+cases specialize promising cost benefit analysis case tie program point dominates chosen discussed section overlaps possible points dominates 
+identifying specialization regions set specialization triples determine specialization region associated 
+basic intuition triple want identify instructions directly indirectly value available potentially benefit specialization cf 
+
+specialization region specialization region precise notion instruction value directly indirectly 
+program point register say influences instruction uses value ii instruction program point defines register influences influences triple specialization region triple defined smallest set basic blocks basic block containing influences instruction occurring basic block dominates immediate intra procedural predecessor control flow graph program hard see specialization triple basic block containing dominates block specialization region triple 
+necessary correctness ensure execution path reach specialization region triple pass test inserted issues addressed definition specialization regions 
+triple may happen influences instruction basic block containing specialization region triple dominate problem remedied duplicating code dominate second definition take account size specialization region relative benefits obtained specialization 
+may happen instruction block far away point influenced value register include specialization region necessary include blocks blocks may benefit specialization 
+extreme cases give rise large specialization regions order include distant influenced instructions 
+handled notion density influenced instructions analogous notion density case labels code generation switch statements limit specialization regions code contains sufficiently high proportion instructions benefit specialization 
+currently alto duplicates code take density account 
+transforming program code transformations effected specialization quite involved 
+depend type instruction specialized operand specialized particular value operand 
+cause nontrivial restructuring control flow graph program outcome conditional branch determined 
+involved nature transformations functionality available system routines implement constant propagation constant folding cf 
+section separate code implement transformations specifically value profile specialization 
+specializing triple simply create clone specialization region triple insert test program point tests transfers control clone value cf 
+
+specific value profile specialization necessary actual specialization code takes place course normal constant propagation constant folding strength reduction 
+addq spec clone bne clone addq subq specialization transformation specialization triple variety idioms may implement test inserted program point depending magnitude value free register available 
+free register available simply compute difference conditionally branch cloned code zero 
+free registers available small immediate operand pair instructions inserted cf 
+subq bne clone goto clone fall spec compensate effect subq instruction add instruction addq entry original specialization region clone 
+meaning alpha machine instructions explained appendix actual specialization subsequently takes place constant propagation constant folding cf 
+section 
+note constant propagation able derive information conditionals 
+basic block ends beq instruction branch successor block true branch receive information contains false branch receive information non zero bne instructions branch equal treated analogously 
+turns crucial carrying value specialization 
+transformation sequence described constant propagation determines instruction bne clone inserted discussed register value entry successor false branch block spec determines instruction addq spec register value information propagated code fragment specialized carry various optimizations discussed 
+example effectiveness approach consider code part function spec benchmark ksim 
+left hand side shows unspecialized code 
+code right hand side specialized 
+number instructions significantly reduced 
+note code shown represents loop test hold occurs outside loop 
+loop lda ldl subl stl lda ldl subl stl lda ldl subl stl lda lda subl stl bne loop unspecialized loop ldl subl stl ldl subl stl ldl subl stl lda subl stl bne loop specialized effect value specialization node ksim implemented predicate profiling cf 
+section resolving pointer aliasing relationships 
+determine pointers aliases frequently executed fragment code information variety optimizations including avoidance redundant memory accesses instruction scheduling 
+example spec benchmark ksim predicate profiling allows determine pointers registers heavily executed loop function usually aliased information eliminate redundant memory accesses effect significant speed improvement 
+shows unspecialized code 
+specialized version code shown 
+number instructions reduced third 
+note code shown represents loop test predicate true occurs outside loop 
+loop ldl subl ldl bis stl ldl srl stl ldl sll bis stl ldl srl stl ldl ldl bis stl ldl srl stl ldl sll bis stl ldl srl stl ldl lda ldl bis stl ldl srl stl ldl sll bis stl ldl srl stl ldl ldl bis stl ldl srl stl ldl sll bis stl ldl srl stl loop unspecialized code fragment ksim align loop ldl subl ldl bis srl ldl sll bis srl addl bis srl addl sll bis srl addl lda addl bis srl sll bis srl addl bis stl srl addl sll bis stl srl stl loop specialized code fragment ksim align experimental setup experimental evaluation programs spec benchmark suite 
+programs compiled dec fortran compiler invoked cc additional linker options non shared retain relocation information produce statically linked executables 
+initial execution frequency profiles value profiles program obtained spec training inputs execution times reported obtained spec inputs 
+timings obtained lightly loaded dec alpha workstation mhz alpha processor split primary cache kb instruction data cache kb chip secondary cache mb chip backup cache mb main memory running digital unix alpha rev 
+case execution time reported smallest time runs 
+experimental results table compares benchmark total number program points profiled specialized column number profiled column number specialized column 
+indicates computation cost benefit tradeoffs highly selective small number points chosen profiling keeps value profiling overhead small small number points chosen specialization keeps code growth modest 
+statically linked executables alto relies presence relocation information control flow analysis 
+digital unix alpha linker ld refuses retain relocation information non statically linked executables 
+program points profiled specialized compress gcc go ijpeg li ksim perl vortex applu apsi fpppp hydro mgrid su cor swim tomcatv turb wave table extent profiling specialization table documents code growth caused value specialization 
+column states code size benchmarks optimized alto optimizer cf 
+chapter value specialization column states size value specialization 
+column ratio 
+code growth moderate especially integer subset benchmarks exceed 
+floating point subset exceed 
+program plain alto kb specialized kb ratio compress gcc go ijpeg li ksim perl vortex applu apsi fpppp hydro mgrid su cor swim tomcatv turb wave table code growth due specialization program plain alto sec specialized sec ratio compress gcc go ijpeg li ksim perl vortex applu apsi fpppp hydro mgrid su cor swim tomcatv turb wave table execution time impact value profile specialization timing measurements shown table 
+column states execution time benchmarks optimized alto optimizer value specialization column states execution time value specialization 
+column ratio 
+seen numbers automatic value profile specialization yield significant performance improvements nontrivial programs 
+programs benefit li ksim perl apsi fpppp mgrid 
+sources performance improvements benchmarks discussed 
+caveat 
+system value profile specialization carried subroutine inlining 
+code structure encountered specialization subroutines associated specialized code fragments may correspond source program 
+li sequences independent conditionals functions sweep transformed common case tested 
+switch statement function transformed common case go jump table 
+ksim predicate profiling allows determine pointers function common case allowing elimination load store instructions function 
+function specialized argument 
+perl function specialized single byte move 
+internal function unsigned emulates integer division alpha integer division instruction specialized divisor 
+apsi specialization allows multiplication operations subroutine pset subroutines inlined strength reduced operands zero 
+fpppp common case computed goto statement subroutine specialized 
+mgrid specialization allows multiplication operation subroutine resid strength reduced operands zero 
+calder report significant benefits specializing hydro benchmark 
+surprise able find significant specialization opportunities program examination code suggests may due improvements dec fortran compiler carried 
+chapter code compression years increasing trend incorporation computers wide variety devices palm tops telephones embedded controllers devices amount memory available limited due considerations space weight power consumption price 
+time increasing desire sophisticated software devices encryption software telephones speech image processing software laptops palm tops 
+unfortunately application requires memory available particular device able run device 
+desirable try reduce size applications possible 
+chapter explores object code modification reduce code size describes implementation experimental results code compressor alto 
+envisioned application scenario rules certain compression schemes described dissertation 
+compression results program representation needs decompressed execution undesirable reasons 
+extra memory necessary decompress program 
+second time overhead decompression may prohibitively big 
+undesirable interpretive schemes slow execution require form runtime system possibly changes operating system 
+tradeoff compression ratio execution speed system complexity 
+profiling information take excluding hot spots program compression 
+implemented system 
+reductions code size system come sources aggressive interprocedural application essentially classical compiler analyses optimizations code factoring term refer variety techniques identify factor repeated instruction sequences 
+compression techniques applied object code quite easily incorporated compilers capable interprocedural code transformations 
+structure code compressor depicted 
+similar optimizer described chapter 
+time optimizations base optimizations base optimizations code compression code positioning scheduling phases code compressor alto base optimizations time optimizations changed optimizations may increase code size invoked inlining functions single call site 
+factoring transformations added base optimizations reduce code size 
+new phase code compression contains gist compression transformations 
+sections describe relevant factoring transformations performed code compressor evaluates effectiveness specint benchmark suite 
+related earlier code compression aiming yielding smaller executables treated executable program simple linear sequence instructions 
+early fraser suffix tree construction identify repeated instruction sequences linear sequence 
+repeated sequences abstracted functions 
+applied range unix technique managed reduce code size factor average 
+shortcoming approach relies purely textual interpretation program sensitive superficial differences code fragments due differences register names may effect behavior code 
+shortcoming addressed baker parameterized suffix trees cooper mcintosh register renaming baker manber discuss similar approach parameterized procedural abstractions 
+main idea rewrite instructions hard coded register names register operands instruction expressed possible terms previous basic block register 
+branch instructions rewritten possible pc relative form 
+transformations allow suffix tree construction detect repetition similar lexically identical instruction sequences 
+cooper mcintosh obtain code size reduction average techniques classically optimized code implementation classical optimizations achieve code size reduction compared unoptimized code 
+approach treats program simple linear sequence instructions suffix tree approaches mentioned suffer disadvantage having particular ordering instructions basic blocks 
+may reasons equivalent computations may map different instruction sequences different parts program 
+obvious may differences register usage branch labels 
+differences actual sequence instructions produced may arise due instruction scheduling profile directed code layout improve instruction cache utilization 
+approach code compression somewhat different 
+treating program simple linear sequence instructions interprocedural control flow graph 
+scheme similar identify similar basic blocks 
+blocks similar identical try rename registers technique somewhat different cooper mcintosh attempt identical 
+notions dominators post dominators detect identical subgraphs control flow graph larger single basic block abstracted procedure 
+identify take advantage architecture specific code idioms saving restoring specific sets registers entry return functions 
+showing equivalent code fragments detected factored having resort purely linear treatments code sequences suffix tree approaches main contribution set framework code compression flexible treatment code fragments considered equivalent 
+example current implementation searches sets basic blocks contain identical instruction sequences straightforward generalize component system consider def chains cf 
+section handle differences sequence instructions arising instruction scheduling decisions 
+similarly treatment single entry single exit regions section focuses structural properties control flow graphs particular linearization allows handle differences code sequences arising profile directed code layout 
+believe added flexibility gained approach useful improving results code compression 
+secondary contribution show significant reductions code size obtained having resort extraneous structures suffix trees information available control flow graph dominator postdominator trees 
+local factoring local factoring transformation inspired idea knoop 
+tries merge identical code fragments moving point pre post dominates occurrences fragments 
+implemented local variant scheme describe example depicted 
+meaning alpha machine instructions explained appendix stq stq ldq xor stq xor subq ldq stq stq subq beq addq addq subq stq ldq xor stq stq ldq xor subq addq beq ldq xor ldq stq sub stq subq xor local factoring left hand side shows assembly code flowchart conditional branch beq block blocks contain instruction addq 
+instructions backward dependencies instruction safely move block just beq instruction shown right hand side 
+similarly blocks share store instruction stq instructions forward dependencies instruction safely moved block case possible move store instruction due lack aliasing information backward dependencies load instructions ldq general possible move instruction 
+case prefer move moving eliminate exactly copy moving eliminate copies 
+scheme uses register reallocation transformation effective 
+example subq instructions write different registers 
+rename making instructions identical 
+opportunity rests xor instructions identical move write register conditional branch 
+register dead transformation possible 
+dead registers conveniently interprocedural register liveness analysis cf 
+section 
+local factoring invoked base optimizations 
+move instructions change flow control create new basic blocks 
+factoring schemes described subsequently change register allocation instruction schedule 
+intraprocedural tail merging cross jumping tail merging classical compiler transformation 
+describe example depicted 
+stq subq xor beq ldq subq stq addq xor beq stq addq ldq stq ab stq subq addq xor beq cross jumping look basic blocks common tail instructions branch basic block 
+done efficiently going backwards searching predecessors basic block common tails 
+new basic block ab created containing common instruction sequences eliminated original locations 
+shrunken basic blocks branch ab tail merging invoked base optimizations 
+perform register renaming tails similar reschedule 
+merges tails basic blocks function 
+procedural abstraction procedural abstraction inverse operation inlining cf 
+section 
+single entry single exit code fragment procedural abstraction involves creating procedure body copy ii replacing appropriate occurrences program text function call step difficult level assembly machine code second step involves little 
+procedural abstraction principle done compiler intermediate representations compiler provide support kind transformation 
+needed possibility invoke subroutine maintaining environment stackframe register contents caller 
+object code level subroutine invocation mechanism usually provide sort jump link instruction transfers control callee time puts return address register leaves stackframe registers untouched 
+liveness analysis cf 
+section usually provide possible scratch registers hold return address 
+choose 
+simple method calculate register number occurrences code fragment return register 
+register highest merit chosen return register single instance particular return register occurrences program may create multiple instances different return registers 
+complicated scheme abstracting function cf 
+section regions multiple basic blocks cf 
+section 
+procedural abstraction individual basic blocks basic block special case single entry single exit region handled separately require basic blocks identical order 
+merely require similar viz 
+identical register allocation 
+order determine basic blocks similar adapt technique replace mention register inside basic block distance measured number instructions definition 
+modified basic blocks sorted yielding partition similar basic blocks 
+examine set partition turn attempt convert similar basic blocks identical basic blocks 
+basic idea simple registers renamed locally basic block necessary register register moves inserted new basic blocks inserted immediately block renamed preserve program behavior 
+example shown try similar basic blocks identical 
+fairly canonical order considering number instructions basic block opcodes transformed register names live live example basic block level register renaming general reasons keep simply copying register allocation basic block similar basic block 
+ffl input registers 
+basic blocks registers defined basic block different 
+exemplified compensated introducing additional move instruction 
+ffl output registers 
+basic blocks define registers outside basic block different 
+exemplified definition compensated introducing additional move instruction 
+subtle point need sure definition corresponding definition available 
+basic blocks really similar identical 
+ffl live range conflicts 
+register live defined destroying value needed 
+compensate temporarily moving register unused register 
+exemplified register temporarily moved 
+problems exists copy register allocation basic block literally 
+problem exists shown solve adding move instructions 
+keep track number move instructions necessary add benefit abstraction 
+note number necessary move instructions required identical differ number necessary move instructions identical relationship 
+order cope iterate set similar basic blocks times trying convert similar basic blocks identical ones 
+round allow move instruction added round allow move instruction add 
+possible employ sort meet middle approach register renaming try basic block identical just try identical changing 
+implemented scheme 
+different approach register renaming described cooper mcintosh 
+carry register renaming level entire live ranges renaming register different register renaming applied entire live range 
+advantage requiring additional register moves renamed block approach 
+problem register renaming allow abstraction particular pair basic blocks may interfere abstraction different pair blocks 
+load 
+live range live range interference effects live range level register renaming illustrated solid double arrows indicate identical basic blocks dashed double arrows indicate blocks identical identical register renaming 
+blocks comprise live range register comprise live range 
+rename live range blocks identical cause blocks identical function 
+rename live range identical interfere abstraction blocks 
+interference effects clear live range level renaming produces results necessarily superior basic block level renaming 
+notice problem addressed judiciously splitting live ranges local renaming seen limiting case live range level renaming splitting applied live range spans basic block 
+control flow separation approach described typically able basic blocks identical explicit control transfer instruction 
+reason control transfers different targets blocks considered different abstracted 
+control transfer instruction conditional branch procedural abstraction complicated fact possible return addresses communicated 
+avoid problems basic blocks explicit control transfer instruction split blocks block containing instructions block control transfer block contains control transfer instruction 
+pair blocks subjected renaming procedural abstraction usual way 
+single entry single exit regions discussion far focused procedural abstraction individual basic blocks 
+general may able find multiple occurrences code fragment consisting basic block 
+course factor basic block individually 
+factoring entire region promising 
+order apply procedural abstraction region occurrence program able identify single program point control enters single program point control returns leaving hard see set basic blocks single entry point single exit point corresponds pair points dominates block post dominates block conversely pair program points dominates post dominates uniquely identifies set basic blocks single entry point single exit point 
+single entry single exit regions considered identical possible set correspondence members identical ii immediate successor condition immediate successor condition order determine regions identical recursively traverse regions starting entry node verifying corresponding blocks identical 
+procedural abstraction applied individual basic blocks identify pairs basic blocks dominates post dominates pair defines single entry single exit set basic blocks 
+sets basic blocks partitioned groups identical regions candidates procedural abstraction 
+simplify partition building process compute fingerprint region regions different fingerprints necessarily different 
+fingerprints bit values bits number basic blocks region bits total number instructions bit pattern represent values larger remaining bits encode particular preorder traversal region basic blocks region block encoded bits bits give type block bits number instructions block 
+number pairwise comparisons fingerprints reduced distributing regions hash table 
+turns applying procedural abstraction set basic blocks straightforward single basic block especially object code modifying imple mentation 
+reason general procedure corresponding single entry single exit region called return address put register value guaranteed preserved entire procedure region may contain function calls 
+means return address register saved stack 
+allocating extra word stack hold return address cause problems careful allocating space top stack frame cause changes displacements variables stack frame relative top stack pointer allocating bottom stack frame change displacements arguments passed stack 
+address arithmetic involving stack pointer address computations local arrays computations may affected changes displacements stack frame 
+problems somewhat easier handle procedural abstraction carried code generation level syntax trees 
+level assembly code machine code considerably complicated 
+simple cases possible avoid complications associated having save restore return address introducing procedural abstractions 
+identify situations 
+case identical regions return blocks blocks control returns caller need procedural abstraction create separate function regions 
+interprocedural version cross jumping transformation cf 
+section 
+code region simply replaced branch transformation illustrated 
+return return return merging regions returns cross jumping second case identical regions procedure suppose possible find register live entry regions ii value guaranteed preserved regions consideration generalpurpose register defined region callee saved register saved restored functions regions consideration occur 
+case abstracting regions procedure necessary add code explicitly save restore return address instruction call simply put return address return instruction simply jump indirectly return caller 
+conditions satisfied determine return address register safely saved memory entry restored 
+conservative analysis determine function may arguments passed stack registers may pointers stack frame 
+set candidate regions abstracted representative procedure check 
+function contains candidate region safe respect problems mentioned allocate word stack frame function 
+
+register free entry regions consideration 
+
+register free regions consideration 
+
+calls setjmp functions affected change structure stack frame 
+conditions satisfied allocates additional word stack entry saves return address passed location loads return address location restores stack frame exit 
+current implementation safety check described quite conservative treatment function calls region 
+principle find space allocated stack free registers return address entry exit abstracted function possible allocate extra word stack order free register implemented 
+architecture specific idioms apart general purpose techniques described earlier detecting abstracting repeated code fragments machine specific idioms profitably exploited 
+particular instructions save restore registers return address callee saved registers prolog epilog function generally predictable structure registers saved predictable locations stack frame 
+example standard calling convention digital unix alpha treats register ra return address register registers callee saved registers saved locations sp sp sp sp denotes stack pointer register 
+abstracting instructions yield considerable savings code size 
+register save restore instructions function typically follow sequence 
+function sequence actions reversed 
+fact different function carry similar sequence events imply instruction sequences encountered different functions instruction scheduling cause instructions interspersed code save registers similar comment applies function 
+techniques described earlier rely identifying identical instruction sequences basic blocks may able factor instructions saving restoring registers function 
+treated specially 
+abstracting register saves order register save instructions prolog function separate function necessary identify register hold return address call liveness analysis employed find register 
+candidate register compute savings obtained return address calls 
+done totaling function free entry number registers saved prolog size prolog 
+choose register maximum savings generate family functions save save save ra save callee saved registers return address register return register idea function save saves register falls function save gamma function register available prolog code subsequently saves registers rk replace prolog call save rk save save stq sp stq sp stq sp stq ra sp ret 
+save save save ra save subq sp sp bsr bsr subq sp sp example function prolog factoring example suppose functions saves registers saves register 
+assume register free entry functions chosen return address register 
+code resulting transformation described shown 
+may turn set functions subjected transformation callee saved registers 
+example suppose functions return address register save register 
+case code function save unreachable subsequently eliminated 
+particular choice return address register described may account functions program 
+process repeated choices return address registers benefit obtained functions accounted 
+abstracting register restores code abstracting register restore sequences function conceptually analogous described differences 
+simply opposite done register saves function code resulting procedural abstraction return block function structure instructions manage control transfers stack pointer update bsr restore call register restore function addq sp sp deallocate stack frame ret ra return move instruction deallocating stack frame function restores saved registers need return function epilog abstracting control return directly caller effect realizing tail call optimization 
+problem code restore saved registers different functions general stack frames different sizes need adjust stack pointer different amounts 
+solution problem pass argument function restores registers amount stack pointer adjusted 
+return address register ra guaranteed free point overwritten return address prior returning control caller pass argument 
+need control return registers restored return directly caller simply jump function function restores registers function call 
+resulting code requires instructions function return block move ra sp needs adjusted br restore jump register restore function code function restores registers pretty expect 
+situation register save sequences discussed section need function restoring registers 
+reason need call function control jump directly discussed 
+note essentially cross jumping interprocedurally parameter stack size 
+means generate different versions function different return address registers 
+structure code analogous saving registers chain basic blocks restores callee saved register control falling block saves lower numbered callee saved register 
+member chain adjusts stack pointer appropriately loads return address register returns 
+minor twist 
+amount stack pointer adjusted passed register ra register overwritten adjust stack pointer 
+hand memory location memory address restored stack frame practice functions guaranteed follow standard calling convention necessary verify register ra fact return address register adjust stack pointer return address loaded ra 
+get problem instruction sequence addq sp ra sp sp sp ra new sp subq sp ra ra ra sp ra old sp ldq ra ra ra return address ret ra resulting code restoring saved registers functions considered example illustrated shown 
+ra ldq sp ldq sp ldq sp restore restore restore restore ldq ra ra ret ra addq sp ra sp subq sp ra ra move ra caller caller move ra example function epilog factoring go order minimize number registers 
+find register free function load return address register resulting somewhat simpler code 
+general easy find register free function 
+function restores saved registers transformed code savings find free register significant 
+compared obvious implementation described subsection resulting code reduces number instructions necessary function return block net savings instruction cost introducing additional instructions function abstracts register restore instructions 
+able achieve net savings compared obvious implementation functions program register restore actions abstracted described 
+reason go lengths eliminate single instruction return block lot return blocks amounting basic blocks program usually block function 
+elimination instruction block translates code size reduction may small put perspective consider cooper mcintosh report code size reduction suffix tree techniques 
+experimental setup experimental evaluation programs specint benchmark suite 
+benchmarks compiled dec compiler invoked cc highest optimization level perform code size increasing transformations 
+additional linker options non shared needed retain relocation information produce statically linked executables 
+statically linked executables alto relies presence relocation information control flow graph construction 
+digital unix alpha linker ld refuses retain relocation execution frequency profiles 
+execution times reported generated benchmark inputs 
+timings obtained lightly loaded dec alpha workstation mhz alpha ev processor split primary cache kb instruction data cache kb chip secondary cache mb chip backup cache mb main memory running digital unix alpha rev 
+case execution time reported smallest time runs 
+experimental results table compares benchmark code size original unoptimized version column alto optimized version regular optimizer program cc kb norm alto kb alto kb fac 
+kb compress gcc go ijpeg li ksim perl vortex geom 
+mean table impact code compression code size information non statically linked executables 
+profiles column alto optimized version code growing optimizations disabled column smallest possible version factoring transformations column 
+normalized numbers relative column 
+factoring transformations reduce code size average compared original 
+reduction due factoring rest due optimizations performed alto 
+table structure table compares execution times code sizes 
+expected extra reduction code size due factoring obtained small penalty execution time 
+average faster original executable 
+program cc sec norm alto sec alto sec fac 
+sec compress gcc go ijpeg li ksim perl vortex geom 
+mean table impact code compression execution time chapter research described dissertation suggests avenues 
+obvious explore extensions optimizations code compression transformations 
+especially area profile guided optimizations advances proven beneficial incorporated production quality compiler 
+believe due mentioned impedance mismatch easily available low level profiling information high level intermediate representation inside compilers 
+problem exist alto ideal platform studies profile guided optimizations 
+related issue resource guided optimizations 
+compilers perform optimizations inlining loop unrolling little regard available resources underlying machine 
+lead unexpected counter productive results 
+example excessive inlining increase amount code executed frequently working set size instruction cache increasing cache misses degrading performance 
+problem arises loop unrolling 
+infamous example spec benchmark fpppp contains loop manually unrolled 
+unrolled loop accounts cycles spent benchmark results basic block instructions far exceeding instruction cache size 
+suggests leave potentially harmful transformations optimizer alto works low level easier estimate resource usage interesting enhancements guarded code specialization ffl specializing value highest benefit certain program point register pair 
+specialize beneficial values possibly inserting sequence tests dispatch actual value 
+ffl quite registers skewed value distribution program point conditional distribution values skewed 
+profiling register time want profile registers 
+require scheme computing combined benefits contents registers known 
+ffl hinted value profiling just special case general predicate profiling 
+automatic computation useful predicates profile challenging promising extension 
+current implementation code compression object code level cope scheduling 
+prolog epilog factoring local factoring effective presence rescheduled instruction sequences 
+nice extend basic block factoring just basic blocks identical register reallocation basic block identical instruction scheduling factored 
+difficult task probably compute dependence graph instructions basic block search isomorphic graphs 
+nice extend sub basic block level allowing factoring parts basic blocks 
+appendix alpha machine instructions instruction effect ldq ra rb load bytes address rb ra ldl ra rb load bytes address rb ra stq ra rb store ra address rb stl ra rb store ra address rb lda ra rb compute address value rb ra ra rb rc compute bitwise ra rb rc bis ra rb rc compute bitwise ra rb rc xor ra rb rc compute bitwise xor ra rb rc slr ra rb rc shift ra rb bits right rc sll ra rb rc shift ra rb bits left rc move ra rb move ra rb addq ra rb rc compute sum ra rb rc addl ra rb rc compute sum ra rb rc subq ra rb rc compute difference ra rb rc subl ra rb rc compute difference ra rb rc ra rb rc compute product ra rb rc instruction effect br label branch unconditionally label jmp ra branch unconditionally address ra ret ra return address ra bsr ra label call subroutine label storing return address ra jsr ra rb call subroutine address rb storing return address ra beq ra label branch label ra bne ra label branch label ra ra label branch label ra ra rb rc set rc ra rb ra rb rc set rc ra rb ra rb rc set rc ra rb register synonym usage subroutine result gamma general purpose ra return address subroutine call pv subroutine address subroutine call general purpose gp pointer constant pool global pointer sp stack pointer zero hard wired zero ali reza adl tabatabai geoff steven lucco robert wahbe 
+efficient language independent mobile programs 
+proceedings acm sigplan conference programming language design implementation pldi pages philadelphia pa may 
+alfred aho ravi sethi jeffrey ullman 
+compilers principles techniques tools 
+addison wesley 
+gerald aigner urs holzle 
+eliminating virtual function calls programs 
+pierre cointe editor ecoop object oriented programming th european conference volume lecture notes computer science pages linz austria july 
+springer 
+jennifer anderson lance jeffrey dean sanjay ghemawat monika henzinger shun tak leung richard sites mark vandevoorde carl waldspurger william weihl 
+continuous profiling cycles gone 
+acm transactions computer systems november 
+joel auslander philipose craig chambers susan eggers brian bershad 
+fast effective dynamic compilation 
+proceedings acm sigplan conference programming language design implementation pldi pages may 
+brenda baker 
+theory parameterized pattern matching algorithms applications extended 
+proceedings fifth annual acm symposium theory computing pages san diego california may 
+brenda baker udi manber 
+deducing similarities java sources bytecodes 
+proceedings usenix annual technical conference pages berkeley usa june 
+usenix association 
+thomas ball james larus 
+optimally profiling tracing programs 
+acm transactions programming languages systems july 
+robert bernstein 
+producing code case statement 
+software practice experience october 
+see correction 
+hans juergen boehm mark weiser 
+garbage collection uncooperative environment 
+software practice experience september 
+calder feller eustace 
+value profiling 
+proceedings th annual ieee acm international symposium microarchitecture micro pages los alamitos december 
+ieee computer society 
+calder feller eustace 
+value profiling 
+journal parallelism march www org vol 
+paul carini michael hind 
+flow sensitive interprocedural constant propagation 
+proceedings acm sigplan conference programming language design implementation pldi 
+chang scott mahlke william chen wen mei hwu 
+profile guided automatic inline expansion programs 
+software practice experience may 
+anton chernoff mark ray chris reeve norman rubin tony bharadwaj john yates 
+fx profile directed binary translator 
+ieee micro march april 
+chow 
+minimizing register usage penalty procedure calls 
+david wise editor proceedings acm sigplan conference programming language design implementation pldi pages atlanta ge usa june 
+acm press 
+robert cohn david goodwin geoffrey lowney norman rubin 
+spike optimizer alpha nt executables 
+usenix editor usenix windows nt workshop august 
+seattle washington pages berkeley ca usa august 
+usenix 
+robert cohn geoffrey lowney 
+hot cold optimization large windows nt applications 
+proceedings th annual international symposium microarchitecture pages paris france december 
+ieee computer society tc micro acm 
+charles consel francois noel 
+general approach run time specialization application conference record popl rd acm sigplan sigact symposium principles programming languages pages st petersburg beach florida january 
+keith cooper mary hall linda torczon 
+unexpected side effects inline substitution case study 
+acm letters programming languages systems march 
+keith cooper nathaniel mcintosh 
+enhanced code compression embedded risc processors 
+acm sigplan notices may 
+digital equipment 
+assembly language programmer guide 
+maynard massachusetts 
+covington mehta jump sinclair 
+efficient simulation parallel computer systems 
+international journal computer simulation 
+dan linda torczon 
+interprocedural constant propagation study jump function implementations 
+robert cartwright editor proceedings acm sigplan conference programming language design implementation pldi pages new york ny usa june 
+acm press 
+ron cytron jeanne ferrante barry rosen mark wegman kenneth zadeck 
+efficient method computing static single assignment form 
+th annual acm symposium principles programming languages pages 
+davidson holler 
+subprogram inlining study effects program execution time 
+ieee trans 
+softw 
+eng february 
+saumya debray william evans robert muth 
+compiler techniques code compression 
+technical report tr department computer science university arizona friday april 
+saumya debray robert muth matthew 
+alias analysis executable code 
+conference record popl th acm symposium principles programming languages pages san diego california january 
+dawson engler 
+vcode retargetable extensible fast dynamic code generation system 
+proceedings acm sigplan conference programming language design implementation pldi pages new york may 
+acm press 
+dawson engler wilson hsieh frans kaashoek 
+language high level efficient machine independent dynamic code generation 
+conference record popl rd acm sigplan sigact symposium principles programming languages pages st petersburg beach florida january 
+jens ernst william evans christopher fraser steven lucco todd proebsting 
+code compression 
+proceedings acm sigplan conference programming language design implementation pldi volume acm sigplan notices pages new york june 
+acm press 
+michael franz 
+adaptive compression syntax trees iterative dynamic code optimization basic technologies mobile object systems 
+mobile object systems programmable internet pages 
+springerverlag april 
+lecture notes computer science 
+michael franz thomas kistler 
+slim binaries 
+technical report ics tr university california irvine june 
+chris fraser david hanson 
+retargetable compiler design implementation 
+benjamin cummings pub 
+redwood city ca usa 
+christopher fraser eugene myers alan wendt 
+analyzing compressing assembly code 
+proceedings acm sigplan symposium compiler construction volume pages june 
+david goodwin 
+interprocedural dataflow analysis executable optimizer 
+proceedings acm sigplan conference programming language design implementation pldi volume acm sigplan notices pages new york june 
+acm press 
+david goodwin 
+personal communication 
+susan graham peter kessler marshall mckusick 
+gprof call graph execution profiler 
+sigplan notices june 
+proceedings acm sigplan symposium compiler construction 
+rand gray deepak 
+object file formats 
+dr dobb journal software tools may 
+reed hastings bob joyce 
+fast detection memory leaks access errors 
+proceedings winter usenix conference pages 
+usenix association 
+urs holzle ole agesen 
+dynamic versus static optimization techniques object oriented languages 
+theory practice object sytems 
+hans dieter dietmar julian 
+german 
+
+neil jones carsten gomard peter sestoft 
+partial evaluation automatic program generation 
+prentice hall international international series computer science june 
+isbn number 
+kannan todd proebsting 
+short communication correction producing code case statement spe october 
+software practice experience february 
+jens knoop oliver bernhard steffen 
+optimal code motion theory practice 
+acm transactions programming languages systems july 
+william landi barbara ryder 
+pointer induced aliasing problem taxonomy 
+acm symposium principles programming languages pages orlando fl usa january 
+james larus thomas ball 
+rewriting executable files measure program behavior 
+technical report computer sciences department university wisconsin madison march 
+james larus eric schnarr 
+eel machine independent executable editing 
+proceedings acm sigplan conference programming language design implementation pldi pages la jolla california june 
+lee crowley baer anderson bershad 
+execution characteristics desktop applications windows nt 
+proceedings th annual international symposium computer architecture isca volume acm computer architecture news pages new york june july 
+acm press 
+peter lee mark leone 
+optimizing ml run time code 
+proceedings acm sigplan conference programming language design implementation pldi pages new york may 
+acm press 
+
+program optimization theory practice 
+acm sigplan notices march 
+thomas marlowe barbara ryder michael burke 
+defining flow sensitivity data flow problems 
+technical report lcsr tr rutgers university july 
+scott mcfarling 
+procedure merging instruction caches 
+proceedings acm sigplan conference programming language design implementation pldi pages toronto canada june 
+robert morgan 
+building optimizing compiler 
+butterworth heinemann 
+steven muchnick 
+advanced compiler design implementation 
+morgan kaufman 
+eugene myers 
+precise inter procedural data flow algorithm 
+conference record eighth annual acm symposium principles programming languages pages williamsburg virginia january 
+acm sigact sigplan acm press 
+karl pettis robert hansen 
+profile guided code positioning 
+mark scott johnson editor proceedings acm sigplan conference programming language design implementation pldi pages white plains ny usa june 
+acm press 
+massively scalar compiler project 
+intermediate language 
+website www rice edu html rice university 
+press release 
+
+website www com news pr html 
+ted romer geoff voelker dennis lee alec wolman wayne wong hank levy brian bershad bradley chen 
+instrumentation optimization win intel executables etch 
+usenix editor usenix windows nt workshop august 
+seattle washington pages berkeley ca usa august 
+usenix 
+de 
+tracing memory data race detection 
+hollander peters editors parallel computing fundamentals applications new directions proceedings conference september bonn germany volume advances parallel computing pages amsterdam february 
+elsevier north holland 
+
+implementation replay mechanism 
+lecture notes computer science 
+shapiro saint 
+representation algorithms 
+technical report radc tr volume ii applied data research incorporated september 
+richard sites anton chernoff matthew kirk maurice marks scott robinson 
+binary translation 
+communications acm february 
+spec 
+cpu benchmarks 
+website www spec org standard performance evaluation 
+amitabh srivastava alan eustace 
+atom system building customized program analysis tools 
+proceedings acm sigplan conference programming language design implementation pldi pages orlando florida june 
+amitabh srivastava david wall 
+practical system intermodule code optimization link time 
+journal programming languages december 
+amitabh srivastava david wall 
+link time optimization address calculation bit architecture 
+proceedings acm sigplan conference programming language design implementation pldi pages orlando florida june 
+mips computer systems 
+programmer guide 
+technical report mips computer systems 
+alpha migration tools 
+
+website www digital com amt compaq 
+alpha migration tools 
+express 
+website www digital com amt compaq 
+robert wahbe steven lucco thomas anderson susan graham 
+efficient software fault isolation 
+proceedings th acm symposium operating systems principles pages 
+robert wahbe steven lucco susan graham 
+adaptable binary programs 
+technical report cs carnegie mellon university school computer science april 
+david wall 
+global register allocation link time 
+technical report digital equipment western research lab october 
+david wall 
+systems late code modification 
+robert giegerich susan graham editors code generation concepts tools techniques pages 
+springer verlag 
+mark wegman kenneth zadeck 
+constant propagation conditional branches 
+acm transactions programming languages systems april 
+
+compacting object code parameterized procedural abstraction 
+master thesis department computer science university victoria canada 

@@ -1,0 +1,405 @@
+retargetable reconfigurable software dynamic translation scott kumar davidson soffa software dynamic translation sdt technology permits modification executing program instructions 
+years sdt received increased attention industry academia feasible effective approach solving variety significant problems 
+despite increased attention task initiating new project software dynamic translation remains difficult 
+address concern particular promote adoption sdt technology wider range applications implemented strata cross platform infrastructure building software dynamic translators 
+describes strata architecture experience retargeting different processors strata build novel sdt systems safe execution untrusted binaries fast prototyping architectural simulators 
+
+department computer science department computer science university virginia university pittsburgh cs virginia edu naveen soffa cs pitt edu years software dynamic translation sdt programmatic modification running program binary instructions increasingly useful technique system implementor repertoire 
+wide variety systems classified software dynamic translators 
+debuggers dynamic optimizers dynamic binary translators dynamic instrumentation systems dynamic software certain emulators simulators 
+despite apparent differences systems fundamentally similar virtualize aspects host execution environment interposing layer software program cpu 
+software layer acts virtual machine mediates program execution dynamically examining translating program instructions run host cpu 
+software dynamic translation affords system designers unprecedented flexibility controlling modifying program execution 
+flexibility allows software dynamic translation accomplish variety objectives easily achieved means 
+instance software dynamic translation may overcome barriers entry associated new os cpu architecture 
+transmeta code morphing technology purpose allowing unmodified intel ia binaries run low power vliw crusoe processor :10.1.1.13.7848
+similarly uqdbt system dynamically translates intel ia binaries run sparc processors fx dynamically translates binaries run alpha processors :10.1.1.43.3415
+addition allowing designers overcome cost barriers new platform acceptance flexibility software dynamic translation proven useful variety purposes 
+instance shade uses software dynamic translation implement high performance instruction set simulators 
+embra uses software dynamic translation implement high performance operating system emulator 
+dynamo mojo software dynamic translation improve performance native binaries daisy uses software dynamic translation evaluate performance novel vliw architectures accompanying optimization techniques :10.1.1.12.7138:10.1.1.13.7848
+kerninst systems software dynamic translation insert performance monitoring instrumentation running programs :10.1.1.109.7374
+software dynamic translation ensure safe execution untrusted binaries :10.1.1.13.660
+despite uses sdt put lively state research novel uses sdt remains significant challenge build sdt systems 
+software dynamic translators typically written single application platform 
+example shade simulator written specifically simulate mips sparc sparc programs sparc architectures 
+shade written architectures potential uses mind non trivial task retarget shade new architectures add new functionality optimization 
+single target single purpose approach software dynamic translator design places significant burden designers new sdt systems 
+developing new system scratch opportunity software reuse imposes steep learning curve inevitably requires substantial software development effort 
+address difficulty building software dynamic translators promote research novel uses sdt developed sdt implementation infrastructure called strata 
+strata provides common framework researchers build software dynamic translators 
+common framework promotes code reuse ways 
+strata provides simple software dynamic translators variety architectures researchers modify translators suit specific needs having build entire translator scratch 
+second standard implementation framework provided strata allows code reuse composition researchers enhance dynamic translators 
+example composing strata dynamic optimizer strata simulator optimizing simulator realized 
+design strata retargetable software dynamic translation framework 
+illustrate ease strata dynamic translators developed presenting significant useful software dynamic translators monitor cache simulator 
+remainder organization 
+section details design strata experience retargeting popular platforms 
+section describes novel system call monitor sdt implemented strata 
+section describes high performance sdt cache simulator implemented strata 
+section summarizes findings 
+
+design strata 
+overview fall began joint project zephyr research group university virginia compiler architecture group university pittsburgh build retargetable dynamic optimizer 
+surveyed dynamic optimization literature noticed techniques employed dynamo mojo previously employed simulation cmelik keppel emulation done witchel rosenblum :10.1.1.12.7138
+reuse techniques seemingly disparate applications pa risc hosted dynamic optimizers sparc hosted simulator mips hosted operating system emulator inspired cast net wider 
+began review broader literature dynamic optimization dynamic binary translation emulation simulation performance monitoring late program modification observed things systems dynamically modify binary instruction streams order accomplish specific functionality enhancing performance native binaries executing non native binaries entirely different systems share common set features caching linking blocks translated code 
+interest retargetable systems software compiler development frameworks set build infrastructure promote development reuse software dynamic translators provision set simple translators easy reconfigure retarget 
+accomplish goals reconfigurability retargetability organized strata conceptual model virtual machine see 
+strata vm mediates application execution examining translating instructions execute host cpu 
+translated instructions held strata managed cache 
+strata vm entered capturing saving application context pc condition codes registers 
+context capture vm processes application instruction 
+translation instruction cached context switch restores application context begins executing cached translated instructions host cpu 
+cached translation application instruction strata vm allocates storage new fragment translated instructions 
+fragment sequence code branches may appear 
+strata vm populates fragment fetching decoding translating application instructions fragment condition met 
+fragment condition dependent particular software dynamic translator implemented 
+translators fragment condition met application branch instruction encountered 
+translators may form fragments emulate single application instruction 
+
+term software dynamic translator generically refer system dynamically modifies executing instruction stream software 
+software qualifier significant modern cpu form dynamic translation hardware order execution 
+term dynamic binary translator inappropriate labeling entire class software tools researchers dynamic binary translator mean piece software dynamically translates binary instruction set architecture alpha powerpc vliw :10.1.1.13.7848
+context capture new pc context switch case fragment condition met context switch restores application context newly translated fragment executed 
+application executes strata control application working set instructions materialize fragment cache 
+certain techniques reduce number cost context switches permits strata execute applications little measurable overhead :10.1.1.18.3075
+shows components strata vm 
+strata virtual machine implemented set target independent common services set functions reconfigurable target interface machine independent machinedependent components communicate 
+implementing new software dynamic translator requires small amount coding simple reconfiguration target interface 
+implementation involved retargeting vm new platform programmer obligated implement target specific functions required target interface common services reimplemented modified 
+target interface common services scope detailed 
+
+strata sparc sdt virtual machine cached 
+finished 
+new fragment fetch decode translate pc strata software dynamic translator developed sparc instruction set architecture solaris operating system 
+predictably strata sparc target relatively simple implement minor complications detailed 
+host cpu executing translated code cache strata architecture application context management memory management strata virtual cpu cache management target interface target specific functions host cpu linker strata virtual machine sparc instructions uniform length relatively simple encoding 
+consequently strata sparc vm decode fetch routines easy implement 
+furthermore sparc instructions require trivial manipulation translation 
+exceptions rule sparc delayed control transfer instructions 
+delay slot instruction dsi sparc associated control transfer instruction issued pipeline control transfer instruction 
+sparc may executed branch taken taken 
+complex semantics sparc delayed control transfers require careful attention performing certain optimizations 
+instance partial inlining function calls requires elimination call instruction 
+control transfer instruction eliminated side effects control transfer addition effects dsi emulated 
+sparc call transfers control signed bit offset call instruction location program text 
+call writes value pc address call instruction register executes dsi control transfer takes place 
+value pc placed visible dsi control transfer delayed 
+consequently eliminating call purpose partial inlining strata emit instructions load pc value perform effects dsi 
+significant point interest associated strata sparc target implementation context switches transfer control strata vm application 
+general time spent executing context switches single largest factor sdt performance 
+variety techniques reduce number context switches including fragment linking partial inlining function calls indirect branch elimination :10.1.1.18.3075
+highly effective context switches avoided techniques 
+consequently prudent implement context switches efficient manner possible order reduce time spent executing 
+implement context switch sparc save restore general purpose registers condition codes status registers 
+sparc register windows facilitate process allowing groups general purpose registers saved restored single instruction 
+register windows context switch code sparc extremely compact requiring instructions 
+potential sdt implementation difficulties avoided due serendipitous design choices sparc architects 
+instance pc sparc special register read special instruction 
+strata sparc encounters instruction emits code load original text segment pc value registers 
+allows self inspecting programs applications compute checksum portion text segment run seamlessly strata sparc 
+sparc architecture requires modifications program text segment explicitly synchronized instruction cache flush instruction 
+strata sparc forces full partial fragment cache flush sparc flush instructions slowdown bzip gcc gap gzip mcf tered 
+relatively simple mechanism allows strata sparc correctly execute programs include code 
+
+experiments spec compared performance spec benchmarks running strata sparc native execution host machine mhz ultrasparc ii solaris ram 
+programs compiled sun cc version flags fast xo arch plus 
+shows applications specint benchmark suite run small slowdowns range average slowdown benchmarks 
+
+strata mips performance strata sparc second target strata mips iv instruction set architecture irix operating system 
+new target strata mips heavily sparc target 
+porting strata mips strata structure flexible relatively easy retarget 
+initial version strata mips took person weeks development effort due strata highly modular structure 
+main challenges encountered involved context switches instruction set differences mips sparc 
+discuss challenges 
+parser perlbmk twolf vortex vpr major effort retargeting strata sparc mips involved writing new instruction decoder 
+mips regular architecture relatively simple implement fast instruction decoder 
+modular structure strata particularly decode translate steps quickly include prototype decoder bootstrap system days starting development effort 
+mips architecture similar sparc minor differences 
+difference inclusion branch instruction mips iv 
+necessary correctness translator tried mips branch instruction hint prefetch target block branch link prefetched fragment branch fragment 
+add support branch required small changes decoder translator prefetch fragment 
+unfortunately prefetch support small performance gain 
+sparc mips instruction set architecture include explicit instruction cache flush instructions instruction cache flushes performed os call 
+intercept os call flush fragment cache self modifying code encounter flushes benchmarks 
+final difference mips sparc mips dynamically linked libraries dlls fully linked binary load time strata vm invoked 
+strata mips handle linkage mechanisms cache flushes normally associated loading dlls 
+strata sparc strata mips target perform context switches efficiently possible order minimize sdt overhead 
+context switch mechanism strata mips similar mechanism strata sparc 
+difference mips instructions save restore entire set registers 
+context switch strata mips requires sequence load store instructions executed save restore application general purpose registers stack 
+context switch takes instructions instruction count depends fragment terminates branch jump takes instructions strata sparc 
+relatively high overhead full context switch strata mips increases importance minimizing number control transfers application builder 
+strata mips context switches involve special cases encountered strata sparc 
+case strata sparc strata mips uses indirect jump transfer control application strata vm 
+transferring control vm context application saved fragment target address extracted passed parameter vm 
+vm returns control application restore application context execute instruction transfer control fragment 
+control transfer vm fragment done indirect jump register 
+jump executed context application restored 
+restoring full context overwrites register holds target address context switch 
+solution simple application context partially restored register holding target address 
+load top fragment restores control transferred fragment 
+linking fragments ensure fragment link directed second instruction fragment restore required context switch 
+second special case strata mips context switches arises fragment terminated indirect jump 
+occurs instruction delay slot jump may register jump target register 
+dsi executed context application includes value destination register computed dsi 
+case handled extracting saving contents indirect jump register register stack executing dsi 
+dsi destination register saved application context target address register restored control transfer 
+
+experiments spec compared performance spec benchmarks strata mips performance running natively host machine dual processor sgi platform running irix mhz mips processors gb memory 
+shows run time performance strata normalized host machine running benchmarks natively 
+mips able run spec benchmarks 
+run natively machine strata consider results 
+benchmarks strata mips incurred minimal slowdown range average benchmarks 
+benchmarks perl gcc high overheads 
+benchmarks high overheads result strata mips re entering fragment builder large number times 
+example perl builder re enters due indirect branches handled indirect branch elimination techniques :10.1.1.18.3075
+remarked previous sections context switches due indirect branches large number unique fragments generally result high sdt overhead 
+
+strata slowdown strata target discussed port intel architecture 
+cisc design provided different set challenges encountered development risc targets 
+despite dramatic difference sparc instruction set architectures strata sparc basis retargeting 
+compared strata sparc strata mips larger percentage development time spent implementing strata instruction fetch decode functions 
+sparc mips ports strata fetch routine amount decoding instruction determine length 
+implementation uses static table indexed opcode get length instruction 
+majority opcodes table lookup sufficient instructions require additional decoding locate mod reg rm sib bytes lengths correctly computed 
+aside fetch decode aspects target simpler handle sparc mips 
+example allows operations memory locations 
+capability reduces need manipulate registers compute memory addresses decreases context switch overhead 
+mcf gcc perl gzip bzip vpr tw average performance strata mips absence delayed branches simplified handling branch instructions 
+strata sparc strata mips strata needs save restore application context including general purpose registers flags register stack pointer 
+aforementioned ability instructions operate directly memory locations code required save restore application context small instructions saving context restoring context 
+half size strata sparc context switch code order magnitude smaller code required switch contexts strata mips 
+
+experiments measure overhead strata compare performance spec benchmarks running strata running natively 
+benchmarks compiled gcc frame pointer run unloaded dual processor athlon running ghz gb ram 
+shows execution times relative native hardware execution 
+set bars shows performance spec benchmarks 
+run time overhead varied approximately average overhead 
+second set bars show overhead sdt system called :10.1.1.13.660
+third set bars show overhead trace formation 
+results show strata performs comparable dynamo rio engineered specifically architecture half benchmarks slower rest 
+attribute slowdown gzip vpr gcc mcf crafty parser perl gap vortex bzip tw difference trace construction employed 
+
+system call monitoring sdt sdt ability control dynamically modify running program provides ideal mechanism implementing system call monitor 
+system call monitor observes invocations operating system calls determines system calls execute 
+system call monitors explicitly control application access system resources enforce variety security policies improve safety reliability untrusted binary code 
+untrusted binary strata security application host cpu os services strata rio rio traces performance strata strata resource control strata provides ideal platform implementing system call monitor 
+untrusted binary virtualized executed strata code dynamically inserted intercept system calls potentially redirect calls user supplied functions 
+general process need limited system calls 
+access host cpu operating system resources explicitly controlled strata see 
+simple realistic example illustrates approach 
+suppose user wishes enforce policy prohibits untrusted applications reading file user normally permission read 
+call file passwd registry dat sam system equally choices 
+assume int const char path int char fname int fd strata policy sys open absolute fname path strcmp fname passwd strata fatal fd syscall sys open path strata policy sys open return fd user receives untrusted binary called funny wishes run 
+user runs funny strata 
+strata loader locates entry point application inserts call strata startup routine 
+loader begins execution application call strata startup routine causes strata dynamically loaded invoked 
+strata processes funny text segment builds fragments executed locates open system calls replaces code invokes system call policy code 
+fragment code executed open system calls diverted policy code 
+policy code job examine arguments original open system call 
+untrusted application attempting open passwd error message issued execution application terminated 
+file opened passwd security policy code performs open request returns result execution continues normally albeit control strata 
+order implement system call monitor described strata default translate function processes trap interrupt instructions overridden 
+sparc solaris platform lines new code required implement new translate function 
+operating system call site overridden translate function tries determine operating system call monitored 
+cases strata determine translation time operating system call invoked 
+os call monitored code invoke operating system call replaced call user supplied code 
+call monitored translation action need taken operating system call code copied unchanged fragment cache 
+cases operating system call invoked determined translation time 
+situation occur indirect operating system calls 
+case strata generate insert code fragment executed test os call invoked monitored 
+call appropriate user supplied policy code os call executed 
+addition ease system call monitors built sdt significant advantages sdt mediate access system services 
+system call monitors built strata user level software system call monitors janus interposition agents strata requires special operating system services 
+second strata inlines policy code executing application strata perform monitoring expensive additional context switches function calls 
+third systems statically instrument binaries perform safety checks strata handle self modifying code malicious code generated local buffer overrun exploits 
+
+fast cache simulation sdt example strata usefulness implementing variety differing applications demonstrated implementation highperformance architectural simulator 
+separate research project need fast cache simulator works concert online application profiling dynamic optimization 
+need motivated desire build cache simulator general framework architecture study strata 
+sdt advantages processor simulation 
+advantage easy manipulate dynamic execution program model different architecturally visible features 
+flexibility possible quickly virtually introduce new features processor experiment software hardware interface observe impact new changes code optimizer take advantage new instructions value prediction 
+advantage building simulators strata portable different machine architectures architectures discussed 
+final advantage simulating new processor features sdt fast application binary runs natively underlying machine 
+flexible fast simulation mechanism desirable quickly prototype new feature pose questions 
+lightweight simulators built strata part design cycle initial evaluation feature full execution driven simulation initial measurements look encouraging 
+strata dynamically insert code program model architecture change gather statistics program new feature 
+code instrumentation performance relative simulation host machine directly executes binary program 
+downside difficult model certain changes microarchitecture particularly ones architecturally visible changing number pipeline stages 
+statically instrumenting binary program strata instrument program executes 
+executed paths instrumented 
+furthermore instrumentation inserted removed run time characteristics difficult purely static approach 
+basis framework uses trigger action mechanism intercept execution program model processor feature 
+triggers check code properties actions perform function property holds 
+trigger installed code fragment generation associated instruction fragment 
+attachment triggers instructions involves checking static property 
+case static property aspect current code fragment checked fragment generated 
+example checking opcode instruction see load store static check 
+fragment execution trigger encountered optional dynamic property checked 
+dynamic check may inspect part machine state including values registers memory locations program counter address fields instruction 
+property check holds associated action performed 
+cache simulator static check done instruction installed fragment cache 
+static check identifies instructions involve memory load store 
+instruction load store trigger attached instruction 
+trigger encountered fragment execution action fired performs cache simulation memory 
+likewise trigger action mechanism emulate newly introduced instructions putting trigger new instruction fires action semantics new instruction 
+trigger action pairs implemented fast breakpoints placed instructions satisfy static property :10.1.1.18.3075
+fast breakpoint replaces instruction jump breakpoint handler semantic action required 
+handler executes replaced instruction 
+code execution fast breakpoint hit control transferred separate piece code checks dynamic property 
+dynamic property holds control transfers action 
+advantage fast breakpoints non intrusive easily removed inserted dynamically 
+insertion replaces original instruction jump deletion replaces jump original instruction 
+data cache cache simulator fast breakpoint installed load store capture memory data cache 
+fast breakpoint corresponding memory executed control transfers immediately action breakpoint dynamic check updates cache simulation 
+action load store extracts machine state information needed compute effective address instruction 
+effective address informa tion cache simulator invoked 
+instrument loads stores original binary executed original program order memory stream cache simulator underlying hardware program run sdt 
+issue fast breakpoints trigger linkage mechanism breakpoint may need placed instruction delay slot branch 
+machines delayed branches allow filling delay slot branch insert breakpoint 
+approach installs breakpoint branch instruction delay slot 
+cache simulator application context set general purpose registers branch instruction load store delay slot 
+safely compute effective address memory instruction branch 
+approach model instruction cache icache 
+case trigger attached instruction fragment invoke cache simulator 
+single call fragment simulator minimize amount instrumentation executed 
+fragment generation size fragment known breakpoint placed calls icache simulator fragment base address number instruction 
+base address address original binary program address instructions fragment cache 
+ensures memory address stream seen cache simulator seen code execution sdt 
+complication sdt may insert instructions fragment trampoline code may apply local optimizations strata inlines block called procedure 
+cases information sent cache simulator fixed ensure matches original binary 
+implemented cache simulator strata sparc models level memory hierarchy 
+modeled cache split organization caches kb way set associative lru replacement byte line size 
+model complex memory hierarchies investigating overheads feasibility sdt architectural study modeled level hierarchy 
+modeling cache issues concerned 
+wanted verify strata accurately memory stream program executing natively strata 
+second wanted ensure system fast quick studies 
+address issue compared memory stream shade cache simulator sparc sun microsystems memory stream simulator 
+results reported instruction data streams tool matched memory streams shade spec benchmarks 
+second issue compared run time tool shade run time 
+shade considered state art uses technology similar sdt aggressive basis comparison 
+experiments cache simulation code closely models shade simulator ensure comparison fair factoring performance effects due different implementations simulator 
+shows speedup strata sparc cache simulation relative shade spec benchmarks 
+strata sparc simulator relative speedup shade varies average 
+improvement due tool decoding instrumenting instructions fragment generation processing entire fragment instruction accesses breakpoint 
+get better understanding system overhead measured percentage time spent running strata fragment builder percentage time spent checking properties executing fast breakpoints percentage time spent cache simulation 
+shows percentage run time associated different aspects cache simulation strata 
+shows smallest percentage time usually spent executing application strata largest percentage average spent cache simulator 
+breakpoints add significant amount time average 
+reason high overhead speedup relative shade mcf gcc twolf vpr vortex gzip mesa system full context switch invoke cache simulator 
+partial context switch save registers needed simulator approach difficult add new simulation features 
+experiments cache simulation strata sparc believe sdt suited lightweight architecture compiler experiments 
+easily modify tool model architecture features sparc register windows vary number available windows investigate number overflows underflows different branch predictors model accuracy emulate new instruction set features short vector instructions 
+currently developing flexible interface specification language allow user define architectural simulators having knowledge sdt strata works 
+
+related software dynamic translation number purposes see section including dynamic binary translation machine instruction set emulation operating systems vmware plex machine simulation :10.1.1.43.3415:10.1.1.13.7848
+systems built single purpose target single machine architecture general infrastructures sdt 
+walkabout retargetable binary translation framework uses machine dependent intermediate representation translate execute binary code source machine host machine 
+analyzes code source machine determine translate host machine emulate host 
+speedup strata sparc shade run time overhead cache simulation cache simulation strata sparc run time mcf gcc twolf vpr vortex gzip mesa strata breakpoint cache sim 
+walkabout uses machine specifications describe syntax semantics source host machine instructions select hot paths 
+current implementation supports binary translation ported sparc architectures 
+ma improved binary translator built walkabout infrastructure 
+flexible framework investigating sdt :10.1.1.13.660
+system library set api calls building software dynamic translators 
+system built addresses code security 
+strata best knowledge designed retargetability mind 
+difference dynamo rio distributed set binary libraries 
+source code available strata making possible modify experiment underlying infrastructure implement new sdt systems 
+achieve high performance sdt system important reduce overhead translation step 
+retargetable flexible system strata difficult achieve performance variety architectures operating systems 
+number sdt systems tackled overhead problem 
+example shade embra emulator technique called chaining link cache resident code fragments bypass translation lookups 
+technique similar overhead reduction techniques strata links series fragments avoid context switches 
+systems tackle overhead translation doing translation concurrently processor separate running application 
+address overhead issues efforts develop hardware support sdt 
+major sources overhead system strata indirect branches 
+consequently dynamo daisy convert indirect branches chains conditional branches improve program performance :10.1.1.13.7848
+strata framework provides mechanisms dealing overhead retargetable fashion 
+mechanisms provided target independent services consult machine dependent routines 
+strata tackles overhead problem ways :10.1.1.18.3075
+chains code fragments minimize number builder re enters 
+second strata reduces expense indirect branches caching previous translations indirect branch target addresses 
+strata mechanisms reducing overhead target independent support target dependent routines 
+addition targets mentioned strata ported simplescalar pisa architecture order study interactions software dynamic translators hardware 
+complete discussion scope 
+
+summary described architecture software dynamic translation system called strata 
+address difficulty initiating new project software dynamic translation designed strata flexible retargetable system 
+described experience retargeting strata sparc mips instruction set architectures 
+implementation achieved relatively modest effort implementation deal different idiosyncrasies 
+expect take effort 
+described experience strata develop new sdt systems safe execution untrusted binaries fast prototyping architecture simulators 
+groups strata develop new applications sdt technology including software testing architecture performance evaluation prototyping code optimizations 
+reports groups indicate strata meeting needs flexible general system 
+
+acknowledgments supported part ibm faculty partnership award intel graduate fellowship nsf eia aci aci 
+kevin productive discussions strata early development kevin hirst porting strata simplescalar pisa instruction set architecture 
+author wishes telematics research group university providing environment finished 
+
+bala duesterwald banerjia dynamo transparent dynamic optimization system 
+sig plan conference programming language design implementation pp 
+
+duesterwald amarasinghe design implementation dynamic optimization framework windows 
+proceedings acm workshop feedback directed dynamic optimization 
+chen lerner mojo dynamic optimization system 
+proceedings acm workshop feedback directed dynamic optimization 
+chernoff reeve rubin yates fx profile directed binary translator 
+ieee micro mar slash apr 
+hot chips ix stanford university stanford california august 
+cifuentes lewis ung walkabout retargetable dynamic binary translation framework 
+proceedings workshop binary translation 
+cmelik keppel shade fast simulator execution profiling 
+proceedings acm sigmetrics conference measurement modeling computer systems may pp 
+
+transmeta crusoe cool chips mobile computing :10.1.1.13.7848
+hot chips stanford university stanford california august spring street suite silver spring md usa ieee ed ieee computer society press 
+ebcioglu altman daisy dynamic compilation architectural compatibility :10.1.1.13.7848
+th annual international symposium computer architecture pp 
+
+goldberg wagner thomas brewer secure environment untrusted helper applications confining hacker 
+proceedings usenix security symposium 
+hennessy patterson computer architecture quantitative approach nd ed 
+morgan kaufmann publishers palo alto ca 
+intel 
+intel architecture software developer manual 
+instruction set 
+jones interposition agents transparently interposing user code system interface 
+symposium operating systems principles pp 
+
+kessler fast breakpoints :10.1.1.18.3075
+design implementation 
+acm sig plan notices june 
+amarasinghe secure execution program shepherding :10.1.1.13.660
+th usenix security symposium 
+trick barnes nystrom george gyllenhaal mei hwu architectural framework runtime optimization 
+ieee transactions computers 
+scott davidson low overhead software dynamic translation :10.1.1.18.3075
+tech 
+rep cs 
+scott davidson strata software dynamic translation infrastructure 
+ieee workshop binary translation 
+scott davidson safe virtual execution software dynamic translation 
+annual computer security applications conference 
+srivastava edwards vo binary translation distributed environment 
+technical report msr tr microsoft research apr 
+miller fine grained dynamic instrumentation commodity operating system kernels :10.1.1.43.3415
+proceedings rd symposium operating design implementation osdi berkeley ca feb usenix association pp 
+
+miller dynamic kernel instrumentation kernel application tuning 
+international journal high performance computing applications fall 
+tr ger gough fast dynamic binary translation ma framework 
+proceedings workshop binary translation 
+ung cifuentes machine adaptable dynamic binary translation :10.1.1.43.3415
+proceedings acm workshop dynamic optimization dynamo 
+voss eigenmann framework remote dynamic program optimization 
+proceedings acm workshop dynamic optimization dynamo 
+weaver sparc architecture manual version 
+prentice hall ptr upper saddle river nj usa 
+witchel rosenblum embra fast flexible machine simulation 
+proceedings acm sig metrics international conference measurement modeling computer systems may pp 
+

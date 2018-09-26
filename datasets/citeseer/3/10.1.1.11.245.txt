@@ -1,0 +1,406 @@
+monkey see monkey tool tcp tracing replaying yu chung cheng urs lzle neal cardwell stefan savage geoffrey voelker university california san diego savage voelker cs ucsd edu performance popular internet web services governed complex combination server behavior network characteristics client workload interacting actions underlying transport control protocol tcp 
+consequently small changes tcp network infrastructure significant impact performance time challenging service administrators predict impact 
+describe implementation tool called monkey designed help address questions 
+monkey collects live tcp trace data near server key aspects connection network delay bottleneck bandwidth server delays able faithfully replay client workload new setting 
+monkey easily evaluate effects different network implementations protocol optimizations controlled fashion limitations synthetic workloads lack reproducibility live user traffic 
+realistic network traces google search site show monkey able replay traces high degree accuracy predict impact changes tcp stack 
+factors conspire limit performance internet web sites including server response time client workload network characteristics protocol behavior 
+factors vary considerably sites interactions vary 
+consequently challenging know priori potential optimizations appreciable impact site 
+rarely cost effective test alternatives exhaustively 
+administrators educated guesses understanding site unique demands 
+response problem variety synthetic load testing tools developed 
+cheng performed internship google 
+google urs google com tools largely analytic web workload models developed validated measurements individual settings 
+synthetic approach enormous benefits easy set flexibility explore variety workload parameters 
+time underlying models require continual re validation date empirical data nature synthetic models match particular site workload high accuracy 
+tools attempt model network conditions client population poor predictors changes site implementation sensitive network characteristics 
+potential alternative implement protocol network changes test server redirect subset real users server evaluate changes impact 
+approach benefit highly realistic suffers risk users negatively impacted 
+ideally risk taken strong reason believe change offer significant benefit 
+represents middle road offering high degree realism exposing real users risks testing 
+tool developed called monkey uses captured traces accurately replay emulated workload effectively identical site normal operating conditions 
+monkey infers delays caused client protocol server network captured flow faithfully replays flow parameters recreate original workload 
+approach allows site administrator recreate real workload modified test environment evaluate impact individual protocol server network optimizations 
+example site typically short data flows wish explore effect modifying tcp initial congestion window setting investigate benefits tcp sack dsack options reduce spurious packet retransmissions 
+knowledge monkey tool kind initial experiences extremely positive 
+traces gathered popular google search site able replay google client workloads high accuracy 
+able successfully predict impact changes google tcp implementation client response time 
+remainder discuss related describe design challenges trade offs monkey system 
+describe details monkey trace collection trace replay components discuss experiences monkey google predict impact protocol changes 
+related hotos mogul offers general statement systems benchmarking today 
+argues strongly relevant benchmarks predict absolute performance production environment simply focusing quantified repeatable results carefully constructed laboratory setting 
+unfortunately goal proved elusive practice tools available today offer strong predictions performance 
+existing load testing tools specweb webstone web polygraph httperf synthetic models web traffic 
+models developed analytically validated experimentally measurement studies 
+particular tools focused creating realistic traffic mixes function load role successful 
+tools typically run local area networks ignore impact variable wide area network characteristics protocol interactions different client operating systems 
+exception study investigated impact wan conditions www server performance combining synthetic experiments emulated wide area network 
+experiments included static transactions variations round trip time rtt packet loss rate different tcp versions reno newreno sack significant impact response time 
+study attempt replicate workload network conditions particular web site reflected impact particular synthetic parameterization 
+open source tool represents different approach problem 
+takes packet dump replays recorded packet transport upper protocol knowledge typically exercise firewall security systems 
+replay traces server separate network client server conditions reflect impact changes test environment 
+slightly advanced approach tcplib tool simulates tcp applications telnet ftp particular combination deterministic application characteristics combined statistical modeling user behavior 
+authors observed widearea tcp ip traffic accurately modeled simple analytical expressions requires combination detailed knowledge user applications measured probability distributions user workloads 
+monkey tcplib reproduce particular traces generates traffic general characteristics revealed set measurement experiments 
+zhang studied flow rates traces captured large backbone isp discovered short flow rates application limited limited slowstart behavior 
+google flows fall category response time highly correlated server application delay client slow start behavior 
+barford studied cause delays general flows similar analysis synthetic loads long response times mainly contributed server client delays 
+results generally consistent traces google 
+able directly reuse analyses studies approach informed inference techniques 
+design monkey designed emulate real workload emulating client behavior request timing client delays protocol implementation server behavior service delay protocol implementation network conditions rtt bandwidth loss rate 
+current prototype particularly focused evaluating changes server implementation particularly tcp stack affect response time 
+monkey consists distinct components monkey see monkey 
+monkey see captures tcp packet traces standalone packet sniffer adjacent web server traced case network tap front google search server 
+performs offline trace analysis extract observable link delays packet losses bottleneck bandwidth packet mtus event timings 
+connection information stored database subsequent replay step 
+monkey consists network client server emulator residing lan 
+network emulator responsible emulating characteristics client upstream downstream links 
+client emulator models client request timings protocol behavior directs packets emulated virtual links 
+server emulator models server delays protocol behavior 
+significant differences result barford linux clients client population primarily windows 
+windows clients delay acks slow start leading significant artificial delay short flows monkey see monkey trace info client emulator get search monkey tcp delay ack policy receiver buffer size path delay ms loss kbps mtu path delay ms loss kbps mtu address remapping tcp info network info network emulator dummynet lan lan trace capturing google server google server dummynet pipe network link program flow monkey architecture 
+monkey consists components monkey see monkey 
+monkey see traces analyzes tcp connections monkey replays connections emulating client network behavior 
+packet sniffer test server captures traffic replay experiment analyzed compared original trace 
+remainder section describe google service environment examined study design challenges implementation details 
+assumptions current form monkey completely general tool 
+built monkey context google service environment consequently able simplifying assumptions knowledge context 
+assumptions common popular web site prudent understand exploring details monkey design implementation 
+
+high performance local network 
+monkey collects traces directly front inside google server cluster 
+delay sniffing host server ms monkey ignores delay rtt bandwidth estimations 
+
+short flows 
+google flows short ranging data packets monkey assumes client downstream upstream network path dynamics rtt loss change lifetime connection 
+
+reverse path congestion 
+passive tcp analysis server side traces possible perfectly infer exactly packets lost 
+consequently monkey assumes losses occur server client path 
+similarly monkey assumes queueing congestion primarily occur server client path 
+consistent bandwidth measurements section 
+previous measurement loss distributions popular web sites savage losses happen client downstream link suggests assumption reasonable 
+
+provisioned servers 
+assume server cluster provisioned processing capacity 
+particular assume server queue packets longer millisecond delays longer caused application delays search tcp flow congestion control 
+assumption holds true servers may invalid provisioned infrastructures 
+
+flow independence 
+assume bottlenecks independent disjoint individual connections interfere 
+real world possible connections share bottleneck link model capture interactions replay 
+dominance mile bottlenecks small size flow rarity concurrent searches user think assumption unreasonable 
+largest potential exception client proxies experience large proxies provisioned network bandwidth 
+assumption violated replay underestimate typical response time 
+monkey see monkey see captured packet traces pc host equipped gigabit ethernet cards inbound outbound traffic 
+standard interrupt driven linux kernel acquire packets high data rates overwhelm host fact trace collections google network cards dropped average packets second 
+manage packet drop rate reduce amount data captured sampling flows randomly selected values octet 
+experiments sub sampled traffic factor technique 
+monkey prunes connections incomplete connection handshakes incomplete terminations fin rst incomplete data sequences 
+prune connections impossible infer bandwidth estimates typically extremely short flows ack pairs 
+trace captured monkey see uses analyses extract key network client characteristics record parameters replay database flow captured 
+path mtu delay loss 
+client downstream upstream path mtus extracted mss tcp options contained client server syn packets respectively 
+monkey estimates path propagation delays halving minimum rtt estimate 
+primarily concerned response time potential propagation asymmetries irrelevant 
+minimum rtt low bandwidth links dial modems large variability queuing delay 
+minimum rtt typically estimated server syn ack client ack packet queuing delays usually small point 
+mentioned earlier assume upstream path ack channel loss 
+downstream path data channel loss rate estimated counting percentage server data retransmissions 
+retransmissions may spurious cause monkey overestimate loss rate 
+address problem employ heuristic 
+assuming packet reordering rare duplicate acknowledgment sent response retransmission indicates retransmission spurious 
+compute packet loss rate number retransmissions minus number duplicate acknowledgments divided number total server packets sent 
+environment tcp dsack option disambiguate spurious retransmissions presence packet reordering google servers 
+link bottleneck bandwidth 
+monkey uses packet pair technique measure bottleneck bandwidth 
+mentioned section monkey assumes packet queuing congestion happen server client path path client server congested 
+packets sent burst remain back back arrive bottleneck link modem dsl lines client acknowledges packets immediately monkey obtains bottleneck queue bandwidth measuring ack time spacing 
+tool uses similar technique monkey measures possible ack pairs uses 
+clients gzip inflated kbps cdf estimated bandwidth dialup clients level net kbps 
+non connections estimate application level bandwidth inflated line reflects adjustment compression factor 
+connections affected modem compressions 
+clients kbps cdf estimated bandwidth dsl users net 
+kbps connections bandwidth maximum rate mbps 
+note time measured millisecond granularity bandwidth estimates mbps bytes ms large errors 
+challenge technique tcp delay ack milliseconds waiting receive packet 
+delay lead estimates estimates depending timing 
+monkey discounts bandwidth estimates taken ack pairs cover sequence numbers corresponding data packets sent separate bursts 
+average able extract approximately bandwidth estimates connection 
+run unit tests verify monkey bandwidth estimation 
+test measures dial bandwidth clients level net dns hostnames containing keyword dialup 
+noticed connections higher effective bandwidth maximum downstream modem speed kbps 
+cause discrepancy modern modems employ line compression 
+infer actual compression ratio adjust estimated bandwidth conservative compression factor transactions containing non html text 
+shown adjustment monkey estimates connections bandwidths kbps 
+second test measures adsl bandwidth hostnames containing net 
+shown connections bandwidths kbps highest subscriber speed mbps 
+higher rates graph represent estimates 
+tcp delayed ack policies 
+replaying connection critical understand behavior clientside tcp implementation 
+particular short flows critical parameters delayed ack policy 
+google flows web flows general short exit tcp slow start phase rate client acks may dominate response time equation 
+particular linux tcp stack delay acknowledgments believes sender slow start windows clients delay acks uniformly 
+monkey infers delayed ack policy slow start comparing number acks data packets observed loss occurs connection ends 
+tcp receiver buffer size 
+addition delayed acknowledgments small tcp receiver buffers client significantly limit server response time due blocking tcp flow control 
+monkey records advertised receiver window request packet client buffer record value contained initial syn packet windows clients frequently small value syn increase sending request 
+note due time constraints current implementation monkey emulate client tcp receiver window size 
+offline analysis determined fewer connections limited tcp flow control traces 
+server applications larger flows expect better emulation client buffering necessary 
+tcp connection termination 
+client tcp implementations notably windows send tcp rst close connections explicit fin handshake 
+consequently ambiguous rst due abort normal tcp close 
+monkey assumes rst delivered response client received data intends close connection 
+note choice rst fin affect response time emulated rst termination behavior monkey 
+messages 
+monkey records content timings message original trace 
+notice need decompress parse contents messages monkey replays level 
+monkey monkey uses client emulator network emulator server emulator replay traced connections shown bottom 
+emulators run separate machines provisioned lan 
+network emulator network emulator uses dummynet recreate network conditions inferred trace replay 
+connection monkey creates dummynet pipes forward backward path corresponding delay loss bandwidth inferred original trace 
+currently dummynet support approximately simultaneous pipes unique independent network paths forwarding packets client server emulator millisecond delay added 
+monkey configures dummynet pipe queue lengths suggested value 
+modem connections bandwidths kbps uplink downlink pipe queue lengths packets 
+dsl cable modem connections bandwidths ranging kbps mbps monkey sets uplink queue packets downlink queue packets 
+remaining high speed connections monkey uses default queue length packets 
+start replay monkey reads connection information replay database 
+connection monkey creates new replay tcp connection identifier source ip source port destination ip destination port maps original tcp connection identifier 
+mapping enables client network emulators associate replayed connections initiated client emulator appropriate emulated network conditions network emulator 
+shows example mapping single connection 
+dummynet mtu emulation monkey uses tcp socket option replayed client server sockets model mtu replay network 
+client emulator client emulator replays client requests establishing connections server emulator network emulator 
+connection monkey creates user level sockets tcp addresses replayed tcp connections 
+configures tcp receiver buffer size delayed ack linux uses internal path mtu userspecified tcp socket option patched kernel obey user specified tcp mss 
+policies recorded monkey section tcp linux specific tcp socket options respectively 
+accurately emulate client behavior monkey needs determine client event timings connection start termination times request time 
+monkey uses server side traces infers timing events client estimate way network delay half measured rtt 
+models client connection time syn packet time trace minus network delay request time client packet minus network delay google server emulator describe server emulator emulates behavior google server interacting client parameterize model performance replay 
+necessary rely production server accurately replicate trace application level delays due changes contents google search result cache different points time 
+behavior performance google server fundamentally depends nature google search request response 
+google search request usually short packets 
+google search response usually longer packets consists parts short kb search independent google header google search form search results see 
+figures illustrate packet timings typical google search flows 
+figures axis shows time packets sent received google server axis shows relative packets sequence number start connection 
+small hash marks connected lines show data packets response sent server large crosses show time ack sequence number client acks received server 
+shows typical uncompressed response consisting response packets client acks 
+shows typical response consisting response packets client acks note compression significantly reduces number packets exchanged server client 
+shows interaction google client server time line packet exchanges 
+reproduce server behavior replay measure server delays original trace emulate replay 
+client establishes connection sends request 
+server typically spends milliseconds processing request period time call response delay 
+server simultaneously queries appropriate database sends google header client 
+measure response delay difference timestamps request connect client delay client syn ack ok fin get 
+syn fin ack web server accept read response delay write header query delay write result close db server time line packet flows major events google search replay 
+client connects server 
+handshake client delay small interval sends request 
+returning accept server initiates read receive request 
+read returns server respond immediately original trace indicates server response delay 
+server writes header stalls model server search delay sends search result closes connection 
+packet response packet consists google header 
+server waits result database returns result query delay 
+measuring query delay challenging time server starts send search result data explicitly apparent monkey vantage point 
+information directly available packet payload due compression inferred purely inter packet delays similar pauses caused congestion flow control 
+analyze aspects tcp behavior differentiate application level delays attributed query overhead network level delays 
+tcp packet delivery ack triggered client acknowledged outstanding server data packets server sent data infer server blocked waiting application data 
+second linux tcp implementation packs data packets maximum segment size mss tell server sending buffer empty sends google servers version linux includes newreno variant tcp congestion control algorithm kbytes ack ms data kbytes ack google search corresponding tcp time sequence graphs 
+google search typically consists header search result 
+header sent immediately search result generated ms 
+tcp time sequence graph non google search transaction 
+packets consist header followed search delay search results 
+tcp time sequence google search transaction 
+transactions uses packet header packets search result 
+
+small hash marks connected lines show data packets response sent server large crosses show time ack sequence number client acks received server 
+arrows point data packet contains search result 
+sub mss sized packet 
+observations develop algorithm estimate query delay follows google query delay tcp segments tcp segments tcp segments nil snd time snd time snd time ack time return snd time snd time size mss return snd time snd time algorithm tcp segments refers ith segment sent server tcp segments refers syn ack packet 
+key goal algorithm detect packet google header query result packet return difference timestamps 
+pair sequential packets starting data packet check significant delay packets sent burst previous packet acknowledged current packet sent 
+estimate query delay interval current data packets 
+example monkey correctly estimates query delay interval st packet rd packet 
+query delay dominated round trip time client delays ack previous packet test fail 
+check current packet full sized indicator header sequence heuristic fail size packet contains header exactly mss bytes 
+example st packet acked nd packet sent st packet size mss query delay interval st nd packet 
+test satisfied consider pair packets completion 
+monkey infers server delay information trace server emulator uses mimic google server 
+accepts requests clients emulates server delays idling writes responses 
+server emulator runs kernel google servers kernel protocol implementations unchanged 
+methodology section describe types connections google search traces evaluate monkey hardware platform performing experiments section 
+traces experiments section monkey see capture traces tcp connections google servers replay monkey 
+section describes monkey see selects tcp connections capture trace 
+traces contain just google search traffic filter connections ms data application criteria 
+focused google search performance exclude connections google services page ranks images news group search 
+exclude search connections isps provide search services google dedicated proxies 
+isps high network bandwidth low network latencies 
+result connections usually short response time dominated rtt 
+remaining google search connections exclude searches persistent connections search connections 
+modeling persistent connections challenging problem response times highly dependent tcp effective window size server previous transaction remains 
+experimental platform experiments section client emulator machine running linux network emulator machine running freebsd server emulator third machine running google linux kernel 
+machines pentium ghz cpus gb main memory connected dedicated mbit ethernet switch 
+experiments section perform experiments evaluate effectiveness monkey replay features 
+evaluate ability monkey accurately replay traces google server monkey client network server emulators demonstrating monkey accurately reproduce connection response times large fraction traced connections 
+demonstrate monkey ability predict performance server optimization 
+replay validation start evaluating monkey reproduce behavior performance google search transactions 
+compare performance search transactions google server search transactions modeled monkey 
+experiment monkey server emulator uses kernel settings google servers originally performed search requests 
+assuming monkey models client network server behavior performance accurately response times replayed search transactions match response times observed trace 
+define response time interval time byte request received time byte response sent server 
+ms ms ms ms total relative error response time cdf relative error response time connection trace connections 
+connections response time relative error 
+kbps mbps mbps total relative error response time cdf response time replay original trace categorized different bandwidth distributions 
+experiment trace connections pm weekday november 
+compare search transaction performance trace search performance replay metric relative error response time 
+compute relative error replay response time minus trace response time divided original response time 
+relative error indicates replay response time matched trace response time exactly negative error indicates replay underestimated response time positive error indicates replay overestimated response time 
+shows cdf relative error response time replayed connections 
+shows cdfs connections total subsets connections categorized response time number parentheses legend label cdfs shows number connections category 
+example dark solid cdf curve shows relative error response time connections re ms ms ms ms total relative error response time cdf response time replay original trace categorized different minimum rtt distributions 
+sponse times ms ms connections 
+graph number observations 
+monkey performs reasonably reproducing response times replaying traces 
+connections replayed relative error 
+second monkey replay performance differs original trace tends underestimate response times 
+replayed connections negative relative error 
+third monkey ability accurately replay connections correlates response time original connection 
+monkey replays connections fast response times accurately slow response times 
+example connections response times ms relative error 
+monkey accuracy progressively degrades slower connections 
+extreme connections response times greater ms relative error 
+discuss issue 
+study monkey replay ability different perspectives correlate monkey relative error estimated bottleneck bandwidth minimum rtt 
+figures show cdfs relative error response time connections categorized estimated bottleneck bandwidths minimum rtts respectively original connections trace 
+see monkey replay accuracy correlates bottleneck bandwidth 
+monkey high bandwidth connections progressively worse low bandwidth connections 
+similarly shows monkey connections low rtt progressively worse connections higher rtt 
+results shown results graphs surprising bottleneck bandwidth minimum rtt correlate strongly response time higher bandwidths smaller rtts result smaller re sponse times 
+saw monkey replay connection accurately tends underestimate connection response time 
+manually inspecting various original replayed tcp flows monkey replay tends aggressive delayed ack policy connections windows clients trace connections 
+result monkey replayed connections tend perform faster original connections 
+recall section monkey uses linux emulate clients trace 
+linux delayed ack timeout average windows delayed ack timeout 
+linux provides special tcp option control ack timeouts kernel obey option setting may send immediate ack monkey disables 
+linux sends ack receives consecutive sequence packets windows may send ack data bursts packets 
+result mean rtt replay smaller mean rtt original connections 
+predictive replay evaluate monkey ability predict performance optimizations google server client workload 
+experiment trace performance client workload original google server trace performance equivalent client workload optimized google server monkey replay workload original google server server emulator modified optimization 
+comparing performance optimized google server trace performance replayed unoptimized trace optimized server emulator evaluate monkey ability predict performance server modifications trace replay 
+experiment optimization google server server emulator increase tcp initial congestion window 
+optimization tcp aggressive sending data decreasing response time 
+ideally client workload unoptimized optimized google servers steps 
+impractical 
+example shadow workload simultaneously google servers differed initial congestion window exactly terms state load 
+equivalent workloads unoptimized optimized google servers 
+workloads tcp connections distributions connection performance response time effectively identical 
+result compare workloads ms cdf response times halves trace collected pm pm weekday november 
+cwnd cwnd replay ms cdf response times traces 
+traces connections respectively 
+connection connection basis compare distributions 
+validate approach trace google server pm weekday november 
+divide trace half time pm pm compare distributions response time halves trace 
+shows cdfs response time distributions trace halves 
+see distributions nearly identical 
+purposes experiment consider relatively short workload traces taken immediately time equivalent workloads terms response time distributions 
+evaluate monkey ability predict performance began trace client workload google server tcp initial congestion window set 
+recorded trace pm weekday november 
+changed tcp initial congestion window google server immediately recorded trace client workload pm trace 
+monkey replay trace server emulator running google kernel tcp initial window resulting trace replayed connections 
+evaluate ability monkey predict performance optimized server trace unoptimized server comparing distributions response times traces 
+closer distributions better monkey predicting performance server optimization unoptimized client workload 
+shows cdfs response time distributions traces 
+comparing distributions traces see increasing tcp initial congestion window decreases response time effectively shifting distribution left ms recall replay google server emulator tcp initial congestion window set congestion window value trace 
+comparing distributions see distributions match ms response time range demonstrating monkey predict performance optimization range client connections 
+recall section monkey underestimates response time connections originally experienced relatively large response times trace 
+result expect distribution slightly underestimate distribution large response times 
+furthermore experiment monkey overestimates response times connections response times ms initial congestion window connection stalled waiting delayed ack client 
+delay overlaps hides actual search delay leading overestimate 
+discussion monkey able offer strong predictive power google environment obvious question approach generalize web environments tcp applications 
+general classes problems different environments network dynamics server emulation client analysis 
+current form monkey simplifications network model appropriate google may require significant extensions settings 
+example monkey currently models packet losses independent identically distributed 
+environments single flows long stress intermediate queues pattern losses may 
+similarly sev eral algorithms depend regular acknowledgments returning client assuming reverse path congestion rare 
+complexities addressed better analysis algorithms represent inherent ambiguities 
+example free running nature client delayed ack timers source acknowledgment delay inherently ambiguous 
+concern potential need specific server emulators new application 
+requirement limited applications strong performance dependencies sets operations result caching employed google system 
+setting server emulator prevents dependencies results trace result cache skewing results 
+systems performance distribution memoryless independent particular order time requests need server emulation 
+consequently web content distribution environments trace directly replayed original server 
+current version monkey model client interactions 
+predict impact faster response times request arrivals 
+general complete closed loop analysis extracted purely tcp stream 
+described new tool called monkey 
+monkey collects live packet traces tcp connections replays mimic original session characteristics network server client delays packet loss bottleneck bandwidth limitations 
+monkey allows web site administrators quickly easily evaluate effect different network implementations optimizations controlled fashion limitations synthetic workloads lack reproducibility live user traffic 
+realistic large network traces popular google search site show monkey replays traces high degree accuracy 
+demonstrate monkey predict effect changes tcp stack showing measured impact changes simulated environment closely corresponds impact measurements taken actual system 
+believe unrealistic build generic forall tcp replay tool 
+possible build replay tool specific applications monkey 
+monkey source publicly available ramp ucsd edu monkey acknowledgments vikram gerald aigner google production team help running experiments google servers extracting traces google internal networks 
+anonymous usenix reviewers shepherd srini seshan comments insights 
+libpcap 
+tcpdump org 
+specweb benchmark 
+www 
+org osg web 
+web polygraph web polygraph org 
+banga druschel 
+measuring capacity web server 
+proceedings usenix symposium internet technologies systems 
+barford crovella 
+generating representative web workloads network server performance evaluation 
+proceedings acm 
+barford crovella 
+critical path analysis tcp transactions 
+proceedings acm sig comm january 
+danzig jamin 
+tcplib library tcp internetwork traffic characteristics 
+tech report usc cs computer science department university southern california 
+floyd mahdavi mathis podolsky 
+extension selective sack option tcp 
+rfc july 
+manley seltzer courage 
+self scaling self configuring benchmark web servers extended 
+proceedings acm sigmetrics 
+
+modem compression bis 
+www digit life com articles vsv bis 
+mogul 
+brittle metrics operating systems research 
+proceedings th workshop hot topics operating systems january 
+mosberger jin 
+httperf tool measuring web server performance 
+proceedings workshop internet server performance june 
+
+deconstructing specweb 
+proceedings th international workshop web content caching distribution august 
+
+rosu seshan almeida 
+effects wide area conditions www server performance 
+proceedings acm sigmetrics june 
+rizzo 
+dummynet 
+info iet 
+unipi luigi ip dummynet html 
+saroiu gummadi gribble 
+fast technique measuring bandwidth uncooperative environments 
+proceedings ieee info com august 
+savage 
+sting tcp network measurement tool 
+proceedings usenix symposium internet technologies systems october 
+stevens 
+tcp ip illustrated volume 
+addison wesley 
+trent sake 
+webstone generation server benchmarking 
+www sgi com products webstone html 
+turner bing 
+
+sourceforge net 
+zhang breslau paxson shenker 
+characteristics origins internet flow rates 
+proceedings acm sigcomm august 

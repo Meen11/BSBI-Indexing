@@ -1,0 +1,551 @@
+toolkit user level file systems david mazi eres department computer science nyu dm cs nyu edu describes toolkit easily extending unix file system 
+toolkit exposes nfs interface allowing new file systems implemented portably user level 
+number programs implemented portable user level file systems 
+plagued low performance deadlock restrictions file system structure need reboot software errors 
+toolkit easy avoid vast majority problems 
+toolkit supports user level access existing file systems nfs interface heretofore rarely employed technique 
+nfs gives software asynchronous low level interface file system greatly benefit performance security scalability certain applications 
+toolkit uses new asynchronous library tractable build large event driven programs block 
+applications reap number benefits richer portable file system interface unix 
+describes toolkit portably extending unix file system facilitating creation new file systems granting access existing ones powerful interface 
+toolkit exploits client server sides ubiquitous sun network file system 
+lets file system developer build new file system emulating nfs server 
+lets application writers replace file system calls networking calls permitting lower level manipulation files working limitations maximum number open files synchrony operations 
+toolkit build sfs distributed file system refer sfs file system development toolkit 
+sfs relied daily people shows example build production quality nfs loopback servers 
+addition users picked toolkit built functioning unix file systems matter week 
+toolkit class projects allowing students build real functioning unix file systems 
+developing new unix file systems long difficult task 
+internal kernel api file systems varies significantly versions operating system making portability nearly impossible 
+locking discipline file system data structures hair raising non expert 
+developing kernel file systems complications writing kernel code 
+bugs trigger lengthy crash reboot cycle kernel debugging facilities generally powerful ordinary user code 
+time applications benefit interface existing file systems posix 
+example non blocking network permits highly efficient software situations synchronous disk blocks software reducing throughput 
+operating systems offer asynchronous file posix aio routines aio reading writing files doesn allow files opened created asynchronously directories read 
+shortcoming unix file system interface class security holes known time check time tocttou bugs 
+conceptually simple tasks quite difficult implement correctly privileged software instance removing file traversing symbolic link opening file condition accessible privileged user 
+result programmers leave race conditions attackers exploit gain greater privilege 
+section summarizes related 
+section describes issues involved building nfs loopback server 
+section explains sfs toolkit facilitates construction loopback servers 
+section discusses loopback clients 
+section describes applications toolkit discusses performance 
+section concludes 
+related number file system projects implemented nfs loopback servers 
+example sun daemon daemon mounts remote nfs file systems demand pathnames referenced 
+advanced automounter amd able mount file systems place turn pathname referenced user mount point fly 
+took approach creating mount points outside directory served loopback server redirecting file accesses symbolic links 
+example amd loopback server directory home 
+sees access path home am mount corresponding file system say amsterdam produce symbolic link home am amsterdam 
+symbolic link scheme complicates life users 
+reasons solaris linux pushed part automounter back kernel 
+sfs toolkit shows needn done mounting place fact implement proper automounter loopback server 
+problem previous loopback unavailable server impede access functioning servers 
+example previous paragraph suppose user accesses home am corresponding server unavailable 
+may take amd tens seconds realize server unavailable 
+time amd delays responding nfs request file am home 
+lookup pending kernel nfs client lock home directory preventing access names directory 
+loopback servers purposes 
+cfs cryptographic file system implemented nfs loopback server 
+unfortunately cfs suffers deadlock 
+predicates completion loopback nfs write calls writes file system interface discussed leads deadlock 
+alex ftp file system implemented nfs 
+alex read avoids deadlock problems 
+numerous file systems constructed nfs loopback servers including semantic file system byzantine fault tolerant file system 
+sfs toolkit considerably easier build loopback servers 
+helps avoid problems previous loopback servers 
+supports nfs loopback clients advantages discussed 
+new file systems implemented replacing system shared libraries intercepting process system calls ufo system 
+methods appealing implemented completely unprivileged user 
+unfortunately hard implement complete file system semantics methods instance hand file descriptor sendmsg 
+methods fail cases 
+shared libraries don statically linked applications approach works setuid utilities lpr 
+having different namespaces different processes cause confusion operating systems don normally support 
+fist language generating stackable file systems spirit ficus 
+fist output code operating systems solaris linux freebsd giving user amount portability 
+fist outputs kernel code giving advantages disadvantages operating system 
+fist biggest contributions really programming language allow simple elegant code powerful things 
+somewhat orthogonal sfs toolkit goals allowing file systems user level fist somewhat tied vfs layer couldn unfortunately ported sfs toolkit easily 
+aside elegant language big trade fist sfs toolkit performance vs portability ease debugging 
+loopback servers run virtually operating system fist file systems offer better performance 
+kernel device drivers allow user level programs implement file systems interface nfs 
+exports interface similar kernel vfs layer userlevel programs 
+general ran linux 
+afs client implementation contains device xfs lets user level programs implement file system sending messages dev xfs 
+protocol suited network file systems perform file caching generalpurpose 
+runs operating systems making xfs file systems portable 
+users install xfs 
+similarly coda file system uses device driver dev cfs 
+nfs loopback server issues nfs loopback servers allow implement new file system portably user level nfs protocol operating system specific api vfs layer 
+shows architecture nfs loopback server 
+application accesses files system calls 
+operating system nfs client implements calls sending nfs requests user user level nfs client application udp call system kernel file system user level nfs loopback server user level server 
+server treated kernel nfs code separate machine runs machine applications 
+responds nfs requests implements file system standard portable networking calls 
+complications nfs loopback servers making nfs loopback server perform poses challenges 
+operates user level loopback server inevitably imposes additional context switches applications 
+direct remedy situation 
+loopback file system implementer compensate designing rest system high performance 
+fortunately loopback servers people willing file systems perform optimally nfs example 
+file system offering new functionality useful long performance unacceptably slow 
+loopback servers exploit ideas file system literature 
+sfs instance manages maintain performance competitive nfs leases aggressive attribute permission caching 
+kernel implementation delivered far better performance current sfs useful system enhanced security 
+performance challenge loopback servers handle multiple requests parallel 
+instance server waits request network waits disk read multiple requests overlap latencies throughput system suffer 
+worse blocking operation performed nfs loopback server potential deadlock 
+typical kernel buffer allocation strategy 
+bsd derived kernel runs buffers buffer allocation function pick dirty buffer recycle block particular buffer cleaned 
+cleaning buffer requires calling loopback server loopback server waiting blocked kernel thread deadlock ensue 
+avoid deadlock nfs loopback server block circumstances 
+file loopback server obviously strictly prohibited 
+server avoid page faults 
+operating systems rigidly partition file cache program memory page fault needs struct buf pass disk driver 
+allocating structure may turn require file buffer cleaned 
+mere debugging printf deadlock system may fill queue pseudo terminal handled remote login daemon suffered page fault occurrence observed author 
+large piece software blocks requires fundamentally different abstractions software 
+simply kernel threads package handle concurrent nfs requests user level isn thread blocks may cleaning buffer waiting 
+nfs loopback servers complicated kernel nfs client internal locking 
+nfs request takes long complete client retransmits 
+number retransmissions client concludes server network gone 
+avoid flooding server retransmissions client locks mount point blocking requests periodically retransmitting original slow request 
+means single slow file nfs loopback server block access files server 
+issue faced loopback servers lot software unix implementations ansi function requires file system unique st dev st ino pair 
+st dev st ino fields returned posix stat function 
+historically st dev number designating device disk partition st ino corresponded file disk partition 
+nfs protocol field equivalent st dev field ignored unix nfs clients 
+files nfs mount point assigned single st dev value kernel 
+stitching files various sources loopback server ensure st ino fields unique mount point 
+loopback server avoid problems slow files st ino uniqueness multiple mount points effectively emulating nfs servers 
+create mount points fly instance remote servers user 
+doing nontrivial vnode locking file name lookups 
+nfs client looking file name parallel access name create new mount point 
+drove previous nfs loopback create mount points outside loopback file system serve symbolic links loopback mount 
+user level software nfs loopback servers easier debug kernel software 
+buggy loopback server hang machine require reboot 
+loopback server crashes loopback file system block 
+hung processes pile keeping file system operating systems preventing 
+command things require nfs rpc making impossible clean mess reboot 
+loopback file system uses multiple mount points situation worse way traverse higher level directories lowerlevel mount points 
+summary nfs loopback servers offer promising approach portable file system development number obstacles overcome build successfully 
+goal sfs file system development toolkit tackle problems easy people develop new file systems 
+nfs loopback server toolkit section describes sfs toolkit supports building robust user level loopback servers 
+toolkit components illustrated 
+daemon creates deletes mount points 
+part sfs client needs run root part system function properly prevent machine getting 
+sfs automounter daemon creates mount points dynamically users access 
+collection libraries novel rpc compiler simplify task implementing entirely non blocking nfs loopback servers 
+basic api basic api toolkit effectively nfs protocol 
+server allocates object example bound udp socket 
+server hands object dispatch function 
+object calls dispatch function nfs rpcs 
+dispatch function asynchronous 
+receives argument type pointer returns 
+reply nfs rpc server calls reply method object 
+needn happen dispatch routine returns 
+stored away asynchronous event completes 
+daemon purpose clean mess parts system fail 
+saves loopback file system developer having reboot machine goes wrong loopback server 
+runs root calls mount system calls request processes 
+aggressively distrusts processes 
+interface carefully crafted ensure take assume control loopback mount necessary 
+communicates daemons unix domain sockets 
+create new nfs mount point daemon creates udp socket speak nfs protocol 
+daemon passes socket desired pathname mount point unix domain socket facilities passing file descriptors processes 
+acting nfs client existing loopback mounts probes structure loopback file systems traversed requested mount point 
+performs actual mount system call returns result invoking daemon 
+performing mount holds udp socket nfs loopback server 
+remembers structure traversed file systems recreate directories mount points 
+loopback server crashes immediately detects receiving file unix domain socket connected server 
+takes udp sockets crashed server begins serving skeletal portions file system required clean underlying mount points 
+requests parts file system return stale file handle errors helping ensure programs accessing crashed file system exit quickly error hanging file access preventing file system 
+built early development sfs 
+point able continue development sfs dedicated crash boxes 
+matter bugs cropped rest sfs rarely needed reboot 
+mirrors experience students toolkit class projects knowing pain loopback server development cause 
+occasion course turned bugs kernel nfs implementations 
+suffered kernel trying understand problems strictly mount user level file system nfs client automounter mount table application kernel user udp udp udp system call architecture user level file system toolkit speaking part qualifies kernel development user level server development 
+place sfs automounter shows loopback mount file systems place previous loopback automounter managed 
+sfs consists top level directory sfs served automounter process number subdirectories sfs served separate loopback servers 
+subdirectories sfs created demand users access directory names 
+subdirectories sfs handled separate loopback servers separate mount points 
+kernel vnode locking strategy complicates task creating mount points demand 
+specifically user name mount point sfs kernel generates nfs lookup rpc 
+automounter immediately reply rpc create mount point 
+hand creating mount point requires mount system call kernel looks pathname 
+client nfs implementation locked sfs directory lookup rpc 
+lookup mount call hang 
+worse sfs automounter immediately create requested mount point 
+validate name directory involves dns lookup various network validating directory name take long time particularly dns server 
+time sufficient drive nfs client retransmission lock mount point blocking requests sfs 
+automounter sit lookup request name sfs 
+reply immediately 
+sfs automounter employs tricks achieve previous loopback 
+tags process mount system calls reserved group id idea introduced 
+examining credentials nfs rpcs automounter differentiate nfs calls behalf issued processes 
+second automounter creates number special mnt mount points directories names form sfs mnt sfs mnt 
+automounter delays response lookup rpc sfs directory 
+returns symbolic link redirecting user symbolic link mnt mount points 
+delays result readlink rpc 
+delayed readlink takes place dedicated mount point file accesses affected 
+user process awaits readlink reply sfs mnt automounter mounts remote file system sfs 
+nfs rpcs tagged reserved group id automounter responds differently giving different view file system user 
+users referencing pathname sfs see symbolic link sfs mnt 
+sees ordinary directory mount remote file system 
+mount succeeds automounter lets user see directory responds pending readlink rpc redirecting user original pathname sfs directory 
+final problem faced commonly library function performs lstat system call entry directory containing mount points sfs 
+loopback servers mounted immediate subdirectories sfs unresponsive hang run working file system 
+loopback servers may depend networked resources transiently unavailable loopback server may need unavailable 
+happens loopback server notifies automounter automounter returns temporary errors process attempting access problematic mount point pro cess unavailable file systems 
+asynchronous library traditional abstractions interfaces ill suited completely non blocking programming sort required nfs loopback servers 
+sfs file system development toolkit contains new nonblocking library libasync help write programs avoid potentially blocking operations 
+function complete immediately registers callback libasync invoked particular asynchronous event occurs 
+core libasync supports callbacks file descriptors ready child processes exit process receives signals clock passes particular time 
+central dispatch loop polls events occur system call select blocking system call loopback server 
+complications arise style eventdriven programming language 
+languages support closures inconvenient bundle necessary state preserve finish operation callback 
+second asynchronous library function takes callback buffer input allocates memory results function type signature clear code responsible freeing memory 
+complications easily lead programming errors learned implementation sfs entirely 
+libasync asynchronous library interfaces error prone aggressive templates 
+heavily overloaded template function wrap produces callback objects technique function currying wrap bundles function pointer initial arguments pass function returns function object function remaining arguments 
+words function res function call wrap function produces function object type signature res callback wrap mechanism permits convenient bundling code data callback objects type safe way 
+example shows wrapping simple function wrap bundle object method pointer arguments 
+wrap handles functions arguments type need declare combination types ahead time 
+maximum number class foo public bar 
+void function ref new constructor arguments ptr new constructor arguments null example usage counted pointers arguments determined parameter perl script generates code wrap 
+avoid programming burden tracking caller callee responsible freeing dynamically allocated memory libasync supports garbage collection 
+template types offer counted pointers objects type ptr ref 
+ptr ref behave identically assigned ref null 
+allocate counted version type template type takes constructor arguments type shows example counted garbage collection 
+counted garbage collection deletes objects soon longer needed rely destructors counted objects release resources precious memory open file descriptors 
+libasync contains number support routines built top core callbacks 
+asynchronous file handles input formatted output asynchronous dns resolver asynchronous tcp connection establishment 
+implemented scratch libasync event dispatcher callbacks counting 
+libasync supplies helpful building blocks objects accumulate data deal short writes buffer space available kernel 
+supports asynchronous logging messages terminal system log 
+asynchronous rpc library compiler sfs toolkit supplies asynchronous rpc library built top libasync new rpc compiler 
+compiles sun xdr data structures data structures 
+directly output code serializing structures uses templates function overloading produce generic way traversing data structures compile time 
+allows write concise code compiles number functions nfs data type 
+serialization data rpc calls application traversal mechanism 
+ability traverse nfs data structures automatically turned useful number situations 
+example loopback servers constituting client side sfs uses protocol similar nfs communicating remote sfs servers 
+differences sfs protocol aggressive file attribute caching lets server call back client invalidate attributes 
+manually extract attribute information return structures different nfs rpcs sfs client uses rpc library traverse data structures extract attributes automatically 
+compiled output consists numerous functions template instantiations automatically generated compiler 
+source needs functions overload traversal behavior attribute structures 
+bug source break nfs functions 
+stackable nfs manipulators sfs support library provides stackable nfs manipulators 
+manipulators take object produce different manipulating calls replies original object 
+loopback nfs server starts initial object generally udp accepts nfs calls udp socket 
+server push bunch manipulators 
+example course developing sfs number bugs caused nfs client implementations 
+developed nfs manipulator works bugs 
+sfs loopback servers push nfs manipulator stack don worry specifics kernel bugs 
+discover bug need put workaround single place fix loopback servers 
+nfs manipulator demultiplexer breaks single stream nfs requests multiple streams 
+allows single udp socket server side multiple nfs mount points 
+demultiplexer works tagging nfs file handles number mount point belong 
+file handles scattered nfs call return types tagging simple implement traversal feature rpc compiler 
+miscellaneous features sfs toolkit features 
+supplies small user level module loopback servers link avoid paging 
+systems supporting system call easily accomplished 
+systems manually pins text data segments replaces malloc library function routine returns pinned memory 
+sfs toolkit contains number debugging features including aggressive memory checking type checking accesses rpc union structures easily tracing pretty printing rpc traffic 
+pretty printing rpc traffic particular proven debugging tool 
+nfs rpc typically involves limited amount computation 
+separate rpc calls relatively independent making problems easily reproducible 
+bug occurs turn rpc tracing locate rpc server returning problematic reply set conditional breakpoint trigger conditions 
+debugger generally just matter stepping functions understand arrive valid request invalid reply 
+despite unorthodox structure non blocking daemons sfs libraries sfs lines code including toolkit daemons quite manageable 
+bugs hit nfs implementations 
+sfs toolkit tracing facilities quickly verify sfs behaving correctly pin blame kernel 
+limitations nfs loopback servers despite benefits nfs loopback servers tractability sfs toolkit serious drawbacks mentioned 
+nfs protocols convey file closes server 
+reasons file system implementor wish know files closed 
+implemented close simulator nfs manipulator accurate suitable needs 
+nfs protocol file closes solve problem nfs deployed 
+limitation potential risk deadlock loopback servers predicate completion nfs write write issued local disk 
+loopback servers access local disk provided asynchronously 
+libasync offers support doing helper processes nfs loopback client 
+build loopback server talks remote server keeps cache local disk 
+loopback server return nfs write corresponding remote operation gone wait write go local cache 
+techniques rely stable crash recoverable writes local disk disconnected operation coda easily implemented loopback servers need raw disk partitions 
+nfs loopback clients addition implementing loopback servers allows applications behave nfs clients making loopback clients 
+nfs loopback client accesses local hard disk talking kernel nfs server standard posix open close read write system call interface 
+loopback clients disadvantages loopback servers 
+fact loopback client access local file system system calls 
+nfs simply offers lower level asynchronous alternative aggressive applications benefit 
+sfs server software implemented nfs loopback client 
+reaps number benefits architecture 
+performance 
+asynchronous socket loopback client parallel disk operations outstanding simultaneously 
+turn allows operating system achieve better disk arm scheduling get higher throughput disk 
+posix offer optional aio system calls asynchronous file aio routines operate open files 
+nfs loopback client directory lookups directory reads file creation need performed synchronously 
+second benefit sfs server loopback client security 
+sfs server course trusted may called serve modify file 
+server careful perform operation permitted requesting users 
+server implemented top normal file system interface needed perform access control deciding instance honor request delete file 
+making decisions correctly race conditions quite tricky unix file system interface 
+example deleting file server need change working directory file 
+server access check unlink system call bad user replace di nfs client trivial 
+nfs request explicitly specifies credentials execute request generally privileged loopback client 
+sfs server simply tags nfs requests appropriate user credentials kernel nfs server access control decision performs operation approved atomically 
+final benefit having loopback client avoiding limits number open files 
+total number open files sfs clients connected sfs server may exceed maximum number open files allowed server 
+nfs loopback client sfs server access file needing dedicated file descriptor 
+user sfs toolkit prototyped sfs server posix interface act loopback client 
+implementing leases attributes user authentication unique st ino fields code large production sfs server considerably bug prone 
+posix server jump number deal issues maximum number open files 
+limitations nfs loopback clients major limitation nfs loopback clients run root 
+unprivileged programs access file system nfs interface 
+related concern value nfs file handles carefully guarded 
+single file handle directory disclosed untrusted user user access part file system user 
+fortunately sfs rpc compiler provides solution problem 
+easily traverse arbitrary nfs data structure encrypt decrypt file handles encountered 
+sfs toolkit contains support routine doing 
+final annoyance loopback clients file systems access exported nfs 
+actual mechanics exporting file system vary significantly versions unix 
+toolkit way exporting file systems automatically 
+users manually edit system configuration files loopback client run 
+symbolic link server deleting file different unchecked directory 
+cross directory renames worse simply implemented atomically securely 
+alternative approach server drop privileges file system operation unprivileged users send signals server kill 
+lines function includes global variables command line argument parsing locate spawn get server ip address ask server nfs port ask server nfs file handle call mount relay nfs calls total lines code applications toolkit sfs toolkit build number systems 
+sfs distributed file system consisting distinct protocols read write read protocol 
+client side protocol implemented separate loopback server 
+server side read write protocol implemented loopback client 
+read server uses posix interface 
+number non sfs file systems built including file system interface cvs file system ftp gateway file system interfaces databases 
+toolkit lets develop distributed file systems fit sfs framework 
+sfs read write protocol similar nfs 
+modifications transform loopback server network server accessible sfs client 
+sfs libraries automatically handle key management encryption integrity checking session traffic user authentication mapping user credentials local remote machines 
+distributed file system built toolkit effort provide high level security network attacks 
+asynchronous library toolkit implement just file systems 
+people implement tcp proxies caching web proxies tcp udp proxies networks high loss 
+asynchronous extremely efficient tool implementing network servers 
+previous version sfs toolkit build high performance asynchronous smtp mail server survived distributed mail bomb attack 
+worm infected thousands machines send mail server 
+simple loopback server give sense complexity sfs toolkit built simplest possible loopback file system 
+takes arguments server name pathname mount point 
+creates loopback nfs mount mount point relays nfs calls remote nfs server 
+functionality may sound worthless utility 
+sfs rpc libraries trace pretty print rpc traffic analyze exactly nfs client server behaving 
+implementation required lines code including blank lines readability shown 
+notably missing breakdown clean code 
+need catch signals 
+dies reason clean mount point 
+shows implementation nfs call relaying code 
+function dispatch called nfs rpc 
+lines manipulate auth unix parameters nfs call rpc terminology user group ids 
+reuse credentials outgoing rpc converted auth type 
+auth type defined rpc library operating system library routines part sfs toolkit 
+third line dispatch outgoing nfs rpc 
+rpc handle remote nfs server 
+nc returns pointer rpc argument structure cast void 
+nc similarly returns pointer appropriate result type cast void 
+rpc library asynchronous call return rpc completes 
+dispatch create callback wrap bundle function reply argument nc 
+rpc finishes library callback passing additional argument type stat indicate rpc level errors timeouts 
+error occurs logged propagated back generic rpc failure code system err 
+warn toolkit asynchronous logging facility 
+syntax similar cout warn additionally converts rpc nfs enum error codes descriptive strings 
+error reply simply returns result data structure just filled outgoing nfs rpc 
+performance analyze inherent overhead loopback server measured performance 
+ran experiments mhz pentium iii machines mbytes pc ram seagate st lw disk 
+machines connected mbit sec switched ethernet 
+client ran freebsd server openbsd 
+void dispatch nc static auth ao create set ao nc call nc proc nc nc wrap reply nc ao static void reply nc enum stat stat stat warn nc reject system err nc reply nc dispatch routine isolate loopback server worst characteristic latency measured time perform operation requires server unauthorized system call 
+nfs required average sec sec 
+fortunately raw rpc latency minor component performance real applications 
+particular time process rpc requires disk seek dwarf latency 
+shown time compile emacs slower nfs 
+furthermore nfs version specifically designed tolerate high latency features batching rpcs 
+latency problem nfs loopback servers evaluate impact data movement measured performance sequentially reading mbyte sparse file client buffer cache 
+reads sparse file cause nfs server send blocks zeros network require server access disk 
+represents worst case scenario cost accessing disk file systems serve diminish relative difference nfs 
+nfs achieved throughput mbytes second essentially saturating network achieved 
+get rough idea cpu utilization top command examine system activity streaming data gbyte sparse file 
+idle time stayed 
+cryptfs encrypting file system useful example built encrypting file system spirit cfs 
+starting took additional lines build cryptfs cryptographic file system crude interface 
+cryptfs takes arguments prompts password startup encrypts file names data 
+cryptfs inconvenient run root file system required killing daemon 
+worked spent additional week building daemon allows multiple encrypted directories mounted request non root users 
+uses encrypting nfs translator cryptfs additionally secure machines untrusted nonroot users provides convenient interface works sfs nfs implementation final system lines code including utility mount encrypted directories small helper program invoked 
+shows breakdown lines code 
+comparison cfs lines course different features cryptfs 
+cfs nfs request handing code analogue nfs lines 
+encrypts file names contents rijn lines file function cryptfs structure definitions inline template functions global declarations main function parse options launch translate user supplied pathname nfs sfs server address file handle nfs nfs dispatch routine encrypt decrypt file names contents afs nfs server cfs encrypted directories mounted adm dispatch routine receive user mount requests rpc protocol requesting mounts utility mount encrypted directory helper program run handle untrusted requests securely total lines code 
+source files stand utilities 
+aes encryption algorithm 
+file names encrypted cbc mode forwards backwards ensure byte encrypted name depends byte original name 
+symbolic links treated similarly bit random prefix added links file different encryptions 
+encryption file data depend parts file 
+encrypt byte block plaintext file data encrypts block byte offset file file initialization vector producing bytes random looking data 
+exclusive ors data plaintext block encrypts 
+data blocks repeated files different encryptions 
+file inode number hash nfs file handle initialization vector 
+unfortunately vectors survive traditional backup restore 
+stores initialization vector file 
+file contents shifted forward bytes 
+bytes sufficed applications may depend fact modern disks write aligned byte sectors atomically 
+nfs servers kbyte aligned buffers 
+shifting file contents hurt performance random aligned kbyte writes large file server may issuing disk reads produce complete kbyte buffers 
+fortunately reads necessary common case appending files 
+course cryptfs stored initialization vector 
+cfs instance stores initialization vectors outside files symbolic links 
+technique incurs synchronous disk writes metadata operations 
+weakens semantics atomic rename operation 
+particularly wished avoid deviating traditional crash recovery semantics operations rename 
+cfs cryptfs handle sparse files properly 
+file size increased truncate system call write call file unwritten portions file contain garbage valued bytes 
+sfs toolkit simplified cryptfs implementation ways 
+importantly nfs rpc null optionally return file attributes containing file size information 
+operations additionally return file old size rpc executed 
+cryptfs adjust sizes hide fact shifts file contents forward 
+rijndael encrypts blocks bytes cryptfs adds bytes padding files length multiple 
+manually writing code adjust file sizes appear return types different rpc calls daunting error prone task 
+sfs toolkit uses rpc compiler data structure traversal functionality extract attributes rpc data structure 
+cryptfs needs total lines code adjust file sizes rpc replies 
+cryptfs implementation generally benefited sfs toolkit single dispatch routine architecture 
+traditional rpc libraries call different service function rpc procedure defined protocol 
+sfs toolkit demultiplex rpc procedures 
+passes single function dispatch 
+calls need case vastly simplifies implementation 
+file name encryption particular simplified single dispatch routine architecture 
+total nfs rpcs contain file names argument types 
+rpcs file name directory file handle thing argument structure 
+calls handled identically 
+cryptfs implements file name encryption switch statement cascaded case statements special cases 
+file names uniformly located argument structures course rpc traversal mechanism extract pointers 
+grouping code functionality rpc procedure results functioning file system stages development 
+turn facilitates incremental testing 
+develop cryptfs started just fixed file sizes offsets 
+special cased read write rpcs encrypt decrypt file contents 
+worked added file name encryption 
+stage working file system test 
+function encrypt file names rpc procedure easy test debug rest file system works 
+traditional demultiplexing rpc library functionality broken functions 
+natural approach case implement nfs rpc time feature time arriving fully working system 
+cryptfs performance evaluate cryptfs performance measured time emacs software distribution configure software compile delete build tree 
+shows results 
+white bars indicate performance freebsd local ffs file system 
+solid gray bars show nfs udp 
+solid black bars show performance cryptfs 
+leftward black bars give performance comparison 
+phase stresses data movement latency 
+delete configure phases stress latency 
+compile phase additionally requires cpu time consumes approximately seconds user level cpu time reported time command 
+phases cryptfs slower nsf 
+interestingly cryptfs outperforms nfs delete phase 
+mean cryptfs faster deleting files 
+nfs delete emacs build tree produced cryptfs observed performance deleting cryptfs 
+artifact cryptfs file system usage fact file names length results directory trees faster delete 
+comparison ran benchmark cfs blowfish cipher 
+black diagonal stripes cfs execute full benchmark properly directories removed putting rm infinite loop 
+cfs took benchmark rm rf command deleting build tree possible find renaming emacs directory garbage name 
+labeled cfs async show performance 
+cfs outperforms straight nfs phase 
+performing asynchronous file writes perform synchronous ones 
+particular fsync system call cfs 
+extremely dangerous particularly cfs runs small risk machine requiring reboot 
+users loose contents files edit 
+fixed cfs dangerous asynchronous writes changing open files fsync flag 
+change affect number system calls ensured writes synchronous required nfs protocol cfs implements 
+results shown gray diagonal labeled cfs sync 
+performs worse cryptfs phases 
+completeness verified cryptfs beat nfs performance changing writes unstable giving fake replies commit rpcs effectively cfs 
+architectural differences cryptfs cfs performance measurements taken head head comparison sfs asynchronous rpc library standard libc rpc facilities cfs uses 
+cfs useful package performance people find acceptable functionality 
+experiments show armed sfs toolkit author put roughly equivalent file system just week half 
+building pleasant experience little piece functionality added immediately tested 
+code manipulates nfs rpcs lines 
+structured bunch small manipulations nfs data structures passed nfs client server 
+mapping rpcs received 
+easy cryptfs provide traditional semantics 
+summary user level software stands gain nfs loopback interface 
+emulating nfs servers portable user level programs implement new file systems 
+loopback servers navigate tricky issues including deadlock vnode mount point locking fact loopback server crash wedge machine require reboot 
+sfs file system development toolkit relatively easy avoid problems build production quality loopback nfs servers 
+sfs toolkit includes asynchronous rpc library lets applications access local file system nfs 
+aggressive applications nfs configure compile delete local nfs cryptfs cfs async cfs sync execution time emacs configure compile delete 
+ally better interface traditional open close read write 
+nfs allows asynchronous access file system operations file creation asynchronously possible system calls 
+nfs provides lower level interface help avoid certain race conditions privileged software 
+acknowledgments author grateful frans kaashoek implementing posix sfs server mentioned section generally promoting sfs toolkit detailed comments drafts 
+author marc waldman chen witchel anonymous reviewers helpful feedback 
+park help shepherd 
+availability sfs file system development toolkit free software released version gnu general public license 
+toolkit comes bundled sfs available www fs net 
+albert alexandrov klaus schauser chris 
+extending operating system user level ufo global file system 
+proceedings usenix pages 
+usenix january 
+matt bishop michael 
+checking race conditions file accesses 
+computing systems spring 
+matt blaze 
+cryptographic file system unix 
+st acm conference communications computing security pages november 
+callaghan pawlowski 
+nfs version protocol specification 
+rfc network working group june 
+brent callaghan tom lyon 
+automounter 
+proceedings winter usenix pages 
+usenix 
+miguel castro barbara liskov 
+practical byzantine fault tolerance 
+proceedings rd symposium operating systems design implementation pages february 
+vincent cate 
+alex global filesystem 
+proceedings usenix file system workshop may 
+jeremy 
+
+www org jeremy 
+david gifford pierre jouvelot mark sheldon james toole 
+semantic file systems 
+proceedings th acm symposium operating systems principles pages pacific grove ca october 
+acm 
+cary gray david cheriton 
+leases efficient fault tolerant mechanism distributed file cache consistency 
+proceedings th acm symposium operating systems principles 
+acm 
+john heidemann gerald popek 
+file system development stackable layers 
+acm transactions computer systems february 
+james kistler satyanarayanan 
+disconnected operation coda file system 
+acm transactions computer systems 
+david mazi eres michael kaminsky frans kaashoek witchel 
+separating key management file system security 
+proceedings th acm symposium operating systems principles pages island sc 
+acm 
+jan simon nick williams 
+amd bsd automounter manual 
+london sw bz uk 
+manual comes amd software distribution 
+russel sandberg david goldberg steve kleiman dan walsh bob lyon 
+design implementation sun network filesystem 
+proceedings summer usenix pages portland 
+usenix 
+callaghan robinson beame 
+nfs version protocol 
+rfc network working group december 
+johan danielsson 
+free afs client 
+proceedings usenix freenix track new orleans la june 
+usenix 
+erez zadok alexander 
+delivering email home 
+proceedings systems administration conference lisa vii monterey ca november 
+usenix 
+erez zadok jason 
+fist language stackable file systems 
+proceedings usenix 
+usenix june 
+

@@ -1,0 +1,616 @@
+distributed multi level recovery main memory databases rajeev rastogi philip bohannon james parker seshadri avi silberschatz sudarshan bell laboratories murray hill nj parker bell labs com indian institute technology bombay india cse iitb ernet recovery techniques distributed main memory databases specifically client server shared disk architectures 
+recovery scheme client server architectures shipping log records server recovery schemes shared disk architectures page shipping broadcasting log updates 
+schemes offer different tradeoffs factors update rates 
+techniques extensions distributed memory setting centralized recovery scheme main memory databases implemented dal main memory database system 
+centralized distributed memory recovery schemes attractive features support explicit multi level recovery abstraction high concurrency reduce disk writing redo log records disk normal processing transaction redo undo logs reduce contention system log 
+techniques fuzzy checkpointing scheme writes dirty pages disk minimally interferes normal processing recovery schemes require acquire latch updating page 
+log shipping broadcasting schemes support concurrent updates page different sites 
+appeared distributed parallel databases volume number january kluwer academic publishers 
+authors performed part bell labs 
+large number applications call routing switching telecommunications financial applications automation control require high performance access data response time requirements order milliseconds tens milliseconds 
+traditional disk database systems incapable meeting high performance needs applications due latency accessing data disk resident 
+attractive approach providing applications low predictable response times load entire database main memory 
+databases applications order tens hundreds megabytes easily supported main memory 
+machines main memories gigabytes available falling price ram machines large main memories cheaper common 
+approach implementing high performance databases provide large buffer cache traditional disk system 
+contrast main memory database system mmdb see entire database directly mapped virtual address space process locked memory 
+data accessed directly virtual memory pointers indirectly location independent database offsets quickly translated memory addresses 
+data access need interact buffer manager locating data fetching pinning buffer pages 
+objects larger system page size stored contiguously simplifying retrieval place 
+data access main memory database fast compared disk storage managers disk manager sufficient memory cache data pages 
+distributed architectures machines connected fast network perform database accesses updates parallel provide significant performance improvements number applications 
+example consider applications transactions predominantly read update rates low number translation call routing telecommunications 
+machine locally access data cached memory avoiding network communication fairly expensive 
+example computer aided design applications locality high update transactions long interactive response time important 
+distribution enhances fault tolerance required mission critical applications data fits easily single machine main memory 
+case especially low update rates distributed database preferable hot spare load distributed non failure case leading improved performance 
+recovery scheme dal main memory database system mainmemory recovery scheme 
+recovery scheme provides important features transient undo logging undo log records kept memory written disk required checkpointing transaction logs memory reduce contention system log tail recovery single pass system log 
+recovery scheme dal provides extensions multi level recovery fuzzy checkpointing 
+goal described extend dal recovery scheme distributed memory case simultaneously maintaining advantages single site scheme efficiently supporting applications described 
+example transient undo logging reduce size log written disk size log sent network links distributed protocols 
+distinct related distributed recovery schemes client server architectures second third shared disk architectures 
+data shipping schemes see transaction executes single site fetching data pages required sites 
+distributed commit protocols needed function shipping environments 
+shared disk architectures traditionally closely tied hardware platforms vaxcluster unix shared disk platforms network workstation architectures similar performance characteristics common 
+key property client server scheme shared disk schemes concurrent updates possible granularities smaller page size minimizing false sharing apparent conflicts due coarse granularity locking consequently needless network accesses resolve false sharing 
+distributed recovery algorithms provide advanced features centralized recovery algorithms transient undo logging explicit multi level recovery fuzzy checkpointing 
+site global recovery requires single pass system log starting system log recorded checkpoint 
+remainder organized follows 
+background multi level recovery single site algorithm section 
+related section 
+client server recovery algorithm section 
+section describes shared disk model sections shared disk recovery algorithms 
+section concludes 
+overview main memory recovery section review multi level recovery concepts overview single site main memory recovery scheme dal system 
+low level details scheme described 
+scheme data logically organized regions 
+region tuple object arbitrary data structure list tree 
+region single associated lock referred region lock exclusive shared modes guard updates accesses region respectively 
+multi level recovery multi level recovery provides recovery support enhanced concurrency semantics operations 
+specifically permits weaker operation locks place stronger shared exclusive region locks 
+common example index management holding physical region locks transaction commit leads unacceptably low levels concurrency 
+undo logging done physically recording exactly bytes modified insert key index transaction management system ensure physical undo descriptions valid transaction commit 
+descriptions refer byte changes specific positions typically implies region locks updated index nodes held transaction commit ensure correct recovery addition considerations concurrent access index 
+multi level recovery approach replace low level physical undo log records higher level logical undo log records containing undo descriptions operation level 
+insert operation physical undo records replaced logical undo record indicating inserted key deleted 
+replacement region locks may released restrictive operation locks need retained 
+example region locks particular nodes involved insert released operation lock newly inserted key prevents key accessed deleted held 
+system overview gives overview structures recovery 
+database sequence fixed size pages mapped address space process main memory checkpoint main memory stable log active trans 
+table dirty page table database stable log database ckpt dpt cur ckpt ckpt ckpt stable system log system log tail disk active trans table att undo logs redo log undo log trans 
+local logs overview recovery structures images ckpt ckpt disk 
+stored disk cur ckpt anchor pointing valid checkpoint image database single system log containing redo information tail memory 
+variable stable log stores pointer system log records prior pointer known flushed stable system log 
+single active transaction table att main memory stores separate redo undo logs active transactions addition information transaction status 
+dirty page table dpt maintained memory record pages updated checkpoint 
+simplicity presentation assume dirty page table maintained bitmap bit page 
+att undo logs redo logs dirty page table stored checkpoint image 
+dirty page table checkpoint image referred ckpt dpt 
+transactions operations transactions model consist sequence multi level operations similar 
+briefly describe model 
+operation level associated 
+operation level consist sequence operations level gamma transactions assumed level ln call operations level ln gamma physical updates regions level operations 
+transactions distinguish pre commit commit record enters system log memory establishing point serialization order commit commit record hits stable log 
+operations terms commit pre commit interchangeably refer time commit record enters system log memory 
+transaction obtains operation lock executes operation operation lock granted operation commutes operation locks held active transactions 
+level operations obtain region locks operation locks 
+locks region released operation pre commits similarly operation lock level held transaction containing operation level commits 
+locks acquired transaction released commits 
+logging model recovery algorithm maintains separate local undo redo logs memory transaction 
+stored linked list entry transaction att 
+physical update possible release locks transaction pre commit result read transactions may read uncommitted data commit delayed dirty data read committed 
+part region generates physical undo redo log records appended respective local log 
+transaction operation pre commits current contents transaction local redo log appended system log tail memory logical undo description operation included operation commit log record appended system log 
+exception logical undo descriptors redo records written system log normal processing 
+operation pre commits undo log records suboperations updates replaced transaction local undo log logical undo log record containing undo description operation 
+memory undo logs transactions committed deleted required 
+system log flushed disk transaction commits 
+redo log record written disk pages touched update log record marked dirty dirty page table dpt flushing procedure 
+single site recovery scheme update actions obtain latches pages region locks obtained ensure updates interfere 
+eliminating latching significantly decreases access costs main memory reduces programming complexity 
+recovery related actions normally taken page latching setting dirty bits page performed log records written redo log 
+schemes exception shared disk schemes obtain page latches sole exception uses page latching ensure cache coherency problem single site case 
+redo log single unifying resource coordinate application interaction recovery system approach proven useful 
+ping pong checkpointing consistent terminology main memory database literature term checkpoint mean copy main memory database stored disk term checkpointing refer action creating checkpoint 
+terminology differs slightly terminology example aries 
+traditional recovery schemes implement write ahead logging wal undo logs updates page flushed disk page flushed disk 
+systems guarantee wal property typically latch page obtained log records pertaining page flushed stable storage page copied disk latch released 
+obtain page latch preventing concurrent updates page flushed disk 
+result obtaining latches pages updates possible enforce write ahead logging policy pages may updated written 
+recovery algorithm strategy called ping pong checkpointing see 
+ping pong checkpointing copies database image stored disk alternate checkpoints write dirty pages alternate copies 
+writing alternate checkpoints alternate copies permits checkpoint created temporarily inconsistent updates may written corresponding undo records having written 
+writing dirty pages sufficient redo undo log information written bring checkpoint consistent state 
+failure occurs creating checkpoint checkpoint consistent recovery 
+keeping copies main memory database disk ping pong checkpointing high space penalty disk space cheaper main memory 
+ping pong checkpointing benefits 
+instance recovery schemes assume page logs deleted pre commit short system crash result transaction aborting 
+cases region sizes change certain additional region locks storage allocation structures may need obtained 
+example page system update causes size tuple change addition region lock tuple mode region lock storage allocation structures page obtained 
+writes atomic reality complex schemes needed detect recover incomplete page writes resulting example power failures 
+incomplete page writes cause problems ping pong checkpointing previous checkpoint image available 
+pingpong checkpointing permits physical logical consistency checks performed checkpoint declaring successfully completed 
+writing dirty data disk checkpoint notes current stable log variable stable log stored checkpoint 
+start point scanning system log recovering crash checkpoint 
+contents memory ckpt dpt set dpt dpt zeroed noting stable log zeroing dpt done atomically respect flushing 
+pages written pages dirty ckpt dpt completed checkpoint dirty current memory ckpt dpt 
+words pages written modified current checkpoint image previously written pages checkpoint 
+necessary ensure updates described log records preceding current checkpoint stable log database image current checkpoint 
+checkpoints write dirty pages obtaining latches avoid interfering normal operations 
+checkpoint image fuzzy 
+fuzzy checkpointing result problems recovery ffl checkpoint page image may contain partial updates operation ffl undo log record update may stable system log result problem system crash immediately checkpoint 
+problem solved policy writing physical redo log records 
+applying physical redo log records effects idempotent checkpoint page image ensure obtain page image contain partial updates 
+second problem solved ensuring update effects checkpoint image holds corresponding physical undo log records written disk database image written physical redo log records operation corresponding partial update logical undo descriptor operation commit log record stable storage 
+performed checkpointing att flushing log checkpointing data 
+checkpoint att writes undo log records status information 
+case operation containing partial update completes consequently undo log records removed att checkpoint att log flush ensures log records corresponding operation containing partial update operation commit log record stable storage 
+checkpoint declared completed consistent toggling cur ckpt point new checkpoint 
+abort processing transaction aborts successfully complete execution updates operations described log records transaction undo log undone traversing undo log backwards 
+transaction abort carried executing reverse order undo record just execution part transaction 
+philosophy repeating history new physical redo log records created physical undo record encountered abort 
+similarly logical undo record encountered new compensation proxy operation executed undo description 
+log records updates performed operation generated normal processing 
+furthermore proxy operation commits undo log records deleted logical undo record operation undone 
+commit record proxy operation serves purpose similar served compensation log records clrs aries restart recovery encountered logical undo log record operation undone deleted transaction undo log preventing undone 
+recovery restart recovery begins initializing att transaction undo logs att undo logs stored checkpoint loads database image sets dpt zero 
+recovery processes redo log records 
+recall part checkpoint operation system log disk stable log noted database image checkpointed 
+value stable log recovery point checkpoint checkpoint completed 
+updates described log records preceding point guaranteed reflected checkpointed database image 
+restart recovery redo log records stable log completed checkpoint database applied 
+restart recovery ignores redo log records updates performed operation commit log record operation system log 
+log records represent uncommitted updates may corresponding undo records checkpointed att 
+undo records absent effects log records reflected checkpointed database image 
+records due crash log records operation flushed 
+application redo log records appropriate pages dpt set dirty log record necessary actions taken keep checkpointed image att consistent log applied 
+actions att mirror actions taken normal processing 
+example operation commit log record encountered lower level log records transaction undo log operation replaced higher level undo description 
+redo log records applied active transactions rolled back 
+completed operations invoked directly transaction directly invoked incomplete operation rolled back 
+order operations different transactions rolled back important undo level sees data structures consistent 
+operations transactions rolled back rolled back followed operations level 
+connection related multi level recovery variants thereof primarily disk systems proposed literature 
+schemes schemes repeat history generate log records undo processing log operation commits undo operations complete similar clrs described 
+transaction rollback crash recovery performed level level 
+features main memory recovery technique impact distributed schemes 
+due transient undo logging physical undo logs written global log checkpoints 
+
+separate undo logs maintained memory active transactions 
+result transaction rollback need access global log part disk 
+
+single site scheme require latching pages updates inconvenient expensive main memory db oodb setting 
+actions normally taken page latching setting dirty bits page efficiently performed physical main memory stable system log disk client nodes main memory main memory server network system log tail database system log tail database att att system log tail database att dpt checkpoints cur ckpt ckpt ckpt client server architecture redo log records written global log 
+shared disk schemes uses page latching ensuring cache consistency shared disk scheme 
+
+correctness requirements write ahead logging policy accomplished single flush entire database checkpoint potentially flush page 
+
+scheme perform place update disk image page flush ping pong checkpointing 
+aries sd family schemes recovery shared disk environment site maintains separate log pages shipped sites 
+shared disk log shipping scheme ship pages broadcasts log records advantage cheap application log records main memory permitting concurrent updates smaller page granularity 
+shared disk schemes log flushes driven release lock site order support repeating history correct rollback multi level actions crash recovery 
+super fast method aries sd describe flushes protect early release locks making unclear scheme supports logical undo high concurrency index operations 
+authors propose recovery schemes shared disk environment assume concurrency control steal page write policy assumptions schemes 
+authors show aries recovery algorithm described extended client server environment 
+contrast client server scheme scheme involves clients server checkpointing process 
+support concurrent updates page different clients supported 
+object level adaptive locking replica management discussed recovery considerations extensively addressed 
+client server recovery scheme exodus storage manager esm cs described 
+recovery scheme aries requires page level locking transaction example commit dirty page list 
+client server recovery scheme section describe client server recovery scheme 
+system model follows 
+ffl single server stable storage responsible ordinating logging performing checkpoints recovery see 
+server maintains copy entire database memory 
+ffl multiple clients may connected server client copy entire database memory 
+ffl transaction executes single client updates accesses copy database client 
+ffl network fifo reliable 
+result updating local copy database database pages updated client may current client 
+page client states valid invalid 
+invalid pages contain stale versions certain data due updates clients refreshed obtaining latest copy page server 
+transactions follow callback locking scheme obtaining releasing locks 
+client site local lock manager llm caches locks global lock manager glm server keeps track locks cached various clients 
+transaction requests locks cached locally handled client 
+requests locks cached locally forwarded glm calls back lock clients may cached lock conflicting mode granting lock request 
+client relinquishes lock response callback soon transactions currently holding lock release lock 
+server maintains dpt att transactions client server system clients maintain att transactions belonging client 
+log records updates generated transaction client site stored site att 
+client sites maintain system log disk keep system log tail memory append log records local redo logs tail operations commit abort 
+checkpointing performed solely server follows procedure centralized case 
+lock relinquished site transaction commits log records system log shipped client server 
+case transaction commit client waits server flush newly received log records disk reporting commit user 
+shipped redo log records update server copy affected pages ensuring pages shipped clients server current note pages shipped server clients vice versa 
+enables scheme support concurrent updates single page multiple clients re applying updates server causes merged approach adopted 
+shipping log records usually cheaper shipping pages cost applying log records small main memory database context server read affected pages disk 
+describe scheme detail outline possible optimizations basic ideas discussed 
+basic operations describe features distinguish client server scheme centralized case terms actions performed client server specific points processing 
+ffl page access case client accesses page valid simply goes ahead communicating server 
+page invalid certain data page may stale client refreshes page obtaining version page server applying newly received page local updates sent server step merges local updates updates sites 
+client marks page valid 
+server keeps track clients page valid state 
+prevent race conditions client send log records server asking page receiving 
+optimization check validity pages time acquisition region locks server access optimization set pages covered region lock known 
+ffl operation transaction commit client redo log records moved system log commit record appended appropriate actions performed transaction undo log att described centralized case 
+case transaction commit log records system log shipped server commit processing waits server acknowledged log records flushed disk 
+locks acquired operation transaction released locally 
+local lock manager site may continue cache locks locally 
+ffl lock release lock relinquished client redo log records generated lock need shipped server 
+server applies log records database image ensure client obtains lock gets copy pages contains updates described log records 
+simple way ensure log records generated lock shipped server flush system log client server 
+optimization avoid flushing system log time store client system log lock client mode region lock operation lock released transaction 
+region lock redo log records system log affecting region precede point log stored lock 
+similarly operation lock log records relating operation including operation commit precede point system log stored lock 
+location log client site specific 
+client site relinquishes mode region lock operation lock server due callback ships server portion system log precedes log pointer stored lock 
+ensures lock acquired region server copy date history update place server logs 
+mode region locks flush ensures repeating history regions operation locks flush ensures server receives logical undo descriptors operation commit log records operation released locks 
+server aborts transaction site failure abort operation take place logical level locks held server 
+ffl log record processing server physical redo log record received client undo log record generated reading current contents page server 
+new log record appended undo log transaction server att 
+update described redo log record applied log record appended redo log transaction server att 
+operation transaction commit log records received client processed performing actions centralized case log records generated 
+addition operation commit logical undo descriptor extracted commit log record appended undo log transaction server att 
+transaction commit client transaction committed notified log flush disk succeeds 
+applying physical updates described physical log records pages server ensures contains latest updates regions locks released clients 
+effect logging scheme far data updates concerned just client transaction ran server site 
+ffl transaction abort site failures client site decides abort transaction processes abort centralized case undo logs transaction client att 
+client site fails server abort transactions active client undo logs transaction att client commit communicating server case partition decision abort enforceable server 
+server fails complete system brought restart recovery performed server described section 
+ffl page invalidation complete client server scheme presenting methods invalidate update lock ensuring data accessed client date 
+actions described far common methods 
+particular methods follow rule log records pertaining updates lock flushed server lock relinquished site 
+server applied log records copy data ensures server lock current version pages containing data covered lock 
+client acquires lock possible copy pages involved region lock obtained date client 
+methods mark pages clients invalid denote data page date 
+page marked invalid data page may date instance client region lock data 
+method invalidate update eager method marks pages invalid clients soon update occurs server second invalidate lock lazy method marking pages invalid clients client gets lock 
+second scheme reduces invalidation messages keeping extra lock information server 
+details methods sections respectively 
+invalidate update invalidate update scheme works follows 
+server receives log records client 
+page updates sends invalidate messages clients client updated page may page marked valid 
+clients client updated page server notes client page marked valid 
+clients receiving invalidate message mark page invalid 
+invalidation messages received clients acquire region lock updated data accessing data 
+method simple easy implement drawbacks 
+example consider sites updating page concurrently different region locks 
+site flushes updates server update cause server send invalidate message re read page server 
+site accesses page lock invalidate necessary data region locked changed 
+invalidate lock scheme section takes advantage observation reduce overheads 
+invalidate lock invalidate lock scheme decreases unnecessary invalidations overhead sending invalidation messages marking pages invalid lock region covering page obtained client 
+result clients updating different regions page earlier example invalidation messages sent client 
+piggy backing invalidation messages updated pages lock messages server overhead sending separate invalidation messages previous scheme eliminated 
+biggest benefit invalidate lock scheme need check validity page access update page suffices check validity lock acquisition time 
+achieve scheme associate lock region information updates region 
+specifically updates described physical redo record applied pages server updated pages associated lock updated region 
+scheme requires possible determine region lock redo record 
+simple way obtaining information require update call specify data updated region lock protects data 
+easy programmer provide information updates holding region lock 
+lock name sent redo log record 
+scheme requires server associate log sequence number lsn log record reflects order record applied server copy page order added system log 
+page server stores lsn log record updated page identity client issued 
+addition client server maintains client page table cpt state page client valid invalid lsn page shipped client 
+server maintains region lock list pages dirty due updates region 
+page list server stores lsn log record received server recorded update part region page client performed update 
+client granted region lock page lock list lsn greater lsn page shipped client client page contains stale data region invalidated 
+lsn information serves minimize shipping pages clients marking page invalid update performed region lock requested client update propagated client 
+additional actions scheme follows ffl log apply server applies page redo log record lr generated client region lock takes actions updated 
+lsn set lsn lr 
+second entry list dirty pages updated created setting client lsn lsn lr 
+ffl lock set invalidate messages passed back client lock acquisition 
+invalidate messages pages list associated lock acquired meet criteria page cached client valid state lsn page cpt client smaller lsn page lock list client acquiring lock update page lock 
+invalidated pages marked invalid cpt client client site 
+ffl page refresh server sends page client page refresh server page marked valid cpt client lsn page cpt updated lsn page server 
+ffl lock list cleanup interested keeping list pages lock small possible 
+achieved periodically deleting pages list lock condition holds client noted list pages client update client page cached invalid state lsn greater equal lsn page list lock rationale rule purpose region lock lists determine pages invalidated 
+page client cpt lsn greater lsn page lock list client update region page page need part invalidation list sent client 
+shared disk recovery model common structures shared disk approach number machines interconnected direct access disks fast network 
+shared disk environment systems dec provides benefits shared architecture faster access nonlocal disks fault tolerance 
+basic advantage shared disk schemes client server schemes algorithms symmetric respect site executes preventing system bottleneck system 
+client server scheme addition careful consideration interaction multi level recovery main concern minimizing false sharing fine grained concurrency control 
+allows example read transactions fully cached working set proceed main memory speeds important property intended applications 
+describe shared disk recovery model 
+ffl site maintains copy entire database memory system log disk 
+may multiple logs system 
+ffl sites obtain locks global lock manager glm function lock manager distributed speed reliability orthogonal discussion 
+ffl sites cache locks relinquish locks call back locking mechanism described section 
+assume network fifo reliable 
+ffl site system log disk logs distributed 
+repeat history restart recovery need mechanism temporally order log records affect region 
+enable site maintains global timestamp counter ts ctr timestamp obtained counter stored physical redo log record update 
+see details ts ctr maintained 
+ffl site maintains version dirty page table dpt system log stable portion disk tail memory att stores information relating transactions execute site separate undo redo log records transaction 
+ffl single pair checkpointed images maintained disk database 
+checkpoint image consists image database dirty page table ckpt dpt site 
+stable log point site system log system log scanned recovery 
+
+copy att site containing undo logs 
+cur ckpt ckpt ckpt site db att dpt sys log tail stable sys log db att dpt sys log tail stable sys log site memory memory shared disk logs 
+site checkpoints stable log att undo logs ptt ptt database ckpt ptt ckpt dpt page shipping shared disk architecture sections schemes shared disk concurrency control recovery 
+page shipping approach similar spirit invalidate update client server mode 
+second log shipping scheme allows concurrent non overlapping regions page sites 
+page shipping shared disk recovery scheme page shipping scheme similar spirit invalidate update client server scheme transaction site updating region page guaranteed latest copy page 
+concurrent updates different regions page possible scheme 
+data structures describe data structures specific page shipping scheme 
+common data structures described section 
+overview data structures scheme 
+addition ts ctr site timestamp page maintained site page timestamp table ptt keeps track ts ctr value page updated 
+page associated page lock helps ensuring transaction latest copy page accessing updating page 
+sites cache locks relinquish locks call back locking mechanism described earlier 
+checkpoint images database stored checkpoint page timestamp table referred ckpt ptt 
+normal processing describe actions taken normal processing addition performed centralized case support distributed concurrency control recovery 
+checkpointing recovery system site failure described subsequent subsections 
+ffl update centralized case accessing region transaction obtains region lock llm 
+additional page locks acquired mode accessing updating data page 
+lock cached site actions performed described lock acquisition 
+page locks access released transaction access completed page locks update released transaction update page completed 
+value ts ctr site redo log record generated stored redo log record corresponding update 
+timestamp updated page ptt site set ts ctr stored log record 
+important point note log records system log may ordered ts ctr values 
+value ts ctr stored redo log record update performed log record appended transaction local log flushed system redo log operation transaction commit 
+ffl lock release transaction releases mode region lock operation lock stores log memory lock stored optimize amount flushing needs done lock relinquished client server scheme 
+note updates operation held region lock moved global log normal operation commit semantics prior release lock 
+region lock redo log records updates region covered lock precede log point stored lock similar operations 
+site relinquishes region lock operation lock flushes global log site log point stored lock 
+flush release region operation locks done ensure possible repeat history restart recovery appropriate locks undoing operations held case site crashes 
+note flushes performed page locks released 
+additionally site releases page region lock back glm stamps site ts ctr ts ctr value lock sites acquire lock see shortly 
+glm stores page lock site held page lock mode information updated time site relinquishes mode page lock ffl lock acquisition transaction acquiring lock cached llm need take special action 
+page lock page current site 
+mode page region lock arrives glm includes timestamp site held lock mode described 
+receiving region lock page lock site site ts ctr set maximum current value ts ctr value associated incoming lock plus 
+site acquires page lock behalf transaction glm lock cached site site requests page site held page lock mode site identifier sent lock 
+order handle single site recovery failure acquiring site obtain copy page due failure site requested causes lock acquisition fail lock returned glm unchanged 
+shipping timestamps page locks ensures log records successive updates page different sites assigned increasing timestamp values 
+shipping timestamps region locks ensures log records generated conflicting locks applied correct order recovery redo log records individual site may ordered timestamp mentioned earlier 
+algorithm works correctly shown discussion recovery correctness 
+checkpointing centralized client server scheme checkpointing shared disk environment requires coordination various sites 
+mentioned single pair checkpointed images maintained sites 
+site initiating checkpoint coordinates operation consists steps site writing database file image writing att flushing global log 
+describe step 
+coordinator announces checkpoint time sites including coordinator note current stable log values copy zero 
+note zeroing dpt recording stable log done atomically respect flushes 
+site copy current ptt sends coordinator stable log noted copy dpt 
+coordinator constructs ckpt dpt ing copy dpt received sites recall assuming dpt bitmap 
+database pages written checkpoint pages dirty ckpt dpt ckpt dpt previous checkpoint 
+page written coordinator uses sent sites ptt determine site ptt contains highest timestamp page 
+site responsible writing page checkpoint image 
+coordinator partitioned set pages written various sites site sent set page identifiers assigned 
+site receiving assigned set pages write proceeds write pages checkpoint image 
+sites assigned page site write pages concurrently 
+coordinator constructs ckpt ptt reading ckpt ptt previous checkpoint memory 
+page determined written site timestamp page ckpt ptt set timestamp copy ptt site ckpt dpt constructed earlier ckpt ptt stable logs sites written checkpoint 
+note site highest timestamp page writes page checkpoint image updates page log records preceding stable log recorded site contained checkpoint 
+furthermore discussed correctness section updates page recorded log records timestamps timestamp page ckpt ptt contained checkpoint 
+
+site written database image reported coordinator coordinator instructs site write att 
+note multiple sites concurrently writing att 
+
+writing att site flushes global log site centralized case 
+database checkpoint committed sites completed flushing 
+recovery case entire system fails restart recovery performed site say site call acting coordinator site reads checkpoint image database image ckpt ptt site att stable log 
+separate page table ptt initialized ckpt ptt site separate dpt dpt initialized contain zero bits pages 
+starting stable log point stored site checkpoint log records system logs merged described applied database 
+merge system logs scanned parallel point log record system logs redo log record record processed att site modified described centralized case section 
+hand records system logs redo log records log record output lowest timestamp value 
+page updated log record timestamp log record greater equal timestamp page ckpt ptt update applied page page marked dirty dpt site system log contains record timestamp page ptt set maximum current value timestamp log record 
+note redo records system log site may timestamp order mentioned earlier 
+cause problem conflicting log records applied order generated 
+reason conflicting log records separate system logs earlier log record log records preceding system log lower timestamps log record generated 
+fact revisited overview correctness 
+log record processed ts ctr acting coordinator site set largest timestamp contained ptt site site rolls back progress operations atts various sites level considering successive levels described section 
+operation att entry site processed actions performed undo redo logs entry 
+furthermore redo log record generated processing operation site assigned timestamp equal ts ctr site operation pre commits aborts log records redo log appended system log site site flushes site system logs causing appropriate pages dpt site maintained site marked dirty 
+point sites involved recovery 
+ts ctr site set ts ctr site incrementing 
+dpt site set dpt maintained site recovery site database image ptt site set equal database image ptt site ckpt ptt dpt sites deleted site bringing recovery completion 
+overview correctness section additional arguments correctness page shipping recovery scheme discussing properties correctness 
+
+page checkpoint image reflects updates timestamp ckpt ptt 
+
+log record affecting page prior stable log site timestamp equal ckpt ptt reflected checkpoint image page 
+conflicting log records generated flushed stable log 
+conflicting log records different system logs generated log records preceding system log lower timestamps 
+follows fact timestamps pages ptt set updated passing timestamps page locks guarantees successive updates page non decreasing timestamps turn assign non decreasing timestamps ptt entry 
+log record updates page prior stable log site ppt site greater equal timestamp log record page dpt site page site contains update site sends ppt dpt coordinator phase checkpoint 
+site ppt largest writes page checkpoint image ckpt ppt greater equal timestamp log record 
+versions page higher timestamps contain updates versions lower timestamps update log record reflected checkpoint image page 
+region lock covering released followed commit operation due rules multi level recovery 
+log record moved global log operation commit point noted release region lock 
+flush point carried region lock released site guarantees property 
+shipping ts ctrs region locks ensures property 
+reason appended system log site region lock updated region released site 
+timestamp assigned lock ts ctr site large timestamps redo records preceding releasing site system log 
+generated site acquire region lock mode causes timestamp site generated set higher timestamp lock 
+assigned timestamp greater log records preceding properties show recovery scheme repeats history scanning system logs 
+property implies updates page log record need applied ckpt ptt greater timestamp log record 
+property follows log records preceding stable log ignored updates contained checkpoint image 
+property ensures log records system logs accurately completely describe history updates region 
+property ensures conflicting updates described log records appear stable log applied recovery order performed normal processing spite timestamps possibly order single site log 
+note conflicting log records page generated may precede stable log site follows stable log site 
+case due property ckpt ptt greater equal timestamp timestamp greater update page applied recovery 
+recovery site failure recovery algorithm extended deal site failure performing complete system restart long glm data lost regenerated sites 
+case full system recovery performed 
+recovery single site failure complicated log records updates active transactions failed site may stable storage updates may propagated sites pages containing updates shipped sites 
+way undo updates undo information contained main memory lost site failed 
+way roll back set updates recover set pages updates span 
+note problem arise scheme providing lower concurrency page locks held transaction 
+order support roll back possible associate region operation lock set pages part page may updated operation holds lock call set pages pages affected lock 
+step site recovers determine set pages recovered pages 
+may contain updates uncommitted transactions site 
+updated site pages affected operation mode region lock held site glm 
+pages pages site site obtained page lock 
+pages set pages contain updates belonging transactions committed site note pages different site holds lock page page need recovered glm merely notes site latest version page 
+set pages recovered determined described locked mode site updates pages sites blocked page locks held site released 
+site retrieves checkpoint database image att site ckpt ptt stable log site 
+requests site current stable log site sequence redo records memory site redo records transaction local logs system log stable log involving updates pages recovered 
+redo pass performed scanning system logs described section updates pages recovered applied depending timestamps pages ckpt ptt timestamps updated pages modified ptt pages dpt site marked dirty actions att site performed system log site scanned stable log returned site recovery 
+memory redo records received various sites applied timestamp order pages recovered timestamps updated pages ptt set timestamp log record 
+redo pass pages recovered contain updates transactions site updates transactions site log records contained stable log updates described redo log records memory site crashed absent includes transaction local logs portion global log main memory 
+point sites granted page locks held site request 
+ts ctr site set greater largest timestamp ptt site rolling back progress operations locks cached site time crashed obtained recovery process site consulting glm 
+described section rollback performed level level additional locks requested done normal processing see section 
+level operation locks site released active operations level rolled back 
+normal processing ts ctr site incremented new lock obtained ts ctr stored redo log record timestamp entries updated pages redo log generated log flushes performed operation mode region locks released site log shipping shared disk recovery scheme interested improving concurrency page shipping shared disk recovery scheme allowing multiple concurrent readers writers page different sites long parts page update come different region locks 
+result copies page different sites may contain different set updates merged page written disk 
+client server case server carry task merging updates 
+solve problem scheme log records generated site broadcast sites updates carried 
+log records shipped need ship pages 
+scheme ensures time site obtains region lock version region guaranteed accessed site 
+precisely guarantees time site obtains lock operation lock region lock log records generated operations held lock conflicting mode applied local page images 
+cur ckpt ckpt ckpt site db att dpt sys log tail stable sys log db att dpt sys log tail stable sys log site memory memory shared disk logs 
+site checkpoints stable log array ts ctrs att undo logs ckpt dpt database log ship shared disk architecture idea broadcasting log records leads architecture essentially implements distributed shared memory overhead shipping pages 
+note overhead broadcasting log records sites may severe update rates high 
+broadcasting may seen strategy propagate updates early possibly greater bandwidth avoiding latency waiting pages shipped transaction needs update data 
+network architectures ethernet cost broadcast sites may different cost sending message single site 
+data structures overview data structures shared disk scheme 
+addition common elements described section log scheme maintains additional data structures 
+site array ts ctrs ts ctr site maintained memory 
+stores timestamp latest update site applied database site serves purpose similar page shipping scheme keeps track state database relative log records 
+checkpointed image disk site stores ts ctr redo log records site applied database 
+collectively counters referred ac note pages shipped sites log shipping scheme need page locks 
+normal processing describe actions taken normal processing support distributed concurrency control recovery addition centralized case 
+checkpointing recovery system site failure described subsequent sections 
+ffl log records time physical redo log record moved transaction local redo log system log ts ctr incremented stored log record 
+timestamps order log records describe conflicting updates 
+ffl system log flush system log site flushed stable storage redo log record hit disk broadcast sites 
+sending site sets timestamp log record 
+flushing sequence log records completed log record written disk sent remaining sites 
+centralized case pages updated flushed log records marked dirty site dpt 
+ffl log record receipt site processes update broadcast site follows updates processed order received 
+receiving broadcast log record site applies update local copy affected page sets appropriate bits dpt 
+updating appropriate pages site sets timestamp contained update redo log record 
+ffl lock release lock managers aid scheme ways 
+previous schemes current local log noted region operation locks lock released transaction llm ensures log flushed point releasing lock site 
+aids recovery ensuring history repeated lower level locks released logical undo actions accompany higher level locks disk 
+logs broadcast flush helps ensure site receive necessary log records getting lock conflicting mode 
+note fifo property network ensure site receives update broadcast site obtains region lock updated region glm relinquished glm site 
+order ensure previous updates region received site obtains region lock llm releasing region lock site ensure redo log records preceding log noted lock flushed disk acknowledgments receipt broadcast records received sites 
+second transaction releases mode region lock timestamp lock set current value ts ctr site 
+lock called back glm value sent associated lock glm 
+received site timestamp ensure log records conflicting actions covered lock increasing timestamp values 
+optimization site identifier sent lock glm purpose clear point 
+ffl lock acquisition site receives mode region lock glm sets ts ctr maximum current ts ctr timestamp associated lock received glm 
+lock granted local transaction outstanding updates time acquiring lock applied page 
+ensure data accessed site version data 
+optimization site identifier provided lock glm suffices process log records including log record site timestamp provided 
+checkpointing checkpointing coordinated sites 
+checkpointing operation consists steps writing database image coordinator writing att site flushing logs site 
+main difference centralized case lies step carried 
+describe step 
+coordinator announces checkpoint time sites copy subsequently zero note current stable log values 
+note recording stable log dpt zeroing dpt done atomically respect flushes 
+site sends recorded dpt stable log values coordinator 
+coordinator site applies outstanding updates atomically respect processing log records flushing records stable log copies timestamp array ac copies dpt ckpt dpt zeroes dpt 
+coordinator ckpt dpt copies receives sites 
+writes checkpoint image ckpt dpt stable logs site timestamp array ac database image written coordinator fashion centralized case writing pages dirty checkpoint interval ckpt dpt pages previous checkpoint interval ckpt dpt stored previous checkpoint 
+
+coordinator written database image instructs site write att 
+multiple sites concurrently writing atts 
+
+logs flushed site sites flush logs coordinator commits checkpoint toggling cur ckpt centralized case 
+note step applying outstanding updates coordinator recording ckpt dpt ac ensures updates preceding stable log reported sites applied database pages safe zero sites stable log noted 
+site notes stable log independently possible redo log record stable log site conflicting redo log record generated may stable log noted different site 
+result restart recovery applying update stable log system log site result update lost 
+storing ac checkpoint restart recovery applying redo records site timestamps greater ac eliminates problem timestamps updates smaller corresponding ts ctr values sites ac recovery restart recovery case system wide failure sites recovered performed follows arbitrary site system call acting coordinator 
+actions performed site 
+database image checkpointed timestamp array ac read site att stable log recorded checkpoint read 
+redo log records system logs various sites applied database image concurrently scanning various system logs 
+site system log scanned parallel starting stable log recorded site checkpoint 
+point log record considered system logs redo log record processed att site modified described centralized case section 
+hand record considered system logs redo log record log record considered system logs disk considered lowest timestamp value 
+redo log record encountered system log site timestamp greater ac update applied affected pages marked dirty dpt 
+system logs scanned ts ctr site set largest timestamp contained redo log record 
+progress operations atts various sites rolled back executed respectively site database site level considering successive levels described section 
+operation att entry site processed actions performed undo redo logs entry 
+furthermore operation pre commits aborts log records redo log appended system log site timestamp redo log record appended obtained incrementing ts ctr site site system logs flushed causing appropriate pages dpt marked dirty updates broadcast ts ctr site sites set ts ctr value site database image site copied database image site dpt site copied dpt site recovery complete 
+overview correctness correctness checkpointing recovery algorithms follows properties 
+
+timestamp contained log record site equal ac log record effects copy database checkpoint 
+
+log record system log site prior stable log site timestamp equal ac 
+
+conflicting log records generated flushed stable log 
+conflicting log records different system logs generated lower timestamp property holds page written disk checkpoint site updates preceding image page site due algorithm application incoming log records page dirty dpt dpt noted atomically ac 
+property holds site sends stable log checkpoint coordinator update preceding sent coordinator system log flushed site 
+network fifo receipt stable log implies necessary log records arrived 
+furthermore noting ac coordinator applies outstanding updates site sets timestamp update applied site property holds log flushed time site relinquishes region lock 
+property holds region lock guards released site appended system log assigned timestamp ts ctr site 
+furthermore ts ctr site shipped region lock releases region lock site sets ts ctr timestamp receives acquires lock 
+generated lock obtained site assigned timestamp greater ts ctr value site site receives region lock property holds 
+properties follows history repeated consequence applying redo log records contained system logs timestamp order restart recovery 
+properties follows log records preceding stable log ignored updates contained checkpoint image 
+similarly property implies updates site log record need applied ac greater equal timestamp log record 
+property ensures log records system logs accurately completely describe history updates region 
+property ensures conflicting updates described log records appear stable log applied recovery order performed normal processing 
+note conflicting log records generated may precede stable log site say follows stable log site 
+case due property ac greater equal timestamp timestamp greater update applied recovery 
+recovery site failure recovery algorithm extended deal site failure performing complete system restart long glm data lost regenerated sites 
+case full system recovery performed 
+recovery site failure regular system recovery redo pass followed rollback progress operations 
+redo recovery pass recovering site say retrieves checkpoint database image att site timestamp array ac stable log site 
+informs sites requests site site current stable log value value 
+point sites start sending log records buffered processed 
+redo pass performed scanning system logs described previous subsection pages dpt site marked dirty actions att site performed system log site scanned stable log returned site site recovery 
+log records tail log recovering site may sites log record broadcast flushed 
+site recovering site log records site system log timestamps greater broadcast site processed 
+redo pass completed set maximum timestamp redo log record encountered redo pass system log site ts ctr site set maximum sites point site applying updates described log records received sites normal processing order received checkpoints taken normal 
+rolling back progress operations locks cached site time crashed re obtained recovery process site consulting glm 
+described section rollback performed level level additional locks requested done normal processing see section 
+ts ctr site incremented outstanding updates applied new lock obtained ts ctr incremented redo log record appended system log log flushes performed operation mode region locks released site level operation locks site released active operations level rolled back 
+showed single site multi level recovery algorithm main memory databases extended distributed memory data shipping system maintaining original benefits single site algorithm 
+scheme supports client server processing central system controls logs checkpoints 
+second third scheme suitable cluster computers shared disk sites participate symmetrically transaction processing activities 
+described details recovery failure clients server client server case single site system wide failure shared disk case 
+schemes allow concurrent updates multiple clients client server environment multiple sites shared disk environment 
+allowing fine grained flexible concurrency control schemes applicable range distributed main memory applications need transactional access data 
+distributed schemes multi level scheme recovery main memory databases implemented dal main memory storage manager 
+benefits algorithm extended distributed schemes benefits include fuzzy checkpointing log implementing functions require page latching low overhead logging undo records written due checkpoint transaction logs low contention 
+includes parallelization recovery shared disk setting recovery system sites store entire database 
+plan explore performance schemes experimentation build distributed data shipping version dal algorithms 
+bohannon rastogi seshadri sudarshan silberschatz 
+architecture dali main memory storage manager 
+multimedia tools applications march 
+bohannon parker rastogi seshadri sudarshan 
+distributed multi level recovery main memory databases 
+technical report tm lucent technologies bell laboratories february 
+carey dewitt franklin hall mcauliffe naughton schuh solomon tan white 
+persistent applications 
+proceedings acm sigmod international conference management data minneapolis minnesota pages may 
+carey franklin 
+fine grained sharing page server oodbms 
+proceedings acm sigmod international conference management data minneapolis minnesota pages may 
+dewitt katz olken shapiro stonebraker wood 
+implementation techniques main memory database systems 
+proc 
+acm sigmod int conf 
+management data pages june 
+franklin tan carey dewitt 
+crash recovery clientserver exodus 
+proceedings acm sigmod international conference management data san diego california pages june 
+garcia molina salem 
+main memory database systems overview 
+ieee transactions knowledge data engineering december 
+robert hagmann 
+crash recovery scheme memory resident database system 
+ieee transactions computers september 
+jagadish dan rajeev rastogi avi silberschatz sudarshan 
+dali high performance main memory storage manager 
+procs 
+international conf 
+large databases 
+jagadish avi silberschatz sudarshan 
+recovering main memory lapses 
+procs 
+international conf 
+large databases 
+lamb landis orenstein weinreb 
+objectstore database system 
+communications acm october 
+lehman shekita cabrera 
+evaluation starburst memory resident storage component 
+ieee transactions knowledge data engineering december 
+lomet 
+mlr recovery method multi level systems 
+proceedings acm sigmod international conference management data san diego california pages 
+mohan lindsay pirahesh schwarz 
+aries transaction recovery method supporting fine granularity locking partial rollbacks write ahead logging 
+acm transactions database systems march 
+mohan 
+recovery coherency control protocols fast page transfer fine granularity locking shared disks transaction environment 
+proceedings seventeenth international conference large databases barcelona pages september 
+mohan 
+aries csa method database recovery client server architectures 
+proceedings acm sigmod international conference management data minneapolis minnesota pages may 
+rahm 
+recovery concepts data sharing systems 
+proceedings international conference fault tolerant computing ftcs montreal pages june 
+salem garcia molina 
+system transaction processing testbed memory resident data 
+ieee transactions knowledge data engineering march 
+salem garcia molina 
+system transaction processing testbed memory resident data 
+ieee transactions knowledge data engineering 
+weikum hasse muth 
+multi level recovery 
+proceedings acm sigact sigmod sigart symposium principles database systems nashville pages june 

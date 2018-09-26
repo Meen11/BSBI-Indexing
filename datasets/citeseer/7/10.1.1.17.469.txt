@@ -1,0 +1,781 @@
+laboratory computer science massachusetts institute technology mit lcs tr lazy replication exploiting semantics distributed services ladin barbara liskov shrira sanjay ghemawat july technology square cambridge massachusetts lazy replication exploiting semantics distributed services ladin barbara shrira sanjay ghemawat july massachusetts institute technology research supported part advanced research projects agency department defense monitored office naval research contracts part national science foundation dcr ccr 
+massachusetts institute technology laboratory computer science cambridge ma lazy replication exploiting semantics distributed services ladin digital equipment kendall square cambridge ma barbara liskov shrira sanjay ghemawat mit laboratory computer science technology square cambridge ma provide high availability services mail bulletin boards data replicated 
+way guarantee consistency replicated data force service operations occur order sites approach expensive 
+propose lazy replication way preserve consistency exploiting semantics service operations relax constraints ordering 
+kinds operations supported operations clients define required order dynamically execution operations service defines order operations globally ordered respect client ordered service ordered operations 
+method performs terms response time amount stored state number messages availability 
+especially suited applications operations require client defined order 
+keywords distributed systems algorithms availability reliability data replication research supported pan national science foundation dcr ccr pan defense advanced research projects agency darpa contracts 
+
+computer services highly available accessible high probability despite site crashes network failures 
+achieve availability server state replicated 
+describes new method constructing highly available services distributed environment 
+method takes semantics service account relax constraints implementation 
+weakening constraints way improve response time increase availability 
+take advantage weak constraints having operation call happen single replica 
+effects call propagated replicas lazy exchange gossip messages name lazy replication 
+guarantee replicated service appears clients provide behavior single copy 
+service provides operations clients interact 
+kinds operations update operations modify observe service state query operations observe modify state 
+operations modify observe state provided 
+clients service calling operations 
+method allows clients specify order updates executed specify updates precede query effects recorded state observed query 
+illustrate semantics relax constraints consider electronic mail system send mail read mail operations 
+normally delivery order mail messages sent different clients different recipients recipient unimportant delivery order messages sent single client different recipients 
+client program acting behalf person real sender receiver mail 
+mail system leave execution order send mail operations unrestricted lead performance 
+suppose client cl sends messages clients second message refers information contained 
+clearly cl expects read messages order issued 
+furthermore result reading cl messages sends inquiry message expect message delivered cl messages 
+method clients indicate updates precede execution call query operation read mail 
+provide ways clients control order updates executed 
+client specified order appropriate send mail operations 
+client explicitly identifies updates precede particular call 
+service performs updates order consistent order 
+updates ordered may executed different orders different replicas method appropriate execution order unordered calls matter mail system example 
+support stronger orders updates server specified order global order client specified order insufficient guarantee correct behavior 
+system guarantees server ordered operations performed order replicas order parallel server ordered updates chosen non deterministically chosen followed replicas 
+order useful mail system guarantee clients attempting add user name behalf different users simultaneously succeed 
+relationship server ordered operations client ordered updates con 
+strained service determined client 
+example client require send mail operation ordered particular add user operation choose leave order unspecified 
+usually global total order relates client ordered server ordered updates 
+global total order required provide globally ordered updates guaranteed totally ordered respect operations updates queries 
+order useful operation removes individual classified mailing list messages addressed list delivered user remove operation returns 
+immediate operation behave way consistent external events 
+describe replication method allows construction highly available services 
+service operations individually atomic scheme support multi operation transactions 
+method desirable properties 
+allows categories update operations service client ordered operations send mail server ordered operations add user globally ordered operations delete user mailing list 
+
+performs terms response time amount stored state number messages availability presence node communication failures provided updates client ordered 
+
+user define replicated service having understand complications due distribution replication 
+simply instantiates method provide particular service supplying definition replica data structures initial values interpretation operations 
+addition categories updates defined service instantiated 
+applied method number applications including detecting orphans distributed system locating movable objects distributed system garbage collection distributed heap deletion unused versions hybrid concurrency control scheme deadlock detection distributed transaction system 
+section describing assumptions environment 
+section describes method preserves client defined order important part method detail 
+section describes prototype implementation technique gives performance results data indicate replicated system larger operation processing capacity system comparable response time 
+section extends method handle orders 
+section discusses issues arise method practice 
+section relates replication methods including isis system closest approach 
+conclude discussion accomplished 
+
+environment method intended environment individual computers nodes connected communication network 
+network arbitrary topology example consist number local area nets connected gateways long haul network 
+nodes network may fail assume failures byzantine 
+nodes processors 
+network partition messages lost delayed duplicated delivered order 
+configuration system change nodes leave join network time 
+assume nodes loosely synchronized clocks run backwards 
+correctness protocol depends monotonicity assumption performance suffer clocks drift far apart 
+protocols low cost synchronize clocks geographically distributed networks ntp protocol provides clock skew order milliseconds 
+typically clocks monotonic nodes crashes 
+need adjusted done slowing speeding 
+clocks usually stable clock value saved stable storage periodically recovered crash 
+
+client order method section describe service supports client ordered operations 
+giving overview service provides clients provide formal specification service 
+architecture service describe mechanisms protocols implementation prove implementation correct 
+discuss performance method 
+
+client interface client specified order clients identify updates precede particular update query 
+accomplished follows invocation update operation returns unique identifier uid names invocation 
+addition query update operation takes set uids argument refer set label 
+label identifies updates execution precede execution mail service example client indicate send mail precede including uid label passed second 
+query operation returns value label identifies updates reflected value label superset argument label ensuring update preceded query reflected result 
+service operations update prey label op op returns uid uid query prey label op op returns newl label value value op describes actual operation performed gives name arguments 
+require clients create uids ones returned service 
+constraint service able execute operations order consistent indicated labels 
+label may include uids client update operations executed clients observed 
+client learns operations clients directly communicating clients indirectly viewing service state 
+clients send labels messages exchange provide proper ordering information service message client reveals information state service include label corresponds updates reflected state 
+service respects explicitly specified dependencies client sure intended ordering requirements conveyed service argument label 
+way manage labels system append messages automatically merge messages received 
+approach lead known causal happened order defined 
+better performance achieved clients control labels explicitly 
+explicit approach lead smaller messages necessary include labels point discussed section 
+client considerable freedom chooses label sent service 
+example client knows update wants run operation need include uid label call 
+letting operations run past improve performance discussed 
+
+service specification model execution service sequence events event update query operation performed client 
+point operation called returns event appended sequence 
+event records arguments results operation 
+query event prev input label op defines query operation value result value newl result label update prev input label op defines update operation uid uid assigned service 
+event execution sequence denote set events preceding set events label denotes set uids update events specification client order service 
+client able observe state resulting execution updates executing queries specification relates updates dependency constraints observed queries 
+query 
+
+prev newl 
+
+uid newl updates dep uid newl 
+
+value op val newl 
+
+newl label 
+specification client order service 
+part specification states label returned client identifies updates client required plus possibly additional ones 
+second part states returned label dependency complete update operation identified label update depends 
+update depends update constrained dep uid prev dependency relation dep acyclic constraint clients create uids 
+third part specification defines relationship value label returned query result returned computed state val arrived performing updates identified label order consistent dependency relation 
+label val compute init uid init initial state service compute performs updates identified order consistent dependency order dep op executed op 
+note operations ordered clients performed arbitrary order computing val 
+note clause guarantees returned label input query client observe effects updates observed 
+fourth clause specification requires updates identified label occurred 
+
+service architecture service implemented number replicas 
+assume fixed number replicas residing fixed locations clients replicas know find replicas technique reconfiguring services adding removing replicas described 
+assume replicas eventually recover crashes state replica kept stable storage restored crash assumption discussed section 
+client runs front node 
+client calls service operation front sends appropriate request message convenient replica 
+replica executes operation sends back reply message 
+replicas communicate new information updates lazily exchanging gossip messages 
+response slow front send request different replica send request replicas parallel 
+single operation result duplicate messages sent replicas 
+addition messages may duplicated network 
+scheme cope messages lost delayed duplicated delivered order hides fact call resulted multiple messages clients guarantees calls performed replica 
+allow service distinguish different calls parameters prevent multiple executions update front associates unique call identifier update 
+cid included message sent front behalf update 
+interdependent operations may execute distinct replicas example read mail operation supposed observe effects send mail operation may sent replica know send mail 
+replicas labels determine updates operation depends known locally 
+query operation delayed needed updates known advantageous clients run queries past doing increases probability needed updates known query arrives replica 
+case update delay responding client sufficient assign update uid record execution 
+
+implementation section describe implementation service detail 
+describe implementation uids labels replica data structures explain implementation controls size data structures volume communication guaranteeing updates executed detailed replica protocol 
+method efficient need represent labels need fast way determine operation ready executed 
+addition replicas able generate uids independently 
+properties provided single mechanism multipart timestamp 
+multipart timestamp vector size number replicas service 
+part nonnegative integer counter initial zero timestamp contains zero part 
+timestamps partially ordered obvious way timestamps merged component wise maximum 
+multipart timestamps locus earlier 
+implement uids labels multipart timestamps 
+update operation assigned unique multipart timestamp uid 
+label created merging timestamps label timestamp identifies updates timestamps equal implement dependency relation follows update identified prev depends furthermore timestamps represent labels implies label represented identifies subset updates identified 
+test determine operation ready executed 
+node int log log record rep ts val value val ts inval log record ts table replica id replica log replica multipart timestamp replica view service state timestamp associated val updates participated computing val ts table latest multipart timestamp received log record op type oneof update ack int state replica 
+shows state replica 
+denotes set denotes sequence oneof means tagged union component tags types indicated denotes record components types indicated 
+log set timestamped records correspond messages replica received directly clients processed replicas propagated gossip 
+kinds client messages updates acks acks discussed 
+replica timestamp rep ts expresses extent replica knowledge messages directed heard gossip uniquely identifies set records node log 
+replica increments part timestamp processes client message 
+value replica part timestamp rep ts corresponds number messages accepted directly clients 
+replica increments parts timestamp receives gossip replicas containing messages seen 
+value part rep ts counts number client messages processed replica propagated replica gossip 
+replica maintains val view current state service 
+obtains view executing updates log order consistent dependency order 
+label timestamp val ts merge timestamps updates reflected val 
+determine update query ready execute operations op ready op prev update record inval time update executed cid avoid executing update 
+update may assigned uid timestamp may happen front sends update replicas timestamps duplicate records update merged val ts 
+way honor dependency relation matter duplicates client knows includes uid labels 
+description ignored important implementation issues controlling size log size inval 
+update record discarded log soon known reflected val 
+fact update known known ready executed reflected val reason 
+replica knows update record known received gossip messages containing replicas 
+gossip message includes sender log guarantee receiver receives record replica received gossip message earlier records processed replica heard replicas know updates depends performed constraint clients create uids 
+ready execute 
+table ts table determine log record known 
+gossip message contains timestamp sender ts table contains largest timestamp replica rex replica note current timestamp replica large stored ts table 
+ts table replica replica knows replica learned client records created 
+record contains identity replica field node 
+predicate isknown holds replica knows received replica isknown replicas ts node tsr node second implementation issue controlling size inval 
+safe discard record inval certain replica attempt apply update val 
+achieve guarantee need establish upper bound messages containing information update arrive replica 
+front keep sending messages update receives reply 
+replicas way knowing front sending messages informs 
+front sending acknowledgment message ack containing cid update replicas 
+applications separate ack messages needed acks piggybacked client calls 
+acks added log replica propagated replicas gossip 
+replica received ack receive message ack update network deliver messages order 
+deal late messages having ack update message contain time created require time ack greater equal time messages ack update 
+discard update message rn late time greater anticipated network delay 
+ack kept time messages ack update discarded late 
+replica discard update record inval soon ack update log records update discarded log 
+condition guarantees duplicate update accepted client network guarantees duplicate accepted gossip see section proof 
+replica discard ack log known update discarded inval client introduced duplicates update guaranteed late replica 
+note rely clock monotonicity assumption 
+system run efficiently clocks servers clients loosely synchronized skew bounded synchronized clocks needed correctness certain suboptimal situations arise 
+example client clock slow messages may discarded just sent 
+delay fi chosen accommodate anticipated network delay clock skew 
+
+processing replica section describes processing kind message 
+initially rep ts val ts zero timestamps ts table contains zero timestamps val initial value log inval empty 
+processing update message replica discards update message client late time duplicate record cid cid exists inval log 
+message discarded replica performs actions 
+advances local timestamp rep ts incrementing tn part leaving parts unchanged 
+
+computes timestamp update ts replacing th part input argument prev tn part rep ts 
+
+constructs update record associated execution update ts adds local log 
+
+executes op updates depends incorporated val 
+prev val ts val apply val op perform op val ts merge val ts ts inval inval 
+returns update timestamp ts reply message 
+rep ts timestamp ts assigned necessarily comparable 
+example may depend update happened replica replica know 
+case rep ts addition replica may know update depend happened replica tst processing updates messages sped maintaining log inval hash tables hashed cid 
+processing query message replica receives query message needs find information required query input label prev 
+val ts identifies updates reflected val replica compares prev val ts 
+prev needs information 
+wait gossip messages replicas send request replica elicit information 
+timestamps prev val ts compared part part determine replicas missing information 
+processing ack message replica processes ack follows 
+advances local timestamp rep ts incrementing tn part timestamp leaving parts unchanged 
+
+constructs ack record associated execution ack rep ts adds local log 
+
+sends reply message client 
+note ack records enter inval 
+processing gossip message gossip message contains ts sender timestamp new sender log 
+processing message consists activities merging log message local log computing local view service state new information discarding records log inval 
+replica receives gossip message rn replica proceeds follows ts timestamp rs table discards message old 
+continues follows 
+adds new information message replica log tog log rn new ts 
+merges replica timestamp timestamp message rep ts reflects information known replica rep ts merge rep ts ts 
+inserts update records ready added value set comp comp tog type update prev 
+computes new value object empty select comp comp ts duplicate element inval val apply val op inval inval val ts merge val ts ts 
+updates ts table ts table ts 
+discards update records log received replicas log log log type update isknown 
+discards records inval ack update log update record update log inval inval inval log type ack cid cid log type update cid cid 
+discards ack records log known sufficient time passed update ack inval log log log type ack isknown time inval cid cid new value computed faster sorting comp record earlier record ts prev 
+necessary send entire log gossip 
+sender omit records knows receiver knows 
+decision delete records log uses information replicas may problem network partition 
+example suppose partition divided network sides known replicas replicas replica knows known 
+pointed wuu bernstein progress replicas include copy rs table gossip messages receivers merge information rs tables 
+way replica get view nodes know 
+
+analysis section argue informally implementation correct progress records removed log inval eventually 
+discuss aspect implementation related availability server 
+specification defines centralized server update performed assigned single uid 
+implementation distributed single update may processed times different replicas may assigned different uids 
+show spite duplicates implementation satisfies specification far client tell information received queries update executed 
+implementation uses timestamps represent uids labels 
+far uids concerned require uniqueness provided way code assigns timestamps updates 
+timestamps may correspond update correspond duplicate requests arrived different replicas assigned different timestamps 
+labels timestamps provide compact way representing set uids label timestamp identifies update exists record ts consider clauses specification 
+clause requires updates identified query input label prev identified query output label newl 
+clause follows immediately timestamp implementation labels query code returns prev second clause requires label newl dependency complete 
+clause follows timestamp implementation uids labels update processing code guarantees depends exists record ts label timestamp trivially dependency complete 
+third clause specification ties label newl value value returned query 
+requires value result applying query op state derived evaluating set updates identified newl order consistent dependency relation 
+proof clause establish useful facts implementation 
+fact stated lemma refers state variables single replica 
+assume proofs operation performed atomically replica gossip processed single atomic step 
+lemma ack record enters log replica duplicate update accepted client network replica 
+proof inspection code know ack record enters replica log holds log left log point time message update arrives discarded update processing code log rejected late assuming client front guarantees update message contains earlier time ack message update replica clock monotonic 
+lemma update record enters log replica duplicate update accepted client network replica 
+proof inspection code know record enters log replica holds log entered inval left inval point ack log 
+update processing code lemma ensure conditions sufficient eliminate duplicates duplicates created network client 
+lemma replica received records processed replica tn part replica timestamp greater equal rep ts proof note part replica timestamp rep ts counts number client messages processed entered log 
+record log transmitted gossip replicas deleted log 
+record deleted log isknown holds knows reached replicas 
+replica knows prefix replica log 
+gossip timestamp merged timestamp receiving replica easy see part replica timestamp counts number records processed brought gossip replica lemma holds replica duplicate records update arrived proof recall replica knows replicas received update record received gossip message containing replica 
+point received replica records processed receiving point received duplicates processed replicas received lemma duplicate accepted client network replica receiving received duplicates point 
+lemma isknown holds replica duplicate records update ts proof lemma know duplicates update arrived replica 
+furthermore records updates depends replica constraint clients manufacture uids prev contain uids generated service update timestamp merged prev processed replica replica knew update record replicas sent gossip containing replica sent records updates depends 
+duplicate record update depends replica created 
+lemma know rep ts tsc true rep ts ts duplicates lemma record update deleted log reflected value 
+proof deleted log replica isknown holds lemma ts duplicate inval executed earlier 
+lemma replica val ts proof easy see claim holds initially 
+preserved update processing code update executed field val ts changes val ts rep ts preserved gossip processing record comp prev field processed known locally lemma update exists record ts proof proof inductive 
+basis step trivial record zero timestamp 
+assume claim holds step computation consider time rep ts modified 
+update record ts value 
+consider gossip processing step 
+ts log enters comp executed duplicate record set inval reflected value 
+log ts deleted log lemma reflected value 
+shown reflected value gossip processing step 
+consider update processing step 
+ts ts update replica timestamp rep ts increases part parts remaining unchanged 
+record created step furthermore prev occurred 
+depends bas reflected value induction assumption prev ready prove third clause specification 
+recall query returns val val ts 
+lemmas guarantee update record ts updates identified query output label reflected value 
+show updates executed right order 
+prove updates executed particular replica show update reflected value executed 
+record entered set inval executed deleted inval executed 
+deleted inval duplicate record log ack log 
+lemma presence ack guarantees duplicate client network reenter log 
+furthermore deleted inval isknown holds lemma duplicates arrived replica 
+lemma ts step gossip processing code ensures duplicate arriving gossip message reenter replica log 
+show updates reflected value order consistent dependency relation 
+consider update record ts show reflected value implementation dependency relation know exists update record prev ts 
+lemmas reflected val 
+consider time reflected value 
+happens processing update message step prev happens processing gossip message record entered set comp prev ts deleted 
+code guarantees record comp reflected prev ts duplicate inval reflected earlier 
+deleted log earlier lemma reflected 
+fourth clause specification requires updates requested clients executed service 
+follows trivially code protocol creates update timestamps response update messages clients 
+shown implementation correct queries return results satisfy service specification 
+ensure system progress need show updates queries return 
+easy see updates return provided replicas eventually recover crashes network partitions eventually repaired 
+assumptions guarantee gossip messages propagate information replicas 
+gossip processing code lemma replica value timestamps increase queries eventually return 
+prove records garbage collected service state 
+update records removed log assuming replica crashes network partitions repaired eventually 
+acks deleted log assuming crashes partitions repaired eventually replica clocks advance provided records deleted inval 
+show records deleted inval need lemma guarantees ack stays log long prevent update inval lemma type ack ts proof similar lemma 
+lemmas ack deletion code guarantee ack deleted update record deleted inval 
+lemma duplicates update message client network arriving point accepted assuming time ack greater equal time message update 
+furthermore step gossip processing ensures duplicates update record arriving gossip enter replica log 
+records removed inval assuming crashes partitions repaired eventually clients send acks big times 
+discuss implementation uids labels affects availability queries system 
+service uses query input label identify requested updates important label identify just required updates 
+labels fact identify extra updates 
+example consider independent updates prev prev assume processed replica means ts ts update records created respectively 
+ts merged label identifies required update 
+replica implementation needs delay query waiting extra update arrive gossip propagation scheme ensures required update record arrives replica update records timestamps smaller 
+note timestamp extra update record timestamp required update record identified label 
+
+performance section discuss performance client order method 
+discuss impact replication rate queries updates processed absence failures 
+discuss service availability reliability 
+
+capacity determine replication method performs failures built prototype implementation compared performance unreplicated prototype 
+collect performance measurements replica system running network connected megabits second ethernet 
+focused measuring system capacity number operations system process unit time response time 
+measurements indicate replicated system higher capacity system significant degradation response time 
+measurements system capacity provide basis determining clients service support provide reasonable response time 
+estimate number clients system designer needs know mix operations occurs application individual clients service 
+example location service allows movable objects located network updates probably rarer queries objects move infrequently 
+system may mix operation calls queries furthermore calls service infrequent clients cache information 
+mail system may mix dominated updates mail tends read batches clients interact system relatively infrequently 
+prototypes implement simple location service insertion lookup operations 
+prototypes argus 
+argus program composed number modules called guardians may reside different nodes network 
+guardian contains local state information provides operations called handlers called guardians observe modify state call separate thread addition run background threads 
+computation argus runs atomic transactions needed implementation add cost service additional cost incurred equally replicated unreplicated prototypes 
+service implemented number guardians replica 
+guardian provides handlers called lookups inserts acks 
+addition acks piggybacked lookup insert calls additional 
+replica background thread sends receives gossip messages 
+gossip thread processes waiting messages sufficient time passed sent gossip sends gossip messages 
+gossip message constructed sent separately broadcast mechanism 
+replica send entire log gossip messages sends records created may know 
+gossip message received merge entire timestamp rep ts sender part timestamp message replaces part rep ts 
+unreplicated service implemented single guardian similar implements replica 
+guardian needs handle dropped re ordered duplicated messages clients provides ack handler allows acks piggybacked inserts lookups 
+update ready processed arrives record entered inval point duplicate update records kept log contains ack records 
+ack arrives update removed inval ack record enters log remains sufficient time elapsed 
+carry experiments replicas simulate client calls 
+allowed control rate client calls arrived server operation mix proportion inserts lookups experiment 
+uniform arrival rate distribution 
+control gossip rate replicas send gossip policy gossip sent time gossip thread runs provided milliseconds time gossip sent 
+operation calls simulated argus thread 
+call consists parts computation part communication part 
+computation part includes actual doing operation checking duplicate adding record log communication part busy loop simulates communication overhead server node receipt operation message delivery argus guardian decoding message obtain arguments construction reply message moving message guardian network 
+duration communication overhead determined measuring cost null calls calls incur cost ms server node ms client 
+shows results experiments gossip rate ms experiments separate ack messages acks inserts lookups 
+operations ready run arrived 
+shows behavior single replica system replicas processing mix operations arriving rate 
+curves different operation mixes queries updates updates updates updates 
+horizontal axis shows request arrival rate operations second vertical axis shows mean response time operations arrival rate operation mix 
+response time measures time spent replica node response time seen client milliseconds larger includes overhead client node 
+shows results unreplicated system operation mixes arrival rates 
+figures compare capacities systems 
+system query bound replicated system handle nearly times number operations degradation response time times capacity replica shown handles operations second unreplicated system 
+system update bound replicated system handle operations replica failure recovery detected period replicas send entire logs gossip messages 
+
+
+
+
+
+
+
+
+
+
+arrival rate operations second capacity single replica 
+shows average response time function operation rate selected operation mixes 
+unreplicated degradation response time spite fact ultimately replica perform update 
+example willing accept response time ms operation mix half queries half updates capacity replicated system operations second unreplicated system saturates operations second 
+reason improved capacity gossip messages typically contain entries updates amortizing communication overhead updates gossip messages 
+arrival rate operations second capacity unreplicated system 
+performance system sensitive relative priorities gossip operations 
+measurements correspond system gossip higher priority operation processing gossip message send receive gossip process run 
+operations higher priority gossip probably lead better response time gossip allowed lag far important propagate information updates reasonably rapidly 
+experimented changes relative priorities important real implementation 
+
+availability reliability section discuss service availability probability service accessible needed service reliability probability service retain information 
+goal achieve better availability single copy system provide kind reliability achieved replication 
+understand availability system look partitions crashes 
+partition isolates client replicas replication scheme help 
+common case partition divides nodes groups containing replicas clients 
+updates proceed long client group contains single replica 
+partition prevent queries processed query required information update processed side partition 
+assume partition divides network disjoint sets nodes client service cases consider 
+client requires information update earlier replica processed update separated client partition happened sent response client communicated replicas 
+situation highly gossip frequent 
+sending gossip parallel sending update response client 
+
+client requires information update done different client side partition 
+situation impossible update done partition formed way clients communicate timestamp update assuming band communication 
+situation similar case 
+note case better availability replication techniques :10.1.1.12.6256
+consider case crashes 
+scheme continues provide service long single site 
+problem crashes similar partition case crash happened just replica processed update responded client communicated replicas 
+situation sending gossip parallel update response 
+probability failure considered high replica notifies number replicas waits acknowledgments sending client response 
+note solution differs voting primary copy schemes majority replicas needed :10.1.1.12.6256
+example replicas involved update 
+extra communication mean availability updates decline response time increase 
+consider reliability service 
+replicas process updates communicating stable storage wise crash single replica lose updates forever 
+particular replica need log update stable storage responding client 
+replicas communicate acknowledgments replying stable storage needed 
+storing new update replica protects certain number failures replicas information information survive crash 
+need concerned simultaneous failure replicas store information 
+cause simultaneous failure power failure affecting nodes physically close handled equipping replica power supply disk case power failure replica volatile information written disk shuts 
+
+orders described additional update orderings needed applications 
+server ordered updates add name operation mail system totally ordered respect dependency relationship defined client 
+addition globally ordered updates operation revoke user rights immediately totally ordered respect operations 
+section discuss system extended support server ordered globally ordered updates 
+stronger orders provided updates queries continue ordered specified client 
+assume system knows priori type update established system created instantiated 
+typically system different update operations send mail add user 
+operation declared ordering type 
+client ordered updates server ordered updates take input label return uid 
+uids updates totally ordered 
+labels identify client ordered server ordered updates input label update query identifies client ordered server ordered updates precede 
+operations globally ordered update take label argument system decides operations precede furthermore system assign uid return client 
+returning uid necessary operation runs returns guaranteed ordered query 
+
+prev label newl 
+
+uid newl updates dep uid newl 
+
+value op val newl 
+
+newl label 
+specification service 
+specification complete service model execution service sequence events update query operation performed client 
+event execution sequence denote set containing events including globally ordered update precedes clause specification requires queries reflect globally ordered update execution client required 
+clauses unchanged dependency relation clause extended follows dep globally ordered uid prev server ordered server ordered uid 
+implementation server ordered updates implement server ordered updates provide total order provide way relate client ordered updates queries 
+accomplished follows 
+represent ids labels multipart timestamps timestamps additional field 
+conceptually field corresponds additional replica runs server ordered updates order server ordered updates order assigned replica reflected part timestamp 
+trivial determine order server ordered updates server ordered updates uid uid course replica run server ordered updates availability problem replica inaccessible 
+solve problem allow different replicas act time 
+primary copy method view changes mask failures 
+active view consists majority replicas replicas view designated primary backups 
+current primary charge part timestamp server ordered updates handled 
+carry server ordered update primary carries phase protocol 
+phase assigns uid update advancing part merging prev 
+creates log record sends backups 
+operation commit soon 
+sub majority backups acknowledge receipt record 
+earlier server ordered updates committed 
+sub majority majority replicas service sub majority backups know update majority knows primary safe commit update effects persist subsequent views 
+operation commits primary adds record log applies update value ready responds client 
+backups informed commit subsequent gossip messages 
+view change accomplished phase protocol conducted coordinator notices failure recovery replica 
+replicas act participants coordinator go ahead view change sub majority replicas agree act participants 
+view change ensure committed server ordered updates persist view 
+phase view change participant informs coordinator server ordered updates knows 
+note update may committed old view known member new view 
+coordinator aborts server ordered update depends server ordered update known member new view aborts record uid updates committed order 
+sets part timestamp new view largest value knows server ordered update 
+primary new view carry phase protocol remaining uncommitted updates 
+system replicas failures server ordered update requires messages smallest integer greater encounters delay roughly message round trips 
+execution interfere execution client ordered updates queries replicas proceed including replicas disconnected current active view 
+furthermore view change effect client ordered updates known new view 
+continue propagated gossip just system section 
+server ordered updates primary may bottleneck 
+case voting method disadvantage blocking client disconnected service phase server ordered updates performed client recovered :10.1.1.12.6256
+blocking avoided phase protocol messages needed scheme 
+possibility different orders server ordered operations 
+example mail system choose order add user operations add users names start different order users names start 
+order different pan timestamp managed different primary 
+practical large number different orders lead large timestamps 
+
+implementation globally ordered updates implement globally ordered update need carry global communication replicas system determines updates precede computes label prev identifies updates 
+step performed 
+implementation works follows 
+primary active view carry globally ordered updates primary execute globally ordered call client view contains replicas service 
+assign globally ordered updates way server ordered updates part timestamp 
+non blocking phase algorithm failure causes primary unable communicate replicas new majority view able decide commit abort globally ordered update waiting old primary recover 
+phase pre prepare phase primary asks backup send log timestamp 
+backup receives message stops responding queries continue process client ordered updates reflect val 
+discuss constraints necessary 
+primary receives information backups enters phase prepare phase point unable process queries reflect client ordered updates val 
+primary computes prev assigns timestamp advancing part timestamp creates log record sends record backups 
+sub majority backups acknowledge receipt record primary commits operation enters record log performs update ready primary heard updates prev responses phase sends reply client 
+replicas find commit gossip unable process queries know commit gossip sent immediately 
+view change occurs participants tell coordinator know globally ordered updates 
+operation known prepared survive new view primary new view carry phase operation survive old primary may committed 
+operation known prepared aborted operation committed old view commit happens sub majority backups enter prepare phase participant new view know prepare 
+discuss backups respond queries enter pre prepare phase primary respond queries enters prepare phase 
+client ordered updates reflected val phases reason 
+recall globally ordered update happens query reflect effects operation 
+backup pre prepare phase primary prepare phase know outcome operation 
+returning value reflect update wrong operation committed returning value reflects update wrong operation aborts 
+option delay execution query 
+globally ordered updates slow queries 
+addition replica disconnected phase phase unable process queries rejoins new active view 
+analogous happens systems support atomic operations reading allowed minority partition inconsistent data observed 
+chose phase protocol non blocking replicas new majority view able continue processing client requests 
+having non blocking protocol important replicas perform queries globally ordered update running 
+phase protocol require fewer messages failure prevent entire system processing queries 
+
+system issues method generic instantiated provide particular service 
+provides essentially type procedure update query operation service 
+need concerned implementation unreplicated object details replication taken care automatically 
+needs define class operation client ordered server ordered globally ordered 
+easiest way operation name send mail client ordered add user 
+groupings possible operation name input arguments considered groupings defined providing procedure called runtime determine class particular call 
+create application service necessary decide replicas reside 
+service adjusted changes load clients added system system grows reconfiguration 
+accomplished carrying essentially view change replicas added removed service 
+adaptation view change algorithm multipart timestamp replication scheme described 
+remainder section discuss main issues determine effectiveness technique large systems cost replication cost managing timestamps returned replicated services 
+
+cost replication scheme service nodes disjoint client nodes means number replicas independent number clients 
+typically large numbers clients important consideration 
+having fewer replicas reduces size timestamps storage requirements replica needs store service state message traffic replicas need communicate gossip done infrequently 
+applications may need large number replicas provide adequate processing power ensure client close replica 
+calls service queries having lots replicas improve performance 
+having replicas increases cost updates gossip messages sent update performed replica 
+cost problem executing update expensive 
+case may possible reduce cost processing update received gossip doing value logging 
+scheme update request ready arrives client updates ready just queries ready arrive receiving replica perform log description effect val 
+replicas simply incorporate logged effect va performing update 
+technique worthwhile provided amount information logged small cost incorporating information val performing update 
+amount gossip reduced partitioning service slate 
+partitioning application different parts state independent operation performed information just part state 
+example mail system partitions storing mail users names part alphabet second storing rest 
+service appears single entity clients better performance achieved partitioning 
+partitioning replicas divided disjoint groups responsible disjoint part slate 
+queries updates concerning particular part state handled replicas group manages part front system probably maintain information partitioning client request sent replicas request group 
+timestamps contain components replicas necessary client control ordering operations partitions 
+timestamp components partitions ignored processing query update operation ready execute timestamp components group indicate ready 
+extra components delay operation execution 
+addition gossip exchanged group members 
+partitioning reduce amount gossip update processing system may large timestamps 
+size timestamps reduced distinguishing read replicas write replicas 
+read replicas handle query operations 
+write replicas perform updates timestamps contain entries 
+write replica responsible sending new information subset read replicas compensate failure write replica subsets overlap scheme switch responsibility write replica temporarily 
+addition read replica request information write replica desired 
+essence scheme places read caches various convenient locations network local area net 
+suitable system updates relatively rare queries frequent 
+possibility hierarchical approach 
+approach valid client interaction exposes information service state happens calls service operations 
+idea partition clients number different replica groups consisting small number replicas having timestamps 
+clients communicate replicas group group timestamps exchange timestamps 
+replica groups communicate lower level replica group clients lower level group fact scheme extended arbitrary number levels 
+scheme proposed garbage collection service application client query depends updates speed inaccessible objects discarded depends quickly global information propagates replica group lower level replica group 
+application profit approach deadlock detection 
+
+system structure considered services isolation consider system containing services 
+system different multipart timestamps kind service necessary distinguish 
+easily done having timestamp identify service 
+service interfaces described far allow operations different services ordered relative 
+open service supports inter service operation ordering isolated service provide ability 
+operations open service need extra parameters prepared send receive label timestamps services calls update prey label set label op op returns uid query prey label op op returns newl label new set label value value update operation takes labels services addition label service query operation returns labels services addition 
+including label service call operation service client indicating ordered operations identified dr query different client observes effects return label identifies updates identified possibly additional ones 
+allows client require call operation ordered updates dr 
+open system similar partitioned discussed section sense labels services correspond parts partitions 
+implementation open service little different discussed earlier 
+replica maintains list labels services 
+processes update merges labels corresponding ones list 
+query returns returns list labels addition result 
+just query need return val return result computed val need return entire list just labels list 
+services encapsulated sense number predefined clients 
+fact common situation observed isolated service single predefined kind client 
+timestamps encapsulated service clients visible part system 
+example part system implements remote procedure calls location service determine location called module 
+clients rpc service know location service need manipulate timestamps 
+encapsulated services raise general timestamp management problem vast majority programmers need concerned timestamps 
+true services 
+possibility provide implicit management timestamps client front maintains list timestamps just replicas open service sends timestamps messages clients calls updates open services merges received timestamps corresponding ones list 
+implicit management costly services 
+alternative person implementing client deal timestamps explicitly client program explicitly specifies timestamps sent messages 
+performance better explicit approach primarily timestamps need sent fewer messages 
+furthermore believe difficult decide timestamps send messages needed information contained specifications modules client interacts 
+
+related builds numerous previous results area highly available distributed systems algorithms including general replication techniques voting primary copy method 
+related gossip schemes 
+section focus closely related providing high availability applications operations need ordered identically replicas 
+light compare method relevant gossip schemes isis 
+consider approaches consistency relaxed order improve performance 
+gossip methods require replica service exist client node leading increased storage requirements message traffic 
+furthermore methods application specific allow operation order controlled clients 
+replication method implementation grapevine system service nodes distinct client nodes operations performed exactly replica updates propagate background replicas 
+grapevine consistency sacrificed improve performance leading undesirable behavior existence distinct users name 
+sweep replication method design lampson global name service developed address shortcomings existed grapevine satisfying original goals fast response time high availability 
+grapevine name service client operations interact directly replica method spreading updates replicas periodically perform global sweep operation enforcing total order updates preceded sweep 
+order induced may inconsistent order observed clients furthermore consistency operations executed sweep 
+method allows clients prevent inconsistencies completely degrading performance operations require weaker partial ordering 
+isis provides replication method supports causal order different fashion broadcast method 
+timestamps isis piggybacks messages received node messages sent node way ensures needed updates known replicas 
+advantage isis technique queries need delayed 
+system efficient terms information remembered size messages 
+messages smaller contain timestamps messages timestamps identify 
+avoid major system wide garbage collection problem exists isis knowing safe discard information old messages 
+isis method works wide area nets presence network partitions 
+addition isis provides broadcast protocols counterparts server ordered globally ordered operations 
+implementation operations efficient isis implementation 
+processing server ordered operation requires majority service replicas providing improved availability response time compared 
+implementation globally ordered operations efficient 
+synchronization part isis protocol sure current executed state requires nodes network participate synchronization part protocol 
+contrast method uses fewer messages requires service nodes participate global synchronization 
+protocol ipc mechanism supports causal message ordering explicitly encoding ordering message 
+operates presence network process crashes viewed optimized implementation isis message iris messages cuts costs message traffic message garbage collection 
+describes way protocol implement replicated services supports kinds operations commutative operations order execution matter totally ordered operations general method 
+bypass implementation isis adopted multipart timestamps reduce inefficiencies original method 
+isis system composed number process groups 
+process groups communicate member common means client server groups overlap 
+example single group containing clients service replicas 
+alternatively clients communicate separate group client consisting client process process service replica 
+group multipart timestamp communication occurs message multicast members target group 
+system new isis implementation occasional delay message processing smaller messages easier garbage collection 
+straightforward bypass implementation message contain timestamp group system 
+send timestamp service message implementation perform better 
+timestamps smaller contain components service replicas isis timestamps contain components clients 
+addition send fewer messages isis broadcasts operation call group members scheme replicas communicate gossip messages include information query operations contain information different update calls 
+furthermore isis uses structure having client separate group service replicas send timestamps messages messages contain timestamp group need include service timestamp 
+reduce size number messages isis bypass describes alternative mechanisms 
+example discusses method performing analysis graph representing communication patterns system determine optimizations possible analysis method limited systems considered optimizable analysis 
+discusses protocols reduce number size messages delaying certain activities client send message 
+addition differences detail discussed difference philosophy system isis 
+discussed section expect builders applications services decide explicitly uids labels returned calls service operations 
+clients communicate labels matters doing 
+fact person decide isis order improve performance 
+
+described new lazy replication method allows application semantics taken account weaken implementation constraints 
+kinds operations supported client ordered operations operations globally ordered operations 
+method generic instantiated provide particular service 
+need concerned implementation unreplicated object details replication taken care method 
+applications method provides availability response time low communication costs 
+method optimal sense introduce unnecessary synchronization client ordered operations delay processing queries 
+method particularly suitable applications update operations client ordered 
+orders important increase applicability approach allow applications operation calls require stronger order client specified order 
+sparingly 
+calls server ordered method perform similarly techniques voting primary copy :10.1.1.12.6256
+calls globally ordered method perform 
+globally ordered calls expensive pay performance client ordered calls 
+need highly available service designer number choices 
+possibility trade consistency performance grapevine 
+standard atomic methods methods operations really happen time return need carry information timestamps messages indicate ordering constraints 
+atomic methods approach provides consistency ordering information needed updates happen lazily 
+method choice provided size extra information messages small modest number write replicas provided operations take advantage laziness client defined ordering appropriate 
+
+acknowledgments wish ben zvi phil bernstein andrew black dorothy curtis joel emer bob gruber maurice herlihy paul johnson elliot kolodner mazer bill weihl suggestions improve 
+day 
+principle resilient sharing distributed resources 
+proc 
+nd international conference software engineering pages 
+october 
+available unpublished form cac document number center advanced computation university illinois urbana champaign illinois benford day 
+bernstein goodman algorithm concurrency control recovery replicated distributed databases 
+ac transactions database systems december 
+birman joseph reliable communication presence failures 
+acm trans 
+computer systems february 
+birman joseph exploiting virtual synchrony distributed systems 
+proc 
+eleventh acm symposium operating systems principles pages 
+november 
+birman schiper stephenson fast causal multicast technical report tr cornell university dept computer science ithaca march 
+birrell levin needham schroeder grapevine exercise distributed computing 
+comm 
+acm april 
+ei abbadi toueg maintaining availability partitioned replicated databases 
+proc 
+symposium principles database systems pages 
+acm 
+abbadi skeen cristian efficient fault tolerant protocol replicated dam management 
+proc 
+fourth symposium principles database systems pages 
+acm 
+farrell deadlock detection scheme argus 
+
+senior thesis 
+laboratory computer science cambridge ma 
+fischer michael sacrificing serializability attain high availability dam unreliable network 
+proc 
+symposium principles database systems pages 
+acm march 
+gifford voting replicated data :10.1.1.12.6256
+proc 
+seventh symposium operating systems principles pages 
+acm december 
+hsu weihl phase gossip managing distributed event histories 
+information sciences international journal oct nov 
+special issue databases 
+herlihy quorum consensus replication method data types 
+acm trans 
+computer systems february 
+herlihy wing axioms concurrent objects 
+proc 
+th acm symposium principles programming languages popl pages 
+january 
+cmu cs 
+hwang constructing highly available location service distributed environment 
+technical report laboratory computer science cambridge ma january 
+ladin liskov shrira technique constructing highly available services 
+algorithmica 
+ladin method constructing highly available services algorithm distributed garbage collection 
+phd thesis laboratory computer science may 
+time clocks ordering events distributed system 
+comm 
+acm july 
+lampson designing global name service 
+proc 
+th symposium principles distributed computing pages 
+acm sigact sigops august 
+lampson sturgis crash recovery distributed data storage system 
+technical report xerox research center palo alto ca 
+liskov ladin highly available distributed services fault tolerant distributed garbage collection 
+proc 
+th acm symposium principles distributed computing 
+acm calgary alberta canada august 
+liskov scheifler walker weihl orphan detection extended 
+proc 
+th international symposium fault tolerant computing pages 
+ieee pittsburgh pa july 
+liskov distributed programming argus 
+comm 
+acm march 
+mills network time protocol specification implementation 
+darpa internet report rfc darpa 
+mishra sh peterson schlichting implementing fault tolerant replicated objects 
+proc 
+eighth symposium reliable distributed systems 
+october 
+old liskov replication new primary copy method support highly available systems 
+proc 
+th acm symposium principles distributed computing 
+acm august 
+oki replication highly available distributed systems 
+technical report lcs tr laboratory computer science cambridge ma august 
+oki reliable object storage support atomic actions 
+technical report mit lsc tr laboratory computer science cambridge ma 
+peterson schlichting 
+preserving context information interprocess communication 
+acm trans 
+computer systems august 
+parker popek stoughton walker walton chow edwards kline detection mutual inconsistency distributed systems 
+ieee transactions software engineering se may 
+schlichting schneider fail processors approach designing fault tolerant computing systems 
+acm trans 
+computing systems 
+skeen wright increasing availability partitioned database systems 
+technical report dept computer science cornell university ithaca 
+weihl distributed version management read actions 
+ieee trans 
+software engineering special issue distributed systems 
+wuu bernstein efficient solutions replicated log dictionary problems 
+proc 
+third symposium principles distributed computing pages 
+acm august 

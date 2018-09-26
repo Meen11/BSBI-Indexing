@@ -1,0 +1,981 @@
+fast flexible application level networking exokernel systems gregory ganger carnegie mellon university dawson engler stanford university frans kaashoek ctor brice russell hunt massachusetts institute technology thomas application level networking promising software organization improving performance functionality important network services 
+xok exos exokernel system includes applicationlevel support standard network services time allowing application writers specialize networking services 
+describes xok exos kernel mechanisms library operating system organization achieve flexibility retrospectively shares experiences lessons learned positive negative 
+describes flexibility build specialize network data services cheetah server web benchmarking tool application level tcp forwarder 
+measurements show large performance improvements relative similar services built conventional interfaces case reaching maximum possible performance experimental platform 
+example cheetah provides factor increases throughput compared highly tuned socket implementations factor increases compared conventional systems 
+offer loads times heavier 
+tcp forwarder provides higher throughput providing tcp semantics achieved posix sockets 
+detailed measurements profiling performance improvements broken attributed specific specializations described providing server writers insights focus optimization efforts 
+research supported national science foundation nsf young investigator award defense advanced research projects agency darpa rome laboratory agreement number 
+authors addresses gregory ganger department ece carnegie mellon university pittsburgh pa email greg ganger cmu edu dawson engler cs department stanford university stanford ca email dawson engler cs stanford edu frans kaashoek ctor brice russell hunt mit laboratory computer science massachusetts institute technology cambridge ma email kaashoek pdos lcs mit edu mit edu mit edu thomas north road ma email com 
+permission digital hard copy part personal classroom granted fee provided copies distributed profit commercial advantage copyright notice title publication date appear notice copying permission acm copy republish post servers redistribute lists requires prior specific permission fee 
+acm acm transactions computer systems vol 
+february pages 
+ganger categories subject descriptors operating systems communications management operating systems organization design computer communication networks network protocols computer systems organization computer system implementation general terms management design additional key words phrases extensible systems fast servers network services os structure 
+application level networking allows applications special privileges interact directly network interface communication activities 
+organization allows application writers directly manipulate communication patterns protocol semantics enable network communication systems evolve quickly provide higher performance monolithic kernel server networking 
+example transactional tcp tcp protocol braden provide higher performance undoubtedly commonplace years ago support bundled web browsers servers 
+application providers incentive applications behave operating system providers 
+addition enabling faster innovation application level networking allows improved performance 
+example experiments show ability integrate specialize networking code application code provide substantial performance increases real applications factor server 
+systems privileged servers kernel allowed interact network interface 
+regularly privileged applications restricted abstraction interfaces implementations privileged software 
+organization suffers fundamental difficulties 
+interface designed accommodate application anticipate possible needs 
+second serving implementation interface resolve tradeoffs anticipate ways interface 
+experience suggests infeasible cost mistakes high anderson bershad cheriton duda hartman kaashoek seltzer 
+appropriate abstractions simplify construction improve portability applications inappropriate abstractions difficult impossible achieve semantic performance goals 
+example software overheads inefficient resources prevent network data servers exploiting full performance underlying network 
+avoidance os latencies shown provide significant benefits sub microsecond round trip latencies von eicken 
+shown servers hardware resources efficiently current oss allow hitz kaashoek 
+high performance correct semantics critical inappropriate abstractions increase complexity application writers struggle match incompatible needs interfaces desired behavior 
+acm transactions computer systems vol 
+february 
+fast flexible application level networking application level networking potential eliminate problems 
+reducing software bypassed minimal primitives open stream send packet receive packet required protection provides greater flexibility 
+flexibility allow application writers specialize networking activities application specific needs modifying default protocols protocol implementations necessary 
+requiring applications systems adopt new software kernel approaches application level networking allows distinct networking software bundled different applications 
+describes evaluates application level network services implemented part xok exos exokernel system kaashoek 
+services include udp ip tcp ip posix sockets arp dns tcpdump 
+xok exos conventional networking abstractions provide performance competitive contemporary bsd system 
+fact application level library posix sockets outperforms kernel resident bsd socket implementation factor 
+simultaneously system safely execute aggressively specialized networking applications high performance server protocol forwarder correct semantics 
+specialized applications times faster socket versions 
+key challenges realizing application level networking securely multiplexing multiple applications single networking interface doing efficiently supporting useful network services 
+explains design implementation choices experiences lessons learned 
+builds augments earlier application level networking main ways provides concrete examples exploiting application level networking improve performance substantially demonstrates describes full network services implemented independent application level libraries identifies set base kernel mechanisms successfully application level networking 
+remainder organized follows 
+section discusses application level networking general including previous basic design considerations general exokernel system architecture 
+section details design implementation xok exos networking components including kernel network interfaces mechanisms application level implementation standard network services 
+section describes experimental setup sections evaluate efficiency xok exos mechanisms benefits flexibility 
+section discusses interesting complications lessons learned open questions 
+section summarizes contributions 
+
+background systems networking software hidden away os kernel communication interface posix sockets exposed application writers 
+applications ideal arrangement acm transactions computer systems vol 
+february 
+ganger interface cross platform standard provides portability 
+interface poor match application needs application writer left options 
+interactions explicitly supported kernel interface specified 
+behaviors anticipated kernel implementors supported example unexpected performance problems observed servers supporting slow clients banga mogul persistent connections heidemann 
+consider sockets specific example 
+sockets provide level abstraction transport protocols hiding network interactions high level abstraction unreliable datagram service reliable service 
+applications fit sockets current implementations problem 
+applications evolve implementer expectations high level interface impedes performance functionality 
+examples problems include transport level acknowledgments retransmissions may redundant undesirable relative similar application level functionality exactly kind problem endto argument refers socket interfaces inherently involve data copies applications application buffers explicitly exchanged kernel applications describe known activity kernel replies sent upcoming connection termination eliminating opportunities dynamic specialization protocol implementations hidden applications preventing minor changes merging protocols 
+way communicate network systems application writers encounter problems recourse 
+certainly note dilemma 
+abstractly toend argument addresses dilemma internet protocol designers arguments provide remarkable scalability robustness 
+os implementers violate argument embedding resulting protocols kernels stopping just short true points applications 
+variety approaches addressing dilemma including applicationlevel networking 
+remainder section discusses previous overviews support needed application level networking briefly overviews exokernel os architecture 
+related previous approaches improving advancing support applications varied network communication needs broken categories better kernel interfaces implementations extensible operating systems application level networking 
+better kernel interfaces implementations 
+traditional system organization modified better support new distributed applications types enhancements 
+proposed improvements implementations standard networking interfaces years 
+notable enhancements targeted specifically emerging network services acm transactions computer systems vol 
+february 
+fast flexible application level networking include fbufs druschel peterson lrp druschel banga better implementations select system call banga mogul 
+second ultimately powerful form enhancement provide suitable flexible interfaces 
+unfortunate examples various ioctl calls tweaking behavior network sockets small set predefined ways 
+superior interfaces asynchronous copy free data movement proposed banga hutchinson peterson krieger malley peterson pai pasquale virtual interface vi architecture von eicken systems 
+interface great potential nt system call available linux freebsd interesting performance enhancements implemented internal file system tcp ip implementations reorganized 
+forms enhancement suffer major pragmatic fundamental limitations 
+main pragmatic limitation usually takes years new os interface implementation technique move research prototypes real systems matter effective research results show 
+part reason changes complicated os matures enhancements involve breaking modularity boundaries adding fast path replicas existing code paths 
+os implementors move faster fundamental limitation support restricted needs foreseen implementors 
+application level networking offers solution problems 
+allowing application writers bundle new implementations interfaces applications application level networking bypasses need critical shared resource os kernel change 
+extensible operating systems 
+approaches proposed evaluated deployed allow applications replace resource management abstractions varying degrees safety 
+example dos alto lampson sproull completely open oses give arbitrary applications direct hardware access provide protection 
+systems major windows nt allow arbitrary flexibility privileged users protection 
+course arbitrary static flexibility available source code os sufficient access boot machine type flexibility forms basis network appliance plan approaches building high performance networked data servers hitz pike 
+extensible oses cache kernel cheriton duda vino seltzer spin bershad fiuczynski bershad exokernel engler kaashoek focus allowing similar degrees flexibility arbitrary applications maintaining protection fault isolation 
+approaches os extension provide flexibility needed support changing needs 
+describes networking support xok exos exokernel provides speed flexibility 
+acm transactions computer systems vol 
+february 
+ganger application level networking 
+previous researchers proposed evaluated developed mechanisms supporting application level networking black edwards kaashoek maeda bershad mogul thekkath von eicken 
+efforts provided arguments approach showed protocols demonstrated clear benefits important workloads cluster parallel computation 
+prior standard network interface specification cluster computing called vi architecture virtual interface vi architecture developed promoted set companies led compaq intel microsoft 
+prior application level networking focused latency improvements provided avoiding kernel entry exit 
+notable exception nemesis system black arsenic network card support pratt fraser focus quality service benefits provided removing networking shared kernel 
+lazy receiver processing architecture druschel banga provides benefits kernel implementations 
+believe important aspect application level networking control gives application writers network protocols implementations integrated specialized application activities providing order magnitude increases performance 
+describes evaluates application level network services xok exos exokernel 
+exokernel project extended earlier application level networking main ways providing concrete examples cheetah server exploiting application level networking improve performance substantially demonstrating describing full network services including tcp ip udp ip posix sockets arp dns tcpdump implemented independent application level libraries identifying set base network interface ni os mechanisms successfully 
+application level networking application level networking untrusted applications transmit receive process network packets 
+requires os support transferring packets applications low level ni exported advanced network interface card nic device driver emulates nic role 
+section briefly describes general application level networking design issues 
+section describes detail xok exos exokernel implementation choices 
+overview 
+central requirement safe application level networking multiplexing ni 
+multiplexing safely sharing ni set applications giving ownership single entity involves main sets issues related sending packets related receiving acm transactions computer systems vol 
+february 
+fast flexible application level networking packets 
+common resource management issues host os including notification scheduling memory accessibility 
+design issues discussed 
+transmission 
+level application level transmission packets straight forward application simply give ni pointer memory region containing packet sent 
+assuming ni includes dma support pull packet memory put wire 
+data confidentiality purposes issues pinning memory regions ensuring readable transmitting application 
+application notified packet data copied memory regions point application modify regions order avoid corruption packet sent 
+somewhat controversial design considerations center provide transmit queue fairness applications verification packets 
+reception 
+packet reception component ni multiplexing broken steps packet demultiplexing packet buffering 
+packet demultiplexing process identifying connection application particular packet associated 
+decision process contents incoming packets kept private applications rights 
+generally speaking packet demultiplexing accomplished checking particular data offsets packet usually corresponding values various headers 
+powerful approach doing form packet filter mogul involves pattern matching preloaded set offset value pairs packet contents 
+match identifies appropriate receiver unmatched packets handled default path dropping giving default os routine 
+packet buffering involves delivering newly arrived packets applications destined 
+usually involves copying packets memory regions 
+nic demultiplexing place packet correct buffer directly 
+programmed copy required 
+safety requires physical pages directly accessed nic pinned prevent page faults worse reallocation applications 
+empty buffers packet arrives packet usually dropped 
+alternative option buffer packets kernel nic give application place access packets 
+complex current memory protection mechanisms willing dedicate full page received network packet bytes ethernet 
+resource management 
+notification process scheduling memory management important aspects transmission reception options exist 
+example notification approaches range polling status registers interrupt schemes upcalls signals 
+process scheduling integrate awareness network events acm transactions computer systems vol 
+february 
+ganger fig 
+
+exokernel operating system architecture 
+small exo kernel enforces protection multiplexing hardware resources avoids abstraction non hardware protection functionality 
+applications link libraries obtain desired abstractions library called exos standard unix csh application shown 
+web server barnes hut applications shown specialized libraries contain specific functionality require 
+independent corresponding impact round trip latencies 
+memory management deal need preallocation pinning balanced conventional activities 
+library oss experiments described performed context xok exos exokernel system kaashoek 
+exokernel os architecture engler shown designed give applications direct control management hardware resources providing strong protection fault isolation 
+architecture small kernel called exokernel multiplex time share hardware resources applications running system 
+applications direct low level access resources 
+high level resource abstractions traditionally provided oses provided libraries applications link 
+organization allows application writers select multiple resource management options construct 
+exokernel ensures aggressively specialized buggy resource management strategies implementations critical applications interfering correct operation programs system 
+ideal pursued safely allowing applications bypass high level interfaces complex implementations conventional oses 
+allow applications interact hardware resources going intermediaries kernel server looking abstractions 
+practice course protection required exokernel insist degree abstraction 
+server exokernel system prototype chose precisely securely emulate certain posix semantics 
+targeting ideal case learned great deal support build application level services lessons related networking discussed 
+acm transactions computer systems vol 
+february 
+fast flexible application level networking fig 
+
+xok exos application level networking architecture 
+applications transmit receive packets directly virtual network interfaces 
+received packets compared prespecified packet filters copied pre registered buffer associated matched filter 
+transmitted packets linked shared send queue copying data small squares application regions contain data packets currently send queue 
+applications shown cheetah server described section barnes hut parallel application top region library explicit distributed shared memory system johnson bsd application top posix compliant tcp ip socket library 
+xok exokernel intel computers exos default posix library operating system 
+xok exos self hosting edited compiled linked rebooted run unmodified unix programs perl gcc telnet file utilities 
+relevant supports wide range standard networking protocols tools applications including udp ip tcp ip arp dns nfs ftp ftpd posix sockets tightly integrated highly specialized efficient server 
+remainder details 
+
+application level networking exokernel section describes application level network services implemented xok exos exokernel system kaashoek 
+includes highlevel description application level networking architecture detailed descriptions xok ni multiplexing mechanisms relevant xok mechanisms memory mapping scheduling exos implementations basic network services 
+overview software architecture shows basic architecture xok exos networking system applications interact directly network interface small kernel component safe libraries provide applications networking abstractions correspond needs 
+outbound packets sent directly application memory 
+applications invoke send packet system call add descriptors outbound packets kernel fifo send queue 
+inbound packets received xok network device drivers linked acm transactions computer systems vol 
+february 
+ganger table main kernel functions supporting application level networking transmit net xmit asynchronously transmit packet network interface demux dpf insert insert filter associate packet ring dpf delete dereference filter dpf ref add filter new process buffering dpf route filter matches new packet ring set new packet ring specified set entries add delete replace packet ring entries delete packet ring kernel view install wakeup predicate insert pte insert page table entry kernel passed kernel proper 
+xok identifies packet destination packet filter engine copies rings buffers shared kernel applications 
+remainder section explains kernel mechanisms applicationlevel implementation standard network services 
+xok interfaces mechanisms subsection describes components xok directly relevant supporting fast flexible application level networking 
+outlined kaashoek revisited focus relate application level networking 
+abstractions xok protection tractable ones bypassed application writers 
+proper design critical avoiding limitations road 
+fundamentally xok ni quite similar previous user level nis 
+interesting differences describe xok mainly provide context application level network services described subsequently 
+xok non ni support significantly different systems 
+xok main kernel functions supporting application level networking listed table discuss detail 
+memory management 
+xok manages main data structures multiplex main memory process defined virtual memory vm page tables page structures identify processes access rights free list 
+physical pages free process access 
+access rights added situations process allocates physical page free list process access gives lesser access process 
+outside scope base support allows hierarchical memory management 
+process map page tables read 
+process direct xok modify page table removing vm mappings adding mappings pages appropriate access 
+process manages page tables processes ensure physical pages backing important virtual address ranges share memory processes arbitrary dynamic ways 
+necessary revoke allocation process kernel upcall process process pick page save contents necessary give back kernel 
+acm transactions computer systems vol 
+february 
+fast flexible application level networking xok pins physical pages shared kernel device driver device 
+example includes pages holding data transmitted pages hold notification variables 
+context term pin indicate kernel allow page allocated free list free 
+imply kernel page read kernel prevent application adding removing vm mappings page 
+efficient polling 
+xok understand applications block conditions wait 
+fact xok blocking interfaces 
+default xok schedules applications consideration conditions 
+scheduled application check condition met immediately yield cpu 
+wk wakeup predicates provide applications running xok general mechanism efficient polling 
+wk predicate set conditions sum products style describe circumstances interest application 
+condition consists comparing memory location constant value memory location 
+process wants wait certain circumstances constructs appropriate predicate gives xok 
+xok checks dynamically compiles predicate efficient native code 
+xok pins pages accessed predicate 
+process scheduler evaluate sleeping process current predicate considers giving cpu process 
+predicate evaluates true process marked runnable 
+practice circumstances polling sleep select ipc resource exhaustion event notifications simple predicates 
+result fewer context switches necessary system populated polling processes 
+cpu scheduling 
+xok cpu scheduler manages cpu particular consideration devices 
+exception rule current scheduling decision reconsidered event packet arrival related sleeping process occurs 
+reconsideration includes evaluating corresponding wk predicates 
+event causes corresponding process awaken process granted current cpu time newly awakened process scheduled 
+events relate runnable running process cause scheduler invoked 
+fact process runnable guarantee context switch occur immediately 
+packet transmission 
+xok packet transmission interface consists system call takes parameters interface send packet array address size pairs pointer integer memory 
+kernel certain initiator read access set memory regions write access integer 
+relevant device transmit queue full various pages pinned packet descriptor appended queue 
+device driver eventually learns packet sent card xok decrements integer memory pages 
+decrementing notification integer fits wk acm transactions computer systems vol 
+february 
+ganger mechanism allows packet grouped handling applications 
+application avoid modifying packet sent inferred value integer 
+xok current implementation enforces fairness respect transmit queue allows applications transmit data desired network 
+packet demultiplexing 
+xok uses packet filter engine called dynamic packet filter dpf engler kaashoek demultiplex packets receivers 
+dpf uses dynamic code generation packet filtering efficient previous software packet filter systems mogul jacobson mccanne 
+downside dpf filter installation expensive 
+respects similar previous packet filter systems 
+applications request access particular types received packets tcp packets port constructing corresponding dpf filter passing xok install filter system call 
+kernel verifies new filter overlap existing filter application access said filter 
+packet buffering 
+associated filter packet ring identifier 
+packet ring ring buffers set application shared xok 
+buffer field indicates owner xok zero xok 
+shown received packet matches filter associated particular packet ring xok tries copy current packet ring entry 
+entry owned xok packet dropped 
+packet longer entry truncated 
+contents copied place original packet size written ownership flag simultaneously giving notification size information application 
+applications handle packets choose return buffers kernel simply writing zero ownership flag 
+interface involves copy received packet kernel performs demultiplexing copy avoided nics perform demultiplexing 
+exos networking abstractions subsection describes specific examples key mechanisms exos achieve efficient application level network services 
+process identify places retrospect better design choices 
+exos just library linked applications math library descriptions exos application interchangeably describing exos works 
+important note aggressive applications cheetah server described section bypass aspects exos support simply invoking 
+udp ip 
+user datagram protocol udp simple protocol example start 
+udp connectionless built protocol activities retransmission flow control 
+create networking point xok application allocates physical memory constructs packet ring registers xok constructs dpf acm transactions computer systems vol 
+february 
+fast flexible application level networking filter description registers xok specifying associated new packet ring 
+setup xok copies incoming packets match new filter new packet ring 
+create udp point exos builds dpf filter identify internet protocol ip packets specify udp protocol desired source destination ip addresses udp port number values 
+source ip address destination ip address source udp port number left wildcards meaning checked dpf pattern match point filter 
+combination values overlap existing filters allowed 
+application point receive packets process likes 
+sleep waiting packets application constructs wk predicate tells process scheduler leave sleeping ownership flag packet ring entry changes zero owned xok nonzero 
+packet arrives xok copies packet ring puts nonzero size ownership flag 
+packet udp format parsed processed application 
+send udp packet application constructs appropriate header passes xmit packet system call gather list pointers header packet contents 
+application knows reuse memory regions holding header data notification integer specified xmit packet call decremented 
+note packet rings dpf filters required packet transmission 
+tcp ip 
+operationally application level transmission control protocol tcp points established way udp points 
+tcp involved protocol requires additional support underlying system order function effectively correctly 
+aspects generating acknowledgments holding transmitted data buffers acknowledgment letting reused transmission just part tcp implementation 
+aspects involve kernel mechanism careful organization core exos code 
+main examples listen accept 
+tcp connection oriented protocol means points exchange messages establish connection data exchanged 
+common approach doing side establish point listens particular tcp port number points send connect message 
+listener acknowledges connect message connect message accepting connection 
+generally new connection viewed new endpoint listener system listen point remains intact 
+establish new point application create new packet ring new dpf filter gets correct subset listener packets 
+dpf allows creation specific subsetting filter long creator proper capability filter 
+installing dpf filter time consuming exos generally create distinct xok visible point required protection listen point continues get acm transactions computer systems vol 
+february 
+ganger packets listen point new connection 
+second demultiplexing step user space identifies specific connection 
+decision assists resource sharing discussed 
+timers timeouts 
+tcp requires timers trigger number activities 
+example tcp reliable protocol means retransmits data acknowledged may lost 
+robustly tcp waits period time trying 
+straightforward tcp code check timeouts arrived packets executing 
+application may compute sleep extended periods time calls tcp code 
+exos supports wk add ons context switch add ons enable timeouts arrived packets handled timely manner 
+add ons allow application library register functions called exos time context switch upcall processed wk predicate downloaded application 
+application context switch add ons called exos process processor quantum 
+exos tcp code uses context switch add check process timeouts arrived packets background works tcp purposes timers coarse grain imprecise affecting correctness performance critical lot traffic going tcp code internal timer checks provide greater precision 
+wk add ons called exos wk predicate downloaded allowing application modules add conditions predicate 
+exos tcp code uses wk predicate add cause process awakened timeout packet arrival 
+handler function associated wk add processes tcp timeout reason waking 
+calling handler exos reconstructs wk predicate puts process back sleep algorithm 
+time wait 
+tcp includes explicit support preventing packets previous connections processed part new connection 
+having point closing connection enter remain time wait state times maximum roundtrip time specified minutes tcp specification postel 
+presents problem application level tcp implementations application wants close connections terminate 
+easiest solution exos process wait time wait connections fully close allowing process terminate 
+unfortunately approach adverse effects performance applications command line shells wait child processes complete continuing 
+revised solution exploits recall exokernel applications participate context switching save restore registers 
+activity core component exos library specialized purposes add ons discussed software interrupt masking application level critical sections uniprocessors 
+acm transactions computer systems vol 
+february 
+fast flexible application level networking application level nature exos deliver child done signal parent process terminating 
+process effectively terminate posix process hierarchy point view persisting time wait tcp connections close 
+third approach recommend implementations simply handoff time wait connections special purpose server process wants terminate 
+hand involves simple sequence steps provide server relevant tcp control block values give corresponding dpf filter server switch association application packet ring server packet ring 
+port number selection 
+implicit port number selection important aspect tcp implementation 
+application choose desires asks system pick 
+means currently 
+tcp time wait state preferable select application may try service server previous user port number 
+current approach driven desire maximum decentralization pick random port number allowed range dpf filter rejected currently port number 
+worked practice 
+occasionally select port number dpf complain open connection server 
+case process wait lengthy period time remote time wait state clear 
+reason centralized tcp implementations generally sequence valid port number range reduce probability collision 
+achieving xok require port number server 
+combined described built completely decentralized application level tcp implementation 
+performance benefits application level networking communicates correctly tcp system tried 
+addition application level easier implement performance enhancements 
+example minimizing isolating protocol control blocks time wait connections largely eliminated time wait problems reported faber mogul caused large numbers connections busy web servers 
+result modifications heavy precomputed values careful recycling buffers exos application level tcp implementation outperforms popular bsd tcp factor see section 
+posix sockets 
+posix sockets provide level abstraction top udp ip tcp ip points protocols 
+sockets requirements components described protocols 
+addition sockets include number features hide characteristics underlying protocol 
+example sockets handle packets background buffer received data process acm transactions computer systems vol 
+february 
+ganger provided destination memory region 
+sockets buffer outgoing data tcp keep buffered data acknowledged retransmit necessary 
+exos implementation synchronous socket calls calls may involve waiting network packets wk predicates described earlier 
+true select call waits activity set sockets 
+important note application process may awaken socket library go back sleep immediately moved part way completion original socket call 
+inter point resource sharing 
+network intensive applications multiple network points time 
+important share resources buffers points statically partitioning resources 
+sharing eliminate endpoint setup costs applications involve simultaneous short lived connections 
+exos pools resources points owned particular application ways 
+discussed tcp exploits fact dpf filter accepted connection strict subset filter listen point 
+exos replaces xok level setup new point exos level demultiplexing points owned application 
+second exploits fact xok allows multiple dpf filters place packets single packet ring 
+new point desired listen connect relevant dpf filter registered xok associated process main packet ring 
+third exploits fact socket level buffers completely application space share pool sockets owned application 
+mechanisms reduce cpu time memory space requirements network services multiple connections 
+interprocess socket sharing 
+important aspect posix sockets interprocess socket sharing generally occurs process opens socket forks child process share open socket 
+key supporting application level networking ensuring associated set sockets encapsulated specific set dedicated pages 
+includes file descriptor socket structures protocol control blocks socket data buffers packet rings exposed kernel received packets 
+exos software structures organized allow extraction socket set distinct set pages 
+single process simultaneously utilize sets 
+allows exos dynamically isolate set sockets 
+ability allows exos enforce variety protection models ranging share server app access 
+default middle socket state socket shared exactly set processes access 
+full support posix socket isolation semantics requires third party server micro kernel systems policing access shared socket structures 
+illustrates exos uses ability dynamically separate sets socket structures distinct sets pages 
+specifically shows inetd acm transactions computer systems vol 
+february 
+fast flexible application level networking fig 
+
+sharing socket structures inetd 
+example shows sharing connections inetd child process inetd accepts new connection forks process closes handed socket 
+connected set boxes represents set related physical pages ovals indicate processes access 
+black oval represents inetd grey oval represents 
+network service accepting network connection forking new connection closing new connection 
+accept exos structures related inetd connections share set pages 
+part forking new process exos separates shared connection distinct set pages maps processes address spaces virtual address 
+subsequently closes socket pages completing socket hand 
+system wide services 
+number critical system wide network services 
+section describes illustrate services provided application level top xok interfaces 
+naming routing 
+naming translation higher level identification lower level identification core networking 
+prime examples domain name system dns translates alphanumeric machine names ip addresses address resolution protocol arp translates ip addresses link level addresses ethernet 
+related arp level translation routing address nonlocal ip address replaced link level address router gateway path nonlocal machine 
+application level networking practical aspect naming services safe management translation tables 
+sharing model look updates need wellformed correct naming protocols rules 
+dns arp rely wire trust subject spoofing attacks 
+arp representative example exos supports sharing model giving ownership arp table application 
+application started system initialization installs dpf filter gives incoming arp packets including arp responses 
+arp table acm transactions computer systems vol 
+february 
+ganger update read shared mapped processes 
+process desires arp information simply looks table 
+desired entry application constructs transmits arp request packet get information network nodes 
+received arp packets delivered xok updates arp table appropriately 
+application needs update wk predicate wait table modified repeat table lookup 
+application includes timeout clause wk predicate repeats arp request original lost 
+basic approach name translation tables 
+error reporting 
+practical consideration networking identifying erroneous packets delivering notification problems points 
+best example internet control message protocol icmp 
+example valid udp packet interested point received icmp packet sent udp packet sender indication problem unsupported protocol unreachable port 
+unexpected tcp segments need default response 
+default responses provided exos stray packet daemon started system initiation time downloads dpf filter matches ip packet application 
+way unclaimed ip packets seen handled stray packet server 
+monitoring traffic 
+core network service useful able observe traffic local network link 
+common approach doing exemplified unix tcpdump utility 
+tcpdump directs kernel give copies received packets prints readable formats 
+xok provides support delivering copies specific sets packets applications mechanism called copy filters copy filter uses dpf mechanism regular filters copy filter evaluated independently filter overlapping allowed 
+arbitrary overlapping violates confidentiality superuser privileges required install copy filter 
+note copy filters designed support general multicast receives single system support xok exos 
+regular filters matched packets copied associated packet ring 
+xok exos tcpdump application simply downloads copy filter matches packets handles observed packets specified command line options 
+known services 
+standard networking practice identifies number known port numbers popular services telnet port port 
+exos supports starting system daemons including inetd allowing users access system 
+doing gives daemons choice port numbers opportunity download filters 
+taken allocated applications 
+exos enforce rule states high privilege applications port numbers initiating server grabs restricted port numbers allows high privilege applications subset filters 
+implement functionality 
+acm transactions computer systems vol 
+february 
+fast flexible application level networking summary exos libraries daemons described provide complete networking services application level 
+services include udp ip tcp ip posix sockets arp dns network monitoring 
+possible ni multiplexing mechanisms xok careful organization core exos modules 
+
+experimental apparatus sections evaluate efficiency flexibility xok exos applicationlevel networking support 
+section describes experimental setup conduct measurements 
+experiments performed standard personal computer technologies 
+systems include mhz intel pentium pro processors intel vs fx pci chip set mb main memory 
+systems smc fast ethernet mbit second cards standard microsystems connected dedicated smc standard microsystems highperformance fast ethernet switch 
+cards dec lan controller chip digital equipment tulip chip 
+switch interconnect full duplex fast ethernets nearly full speed gbit second backplane 
+systems server relevant equipped fast ethernet cards 
+cases client machines communicates separate card 
+experiments focus xok exos system 
+compare performance network service implementations performance provided openbsd free operating system bsd mckusick 
+xok device drivers taken openbsd removing potential variable 
+general openbsd outperforms exokernel system experiments functional tuned significantly 
+exos tcp socket libraries hand tuned consistently outperform openbsd emulating interfaces examples 
+fact allows focus benefits having result unknown variables 
+performance measurements came sources 
+measurements elapsed time pentium pro cycle counter get granularity mhz systems 
+event counts network transmissions disk requests interrupts maintained kernel exposed read applications 
+measurements averages executions coefficients variation stated 
+
+cheetah fast server section illustrates efficiency flexibility xok exos applicationlevel networking services servers case study 
+server shown deliver twice throughput xok exos tcp ip socket libraries described section acm transactions computer systems vol 
+february 
+ganger running openbsd 
+cheetah server demonstrate main advantages application level networking specialization 
+exploiting ability safely specialize application level implementations demonstrate equivalently functional server delivers times throughput servers running openbsd 
+brief synopsis section appeared earlier kaashoek 
+motivate describe analyze cheetah application level networking 
+performance complexity problems servers easy construct functional server abstractions provided current general purpose oss 
+lines code application listen tcp connections socket interface read requested documents file system write accepted connections 
+variety extensions mime header options cgi scripts simple model captures performance critical core 
+unfortunately performance implementations tends poor reasons 
+applications servers system share single implementation tcp sockets 
+unfortunately researchers implementations systems inadequate servers banga mogul mogul 
+restrictive interfaces current systems prevent application programmers customizing behavior implementation avoid performance problems 
+second blocking nature file system interfaces socket interfaces restricts parallelism 
+third distinct subsystems case file system networking stack results significant redundancy notably repeated data copying memory usage 
+server performance critical environments application programmers adopt complex workarounds lost performance making applications difficult construct debug maintain 
+example exploit parallelism despite blocking interfaces early servers created new process client request luotonen ncsa 
+avoid associated fork exec exit overheads subsequent implementations maintain pool server processes apache software foundation ncsa coordinate shared memory interprocess communication 
+subsequent implementations utilize threads nonblocking interfaces 
+avoid file system overheads copying kernel space application space applications replicate document caching functionality user level chankhunthod 
+server implementors sufficient control tcp implementations current socket interfaces complex connection reuse semantics referred keep alive persistent connections required part protocol specification fielding 
+complicates servers requiring replicate portions os networking code lead conflicts user level connection management kernel level protocol acm transactions computer systems vol 
+february 
+fast flexible application level networking fig 
+
+request throughput function document size servers 
+ncsa bsd represents ncsa server running openbsd 
+harvest bsd represents harvest proxy cache running openbsd 
+baseline bsd represents socket server running openbsd 
+baseline xok represents socket server running xok exos 
+cheetah xok represents cheetah server running xok exos 
+iis nt represents microsoft iis server version running microsoft windows nt 
+highlights fact numbers mhz pentium ii system opposed mhz pentium pro 
+throughput values obtained clients client machine repeatedly requesting static web document cache hits zero think time completion request initiation 
+care taken avoid performance degradation openbsd servers due time wait connections spaced bursts requests provision necessary servers running xok exos 
+implementations order magnitude performance decreases observed heidemann 
+clearly server developers willing improve performance 
+application level networking allows directly 
+appropriately reusable libraries significantly increase complexity 
+fact cheetah server described substantially faster complex aggressively optimized server uses standard interfaces 
+exos socket performance evaluate xok exos default application level network services constructed socket server 
+socket server consists single threaded application aggressively uses nonblocking socket tcp ip networking order achieve performance standard interfaces 
+file system interfaces blocking experiments focus file cache hit performance removing issue 
+robust performance additional complexity needed baseline server 
+shows request throughput function requested document size server configurations socket server referred baseline running openbsd baseline running xok exos ncsa server ncsa running openbsd harvest cache chankhunthod called squid running openbsd cheetah server running xok exos microsoft iis server version acm transactions computer systems vol 
+february 
+ganger running windows nt version 
+measured apache openbsd linux box performance lower ncsa 
+requests hit server file cache 
+comparing baseline server configurations allows evaluate xok exos tcp ip socket implementations relative openbsd ncsa harvest numbers give confidence baseline behavior reasonable 
+iis numbers provide insight system particularly interesting nt interface 
+request consists opening tcp connection receiving parsing ascii request returning ascii header requested file data closing connection 
+small requests exercise connection creation termination performance large requests exercise bulk data movement performance 
+covers spectrum includes provides interesting pieces information 
+baseline server performs roughly harvest cache shown outperform contemporary server implementations general purpose oses 
+outperform ncsa server 
+gives reasonable starting point evaluating server performance 
+specifically baseline server compare xok exos default support openbsd baseline specialized implementations functionality 
+second baseline configurations xok exos default socket implementation outperforms openbsd socket implementation small requests large documents 
+indicates xok exos socket performance quite creation termination activities bulk data movement 
+detailed explanations openbsd tcp socket performance lower know exos implementation tuned 
+performance enhancements specific application level implementation reason believe openbsd match 
+exos socket performance allows compare specialized server baseline xok exos removing free variables 
+third iis nt measurements indicate socket servers limited software overheads network file sizes 
+iis nt advantage openbsd servers roughly matches increased cpu performance mhz versus mhz byte kb document sizes 
+larger sizes advantage larger presumably support 
+performance kb kb document sizes baseline xok exos sockets 
+kb iis nt limited available network bandwidth mbit second ethernets 
+exploiting application level networking real power application level networking allows networking software specialized integrated important applications see 
+provide concrete example subsection describes quantifies impact specialization context cheetah acm transactions computer systems vol 
+february 
+fast flexible application level networking fig 
+
+servers conventional exokernel systems 
+conventional os software layers data copies involved server 
+solid lines represent control flow dotted lines represent data copies 
+application level networking allow server avoid redundancies integrating streamlining required software merging data repositories 
+server 
+cheetah incorporates number performance enhancements enabled application level networking 
+shown enhancements improve performance factor small documents large documents compared baseline socket server xok exos evaluated previous section 
+cheetah uses code baseline server including related functionality request translation mime header processing response header generation 
+main control loop different 
+cheetah simply waits relevant event network packet arrival processes 
+event processing cheetah calls private specialized instances tcp ip file system libraries 
+event processed request state checked see forward progress request request arrived processed data ready sent 
+simpler direct implementation relative socket interfaces nonblocking event loop provides performance benefits including automatically avoiding select problems described banga mogul 
+avoiding layers general purpose code file descriptors sockets reduces overhead 
+largest improvements come extensions enabled application level networking merged file cache retransmission pool 
+cheetah avoids memory data copying need distinct tcp retransmission pool transmitting file data directly file cache 
+specifically calls low level file system routine obtain read pointers file cache blocks pin mark copy write 
+pointers passed tcp library routine construct packets include data directly file cache 
+packets transmitted retransmitted necessary xok transmit interface 
+provides zero copy disk network transfer network part reliable protocol repeated endlessly 
+issue potential concern synchronization applications files cheetah handles simply sharing files actively 
+files updated special purpose maintenance tools synchronize cheetah explicitly 
+acm transactions computer systems vol 
+february 
+ganger table ii 
+estimated breakdown performance difference cheetah baseline server implementations byte files kb files total improvement represents product improvements breakdown assumes improvements cumulative xok enabled enhancement byte kb direct access cache net packet merging merge cache retransmit checksum precompute header precompute total improvement knowledge packet merging 
+cheetah exploits knowledge state transitions avoid sending distinct tcp control packets merged piggybacked forthcoming data packets 
+examples setting fin bit data packet explicitly delaying ack clients request packets 
+packet merging reduces number distinct packets making network points efficient 
+particularly valuable small document sizes reduction represents substantial fraction total number packets 
+precomputed checksums 
+cheetah packet internet checksums data files stores files 
+checksums provided data tcp library routine constructs packets 
+extension reduces number memory manipulations transmitted data zero zero touch disk network transmission combined merged file cache retransmission pool extension 
+checksums added files maintenance tools discussed 
+shown cheetah significantly outperforms servers traditional interfaces 
+exploiting application level networking cheetah delivers times throughput small documents kb smaller twice throughput large documents 
+cheetah performance limited network hardware cases 
+specifically performance limited number minimally sized packets pushed system network interfaces measured packets second server system requests packets 
+large document performance limited available network bandwidth mbit ethernets 
+fact baseline implementation limited mb cpu utilization cheetah delivers mb cpu idle time 
+cheetah performance breakdown 
+table ii provides rough breakdown additional system statistics detailed profiling cheetah performance advantage baseline implementation 
+table shows breakdown ends web document size spectrum larger sizes similar kb behavior 
+medium sized performance explained mixtures points 
+acm transactions computer systems vol 
+february 
+fast flexible application level networking small requests increase throughput comes reduction packets transmitted received due knowledge packet merging enhancement 
+profiling reveals baseline server spends half time various routines involved implementing generalpurpose file descriptor socket interfaces 
+unfortunately optimization purposes time spread widely functions involved implementing general abstractions 
+recall xok exos implementations abstractions tuned relative openbsd 
+possible dynamic specialization general code paths reduce overhead massalin pu pu 
+large request sizes kb baseline server spends time bcopy checksum routine compared respectively cheetah 
+note percentages compared recalling baseline uses cpu cheetah uses cpu document size caveat cheetah wastes time context switching back forth idle task accounts utilization 
+remainder performance difference due layers code involved posix file socket interfaces 
+applications workloads 
+highly specialized cheetah shares system resources cpu memory application time sharing system 
+expected find cheetah significant effect performance applications idle 
+specific workload applications run faster sharing system cheetah sharing baseline server cheetah uses cpu time efficient operation main memory distinct retransmission buffers 
+respect substantial web servers increases cpu power available useful services cgi utilities database searches 
+evaluated cheetah representative benchmark called surge barford crovella 
+surge emulates behavior axes configurable number users concurrently browsing web site test 
+results indicate cheetah average response time lower lower variance baseline server xok exos average response time turn lower server openbsd 
+example simulated users average response times servers xok exos ms ms respectively variances respectively 
+users ms ms respectively variances respectively 
+discussion clearly performance enhancement application writer xok exos application level networking kernel programmer inside conventional os replicating complicating default networking stack 
+cheetah performance certainly achieved inside conventional system os source code sufficient development debugging time willingness live protection boundaries 
+acm transactions computer systems vol 
+february 
+ganger power application level networking lies ability application writers manipulate networking features described unknown features traditionally hidden away os kernels 
+interesting consider aspects cheetah performance realized incrementally existing systems 
+example extensions delaying ack simply incorporated system default tcp implementation 
+improves performance cheetah behavior delaying ack results undesirable retransmissions window shrinkage applications 
+various packet combining enhancements selectively supported new ioctl send flags 
+general overhead socket file system interfaces reduced substantially aspects xok exos tuned evidenced performance relative openbsd 
+possibility introduce variety general interfaces avoid overhead handling numerous states options 
+discussed section interfaces improve large file performance buffers kept read long periods time double retransmission buffers 
+appropriately malleable tcp file system implementations cheetah merging file cache retransmission pool merging fin packet checksum precomputation provided interfaces io lite pai windows nt 
+fast client servers just passive connections initiate connections proxy server fetching missing page 
+section describes specific instance exploiting application level networking connection initiating service web server benchmarking tool called specialization client side early development cheetah clear existing web benchmarks capable overloading excessive equipment powerful numerous client machines 
+xok exos application level networking construct low level core web benchmarks different offered workloads easily built 
+benchmark developed constructing high level driver core calls get web page think time 
+built high level drivers repeatedly requests document zero think times uses surge algorithms produce representative workload 
+core emulates number concurrent clients operates closed loop thinking requesting document 
+low level core initiates connection establishment think times expire handles incoming packets timeouts generates sends requests connections open acm transactions computer systems vol 
+february 
+fast flexible application level networking acknowledges counts data received closes connections receive fin bits calls high level driver get task connection closed 
+addition avoiding overheads associated layers socket file descriptor interface code benefits main specializations count data reception 
+avoids need copy received data discarded 
+web benchmarks discards received data counting 
+directly count valid data received tcp packet need copy data buffers order get count 
+copying involved xok kernel emulated application level networking interface prevents data reception 
+skipping checksum verification 
+configured verify integrity incoming packets removing overhead checksum computation 
+unacceptable general activity appropriate test correct operation heavy loads increase potential offered load benchmarks 
+current experimental testbed enhancement change performance increases client machine idle time previously discussed enhancements sufficient network bottleneck 
+knowledge packet merging 
+cheetah exploit knowledge activity avoid sending distinct control packets merged soon sent packets 
+specifically ack server syn packet discarded client going immediately send data packet request ack piggybacked 
+similarly ack server data packet fin bit discarded client going immediately close connection send fin packet acknowledgments piggybacked 
+small document sizes packet merging enhancements reduce total number packets top cheetah reduction packet count 
+note enhancement changes client load placed server enabled experiments sections 
+cheetah packet improve performance confines correct tcp implementation result undesirable tcp behavior applications 
+additional client side packet merging setting fin bit request data packet beneficial web server performance 
+reduce number packets mentioned transfer task supporting time wait connections numerous clients 
+part experiments 
+client performance place performance context developed socket version core functionality 
+supports interface acm transactions computer systems vol 
+february 
+ganger fig 
+
+document throughput function document size different client side implementations benchmarking cheetah 
+bsd xok represent version running openbsd xok exos respectively 
+represent running xok exos packet merging extensions 
+throughput values obtained clients single machine repeatedly requesting web document zero think time completion request initiation 
+high level driver uses nonblocking socket calls connect server send requests receive web pages 
+shows request throughput function request size achieved different benchmark implementations socket client running openbsd xok exos xok exos packet merging enhancement 
+supports higher throughputs socket implementations factor higher small documents kb documents xok exos superior socket performance faster openbsd small documents kb documents 
+packets exchanged client server exactly implementations 
+throughputs converge file size increases single client mbits second link limits bandwidth 
+performance advantage entirely due avoidance overheads related general posix socket interface 
+illustrates performance benefit knowledge packet merging client side 
+kb smaller documents number packets transmitted client reduced representing reduction total number packets request 
+translates throughput increase kb documents byte documents kb documents 
+kb byte documents see network interface packet throughput limits performance 
+kb documents bandwidth limitations reduce improvement 
+kb documents total number packets reduced throughput increases 
+difference kb files negligible 
+experiments version surge indicate usefully simulate larger number clients default pthread implementation 
+times acm transactions computer systems vol 
+february 
+fast flexible application level networking initiates connections server closely match requested high level decisions means workload representative reality 
+
+application level tcp forwarder example inspired fiuczynski bershad illustrate application level networking exploited simultaneously realize performance simplicity semantics possible conventional abstractions 
+example application level protocol forwarder redirect tcp connections hosts 
+functionality useful purposes clearest transparent load balancing client requests set server machines 
+efficient kernel level implementations tcp forwarding tricks application level independently developed time maltz bhagwat spatscheck 
+experiments implemented protocol forwarders act intermediaries connections specific tcp ports 
+code deciding forward connections different code doing 
+forwarder uses nonblocking sockets listen accept client connections 
+accepting client connection choosing back server forwarder opens second nonblocking socket connection chosen server 
+passes received data closes side closes 
+actions performed parallel multiple client connections 
+socket implementation expensive data passes protocol code copied multiple times 
+importantly violates semantics tcp protocol 
+example client receives acknowledgments intermediary server independently server receives corresponding information 
+socket forwarder interferes tcp algorithms flow control congestion control potentially reducing performance 
+second forwarder implementation exploits application level networking provide correct semantics improved performance 
+forwarder simply waits relevant packet arrive determines open connection 
+forwarder modifies destination information ethernet addresses ip addresses tcp port numbers patches ip tcp checksums reflect changes transmits packet appropriate network interface 
+packet existing connection contains syn forwarder chooses back server initializes demultiplexing structures client chosen server forwards packet described 
+implementation forwarder avoids processing packets acting mainly high level router 
+importantly provides correct tcp semantics presence invisible client 
+shows performance forwarders acting intermediaries fast ethernet cheetah second fast ethernet 
+significant performance improvements realized specialized acm transactions computer systems vol 
+february 
+ganger fig 
+
+document throughput function document size application level tcp forwarding client machine forwarder server third machine 
+socket splicing moves data pair sockets communicating client server respectively 
+direct forwarding simply patches forwards packets directly desired recipient reducing redundant protocol processing data manipulation 
+addition performance improvements direct forwarding provides correct tcp semantics socket splicing 
+throughput values obtained clients single machine repeatedly requesting web document zero think time completion request initiation 
+direct forwarding implementation eliminating extraneous packet processing generation small requests data copying large requests compared socket forwarder 
+translates factor increase throughput small document sizes larger document sizes 
+cheetah performance specialized forwarder limited network software overheads 
+
+discussion construction revision xok exos networking support came lessons controversial design decisions 
+section discusses number inter point resource sharing 
+discussed section inter point resource sharing critical performance scalability 
+example allowing single packet buffer large set open connections allows application level networking software scale memory usage kernel implementations 
+unfortunately emerging virtual interface architecture standard virtual interface vi architecture application level networking inappropriately preventing sharing 
+unchanged may limit vi architecture applicability small set parallel computing applications started 
+event notification 
+event notification xok exos network services polling wk predicates 
+form event notification powerful foundation decentralization allowing processes wait awakened events having tell processes 
+likewise acm transactions computer systems vol 
+february 
+fast flexible application level networking processes awaken processes simply updating memory normally know waiting update 
+experiences positive 
+addition inherently higher event discovery latency observed forms scalability problems wk predicates 
+size wk predicate grows linearly number events interest application effects storage space time install predicate time scheduler check 
+second number wk predicates checked scheduler grows linearly number processes system processes system waiting events point time 
+systems processes significant problems 
+networking explicit notification incorporated hurting decentralization main events interest come kernel packet arrived packet transmitted time advanced 
+done efficiently explicit notification probably correct approach application level networking 
+dpf 
+demultiplex incoming packets form packet filter engine required 
+xok exos uses dpf engler kaashoek uses dynamic code generation improve filter checking speeds 
+dpf offers improved performance supports arbitrary filters filters claim packets arbitrary fields packets dpf complexity negative impact evolution xok exos 
+example moving mips platform platform involved significant dpf 
+similarly bugs shortcomings encountered dpf latency fixes long dpf complexity limited set people manipulate internals 
+flexibility offered allowing arbitrary filters questionable value real world creates unsolved dilemma overlapping filters 
+example filter checks byte filter checks byte clear way know allowed win ties 
+explicit goal exokernel project avoid having kernel understand specific network protocols 
+communication network uses common demultiplexing scheme ip protocol suite exploiting information eliminate difficult problems sense 
+gather transmits scatter receives 
+xok transmit interface collect data multiple memory locations form single transmitted packet 
+support crucial efficient application level implementations allows headers constructed separately data buffers 
+xok provide corresponding receive support 
+full received packet copied single buffer 
+lack scatter receive support common scenarios received data processed placed arrives request tcp acknowledgment received data examined final destination known framed data 
+process scheduling 
+xok process scheduling mechanism explicitly consider interactive responsiveness 
+application level networking acm transactions computer systems vol 
+february 
+ganger negative impact packet processing latencies 
+xok scheduler give cpu awakened process turn run preempt process turn 
+fair processes care run create performance problems forms ping pong communication 
+appropriate cpu scheduling support application level networking remains open area research 
+downloaded interrupt handlers 
+early exokernel explored code downloaded network interrupt handler wallach 
+main benefits elimination kernel crossings quick upcalls unscheduled processes 
+benefit negligible xok exos device delays exceed overhead reduction 
+achieved minimal cost 
+downloading interrupt handlers may useful application level networking implementations commercial oses generally higher kernel entry exit costs 
+unchecked transmission 
+xok examine contents outgoing packets allowing applications transmit data desired network 
+controversial choice increases flexibility increases performance simplifies implementation 
+clearly problem trusting packets wire inappropriately believes machines network allow applications transmit arbitrary packets 
+unfortunately environments faulty assumptions 
+modern oses restrict ability send arbitrary packets processes root administrator privileges 
+known approaches providing level protection application level networking ni attached headers reverse packet filters 
+somewhat reduces flexibility ensures added headers correct may require network attach points agree new header format 
+involves checking appropriate header values packet sent ensuring headers changed requires blocking writes copying headers 
+system vendors indicated desire see protection place simply increase degree difficulty bad people 
+transmit queue fairness 
+oses xok current implementation enforces fairness respect transmit queue 
+guaranteed rate real time communication particular important consideration 
+fixing problem requires explicitly treating different applications distinct sources packets letting add transmit queue turn chosen policy 
+nemesis black net von eicken demonstrated type fairness accomplished allowing ni explicitly schedule packets separate application connection transmission queues 
+auxiliary information packets 
+xok believe value having additional values added received packets point copied packet rings 
+specific additions acm transactions computer systems vol 
+february 
+fast flexible application level networking value identification card received packet time reception 
+card identification valuable authenticating packet sources 
+packet reception time allow round trip time measurements obfuscated process scheduling delays 
+
+describes architecture implementation performance flexibility xok exos application level networking 
+system demonstrated network services tcp ip udp ip posix sockets arp dns tcpdump implemented independent application level libraries 
+addition enables applications safely employ specialized networking software achieve substantial performance semantic improvements 
+hope successes failures help design emerging standards architecture interfaces nic multiplexed network interfaces 
+poorly designed protection mechanisms safe applicationlevel networking complex slow impossible 
+designed protection mechanisms provide application level library writers flexibility functionality required safely providing core network services enjoying massive performance functionality advantages illustrated edwards thekkath von eicken possible application level networking 
+acknowledgments past members mit parallel distributed operating systems group helped develop ideas xok exos system described 
+special josh smith helping variety benchmark construction data collection tasks 
+paul barford providing copy surge 
+anderson 
+case application specific operating systems 
+third workshop workshop operating systems pages 
+apache software foundation 
+apache web server 
+www apache org 
+banga druschel mogul 
+better operating system features faster network servers 
+workshop internet server performance june 
+banga mogul 
+scalable kernel performance internet servers realistic loads 
+usenix technical conference june 
+barford crovella 
+generating representative web workloads network server performance evaluation 
+acm sigmetrics conference june 
+bershad savage sirer fiuczynski becker chambers eggers 
+extensibility safety performance spin operating system 
+th acm sosp dec 
+black barham donnelly 
+protocol implementation vertically structured operating system 
+ieee conference local computer networks 
+braden 
+tcp tcp extensions transactions functional specification 
+rfc information sciences institute 
+university southern california los angeles ca 
+chankhunthod danzig schwartz worrell 
+hierarchical internet object cache 
+usenix technical conference jan 
+acm transactions computer systems vol 
+february 
+ganger cheriton duda 
+caching model operating system kernel functionality 
+osdi nov 
+digital equipment 
+
+digital semiconductor pci fast ethernet lan controller hardware manual 
+digital equipment publication 
+ec qn ne te 
+druschel banga 
+lazy receiver processing lrp network subsystem architecture server systems 
+osdi oct 
+druschel peterson 
+fbufs high bandwidth cross domain transfer facility 
+th acm sosp dec 
+acm press new york ny 
+edwards watson banks dalton 
+user space protocols deliver high performance applications low cost gb lan 
+acm sigcomm sept 
+acm press new york ny 
+engler kaashoek 
+dpf fast flexible message demultiplexing dynamic code generation 
+acm sigcomm aug 
+acm press new york ny 
+engler kaashoek toole 
+exokernel operating system architecture application specific resource management 
+th acm sosp dec 
+acm press new york ny 
+faber touch yue 
+time wait state tcp effect busy servers 
+infocom 
+fielding gettys mogul frystyk berners lee 
+hypertext transfer protocol 
+proposed standard rfc working group ietf 
+fiuczynski bershad 
+extensible protocol architecture application specific networking 
+usenix technical conference jan 
+hartman mosberger malley peterson proebsting 
+scout communication oriented operating system 
+technical report tr university arizona tucson 
+heidemann 
+performance interactions tcp implementations 
+acm comput 
+commun 
+rev april 
+hitz 
+nfs file server appliance 
+technical report network sunnyvale ca 
+hutchinson peterson 
+kernel architecture implementing network protocols 
+ieee trans 
+softw 
+eng 
+jan 
+johnson kaashoek wallach 
+crl high performance software distributed shared memory 
+th acm sosp dec 
+acm press new york ny 
+kaashoek engler ganger brice hunt mazieres grimm jannotti mackenzie 
+application performance flexibility exokernel systems 
+th acm sosp oct 
+acm press new york ny 
+kaashoek engler wallach ganger 
+server operating systems 
+sigops european workshop sept 
+krieger stumm 
+alloc stream facility redesign applicationlevel stream ieee comput 
+march 
+lampson sproull 
+open operating system single user machine 
+th acm sosp dec 
+acm press new york ny 
+luotonen frystyk berners lee cern httpd 
+www org pub www daemon 
+maeda bershad 
+protocol service decomposition high performance networking 
+th acm sosp dec 
+acm press new york ny 
+major powell 
+overview operating system 
+winter usenix jan 
+maltz bhagwat 
+tcp splicing application layer proxy performance 
+technical report rc ibm yorktown heights ny 
+massalin pu 
+threads input output synthesis kernel 
+th acm sosp 
+acm press new york ny 
+mckusick bostic karels quarterman 
+design implementation bsd operating system 
+addison wesley reading ma 
+acm transactions computer systems vol 
+february 
+fast flexible application level networking mogul 
+case persistent connection 
+acm sigcomm aug 
+acm press new york ny 
+mogul rashid accetta 
+packet filter efficient mechanism userlevel network code 
+th acm sosp nov 
+acm press new york ny 
+ncsa 
+ncsa httpd 
+university illinois urbana champaign 
+ncsa uiuc 
+edu index html 
+malley peterson 
+dynamic network architecture 
+acm trans 
+comput 
+syst 
+may 
+pai druschel zwaenepoel 
+io lite unified buffering caching system 
+osdi feb 
+pasquale anderson muller 
+container shipping operating system support intensive applications 
+ieee comput 
+march 
+pike presotto thompson trickey winter bottom 
+plan bell labs 
+comput 
+syst 
+
+postel 
+transmission control protocol 
+rfc information sciences institute university southern california los angeles ca 
+pratt fraser 
+arsenic user accessible gigabit ethernet interface 
+infocom 
+pu black consel cowan inouye walpole zhang 
+optimistic incremental specialization streamlining commercial operating system 
+th acm sosp dec 
+jacobson mccanne 
+bsd packet filter new architecture user level packet capture 
+winter usenix jan 
+seltzer endo small smith 
+dealing disaster surviving misbehaved kernel extensions 
+osdi oct 
+standard microsystems 
+
+smc fast ethernet pci network card user guide 
+standard microsystems publication 
+standard microsystems 
+
+user guide smc 
+standard microsystems publication 
+spatscheck hansen hartman peterson 
+optimizing tcp forwarder performance 
+ieee acm trans 
+netw 
+april 
+analysis performance problems 
+sunsite unc edu release prob html 
+thekkath nguyen moy lazowska 
+implementing network protocols user level 
+acm sigcomm sept acm press new york ny 
+virtual interface vi architecture 
+
+www org 
+von eicken basu vogels 
+net user level network interface parallel distributed computing 
+th acm sosp 
+acm press new york ny 
+wallach engler kaashoek 
+application specific handlers high performance messaging 
+acm sigcomm aug 
+acm press new york ny 
+received march revised june january accepted january acm transactions computer systems vol 
+february 

@@ -1,0 +1,279 @@
+advanced computing systems association originally published proceedings freenix track usenix annual technical conference monterey california usa june trapeze ip tcp ip near gigabit speeds andrew jeff chase ken duke university 
+usenix association rights reserved rights individual papers remain author author employer 
+permission granted noncommercial reproduction educational research purposes 
+copyright notice included reproduced 
+usenix acknowledges trademarks 
+information usenix association phone fax email office usenix org www www usenix org trapeze ip tcp ip near gigabit speeds presents experiences high speed tcp ip networking gigabit second myrinet network myrinet messaging system called trapeze 
+explore effects common optimizations tcp ip protocol stack including zero copy sockets large packets scatter gather checksum offloading message pipelining interrupt suppression 
+experiments extended freebsd kernels range intel compaq alpha platforms 
+experiments give snapshot freebsd tcp ip implementation running bandwidths high mb report results gigabit ethernet products alteon networks yielded tcp bandwidth mb zero copy sockets mhz compaq alpha workstation 
+years new high speed network standards primarily gigabit ethernet consolidate order magnitude gain network performance achieved specialized cluster interconnects myrinet sci 
+technologies gain acceptance lans server farms place new performance pressure network software 
+latest desktop class computers capable outstanding performance little quantitative basis predict performance deliver standard tcp ip networking new generation networks quantify importance proposed optimizations frames zero copy buffering checksum offloading achieving potential hardware performance judge alternatives user level networking jus supported national science foundation ccr cda eia equipment intel 
+andrew jeff chase ken department computer science duke university chase cs duke edu 
+cases published performance results research prototypes previous generation technology 
+presents experiences high speed tcp ip networking gigabit second myrinet network 
+trapeze messaging system consists messaging library custom firmware myrinet 
+trapeze firmware myrinet delivers communication performance limit bus speeds platforms closely approaching full gigabit second wire speed powerful hosts 
+trapeze myrinet vehicle probing limits hardware networking software 
+experiments exercised trapeze myrinet network network device driver supporting standard kernel tcp ip protocol stack range dec alpha intel platforms 
+purpose provide quantitative snapshot current state art point point tcp ip communication short haul networks low error rates low latency second bandwidth 
+kernel experiments freebsd descendent berkeley bsd code base incorporates years worth tcp ip refinements 
+widely accepted current tcp implementations capable delivering high percentage available link speeds large transfers reflecting success earlier efforts 
+second networks performance best tcp ip implementations dependent key optimizations low overhead data movement protocol stack 
+goal provide quantitative data support insights effects importance optimizations current workstation pc technology 
+outlines key optimizations important obtaining hardware potential tcp ip implementation network interface network driver kernel socket code effect delivered tcp bandwidth udp latency cpu utilization sender receiver 
+tcp ip stack trapeze nic firmware network driver support payload reception interrupt suppression large frames mtus tcp checksum offloading adaptive message pipelining scheme balances low latency high bandwidth 
+protocol stack socket layer implemented new kernel support zero copy data movement tcp extension zero copy stream interface implemented john dyson 
+show effect factors tcp ip networking performance 
+report results similar features gigabit ethernet adapters switches alteon networks 
+trapeze myrinet zero copy sockets netperf attained peak point point bandwidth close link speed mb mhz alpha pc platform equipped prototype lanai adapters 
+speed bandwidth limited lanai cpu 
+newer controllers upgraded cpus promise higher bandwidths 
+fact measured bandwidth mb platform alteon network uses faster cpu adapters 
+previous point point record reported netperf org mb measured pair mainframe class smp servers interconnected 
+aware better result public record 
+organized follows 
+section gives overview trapeze network interface section outlines various optimizations low overhead tcp ip communication 
+section presents performance results 
+conclude section 
+tcp ip trapeze myrinet section presents background material important understanding performance results section 
+give overview trapeze messaging system focus features relevant tcp ip networking 
+outline optimizations tcp ip protocol stack reduce data movement overhead packet handling costs 
+trapeze overview trapeze messaging system consists components messaging library linked kernel user programs firmware program runs myrinet network interface card nic 
+trapeze firmware host interact exchanging commands data block memory nic addressable host physical address space programmed firmware defines interface host cpu network device interprets commands issued host controls movement data host network link 
+host accesses network macros procedures trapeze library defines lowest level api network communication myrinet 
+myrinet firmware customer loadable myrinet site trapeze 
+trapeze designed primarily support fast kernel messaging alongside conventional tcp ip networking 
+trapeze currently hosts kernel kernel rpc communications zero copy page migration traffic network memory network storage user level communications layer mpi distributed shared memory low overhead kernel logging profiling system tcp ip device drivers freebsd digital unix 
+drivers allow native tcp ip protocol stack trapeze network standard bsd network driver interface 
+depicts structure 
+trapeze messages short control messages maximum bytes optional attached payloads typically containing application data interpreted networking system file blocks virtual memory pages tcp segments 
+data structures nic memory include message rings sending receiving 
+message ring circular array byte control message buffers related state managed producer consumer queue shared host 
+perspective host cpu nic produces incoming messages receive ring consumes outgoing messages send ring 
+trapeze features useful high speed tcp ip networking separation header payload 
+trapeze control message payload sent single packet network control message payload handled separately firmware message system 
+particular payloads transferred aligned page frames host memory driver allocates virtual memory page pool 
+enables zero copy optimizations described section assuming driver able place tcp ip headers control message portion packet 
+large mtus scatter gather dma 
+myrinet fixed maximum packet size mtu maximum payload size trapeze network easily configurable 
+trapeze supports scatter gather dma payload buffers may span multiple noncontiguous page frames 
+scatter gather allows pci bus trapeze firmware trapeze mcp code data user space user applications socket layer user data pages host tcp ip stack kernel trapeze network driver system page frame pool nic raw trapeze message layer send ring receive ring trapeze endpoint kernel tcp ip networking 
+run tcp mtus kb larger yielding low packet overheads networking code 
+adaptive message pipelining 
+trapeze firmware pipelines dma transfers bus network link minimize large packet latency 
+pipelining scheme adaptively reverts larger dma transfers bandwidth constrained scenarios 
+technique enables trapeze combine low large packet latencies high bandwidth load 
+item missing list interrupt suppression 
+handling incoming messages interrupt driven trapeze kernel incoming messages routed destination kernel module tcp ip network driver common interrupt handler trapeze message library 
+interrupt handling imposes packet cost significant smaller mtus 
+high speed network interfaces reduce interrupt overhead amortizing interrupts multiple packets periods high bandwidth demand 
+example alteon gigabit ethernet nic includes support adaptive interrupt suppression selectively delaying packet receive interrupts packets pending delivery 
+trapeze implements interrupt suppression lightweight rpc protocol receive side interrupt suppression tcp ip yields little benefit mtus larger kb current link speeds 
+low overhead data movement section describes optimizations tcp ip protocol stack reduce data movement overhead copying checksumming data 
+overheads increase volume data moved unit time gigabit second bandwidths data movement overhead consume large share cpu cycles 
+unfortunately faster cpus help appreciably copying memory intensive 
+describe data movement optimizations extensions conventional freebsd send receive path variable sized kernel network buffers called mbufs 
+standard mbufs contain buffer space external mbufs hold pointers kernel buffers file buffers virtual memory page frames trapeze payload buffers 
+packet data stored linked chains mbufs passed levels system tcp ip protocol stack adds removes headers checksums manipulating mbufs chain 
+normal transmission socket layer copies ip message user memory buffer chain passed tcp ip stack network driver 
+receiving side driver constructs chain containing incoming packet header payload passes chain tcp ip stack socket layer 
+receiving process accepts data read system call routine copies payload user memory frees kernel mbuf chain 
+zero copy sockets conventional tcp ip communication incurs high cost copy data kernel buffers user process virtual memory socket layer 
+situation motivated development techniques reduce eliminate data copying page remapping user process kernel size alignment properties allow 
+page remapping scheme preserve copy semantics existing socket interface 
+general zero copy optimizations assume mtus matched page size hardware operating system 
+ideally packet payload multiple page size stored buffers naturally align page boundaries 
+receive side nic separate headers payload separate buffers leaving payload page aligned 
+done special support recognize tcp ip packets nic constructing receive mbuf chains optimistically assume received packets tcp packets 
+trapeze sending host explicitly separates header payload portions packet trapeze driver optimistically assumes data mbuf outgoing chain header data places data control message 
+link layer preserves separation receiving side 
+implemented zero copy tcp ip extensions socket layer freebsd kernel code developed john dyson zero copy read write system call interface 
+zero copy extensions require buffering support network driver independent underlying network assuming supports sufficiently large mtus page aligned sends receives 
+section reports results zero copy tcp experiments trapeze myrinet alteon gigabit ethernet hardware 
+page remapping occurs variant kernel routine directs movement data process virtual memory variants read write system calls 
+socket code implemented new case alongside dyson code invoked socket layer process requests kernel transfer page data page aligned user buffer 
+zero copy read maps kernel buffer pages directly process address space 
+read file creates copy write mapping page freebsd unified buffer cache write preserves file data case user process stores remapped page 
+case receiver read socket copy write unnecessary need retain kernel buffer read ordinarily simply frees kernel buffers data delivered user process 
+remapping case frees just mbuf headers physical page frames previously backed remapped virtual pages user buffer 
+receive side page trade page frames process kernel buffer pool preserving equilibrium 
+send side copy write sending process may overwrite send buffer send complete 
+send side code maps page user buffer kernel address space external mbuf marks page copy write 
+mbuf chains pages passed tcp ip stack network driver attaches outgoing messages payloads 
+mbuf freed transmit complete external free routine releases page write mapping 
+new socket layer code handles anonymous virtual memory pages support zero copy transmission memory backed mapped files duplicate functionality routine implemented david 
+checksum offloading checksum offloading eliminates host side checksumming overheads performing checksum computation hardware assist nic 
+tcp ip checksum offloading supported released lanai adapter high speed network interfaces including alteon gigabit ethernet nics ii chipset 
+nic host side driver act concert implement checksum offloading 
+lanai alteon nics support checksum offloading host pci dma engine computes raw bit ones complement checksum dma transfer moves data host memory 
+checksum need demand significant change ip stack simply setting flag header mbuf chain bypasses software checksum computation 
+hardware checksumming ip protocol family complicated factors movement packet may occur multiple dma transfers distinct host memory buffers 
+hardware partial checksum available nic firmware separately lanai nic firmware host software combine partial checksums complement addition obtain complete checksum 
+tcp udp checksumming involves checksums ip header including fields overlapping tcp udp header second checksum covering tcp udp header packet data 
+conventional system tcp udp computes checksum ip fills overlapping ip header fields options sender ip layer restores fields receiver 
+checksum offloading involves computing checksums ip stack driver nic firmware partially ip header order compute correct checksum 
+checksums stored headers front ip packet sender complete checksum transmit packet headers link 
+checksums computed host nic dma engine byte packet arrive nic firmware determine complete checksum 
+trapeze currently supports tcp checksum offloading lanai receivers 
+checksum offloading supported sending side part trapeze uses message pipelining minimize latency large packets 
+message pipelining front packet may transmitted link tail packet arrives nic checksum determined 
+solution append checksum tail outgoing packet depart standard ip packet format transparent hosts trapeze firmware driver reconstruct packet receiving side 
+course approach compromise interoperability standards network containing support checksum offloading 
+alternative apparently implemented alteon nics store forward packet transmission sender increases latencies see section 
+trapeze uses nic dma engines checksum packet data header checksums computed special case code tcp ip trapeze network driver 
+trapeze firmware combines partial checksums dma operations payload portion message passes partial checksum host side driver logical control register 
+driver computes ip header checksum computes layer header checksum scratch copy ip header combines layer header checksum payload checksum determine complete endto checksum compares computed checksums transmitted packet 
+philosophy instructions manipulate ip header executed fast host cpu nic 
+contrast alteon nics perform header data checksums nic firmware 
+experimental results ran experiments intel alpha hardware configurations pentium ii lx 
+dell dimension xps workstations containing mhz intel pentium ii processor intel lx chipset 
+machine mb ram lanai san adapter pci connected bit mhz pci slot 
+pentium ii bx 
+machines pentium ii processor clocked mhz motherboard intel bx chipset 
+machine mb ram lanai lan adapter pci connected bit mhz pci slot 
+dec 
+digital personal workstation au platforms mhz alpha cpu kb cache mb cache digital chipset 
+machines configured mb ram lanai san adapter connected bit mhz pci slot 
+limits bandwidth approximately mb sending side 
+dec monet 
+compaq xp professional workstations mhz alpha cpu mb cache digital chipset 
+machines configured mb ram lanai san adapter connected bit mhz pci slot 
+lanai described www com scs pci pci html 
+report gigabit ethernet measurements platform alteon adapters ii chipset firmware revision interconnected firmware revision 
+systems run kernels built freebsd source pool current 
+hosts interconnected diverse myrinet switch models measurable effects results 
+take timings netperf version pl built freebsd ports collection 
+modified netperf collect cpu utilization reading system timers directly kernel memory order correctly charge interrupt overhead netperf process 
+bandwidth mb bandwidth mb mtu bytes pentium ii mhz lx mtu bytes tests run isolated machines vast majority interrupts serviced came gigabit nic 
+tcp bandwidth measured unidirectional point point tcp bandwidth netperf sends data seconds computes average bandwidth interval 
+socket buffers set kb tests mtu kb greater 
+tests smaller mtus kb socket buffers 
+note netperf sender receiver access data tests 
+shows average trapeze tcp bandwidth platforms function mtu 
+show effects copying checksumming tested zero copy optimizations enabled disabled checksumming enabled disabled 
+checksumming done software bandwidth mb bus zero copy checksum zero copy checksum copy checksum copy checksum bandwidth mb tcp bandwidth monet bus bandwidth peaks mb mtu bytes pentium ii mhz bx mtu bytes ing side monet configuration uses checksum offloading lanai adapter described section 
+graphs show bandwidth costs copying checksumming primarily older platforms memory system bandwidth 
+effect apparent ii lx capable peak bandwidths mb forced copy data peak bandwidth doubles mb zero copy optimizations enabled 
+cost checksumming pronounced zero copy enabled checksum code bring data cpu cache 
+ii bx superior memory system bandwidth allows system achieve close peak bandwidth copying checksumming large mtus cpu busy packet handling overheads 
+visible comparable memory system bandwidth effect pronounced bus limits achievable bandwidth 
+monet adequate memory system bandwidth deliver peak bandwidth mb sufficiently large mtus copying checksumming 
+copying checksumming significant effect available cpu cycles remaining process data speeds section shows 
+shows difficulty achieving high bandwidth small byte mtus gigabit ethernet standard 
+addition increasing packet handling overheads small mtus defeat zero copy optimizations 
+combined effect causes host cpu saturate bandwidths low mb platforms capable half available link speed 
+section examines overheads detail 
+platforms capable achieving peak bandwidth mtus large contain tcp ip header page data intel platform bandwidths rise faster zero copy kicks kb page size alpha platforms kb page size 
+pleased trapeze bandwidth results monet believed opensource record measured higher bandwidths alteon new gigabit ethernet products 
+monet delivers point point tcp bandwidth mb zero copy sockets alteon 
+higher bandwidth apparently due lower overheads alteon controller sports dual mhz mips processors delivering times processing capacity lanai cpu 
+await lanai 
+cpu utilization potential high bandwidth little value practice communication overheads leave cpu power process data 
+cpu utilization just important bandwidth bandwidths drop application processing saturates cpu 
+optimizations explore fundamentally directed reducing overhead increase delivered bandwidth indirectly delaying saturation host cpus 
+overheads reduced reducing packet handling costs larger mtus reducing interrupt costs larger mtus interrupt suppression reducing data touching costs zero copy page remapping checksum offloading 
+figures show average cpu utilizations sender receiver respectively bandwidth tests reported section 
+results vary noticeably due factors 
+receiver may affected incomplete support page coloring alpha freebsd port runs show bimodal distribution alpha receiver configurations copying 
+zero copy sender results irregularities result netperf reuses send buffer page driver determines previous transmit buffer complete 
+trapeze driver detects case conservatively copies page netperf store buffer experiment process store page write result 
+sender side zero copy optimizations trigger varying probabilities different configurations affected cpu speed process send buffer size trapeze ring size trapeze suppresses transmit complete notices send ring entry reused 
+step behavior results tcp implementation selecting packet sizes integral multiples page size odd mtus effects pronounced intel platforms kb kb pages 
+numbers averages runs 
+receiving side graphs show trend declining cpu utilization large mtus lower cpu utilizations data movement costs copying checksumming eliminated 
+downward trend larger mtus pronounced faster platforms bandwidth older platforms lx initially limited cpu reduced overheads result higher bandwidth lower cpu utilization 
+similarly cpu utilizations initially increase larger mtus sending side 
+larger mtus allow higher bandwidth receiver driving sender transmit faster 
+peak bandwidth attained cpu utilizations drop increasing mtu 
+graphs reflect higher cpu costs receiving side primarily due lower interrupt overheads sender 
+graphs show copying checksumming optimizations extremely important platforms capable achieving peak bandwidth 
+reduction overhead translates directly lower cpu utilization leaving cycles available application processing bandwidth 
+note disabling checksumming yields little benefit monet receiver checksum offloading small incremental cpu cost due checksumming headers driver 
+receiver utilizations reinforce importance frames standard alteon microsoft increase gigabit ethernet mtu bytes 
+intel receiver cpus saturated byte mtus showing bandwidth limitation near mb standard ethernet mtus due receiver cpu saturation caused overhead handling larger number packets 
+slightly higher byte bandwidths achieved alphas due faster host cpus receiver cpu receiver cpu mtu bytes pentium ii mhz bx mtu bytes byte bandwidth limited mb saturation cpu lanai nic faster lanai nic delivers bandwidths closer mb saturating 
+speed packet handling overheads push monet alpha host cpu utilization driving half link speed 
+monet receiver utilization drops kb packet sizes zero copy checksum offloading enabled delivered bandwidth doubles mb looking results show byte mtu frames standard sufficient achieve near peak bandwidth platforms 
+shows host overheads packet overheads constrain peak bandwidth frames 
+bx platform attain peak bandwidth kb mtus achieve minimal cpu utilization mtus reach kb 
+receiver cpu utilization platform drops mtu grows kb receiver cpu zero copy checksum zero copy checksum copy checksum copy checksum receiver cpu receiver cpu utilization kb 
+monet mtu bytes pentium ii mhz lx tcp overhead mtu bytes better understand costs responsible cpu utilizations figures derive breakdown receiver overheads selected mtu sizes bandwidth levels held mb range slow sender 
+instruction probe line profiling tool developed performance group high performance servers benchmark performance engineering digital compaq 
+uses digital alpha chip performance counters report detailed execution breakdowns low overhead techniques similar reported 
+gathered data local port suite freebsd 
+port integrated release 
+shows breakdown receiver overhead categories data movement overheads copy sender cpu sender cpu mtu bytes pentium ii mhz lx mtu bytes ing checksumming interrupt handling virtual memory costs buffer page allocation page remapping trapeze driver overheads tcp ip protocol stack overheads 
+byte mtu near saturation bandwidth mb overhead reduced somewhat checksum offloading interrupt suppression cpu time spent unavoidable packet handling overheads driver tcp ip stack data movement costs socket layer 
+kb payload bandwidth level increased mb cpu time spent packet handling dropped 
+data movement overheads grow slightly due higher bandwidth larger mtu introduces opportunity fully eliminate overheads enabling zero copy optimizations 
+zero copy optimization cost vm page remapping reduced memory system contention causes overheads drop slightly leaving utilizations range checksums disabled checksum offloading sender cpu zero copy checksum zero copy checksum copy checksum copy checksum sender cpu sender cpu utilization monet mtu bytes pentium ii mhz bx mtu bytes supported lanai nics experiment 
+measurements reinforce inadequacy byte standard ethernet high speed networking importance frames standard 
+rightmost set bars shows overhead breakdown mtus bandwidth mb data movement overheads increase slightly due higher bandwidth costs eliminated page remapping increases vm overheads causes non vm overheads drop slightly due reduced memory system contention 
+zero copy experiment larger mtu affect vm page relative kb mtu costs proportional number pages data transferred 
+packet tcp ip driver overheads drop just cpu bandwidth increases 
+handle mb bandwidth comfortable cpu utilization 
+percent cpu utilization copy checksum copy checksum mtu bytes mtu kb mtu kb mb copy checksum interrupt vm tcp ip mb copy checksum copy checksum zero copy checksum zero copy checksum mb copy checksum copy checksum zero copy checksum zero copy checksum tcp receiver cpu utilization breakdown udp latency shows way udp latency various packet sizes trapeze alteon gigabit ethernet monet 
+results obtained netperf rr ping packet requested size minute 
+plotted points half average round trip latency byte packets packet sizes kb kb kb increments 
+experiments disabled checksum offloading alteon observing unexpectedly high latencies checksum offloading enabled 
+comparison fair trapeze support checksum offloading platform 
+sets lines configuration show latency software checksums checksums disabled 
+sockets responsible lower latency configurations kb page size reached 
+latency microseconds gigabit ethernet gigabit ethernet checksum trapeze ip trapeze ip checksum message size bytes udp way message latency trapeze runs slope change kb results payload buffer 
+byte trapeze packets sent control message payload buffer resulting lower latency 
+kb kb sizes data copied payload buffer sent trapeze payload 
+latency results show benefits message pipelining trapeze overlaps transfers link transfers sender receiver bus 
+overlap causes packet latencies grow slower rate packet size increases 
+fact experiment benefits message pipelining supported receiver lanai nic configuration due change meaning certain control registers lanai 
+experiments reported give quantitative snapshot state art tcp ip networking performance current generation pcs workstations gigabit second networks 
+measurements taken standard highquality tcp ip implementation freebsd kernel supplemented support range techniques reduce communication overheads 
+include zero copy sockets features implemented trapeze firmware myrinet including large mtus scatter gather page aligned payload buffers adaptive message pipelining interrupt suppression checksum offloading 
+features measured tcp ip bandwidths mb trapeze myrinet mb alteon gigabit ethernet network 
+highest tcp band widths public record 
+mhz alpha platform capable handling bandwidths cpu overheads low 
+acknowledgments equipment provided national science foundation intel bob frequent technical assistance making lanai prototypes available 
+ted schroeder alteon networks support releasing ii documentation firmware research groups 
+freebsd port alpha platforms due doug 
+don rice compaq workstation engineering invaluable assistance freebsd alpha monet platform support 
+bill paul wrote freebsd driver ii gigabit ethernet cards 
+phillip digital compaq high performance servers benchmark performance engineering group making available open source 
+swall introduced plus provided needed assistance coercing tool produce graphs 
+availability trapeze available source form copyright www cs duke edu ari trapeze 
+port freebsd alpha available www cs duke edu ari html 
+freebsd extensions including monet platform support alteon driver extensions zero copy sockets incorporated freebsd code base available trapeze web site 
+darrell anderson jeffrey chase gadde andrew kenneth michael feeley 
+cheating bottleneck network storage trapeze myrinet 
+proceedings usenix technical conference june 
+duke university cs technical report cs 
+jennifer anderson lance jeff dean sanjay ghemawat monika henzinger shun tak leung mark vandevoorde carl waldspurger bill weihl 
+continuous profiling cycles gone 
+proceedings sixteenth acm symposium operating system principles sosp october 
+boden cohen seitz su 
+myrinet gigabit second local area network 
+ieee micro february 
+jos carlos peter steenkiste 
+effects buffering semantics performance 
+proc 
+second symposium operating systems design implementation pages seattle wa october 
+usenix assoc 
+jeffrey chase andrew alvin lebeck kenneth 
+trapeze messaging api 
+technical report cs duke university department computer science november 
+guru jerome cox 
+apic approach high performance network interface design protected dma techniques 
+proceedings ieee infocom 
+wucs technical report 
+hsiao keng jerry chu 
+zero copy tcp solaris 
+proceedings usenix annual technical conference january 
+marshall kirk mckusick keith bostic michael karels john quarterman 
+design implementation bsd unix operating system 
+addison wesley reading ma 
+kenneth darrell anderson jeffrey chase gadde andrew alvin lebeck 
+adaptive message pipelining network memory network storage 
+technical report cs duke university department computer science april 
+kenneth jeffrey chase andrew alvin lebeck 
+cut delivery trapeze exercise low latency messaging 
+proceedings sixth ieee international symposium high performance distributed computing hpdc pages august 

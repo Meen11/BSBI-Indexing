@@ -1,0 +1,500 @@
+hipe erlang compiler system description performance evaluation mikael pettersson sagonas erik johansson computing science department uppsala university sweden 
+erlang concurrent functional language tailored large scale distributed fault tolerant control software 
+primary implementation ericsson erlang otp system virtual machine interpreter 
+hipe high performance erlang adds native code execution mode erlang otp system 
+describes version hipe including detailed account decisions principles guide design compiler runtime system 
+brief performance evaluation indicates hipe delivers performance improvements par mature hipe sparc system 
+erlang functional programming language supports concurrency communication distribution fault tolerance automatic memory management line code updates 
+designed soft real time control systems commonly developed telecommunications industry 
+judging commercial applications written erlang language quite successful domain 
+widely implementation erlang ericsson erlang otp system exclusively beam virtual machine interpreter 
+fact erlang dynamically typed language requiring runtime type tests erlang otp quite slow compared implementations functional languages 
+hipe system developed aim significantly reducing performance gap 
+hipe achieves allowing flexible user controlled just time compilation erlang functions modules native machine code 
+reported hipe currently fastest erlang implementation offers performance competitive implementations strict functional languages scheme sml nj 
+drawback hipe supported sparc machines 
+enable widespread hipe developed version system 
+result hipe 
+october hipe included open source release erlang otp 
+detailed account architecture hipe compiler runtime system design decisions associated tradeoffs 
+purpose doing fold document implementation form potentially easy implementors follow hipe source available 
+see 
+code 
+second believe information applicable garbage collected tail recursive high level languages hope experience prove useful gets involved similar project 
+begins brief overview erlang characteristics sect 
+
+presenting architecture hipe sect 
+sections describe hipe system detail 
+planned improvements discussed sect 
+
+section contains brief performance evaluation section contrasts design decisions related systems section ends concluding remarks 
+erlang language erlang otp erlang dynamically typed strict concurrent functional language 
+basic data types atoms numbers floats arbitrary precision integers process identifiers compound data types lists tuples 
+destructive assignments occurrence variable binding instance 
+functions defined sets guarded clauses clause selection done pattern matching 
+erlang processes light weight applications tend 
+concurrency primitives send allow process spawn new processes communicate processes asynchronous message passing 
+data value sent message processes may located machine distribution invisible 
+process mailbox queue messages sent process arrive 
+messages selected mailbox pattern matching 
+support robust systems process register receive message terminates 
+erlang mechanisms allowing process timeout waiting messages catch throw style exception mechanism error handling 
+erlang simple module system module defines number functions explicitly exported functions may called modules 
+calling function module done qualifying function name module 
+functional languages erlang implementations provide tail call optimisation automatic memory management 
+real time concerns language call bounded time garbage collection techniques 
+erlang nines high availability time available systems downtime required minutes year 
+cater requirements erlang mechanisms changing module code system continues run called hot code loading 
+processes continue execute old code expected eventually switch new code issuing call invoke version module 
+unused code old module unloaded 
+erlang language small comes libraries containing large set built functions various tasks 
+open telecom platform otp middleware erlang extended library standard components telecommunication applications real time databases servers state machines process monitors load balancing standard interfaces corba standard communication protocols ftp 
+erlang otp currently ericsson telecom software telecommunications companies world development servers networking equipment 
+products built erlang otp include scalable atm switching systems adsl delivery systems switching hardware control systems generation call centres suite scalable internet servers 
+additional information erlang applications obtained 
+hipe brief system overview hipe included optional extension open source erlang otp system 
+consists compiler beam virtual machine bytecode native machine code ultrasparc extensions runtime system support mixing interpreted native code execution granularity individual functions 
+structure hipe system shown fig 
+
+section briefly describes generic parts compiler runtime system 
+specifics hipe described sect 
+
+detailed system description 
+beam emulator memory beam bytecode data native code erlang run time system beam disassembler hipe loader sparc symbolic beam icode rtl hipe compiler fig 
+
+structure hipe enabled erlang otp system 
+beam 
+beam intermediate representation symbolic version beam virtual machine bytecode produced disassembling functions module compiled 
+beam operates largely implicit heap call stack set global registers set slots current stack frame 
+beam semi functional composite values immutable registers stack slots assigned freely 
+beam icode 
+icode idealised erlang assembly language 
+stack implicit number temporaries may temporaries survive function calls 
+computations expressed function calls 
+bookkeeping operations including memory management process scheduling implicit 
+beam translated icode instruction time 
+function calls creation tuples sequences instructions beam single instructions icode requiring translator recognise sequences 
+icode form improved application constant propagation constant folding dead code elimination 
+temporaries renamed avoid false dependencies different live ranges 
+icode helps insulate hipe compiler changes front 
+example older version erlang otp completely different virtual machine intend compile directly erlang icode 
+icode rtl 
+rtl generic address register transfer language 
+rtl target independent code target specific due target specific registers primitive procedures 
+rtl tagged registers proper erlang values untagged registers arbitrary machine values 
+simplify garbage collector interface function calls preserve live tagged registers 
+translation icode rtl operations arithmetic data construction tests inlined 
+data tagging operations explicit data accesses turned loads stores icode level instructions switching basic values translated code implements switches 
+atoms problematic runtime values differ invocations runtime system switches atoms translated semi symbolic code object code loader 
+optimisations applied rtl include common subexpression elimination constant propagation folding merging heap overflow tests 
+runtime system 
+hipe extends standard erlang otp runtime system permit erlang processes execute interpreted code native machine code 
+process stacks interpreted code native code 
+simplifies garbage collection exception handling stack contains frames single type 
+control flow interpreted native code function calls returns handled mode switch interface 
+implementation uses linker generated proxy code stubs software trap return addresses trigger appropriate mode switches invoked 
+important properties mode switch interface preserves tail recursion sequence consecutive mode switching grows stack constant imposes runtime overhead calls returns native native beam beam 
+runtime system handle derived pointers untagged values point erlang terms 
+garbage collector relocates erlang term locate update derived pointers 
+fp language implementations provide support mixing interpreted native code 
+hipe runtime architecture section describe fundamental aspects hipe runtime architecture 
+prerequisite compiler code generator described sect 
+
+family cisc style bit processors 
+compiler writer relevant properties arithmetic instructions address form general purpose registers 
+memory operands permitted arithmetic instructions instructions register operands faster decode execute shorter latencies 
+high performance implementations pipelining order speculative execution 
+branch prediction misses expensive 
+built support call stack pointed general purpose register instructions 
+branch prediction hardware includes circular return stack buffer 
+instruction pushes return address buffer predicted target instruction popped buffer 
+branch instructions history recorded branch prediction table static predictor predicts forwards conditional branches non taken backwards conditional branches taken 
+intel particular considers branch prediction important factors achieving high performance 
+register usage hipe uses current erlang process stack pointer current erlang process heap pointer pointer process control block pcb containing current process global state 
+remaining registers function parameters return values local caller save temporaries 
+erlang stack pointer beneficial avoid wasting register simulating stack 
+allows processor native support function calls mixed blessing see sect 
+sect 
+
+global state variables associated erlang process heap stack pointers accessed memory operands indirectly 
+state variables frequently accessed way include heap stack limits time slice counter 
+ideal processors handle fairly 
+mmx multimedia extension registers restricted useful hipe 
+moving data mmx registers slower accessing stack slots register spill locations 
+callee save registers complicate garbage collected implementations see sec 
+
+calling convention hipe calling convention designed meet main goals enabling optimisation required erlang avoiding branch prediction misses returns 
+meet goal processor instructions reserve register stack pointer 
+optimisation implemented having caller overwrite incoming parameter area stack new parameters callee deallocate remaining portion stack frame invoke callee instruction 
+function returns responsible removing parameters stack uses instruction pops return address adds jumps return address 
+parameter passing straightforward parameters remaining ones pushed stack left right order 
+function puts return value register 
+frame push args call frame arguments ret addr frame frame arguments frame arguments shuffle drop frame drop frame stack ret addr jmp ret addr ret frame frame fig 
+
+recursive calls 
+frame illustrating calls 
+illustrate recursive calls implemented hipe assume recursively calls returns 
+shows stack layout changes process 
+state shows stack calls 
+evaluates parameters pushes stack executes instruction pushes return address jumps leading state 
+allocates frame dashed portion evaluates parameters shuffles stack overwrite argument area possibly parts frame new parameters leading state 
+completes dropping frame jumping leading state 
+state stack exactly called directly 
+eventually drops frame executes instruction 
+see section 
+pops return address stacked parameters returns leading state 
+register parameters omitted description 
+illustrates callee deallocate stacked parameters 
+presence caller know function returns know parameters currently stack 
+caller deallocate stacked parameters returning function knows parameters takes 
+point opposite calling convention normally unix 
+disadvantage calling convention stack shuffle step consider return address stacked parameter moved different stack slot caller callee different numbers stacked parameters 
+passing parameters registers reduces number calls stacked parameters alleviating problem 
+versus branch prediction 
+calling convention meets goals enabling optimisation processor return stack branch predictor downside having copy return address stack slot 
+alternative calling convention return address code label parameters pushed callee 
+return callee deallocates frame stacked parameters single stack pointer performs simple return address register performs indirect 
+advantage calling convention compiler copy return address slot just stacked parameters 
+return stack branch predictor effective causing returns mispredicted higher rate 
+experiment modified hipe assembler replace instructions equivalent sequences 
+performance benchmark suite dropped function call intensive programs losing 
+utilise change improve stack shuffle code illustrate significance return stack branch predictor 
+push order 
+simplify calling interpreted mode closures native code parameters pushed left right 
+call closure closure passed parameter convention interpreted native code interpreted mode closure native code address points native code stub procedure 
+parameters pushed left right stub find closure parameter just stack pointer single stub handle calls beam mode closures regardless parameters take 
+hipe passes parameters registers stubs handles cases closure ends register parameter fourth handles cases closure pushed stack 
+language implementations see sect 
+
+stack frames stack descriptors function stack frame composed parts fixed size part top registers spilled temporaries variable size part bottom pushing outgoing parameters recursive calls 
+entry function checks stack space available largest possible frame calling runtime system primitive case 
+allocates fixed size part subtracting size 
+return function deallocates frame adding frame size executing instruction turn empties variable sized part caller frame 
+main benefit fixed size frames low maintenance cost 
+hand may contain dead stack slots increase sizes complicate garbage collection exception handling 
+hipe uses stack descriptors known stack maps support exception handling precise garbage collection 
+call site compiler constructs stack descriptor describing call site runtime system call site return address lookup key caller frame size excluding call site actual parameters caller arity caller local exception handler live slots caller frame data enables runtime system inspect stack frames traverse call stacks 
+stack descriptor represented word header containing return address hash link frame size arity followed live stack slots 
+exception handler described single bit header set handler address stored word immediately header 
+memory overhead stack descriptors currently code size 
+stack descriptors additional code generated remove dead stack slots 
+techniques compacting stack descriptor tables 
+tend increase stack descriptor lookup costs costs measurable performance impact system 
+garbage collection generational stack scanning hipe uses safe points garbage collection strategy compiler emits code check heap overflow call collector case 
+normal recursive calls associated stack descriptors 
+garbage collector uses stack descriptors traverse call stack identify slots containing live erlang values 
+repeated stack scanning cause high runtime overheads deeply recursive programs hipe implements generational stack scanning 
+pointers stack maintained gray limit black limit 
+black limit indicates far stack scanned minor collection corresponds boundary new old generation data 
+gray limit separates frames touched previous collection untouched frames corresponds boundary young data data new generation aging buffer 
+minor collection data aging buffer promoted old generation gray limit black limit gray limit reset bottom stack 
+maintain gray limit mark frame points involves saving return address process control block replacing address runtime system primitive 
+code returns frame runtime primitive moves mark number frames currently returns original return address 
+mark updated exception thrown past 
+implementation differs frame marked gray 
+garbage collection check gray limit passed black limit update black limit case 
+keep overheads low common cases avoid placing mark small stacks currently stacks bytes large 
+generational stack scanning mainly benefits deeply recursive programs 
+benchmark programs ran times faster generational stack scanning ran times faster 
+exception handling exception thrown runtime system primitive called find invoke handler entered protected block 
+done stack descriptors unwind stack frame local handler 
+stack pointer reset bottom frame handler invoked 
+unix interface issues calls erlang 
+described previously erlang process stack runtime system written starts resumes erlang process executing native code performs stack switch 
+ignoring caching effects stack switch light weight requiring instructions save pcb load new value 
+erlang system comes large set built functions implemented guarantee current erlang process stack room executing function 
+call bif stack switch back standard stack actual parameters copied corresponding function called copy compensates differences parameter passing conventions 
+call stacks switched return 
+unix signal handling 
+unix signal handler typically invoked asynchronously current stack 
+problematic hipe erlang process stack 
+stacks initially small grown response explicit actual state change protocol slightly involved due erlang otp garbage collector 
+tuning parameters mentioned frames bytes derived results extensive benchmarking 
+stack overflow checks emitted compiler 
+execution signal handler easily cause stack overflow memory corruption 
+avoid redirect signal handlers unix process alternate signal stack 
+unfortunately redirection optional requested handler registered 
+full control entire system hipe executes erlang otp runtime system linked foreign code libraries enforce overriding standard procedures versions 
+highly system dependent hipe currently supports linux libraries solaris 
+user space threads implementations sized stacks write protected guard pages 
+fine systems supporting heavy weight threads unix address space erlang system expected support thousands light weight threads solution option 
+signals masked running native code 
+increase context switching costs increase latency detecting asynchronous events completion optimisations implemented beam interpreter floating point exceptions catching performing dynamic tests impossible hipe 
+hipe code generator backend intermediate representation intermediate representation simple assembly language 
+differs rtl major ways arithmetic operations address form destination operand source operand 
+memory operands described simple addressing modes base register plus offset permitted operand positions 
+facilitate conversion control flow graph cfg form control flow instructions multiple possible successors conditional jump instruction represented pseudo form successors listed explicitly implicit final assembly phase 
+translation rtl mainly concerned converting address instructions address instructions converting recursive calls push actual parameters 
+conversion address address form uses rules minimise number new temporaries moves commutes integer commute explicit memory operands introduced cases 
+rtl level load instruction memory operand source rtl stores handled analogously 
+global variables located pcb referenced pseudo registers rtl level include stack limit heap limit time slice counter 
+pseudo registers turned offset memory operands 
+register allocation register allocation applied try map temporaries actual registers 
+spilled temporaries remain unallocated mapped stack slots subsequent frame management pass 
+default register allocator linear scan low compile time costs suitable jit compilation higher optimisation levels iterated register coalescing allocator 
+register allocation temporary semantically equivalent register operand may temporary 
+register allocation unallocated temporary implicit memory operand architecture places restrictions memory operands 
+example binary operations arithmetic moves source destination may memory operand 
+pass run register allocation ensure conditions met 
+frame management stack frames introduced code register allocation set spilled temporaries known 
+frame management pass performs tasks register assignment map applied temporaries rewritten temporaries physical registers 
+map built maps spilled temporary stacked parameter stack slot 
+mapping offset relative virtual frame pointer having initial value stack pointer entry function 
+frame size maximal stack usage calls computed code added function prologue check stack overflow set stack frame 
+instructions processed recording current stack depth offset virtual frame pointer spilled temporaries rewritten memory operands offsets 
+stack descriptor created call site describing stack slots live results liveness analysis call context local exception handler 
+code generated copy actual parameters initial portion stack frame 
+actuals located destination area pushed stack rewritten memory operands new locations 
+actuals moved destination area 
+return address treated parameter 
+code parts compiler code represented control flow graph form 
+assembly cfg linearised ordering basic blocks redirecting jump instructions accordingly 
+important linearisation takes account likelihood conditional jump taken static branch prediction algorithm current processors forward conditional taken backward conditional taken 
+done performance suffer due mispredicted branches 
+hipe compiler annotates conditional jumps taken taken probabilities 
+usually accurate conditionals type safety checks stack heap overflow checks inserted compiler 
+second cfg module careful represent conditional jumps 
+third linearisation attempts order blocks path 
+net effect functions path straight sequence instructions forward conditional jumps blocks implementing special cases non arithmetic calling garbage collector heap overflow 
+assembling code assembler converts final symbolic code machine code loaded runtime system saved object file 
+main complication branch instructions short long forms short forms preferable performance reasons applicable 
+reason assembly divided passes preliminary un optimised assembly rewriting branches short form possible final generation machine code 
+planned improvements compilers hipe improved 
+briefly describe changes potential improvements planned near 
+register usage 
+hipe currently passes parameters registers improve performance limitations calls non reserved registers live range splitting performed 
+real leaf functions function conditional calls runtime primitives handle stack overflow time slice parameter registers spilled immediately entry function 
+rectify problem planning perform live range splitting temporaries live function calls similar 
+frame management pass needs scratch registers performing final translation 
+parameter registers registers non reserved runtime architecture 
+avoid wasting registers frame management pass reimplemented parallel moves expanded register allocation 
+linear scan register allocator needs scratch registers known fixed avoid 
+plan segment register general purpose register point current process pcb 
+increase number non reserved registers 
+operating system support code working linux solaris known windows 
+hipe reserves register current process heap pointer 
+contributing factor choice number rtl level code transformations assume single valid heap pointer register 
+changing get put model heap pointer ordinary temporary able register parameter passing 
+leaf functions 
+compiled function currently checks stack overflow called 
+changing compiler guarantee larger minimum number words available stack call able eliminate stack overflow check leaf functions 
+hipe sparc includes feature 
+spill slot coalescing 
+stack frame module maps spilled temporary stack slot 
+temporaries spilled advantageous coalesce spill slots possible 
+help reduce size stack frames improve cache utilisation reduce stack descriptor sizes overheads parsing 
+performance evaluation performance hipe sparc compared erlang systems functional language implementations reported previously 
+results showed hipe significantly improves performance erlang otp sparc reduces gap functional language implementations 
+measure performance hipe vs beam set standard erlang benchmarks compare resulting speedups hipe sparc 
+erlang benchmark programs recursive fibonacci function 
+calculates times 
+takeuchi function uses recursion integer arithmetic intensely 
+repetitions computing tail recursive list length function finding length element list times 
+ordinary quicksort 
+sorts short list times 
+smith waterman dna sequence matching algorithm 
+matches sequence length 
+done times 
+huffman encoder encodes decodes character string times 
+part telecommunications protocol 
+repetitions decoding incoming message 
+medium sized benchmark lines 
+concurrent benchmark creates ring processes sends small messages 
+concurrent benchmark executing generations conway game life board square implemented process 
+formats large source program pretty printing repeated times 
+recurses deeply 
+medium sized benchmark lines 
+table 
+hipe speedup compared beam hipe sparc 
+sparc benchmark beam hipe speedup speedup computes erlang system number running number common erlang tasks reporting weighted ranking performance tasks 
+benchmark stresses parts erlang implementation including runtime system concurrency primitives 
+table shows execution times milliseconds running benchmarks erlang otp beam hipe speedup hipe beam 
+benchmark execution times shown benchmark contains artificial delays 
+speedup relative improvement ranking hipe beam 
+performance evaluation conducted dell mhz pentium ii processor mb memory running linux 
+comparison column shows speedup hipe beam sun enterprise mhz ultrasparc ii processors gb memory running solaris 
+hipe achieves speedups comparable hipe sparc register starved architecture 
+explained sect 
+hipe currently spills parameter registers entry function 
+hurts benchmarks frequently dereference pointer parameters list cells heap 
+function call intensive suffer operate integer parameters referenced directly memory operands stack 
+hipe modest speedup spend time runtime system scheduling processes compute little 
+related systems investigated native implementations languages similar requirements erlang ml lisp scheme prolog clean haskell 
+investigation focused systems implement calls returns registers parameter passing 
+systems inadequate documentation implementation tradition intend break try derive information source code 
+successful findings report somewhat approximate excluded systems source code impenetrable 
+table summarises findings 
+native column checked systems instructions normal stack signifies return stack branch prediction enabled 
+simulated column checked systems direct indirect instructions calls returns signifies returns risk causing branch prediction misses 
+column indicates registers passing function parameters 
+top systems listed objective caml clean cmu common lisp known deliver relatively performance interesting note native call stacks pass parameters registers hipe 
+mit scheme stack pointer choose simulate calls returns presumably order reduce amount stack rewriting 
+table 
+feature summary related language implementations 
+call stack argument native simulated registers objective caml clean cmu common lisp poly ml chalmers haskell mlton sml nj mit scheme gnu prolog sml nj uses single argument register standard calling convention standard ml functions exactly formal parameter multiple parameters expressed tuples curried applications 
+non standard calling conventions local functions parameter registers may available 
+mlton heap pointer points simulated call stack 
+different register point stack motivated main reasons mlton stack grows higher addresses prohibits compiler generates accesses variables stack frame slots instruction encoding base pointer byte longer registers leading worse code density 
+stack heap pointer 
+redirect signal handlers windows forcing mlton ignore register heap pointer windows 
+matthew email correspondence may 
+poly ml uses redirect signal handlers 
+workaround windows artificially enlarge stack scratch area bottom 
+concluding remarks described architecture implementation hipe publicly available native code compiler erlang 
+hipe offers flexible user controlled integration interpreted native code allows significant performance improvements erlang applications widely available standard platform 
+documenting implementation choices believe information potentially useful anybody involved implementation high level language relies precise garbage collection 
+shown performance evaluation port hipe manages achieve performance improvements compared interpreted beam code par mature hipe sparc system 
+believe validates design choices especially function call stack frame conventions surprisingly conventional compared hipe sparc 
+research supported part advanced software technology competence center 
+
+armstrong virding williams 
+concurrent programming erlang 
+prentice hall second edition 
+
+bernstein 
+producing code case statement 
+software practice experience oct 
+
+burger waddell dybvig 
+register allocation lazy saves eager restores greedy shuffling 
+proceedings acm sigplan conference programming language design implementation pages 
+acm press 
+
+cheng harper lee 
+generational stack collection profile driven pretenuring 
+proceedings acm sigplan conference programming language design implementation pldi pages 
+acm press 
+
+george appel 
+iterated register coalescing 
+acm trans 
+prog 
+lang 
+syst may 
+
+
+representing type information dynamically typed languages 
+technical report tr university arizona department computer science oct 
+
+intel 
+intel pentium intel xeon processor optimization manual 
+document number 
+
+johansson pettersson sagonas 
+hipe high performance erlang system 
+proceedings acm sigplan conference principles practice declarative programming pages 
+acm press sept 
+
+johansson pettersson sagonas lindgren 
+development hipe system design experience report 
+springer international journal software tools technology transfer 
+appear 
+
+johansson sagonas 
+linear scan register allocation high performance erlang compiler 
+practical applications declarative languages proceedings padl symposium number lncs pages 
+springer jan 
+
+kannan proebsting 
+correction producing code case statement 
+software practice experience feb 
+
+muchnick 
+advanced compiler design implementation 
+morgan kaufman publishers san fransisco ca 
+
+pettersson 
+staged tag scheme erlang 
+technical report information technology department uppsala university nov 
+
+poletto sarkar 
+linear scan register allocation 
+acm trans 
+prog 
+lang 
+syst sept 
+
+tarditi 
+compact garbage collection tables 
+proceedings acm sigplan international symposium memory management pages 
+acm press oct 
+
+
+open telecom platform 
+ericsson review 
+see 
+hipe development history hipe sparc hipe hipe sparc system development years 
+time development port started hipe sparc system characteristics compiler beam roughly described sec 
+
+stack descriptors exist 
+stack permitted contain return addresses live erlang values code generator enforced trimming stack dead entries 
+exception handling implemented beam interpreter special catch tokens acting markers frames containing active handlers 
+entire native code stack scanned minor garbage collections 
+stack frames introduced rtl level code saving restoring registers calls 
+stack frame layout fixed register allocation registers spilled stack spilled separate static function memory area 
+simulated call stack ordinary general purpose register pointing memory block heap 
+true 
+hipe development stage general purpose registers deemed unacceptable waste point simulated stack 
+expect spill temporaries unacceptable compute addresses separate spill area wasting registers processor cycles 
+lead major design decision processor native stack calls caller save registers spills 
+mlton shown simulated stack prevent effectively 
+consequently removed rtl level frame management added specific frame management register allocation 
+sparc version generated lot administrative code implement stack trimming 
+decided single large frame approach reduces administrative code single allocation function entry deallocation function exit 
+function parameters pushed fixed portion frame called functions return instruction simultaneously deallocates parameter area 
+allowed proper tail recursion implemented 
+planning stack descriptors initially inserted explicit stack cleanup code call sites catch token exception handling machinery beam hipe sparc 
+hipe register allocators highly sparc specific simple naive register allocator spilled temporaries implemented 
+version system took months complete complex parts frame management module assembler 
+return addresses arbitrary alignment instructions variable size 
+garbage collector special knowledge native stack frames enforced bit alignment return addresses unusual align mod rule instructions assembler 
+hipe second development stage main changes second stage system 
+hipe register allocators cleaned 
+drastically improved register usage reduced amount spill code 
+second stack descriptors implemented eliminate explicit stack cleanup code call sites 
+change stack frames may contain junk implementation exception handling longer worked description exception handlers added stack descriptors 
+minimise runtime system changes moved stack cleanup mutator pre pass collector permitted collector stack scan proper remain simple 
+unfortunately stack cleanup costs high deeply recursive benchmarks 
+alleviate implemented simple incremental stack cleanup scheme 
+original white return address object module loader constructed proxy black return address separate memory area 
+white black return addresses distinguished having slightly different stack descriptors 
+stack cleanup pass white frames coloured black replacing return addresses proxies 
+soon black frame cleanup pass terminated 
+version included release erlang otp system 
+hipe third development stage third stage stack descriptor mechanism significantly refined 
+original implementation arrays stack offsets describe sets stack slots attached second proxy stack descriptor call site unfortunately increase amount memory allocated code associated data roughly factor 
+reduce memory overheads representation changed bitmap describe set live slots frame store usually absent exception handler address optional word stack descriptor 
+proxy stack descriptors removed garbage collector stack cleanup pre pass replaced code uses stack descriptors scan native code stacks 
+changes memory overhead stack descriptors reduced roughly code size 
+second lesser change occurred compiler 
+compiler predicts outcome taken taken conditional control flow instructions 
+prediction quite accurate due tests safety type checks stack heap overflow checks 
+generic cfg module linearised basic blocks seemingly random non optimal order 
+problem noticed sparc port linearisation code 
+effect static branch prediction algorithm implemented processors forward conditional taken backward conditional taken effective leading branch prediction misses 
+generic cfg modules changed ensure branches follow static branch prediction algorithm 
+noticeable improvement performance 
+hipe fourth development stage fourth version included improvements garbage collector stack descriptor implementation 
+generational stack scanning implemented reduce high stack scanning costs deeply recursive benchmarks 
+surprisingly difficult implement mainly erlang otp garbage collector state transitions tenure counter intuitive careful study code 
+benchmarking changes cost looking stack descriptors return address hash table significant 
+generic hash table erlang otp runtime system unfortunately slow lookup procedure 
+hash table replaced optimised implementation runtimes immediately improved percent 
+deeply recursive benchmarks suffered high stack scanning costs dramatically improved achieved speedup factor factor 
+benchmarks saw improvements small benchmarks saw minor changes better worse margin error 
+performance improvements previous version 
+fifth development stage fifth version hipe introduced function parameters registers 
+point parameters pushed stack 
+testing simple sequential code indicated keeping parameters registers improve performance substantially 
+single parameter runtime system source code determines number parameter registers inclusive making relatively easy benchmark different configurations 
+unfortunately limitations compiler unconditional spilling due conditional calls runtime system primitives negated benefits parameter registers 
+successful change implemented runtime system 
+erlang scheduler knowledge execution modes interpreted beam exist call structure scheduler calls beam process selected execution beam returns scheduler process suspends 
+hipe invoked beam mode switch interface takes longer previous process native mode due additional layers function calls 
+speed native mode context switches call structure inverted beam hipe call scheduler returning 
+negative effect beam performance improved hipe performance context switch intensive benchmarks 
+runtime system change specific 
+hipe sparc hipe described hipe sparc system originally lacked features currently implemented hipe system 
+features ported back hipe sparc making versions dissimilar 
+main remaining difference native code stack processor native stack sparc simulated stack pointed general purpose register sparc simulated stack grows higher addresses unknown historical reasons 
+

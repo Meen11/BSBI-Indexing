@@ -1,0 +1,158 @@
+wings parallel indexer web contents fabrizio salvatore orlando istituto di scienze dell informazione cnr pisa italy dipartimento di informatica universit di pisa italy dipartimento di informatica universit ca di venezia italy 
+discuss design parallel indexer web documents 
+exploiting data pipeline parallelism prototype indexer efficiently builds partitioned inverted compressed index suitable data structure commonly utilized modern web search engines 
+discuss implementation issues report results preliminary tests conducted smp pcs 
+nowadays web search engines index hundreds millions documents retrieved web :10.1.1.1.7993
+parallel processing techniques exploited various levels order efficiently manage enormous amount information 
+particular important scalable respect size data number requests managed concurrently 
+identify principal modules spider indexer query analyzer 
+exploit parallelism modules 
+spider set parallel agents visit web gather documents interest 
+furthermore parallelism exploited enhance performance indexer responsible building index data structure collection gathered documents support efficient search retrieval 
+parallelism distribution crucial improve throughput query analyzer see responsible accepting user queries searching index documents matching query returning relevant documents understandable form 
+analyze depth design parallel indexer discussing realization performance wings web indexing system prototype 
+design parallel spiders parallel query analyzers studied depth papers discuss parallel distributed implementation web indexer 
+sequential algorithms proposed try balance core core memory order deal large amount input output data involved 
+inverted file index data structure typically adopted indexing web 
+mainly due main reasons 
+allows efficient resolution queries huge collections web pages second easily compressed reduce space occupancy order obtain better exploitation memory hierarchy 
+index collection web pages consists interlinked components 
+principal ones lexicon list index terms appearing collection corresponding set inverted lists list associated distinct term lexicon 
+inverted list contains turn set postings 
+posting collects information occurrences corresponding term collection documents 
+sake simplicity discussion consider posting includes identifier document docid term appears postings store information document ranking purposes 
+important feature indexes easily partitioned 
+fact consider typical parallel query analyzer module index distributed different nodes underlying architecture order enhance system throughput number queries answered second 
+purpose different partitioning strategies devised 
+approach requires horizontally partition inverted index respect lexicon query server stores inverted lists associated subset index terms 
+method known term partitioning global inverted files 
+approach known document partitioning local inverted files requires query server responsible disjoint subset document collection vertical partitioning inverted index 
+approach construction index staged process 
+stage index partition built locally independently partition collection 
+second phase simple needed collect global statistics computed index 
+document partitioning approach provides better performance figures processing typical web queries term partitioning adopted indexer prototype 
+illustrates choice document collection represented set html pages 
+note previous conducted experiments pointed huge sizes web global statistics useless 
+reason consider phase design indexer 
+organized follow 
+section motivates choices design wings discusses parallelism exploitation implementation issues 
+encouraging experimental results obtained running wings linux smp pcs discussed section 
+section draws outlines 
+design wings design parallel indexer adopting document partition approach see easily exploit data parallelism independently spider html 
+html html html indexer indexer indexer inverted file inverted file 
+inverted file fig 
+
+construction distributed index document partition paradigm local inverted index refers partition document collection 
+indexing disjoint sub collections documents parallel 
+natural form parallelism want study depth parallelization opportunities instance indexer say accomplishes indexing task disjoint partition collection 
+table 
+toy text collection row corresponds distinct document corresponding inverted index column represents lexicon column contains inverted lists associated index terms 
+document id document text pease hot pease cold 
+pease pot 
+days old 
+hot lite cold 
+pot 
+days old 
+term postings list cold days hot old 
+job performed produce local inverted index apparently simple 
+consider collection documents modeled matrix see table building inverted index simply corresponds transpose matrix see table 
+matrix transposition inversion easily accomplished memory small collections 
+unfortunately naive core algorithm rapidly unusable size document collection grows 
+note respect collection data size final lexicon usually mbs maintained core inverted lists fit main memory stored disk compressed 
+efficiently index large collections complex process required 
+efficient techniques proposed literature external memory sorting algorithms 
+document collection processed indexer associates distinct docid document stores core buffer pairs erm docid erm appears document docid 
+buffer size occupies memory possible full sorted increasing erm increasing docid 
+resulting pairs written temporary file disk process repeated documents collection processed 
+step disk set sorted runs stored distinct files 
+perform multi way merge sorted runs order materialize final inverted index 
+approach works follows receives stream documents subdivides blocks produce disk stored sorted runs block 
+call phase indexer pre indexer pre completed stream pages completely read start second phase indexer post performs multi way merge sorted runs 
+
+
+docs html sorted runs parser 
+parsed docs bike cat cat dog truck pig indexer pre uncompressed lists 
+indexer post inverter pre inverter post flusher sorted runs 
+cat dog pig bike truck 
+lexicon compressed inverted lists 
+fig 
+
+forms parallelism exploited design generic indexer particular indexer post 
+module indexer pre main activities identified indexer pre indexer post illustrated respectively 
+indexer pre turn modeled stage pipeline inverter pre recognizes syntactical structure document html xml pdf generates stream terms identified 
+job complex illustrated 
+determine local frequencies terms remove words perform stemming store information position context occurrence term allows phase searching collect information linking structure parsed documents 
+note information term contexts frequencies forwarded stages stored final inverted files order allow rank results query 
+sake clarity omit details discussion 
+module pipeline inverter pre receives stage stream terms associated distinct incrementally builds lexicon associating distinct term stores disk large sorted runs pairs docid 
+storing run order docid 
+note integer docid reduces size run faster comparisons runs sorting 
+inverter pre sophisticated main memory management lexicon kept core run large possible flushing disk avoid memory swapping 
+pipeline indexer pre ends processing document partition second pipeline indexer post start 
+input second pipeline exactly output indexer pre set sorted runs lexicon relative document partition 
+stage second pipeline inverter post module job produce single sorted run starting various disk stored sorted runs 
+sorting algorithm simple core multi way merge runs obtained reading main memory block run size block carefully chosen basis memory available 
+top pairs blocks inserted min heap data structure top heap contains smallest turn associated smallest docid 
+soon lowest pair extracted heap pair coming sorted run containing form corresponding block inserted heap 
+core block completely emptied block loaded disk stored run 
+process clearly ends disk stored sorted runs processed pairs extracted top position heap 
+note indexer post soon extracts ordered pair heap forwards stage second pipeline 
+stage receives order postings associated compresses usual techniques representation inverted list sequence gaps sorted stores compressed list disk 
+scratch inverted index produced shown 
+note various lists stored inverted file ordering sorted lexicon cat bike dog pig truck compressed inverted lists fig 
+
+inverted file produced 
+identifiers lexicon shown sorted lexicographic order corresponding terms 
+experimental results tests conducted way smp equipped intel ghz xeon processors gb main memory gb ide disk 
+communication various stages indexer pipelines communication layer derived order exploit mechanisms 
+tests performed pipeline stages mapped node exploited system message queue ipc 
+order evaluate opportunity offered pipelined parallelization scheme illustrated evaluated computational cost inverter module uses disk input output 
+collection size time time time tot 
+throughput gb inverter gb table 
+sequential execution times different sizes document collection 
+observe execution times reported table expensive module execution time average order magnitude smaller inverter 
+consider pipeline version inverter module split smaller ones inverter pre inverter post cost smaller inverter 
+considerations conclude pipeline implementation result unbalanced computation execute single pipelined instance way multiprocessors processors result utilization workstation 
+particular inverted pre waste time waiting data coming 
+single pipelined executed multiprocessor way increase utilization platform try balance throughput various stages 
+previous remarks order balance load increase throughput expensive pipeline stage example multi thread implementation thread independently parses distinct document way improve multiprocessor utilization map multiple pipelined instances indexer producing local inverted index distinct document partition 
+coll 
+size 
+instances gb table 
+total throughput gb multiple instances pipelined executed way multiprocessor 
+evaluate alternative subject 
+note execute multiple pipeline instances carefully evaluate impact shared multiprocessor resources particular disk main memory 
+regards disk evaluated expensive stage compute bound single disk suffices serve requests coming multiple instances 
+regards main memory tuned memory management stages inverter pre inverter post principle need largest amount main memory create store lexicon store sort runs flushing disk perform multi way merge sorted runs 
+particular observed profitably map instances distinct pipelined way processor achieving maximum throughput gb hour 
+results tests illustrated table 
+note single pipelined executed pipeline stage parallelized adopting simple data parallel scheme 
+able obtain optimal speedup sequential version gb vs gb pipeline stages balanced 
+due expensive core pipelined data transfer message queues pipeline version sequential version exploit disk save intermediate results 
+discussed design wings parallel indexer web contents produces local inverted indexes commonly adopted organization index scale parallel distributed 
+wings exploits different levels parallelism 
+data parallelism due possibility independently building separate inverted indexes disjoint document partitions 
+possible efficiently process queries broadcasting searchers associated distinct local index merging results 
+addition shown limited pipeline parallelism exploited instance indexer low cost way workstation equipped inexpensive ide disk able achieve throughput gb hour processing document collections produce distinct local inverted indexes 
+required assess performance indexing system larger collections documents fully integrate parallel distributed prototype 
+plan study wings extended order exploit inverted lists active compression strategy discussed 
+
+baeza yates neto modern information retrieval 
+addison wesley 
+witten moffat bell managing gigabytes compressing indexing documents images 
+second edition edn 
+morgan kaufmann publishing san francisco 
+brin page anatomy large scale hypertextual web search engine 
+computer networks isdn systems 
+orlando design parallel distributed web search engine 
+proceedings parallel computing conference imperial college press 
+jeong omiecinski inverted file partitioning schemes multiple disk systems 
+ieee transactions parallel distributed systems 
+melnik raghavan yang garcia molina building distributed full text index web 
+world wide web 
+
+van rijsbergen information retrieval 
+butterworths available www dcs gla ac uk keith preface html 
+
+orlando assigning document identifiers enhance compressibility web search 
+proceedings symposium applied computing sac special track data mining dm nicosia cyprus acm 

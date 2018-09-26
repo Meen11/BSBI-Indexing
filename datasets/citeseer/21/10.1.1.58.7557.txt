@@ -1,0 +1,607 @@
+appears proc 
+th symposium operating systems design implementation osdi dec microreboot technique cheap recovery george candea kawamoto greg friedman armando fox computer systems lab stanford university candea fox cs stanford edu significant fraction software failures large scale internet systems cured rebooting exact failure causes unknown 
+rebooting expensive causing nontrivial service disruption downtime clusters failover employed 
+separate process recovery data recovery enable microrebooting fine grain technique recovering faulty application components disturbing rest application 
+evaluate microrebooting internet auction system running application server 
+microreboots recover failures full reboots order magnitude faster result order magnitude savings lost 
+cheap form recovery engenders new approach high availability microreboots employed slightest hint failure prior node failover multi node clusters mistakes failure detection failure recovery masked users transparent call level retries systems parts shut 
+spite improving development processes tools production quality software bugs bugs escape testing difficult track resolve take form race conditions resource leaks environment dependent bugs 
+bugs manifest production systems fix available time failure 
+fortunately application level failures bring enterprise scale software underlying platform hardware operating system reliable comparison 
+contrast smaller scale systems desktop computers hardware operating system level problems significant causes downtime 
+failure strikes large scale software systems ones internet services operators afford run real time diagnosis 
+focus bringing system back means diagnosis 
+challenge find simple practical effective approach managing failure large complex systems approach accepting fact bugs application software time soon 
+results studies experience field suggest failures successfully recovered rebooting failure root cause unknown 
+surprisingly today state art achieving high availability internet clusters involves circumventing failed node failover rebooting failed node subsequently recovered node cluster 
+reboots provide high confidence way reclaim stale leaked resources rely correct functioning rebooted system easy implement automate return software start state best understood best tested state 
+unfortunately systems unexpected reboots result data loss unpredictable recovery times 
+occurs frequently software lacks clean separation data recovery process recovery 
+example performance optimizations writeback buffer caches open window vulnerability allegedly persistent data stored volatile memory unexpected crash reboot restart system processes buffered data lost 
+presents practical recovery technique call microreboot individual rebooting fine grain application components 
+achieve benefits process restarts order magnitude faster order magnitude lost 
+describe general conditions necessary microreboots safe isolated stateless components keep important application state specialized state stores 
+way data recovery completely separated reboot application recovery 
+describe prototype system evaluating microreboot recovery 
+low cost microrebooting engenders new approach high availability microrebooting attempted front line recovery failure detection prone false positives failure known microreboot 
+microreboot recover system subsequent recovery action recovery time added initial microreboot attempt negligible 
+clusters microreboot may preferable node failover avoids overloading non failed nodes preserves memory state 
+allows microreboots system parts shutting allows transparent call level retries mask microreboot users 
+rest describes section design software section prototype implementation 
+sections evaluate prototype recovery properties fault injection realistic workload 
+section describes new simpler approach failure management brought cheap recovery 
+section discusses limitations microrebooting section presents roadmap generalizing approach implemented prototype 
+section presents related section concludes 
+designing software workloads faced internet services consist relatively short tasks long running ones 
+affords opportunity recovery reboot progress lost due rebooting represents small fraction requests served day 
+set optimize large scale internet services frequent fine grain rebooting led design goals fast correct component recovery strongly localized recovery minimal impact parts system fast correct reintegration recovered components 
+earlier introduced motivated crash software programs safely crashed parts recover quickly time 
+high level recipe building systems structure collection small isolated components separate important state application logic place dedicated state stores provide framework transparently retrying requests issued components temporarily unavailable microrebooting 
+summarize main points crash design approach 
+fine grain components component level reboot time determined long takes underlying platform restart target component component reinitialize 
+application aims components small possible terms program logic startup time 
+benefits design favored largescale internet software 
+partitioning system components inherently system specific task developers benefit existing component oriented programming frameworks seen prototype 
+state segregation ensure recovery correctness prevent microreboots inducing corruption inconsistency application state persists microrebooting 
+inventors transactional databases recognized segregating recovery persistent data application logic improve recoverability application data persist failures 
+take idea require applications keep important state dedicated state stores located outside application strongly enforced high level apis 
+examples state stores include transactional databases ses sion state managers 
+aside enabling safe microreboots complete separation data recovery application recovery generally improves system robustness shifts burden data management inexperienced application writers specialists develop state stores 
+number applications vast code quality varies wildly database systems session state stores code consistently robust 
+face demands increasing feature sets application recovery code bug free efficient increasingly elusive data process separation improve dependability making process recovery simpler 
+benefits separation outweigh potential performance overhead 
+decoupling components loosely coupled application gracefully tolerate microreboot rb 
+components crash system defined enforced boundaries direct pointers span boundaries 
+cross component needed stored outside components application platform form inside state store 
+requests smooth reintegration components inter component interactions crash system ideally timeouts response received call allotted time frame caller gracefully recover 
+timeouts provide orthogonal mechanism turning non byzantine failures fail events easier accommodate contain 
+component invokes currently microrebooting component receives exception call re issued estimated recovery time idempotent 
+non idempotent calls rollback compensating operations 
+components transparently recover flight requests way intra system component failures microreboots hidden users 
+leases resources frequently microrebooting system leased improve reliability cleaning rbs may leak resources 
+addition memory file descriptors believe certain types persistent state carry long term leases expiration state deleted archived system 
+cpu execution time leased computation hangs renew execution lease terminated rb 
+requests carry time live stuck requests automatically purged system ttl runs 
+crash design approach embodies known principles robust programming distributed systems 
+push principles finer levels granularity applications giving non distributed applications robustness distributed 
+section describe application design principles implementation platform applications 
+prototype enterprise edition java ee framework building large scale internet services 
+motivated frequent critical internet connected applications current enterprise application market chose add microreboot capabilities open source ee application server jboss converted ee application rubis crash model 
+changes jboss platform universally benefit ee applications running 
+section describe details ee prototype 
+ee component framework common design pattern internet applications tiered architecture presentation tier consists stateless web servers application tier runs application se persistence tier stores long term data databases 
+ee framework designed simplify developing applications model 
+ee applications consist portable components called enterprise java beans ejbs platform specific xml deployment descriptor files 
+ee application server akin operating system internet services uses deployment information instantiate application ejbs inside management containers container ejb object manages instances object 
+server managed containers provide application components rich set services thread pooling lifecycle management client session management database connection pooling transaction management security access control theory ee application able run ee application server modifications needed deployment descriptors 
+users interact ee application web interface application presentation tier encapsulated war web archive 
+war component consists servlets java server pages hosted web server invoke methods ejbs format returned results presentation user 
+invoked ejbs call ejbs interact back databases invoke web services ejb similar event handler constitute separate locus control single java thread user request multiple ejbs point enters application tier returns web tier 
+ejbs provide level suitable building crash applications 
+microreboot machinery added microreboot method jboss invoked server remotely 
+modified jboss server microreboots performed ee application safe application crash 
+microreboot method applied ejb war components 
+destroys extant instances corresponding objects kills shepherding threads associated instances releases associated resources discards server metadata maintained behalf component initializes component 
+resource discard rb component classloader 
+jboss uses separate class loader ejb provide appropriate sandboxing components caller invokes ejb method caller thread switches ejb classloader 
+java class identity determined name classloader responsible loading discarding ejb classloader rb unnecessarily complicate update internal component 
+preserving classloader violate sandboxing properties 
+keeping classloader active reinitialize ejb static variables rb acceptable ee strongly discourages mutable static variables anyway prevent transparent replication ejbs clusters 
+ejbs individually ejbs maintain ejbs certain metadata relationships span containers 
+ejb microreboot transitive closure inter ejb dependents group 
+determine recovery groups examine ejb deployment descriptors information typically ee application servers determine order ejbs deployed 
+crash application companies jboss run production applications unwilling share applications 
+converted rice university rubis ee web auction system mimics ebay functionality ebid crash version rubis additional functionality 
+ebid maintains user accounts allows bidding selling buying items item search facilities customized information summary screens user feedback pages state segregation commerce applications typically handle types important state long term data persist years customer account activity session data needs persist duration user session shopping carts workflow state enterprise applications static presentation data gifs html 
+ebid keeps types state database dedicated session state storage ext fs filesystem optionally mounted read respectively 
+ebid uses types ejbs entity ejbs stateless session ejbs 
+entity ejb implements persistent application object traditional oop sense instance state mapped row database table 
+stateless session ejbs perform higher level operations entity ejbs user operation implemented stateless session ejb interacting entity ejbs 
+example place bid item ejb interacts entity ejbs user item bid 
+mixed oo procedural design consistent best practices building scalable ee applications 
+persistent state ebid consists user account information item information bid buy sell activity maintained mysql database entity ejbs user item bid buy category region 
+mysql crash safe recovers fast datasets items bids users 
+entity bean uses container managed persistence ee mechanism delegates management entity data ejb container 
+way jboss provide relatively transparent data persistence relieving programmer burden managing data directly writing sql code interact database 
+ejb involved transactions time microreboot automatically aborted container rolled back database 
+session state ebid takes form items user selects buying selling userid state persist application server long synthesize user session independent stateless requests discarded user logs session times 
+users identified cookies 
+commercial ee application servers store session state middle tier memory case server crash ejb microreboot cause corresponding user sessions lost 
+prototype ensure session state survives rbs keep outside application dedicated session state repository 
+options session state storage 
+built memory repository inside jboss embedded web server 
+api consists methods reading writing objects atomically 
+illustrates session state segregated application kept java virtual machine jvm 
+isolated compiler enforced barriers provides fast access session objects survives rbs 
+second modified ssm clustered session state store similar api 
+ssm maintains state separate machines isolated physical barriers provides slower access session state survives rbs jvm restarts node reboots 
+session storage model leases orphaned session state garbage collected automatically 
+isolation decoupling compiler enforced interfaces type safety provide operational isolation ejbs 
+ejbs name internal variables allowed mutable static variables 
+ejbs obtain order inter ejb method calls naming service provided jboss may cached obtained 
+inter ejb calls mediated application server containers suite interceptors order away details remote invocation replication cases ejbs repli cated performance load balancing reasons 
+preservation state microreboots segregation session state ebid offers recovery decoupling data shared components means state store frees components having recovered 
+segregation helps quickly recovered components need perform data recovery rb 
+evaluation framework evaluate prototype developed client emulator fault injector system automated failure detection diagnosis recovery 
+injected faults ebid measured recovery properties microrebooting 
+wrote client emulator logic load generator shipped rubis 
+human clients modeled markov chain states corresponding various user operations possible ebid login transitioning state causes client issue corresponding request 
+inbetween successive url clicks emulated clients independent think times exponential random distribution mean seconds maximum seconds tpc benchmark 
+chose transition probabilities representative online auction users resulting workload shown table mimics real workload seen major internet auction site 
+user operation results 
+requests read db access browse category initialization deletion session state login exclusively static html content home page search search items name session state updates select item bid database updates leave seller feedback table client workload evaluating microreboot recovery 
+enable automatic recovery implemented failure detection client emulator placed primitive diagnosis facilities external recovery manager 
+real users web browsers certainly report failures internet services client side detection mimics wan services deploy client endto monitors internet detect service user visible failures 
+setup allows measurements focus recovery aspects prototype orthogonal problem detection diagnosis 
+implemented fault detectors 
+simple fast client encounters network level error connect server xx xx error flags response faulty 
+errors occur received html searched keywords indicative failure exception failed error 
+detection application specific problem mark response faulty problems include prompted log logged encountering negative item ids reply html second fault detector submits parallel request application instance injecting faults separate known instance machine 
+compares result truth provided flagging differences failures 
+detector able identify complex failures surreptitious corruption dollar amount bid 
+certain required account timing related nondeterminism 
+built recovery manager rm performs simple failure diagnosis recovers microrebooting ejbs war ebid restarting jvm runs jboss ebid rebooting operating system 
+rm listens udp port failure reports monitors containing failed url type failure observed 
+static analysis derived mapping ebid url prefix path sequence calls servlets ejbs 
+recovery manager maintains component system score gets incremented time component path originating failed url 
+rm decides micro reboot hand tuned thresholds 
+accurate sophisticated failure detection topic simplistic approach diagnosis yields false positives part goal show mistakes resulting simple sloppy diagnosis tolerable low cost rbs 
+recovery manager uses simple recursive recovery policy principle trying cheapest recovery 
+help rm reboots progressively larger subsets components 
+rm microreboots ejbs ebid war entire ebid application jvm running jboss application server reboots os actions cure failure symptoms rm notifies human administrator 
+order avoid endless cycles rebooting rm notifies human notices recurring failure patterns 
+recovery action se performed remotely invoking jboss microreboot method ejb war ebid executing commands jboss node level reboot 
+evaluated availability prototype new metric action weighted throughput taw 
+view user session login operation explicit logout abandonment site 
+session consists sequence user actions 
+user action sequence operations requests commit point operation succeed user action considered successful operation action placing bid results committing bid database 
+action succeeds fails atomically operations action succeed count goodput taw operation fails operations corresponding action marked failed counting action weighted bad taw 
+simple throughput taw accounts fact long running short running operations succeed user happy service 
+taw captures fact action operations succeeds generally means user short action 
+gives example taw compare recovery rb recovery jvm restart 
+evaluation results prototype answer questions microrebooting rbs effective recovering failures 
+rbs better jvm restarts 
+rbs useful clusters 
+rb friendly architectures incur performance overhead 
+section build results show microrebooting change way manage failures internet services 
+ghz pentium machines gb ram web middle tier nodes databases hosted athlon xp machines gb ram rpm gb disks emulated clients ran variety multiprocessor machines 
+machines interconnected mbps ethernet switch ran linux kernel sun java sun ee 
+microrebooting effective 
+despite ee popularity unable find published systematic studies faults occurring production ee systems 
+deciding faults inject prototype relied advice colleagues industry routinely enterprise applications application servers 
+production ee systems frequently plagued deadlocked threads leak induced resource exhaustion bug induced corruption volatile metadata various java exceptions handled incorrectly 
+added hooks jboss injecting artificial deadlocks infinite loops memory leaks jvm memory exhaustion outside application transient java exceptions stress ebid exception handling code corruption various data structures 
+addition hooks fig inject low level faults underneath jvm layer 
+ebid crash application relatively little volatile state subject loss corruption application state kept ssm 
+inject faults data handling code code generates application specific primary keys identifying rows db corresponding entity bean instances 
+corrupt class attributes stateless session beans 
+addition application data corrupt metadata maintained application server accessible ebid code repository maps ejb names containers transaction method map stored entity ejb container 
+corrupt data inside session state stores bit flips database manually altering table contents 
+perform types data corruption set value null generally elicit nullpointerexception access set invalid value non null value type checks invalid application point view userid larger maximum userid set wrong value valid application point view incorrect swapping ids users 
+injecting fault recursive policy described earlier recover system 
+relied comparison failure detector determine recovery action successful failures encountered recovery level policy 
+table show worst case scenario encountered type injected fault 
+reporting results differentiate restoring system point resume serving requests users necessarily having fixed resulting database corruption recovery bringing system state functions correct database 
+financial institutions aim applying compensating transactions business day repair database inconsistencies 
+sign rightmost column indicates additional manual database repair actions required achieve correct recovery 
+results conclude ejb level war level microrebooting ee prototype effective recovering majority failure modes seen today production ee systems rows table 
+microrebooting ineffective types failures rows coarser grained reboots manual repair required 
+fortunately failures constitute significant fraction failures real ee systems 
+certain faults corruption certainly cured non reboot approaches consider reboot approach simpler quicker reliable 
+cases manual actions required restore service correctness jvm restart benefits component rb 
+rebooting common way recover middleware real world rest compare ejb level microrebooting jvm process restart restarts jboss implicitly ebid 
+microreboot better full reboot 
+respect availability internet service operators care user requests system turns away downtime 
+evaluate microrebooting respect user aware metric captured taw 
+inject faults prototype allow recovery manager rm recover system automatically ways restarting jvm process running jboss microrebooting ejbs respectively 
+recovery deemed successful injected fault type reboot level deadlock ejb infinite loop ejb application memory leak ejb transient exception ejb set null ejb corrupt primary keys invalid ejb wrong ejb set null ejb corrupt entries invalid ejb wrong ejb corrupt transaction method map corrupt stateless session ejb attributes corrupt data inside corrupt data inside ssm set null ejb invalid ejb wrong ejb set null unnecessary invalid unnecessary wrong ejb war set null war invalid war wrong war corruption detected checksum bad object automatically discarded corrupt data inside mysql database table repair needed memory leak intra jvm jvm jboss outside application extra jvm os kernel bit flips process memory jvm jboss bit flips process registers jvm jboss bad system call return values jvm jboss table recovery injected faults worst case scenarios 
+aside ejb jboss operating system reboots faults require microrebooting ebid web component war 
+cases needed injected fault naturally system call fails 
+case recovering persistent data done automatically transaction rollback case injecting wrong data manual reconstruction data db required indicated column 
+fault detector experiments table 
+users experience failures recovery 
+shows results experiment injected different faults minutes 
+session state stored 
+ran load concurrent clients connected application server node specific setup lead cpu load average similar seen deployed internet systems 
+noted concurrent clients node subsequent experiment 
+rbs jvm restarts reduced number failed requests 
+visually impact failure recovery event estimated area corresponding dip taw larger dips indicating higher service disruption 
+area taw dip determined width time recover depth throughput requests turned away recovery 
+consider factor isolation 
+microreboots recover faster 
+wider dip taw requests arrive recovery requests fail cause corresponding user actions fail retroactively marking actions requests failed 
+measured recovery time various granularities summarize results table 
+right columns break recovery time long aw resp sec aw resp sec action weighted throughput correctly satisfied requests failed requests correctly satisfied requests failed requests timeline minutes taw compare jvm process restart ejb microreboot 
+sample point represents number successful failed requests observed corresponding second 
+min corrupt transaction method map ejb recovery group takes longest recover 
+min corrupt entry slowest recovery 
+min inject transient exception entry point browsing frequently called ejb workload 
+requests actions failed recovering process restart shown top graph requests actions failed recovering microrebooting ejbs 
+average failed requests actions process restart failed requests actions microreboot ejbs 
+target takes crash forcefully shut long takes reinitialize 
+ejbs recover order magnitude faster jvm restart explains width taw dip rb case negligible 
+described section ejbs interdependencies captured deployment descriptors require 
+ebid recovery group containing entity ejbs category region user item bid time ejbs requires rb microreboot entire 
+restarting entire ebid application optimized avoid restarting individual ejb ebid takes sum components crash start 
+jvm crash operating system 
+reboot recovery times dominated initialization 
+case jvm level restart time spent initializing jboss services transaction service takes sec initialize embedded web server sec jboss control management service takes sec 
+remaining startup time spent deploying initializing ebid ejbs war 
+ejb service verifies ejb object conforms ejb specification required interfaces allocates initializes container sets object instance pool sets security context inserts appropriate name ejb mapping initialization completes individual ejbs start methods invoked 
+removing ejb system follows reverse path 
+microreboots reduce functional disruption recovery 
+shows taw drops way process restart microreboot component name rb time msec crash msec msec authenticate war web component entire ebid application jvm jboss process restart table average recovery times load msec individual components entire application jvm jboss process 
+ejbs superscript entity ejbs rest stateless session ejbs 
+averages computed trials component single node system sustained load concurrent clients 
+recovery individual ejbs ranges msec 
+zero jvm restart system serves requests time 
+case microrebooting system continues serving requests faulty component recovered 
+illustrate effect graphing availability ebid functionality perceived emulated clients 
+group ebid user operations functional groups bid buy sell browse view search user account operations zoom recovery events 
+bid buy sell browse view search user account bid buy sell browse view search user account client perceived availability timeline seconds functional disruption perceived users 
+point horizontal axis solid vertical line bar indicates time service perceived unavailable user 
+gap interval indicates request processing spanned time eventually failed suggesting site 
+process restart microreboot faulty component recovered microrebooting operations functional groups succeed 
+user account group operations served successfully recovery requests fail show entire group unavailable 
+fractional service degradation compounds benefits swift recovery increasing user perceived availability service 
+microreboots reduce lost 
+number requests fail jvm level recovery completed happen microreboot case 
+failures due session state having lost recovery survive jvm restarts 
+ssm jvm restart case exhibited failed requests recovery fraction retroactively failed requests successful taw slightly lower see section 
+rbs case allowed system preserve session state recovery avoid cross jvm access penalties 
+microrebooting useful clusters 
+typical internet cluster unit recovery full node small relative cluster 
+learn rbs yield benefit systems built cluster independent application server nodes 
+clusters ee servers typical enterprise settings high financial telecom applications running nodes gigantic services ebay online auction service run pools clusters totaling application servers 
+distribute incoming load nodes client side load balancer lb 
+failure free operation lb distributes new incoming login requests evenly nodes established sessions lb implements session affinity non login requests directed node session originally established 
+inject rb recoverable fault table server instances say failure detectors notice failures report recovery manager 
+rm decides perform recovery notifies lb redirects requests bound uniformly nodes recovered rm notifies lb requests distributed failure 
+failover normal load 
+explored configuration today systems session state stored locally node 
+failover requests require session state searching browsing successfully served nodes requests require session state fail 
+injected fault called component ran experiment clusters different sizes load clients node 
+left graph shows results 
+recovering jvm restart number user requests fail dominated number sessions number requests node failover recovery failed requests sessions failed process restart microreboot number nodes cluster total requests relative number failures process restart ejb microreboot number nodes cluster failover normal load 
+left show number requests failed sessions case jvm restart rb respectively 
+right show fraction total user requests failed test minute interval function cluster size 
+established time recovery 
+case ejb level microrebooting number failed requests roughly proportional number requests flight time recovery submitted recovery 
+cluster grows number failed user requests stays fairly constant 
+recovering jvm restart average requests failed case microrebooting requests failed 
+relative benefit microrebooting decreases number cluster nodes increases right graph recovering microreboot result fewer failed requests jvm restart regardless cluster size clients cluster node serves 
+improves availability 
+cluster aimed level availability offered today telephone switches offer nines availability roughly means satisfy requests receives fail 
+node cluster served requests course minutes extrapolated node cluster application servers implies requests served year nines cluster fail jvm restarts number allows single node year microreboots failures permissible 
+repeated experiments ssm 
+availability session state recovery longer problem node load increased recovery nodes temporarily handle bound requests 
+addition increased load session state caches populated ssm session state bound sessions 
+factors resulted increased response time exceeded sec jvm restarts microrebooting sufficiently fast effect unobservable 
+overload situations mitigated cluster investigate microrebooting reduce need additional hardware 
+microreboots preserve cluster load dynamics 
+repeated experiments described doubled concurrent user population clients node 
+load spike model modest compared occur production systems cnn com faced fold surge load caused cluster collapse congestion 
+allow system stabilize higher load prior injecting faults reason experiment time interval increased minutes 
+jvm restarts disruptive microreboots mild fold change load stability initial conditions favor full process restarts rbs results shown conservative respect microrebooting 
+shows response time preserved recovering rbs jvm restarts 
+response time msec response time msec nodes process restart microreboot nodes process restart microreboot timeline seconds nodes process restart microreboot nodes process restart microreboot timeline seconds failover doubled load 
+show average response time request computed second intervals different cluster configurations nodes 
+ebid uses storing session state jvm restart microreboot case 
+vertical scales graphs differ enhance visibility details 
+stability response time results improved service users 
+known response times exceeding seconds cause computer users get distracted task pursuing engage making common threshold web site abandonment surprisingly service level agreements financial institutions stipulate seconds maximum acceptable response time 
+measured requests exceeded threshold failover table shows corresponding results 
+nodes process restart ejb microreboot table requests exceeding sec failover doubled load 
+asked colleagues industry commercial application servers admission control overloaded surprised learn currently 
+reason cluster operators need significantly clusters complex load tuned experts order overload oscillation problems 
+microreboots reduce need sophisticated load balancing 
+rbs successful keeping response times seconds prototype expect user experience improved clustered system uses microreboot recovery process restarts 
+performance impact section measure performance impact modifications steady state fault free throughput latency 
+measure impact modifications application server comparing original jboss microreboot enabled variant 
+measure cost externalizing session state remote state store comparing ebid ebid ssm 
+table summarizes results 
+configuration throughput req sec average latency msec jboss jboss rb jboss jboss rb table performance comparison original jboss vs jboss rb intra jvm session state storage vs extra jvm session state storage 
+throughput varies various configurations margin error 
+latency increases ssm moving state jboss remote session state store requires session object sent network consumes cpu object kept inside jvm 
+minimum human perceptible delay msec believe increase latency little consequence interactive internet service 
+latency critical applications ssm 
+performance results range measurements done major internet auction service latencies average msec depending operation average throughput req sec node 
+meaningful compare performance ebid original rubis semantics applications different 
+example rubis requires users provide username password time perform operation requiring authentication 
+ebid users log session subsequently identified cookies supply server access 
+refer reader detailed comparison performance scalability various architectures ee applications 
+new approach failure management previous section showed microreboots significant quantitative benefits terms recovery time functionality disruption amount lost preservation load dynamics clusters 
+quantitative improvements qualitative change way manage failures large scale systems new possibilities 
+alternative failover schemes cluster rb recovery attempted prior failover 
+seen earlier node failover destabilizing 
+set experiments section failing requests nodes recovering rb resulted failed requests 
+average number failures requests continued sent recovering node 
+shows rb failover improves user perceived availability failover rb 
+benefit pre failover rb due mismatch node level failover component level recovery 
+coarse grained failover prevents serving large fraction requests serve recovering 
+redirecting requests nodes cause requests fail ssm best unnecessarily overload nodes ssm 
+pre failover rb prove ineffective load balancer failover rebooted cost microrebooting non rb case negligible compared impact recovery 
+average failed requests microreboot update computation nines availability section 
+microreboots failover node cluster fail times year offer nines availability 
+believe writing software allowed fail twice day times year easier writing software allowed fail weeks times year jvm restart recovery 
+way mitigate coarseness node level failover component level failover having reduced cost reboot making finer grain natural solution 
+load augmented ability fail requests touch component known recovering 
+failing requests 
+accompanied microreboot reduce recovery induced failures 
+requires load balancer thorough understanding application dependencies impractical real internet services 
+user transparent recovery recovery sufficiently non intrusive low level retry mechanisms hide failure recovery callers brief won notice 
+fortunately specification offers return code indicating web server temporarily unable handle request typically due overload maintenance 
+code accompanied header containing time web client retry 
+implemented call retry prototype 
+previously step microrebooting component removal name binding bind component name sentinel rb 
+processing idempotent request servlet encounters sentinel ejb name lookup servlet container automatically replies retry seconds client 
+associated idempotency information url prefixes understanding ebid inferred static call analysis 
+measured effect retry calls different components transparent retry masked roughly half failures table corresponds fold increase perceived availability 
+operation component name retry retry delay retry authenticate table masking microreboots retry 
+data averaged trials component shown 
+failed requests visible users requests entered system microreboot started 
+reduce failures experimented introducing msec delay sentinel rebind microreboot allowed requests processed component complete 
+course component encountered failure able process requests prior recovery instances ejb faulty instances ok microreboot instances component 
+column table shows significant reduction failed requests 
+analyze tradeoff number saved requests msec increase recovery time 
+tolerating lax failure detection general downtime incident sum time detect failure time diagnose faulty component time recover 
+failure monitor quality generally characterized quick detections mistaken false positive rate real failures misses false negative rate fn det 
+monitors tradeoffs parameters longer generally yields lower fn det sample points gathered analysis thorough 
+cheap recovery relaxes task failure detection ways 
+allows longer additional requests failing detection way compensated reduction failed requests recovery 
+second false positives result useless recovery leading unnecessarily failing requests cheaper recovery reduces cost false positive enabling systems accommodate higher 
+trading away may result lower false negative rate improve availability 
+illustrate relaxation left graph 
+inject fault frequently called ejb delay recovery seconds shown horizontal axis perform recovery jvm restart microreboot 
+dotted line indicates rb recovery monitor take seconds detect failure providing higher user perceived availability jvm restarts immediate detection 
+curves graph asymptotically close large values number requests fail detection due delay recovery eventually dominate fail recovery 
+doing real time diagnosis recovery opportunity cost 
+experiment requests failed second waiting contrast microreboot averages failed requests takes msec table suggests microrebooting diagnosis result approximately number failures offers possibility failure diagnosis completes 
+failed requests process restart microreboot failed requests detection time sec false positive rate process restart microreboot false positives relaxing failure detection cheap recovery 
+right graph shows effect false positives user perceived availability averages failed requests jvm restart requests rb 
+false positive detections occur inbetween correct positive detections false ones result pointless recovery induced downtime correct ones lead useful recovery 
+simplicity assume 
+graph plots number failed requests caused sequence useless recoveries triggered false positives followed useful recovery response correct positive 
+number false positives inbetween successive correct detections corresponds 
+dotted line indicates availability achieved jvm restarts improved rb recovery false positive rates high 
+engineering failure detection fast accurate difficult 
+microreboots give failure detectors terms detection speed false positives allowing reduce false negative rates reduce number real failures lower false negative rates lead higher availability 
+expect extra improving precision monitors pinpoint faulty components microrebooting requires component level precision jvm restarts 
+failure despite automatic garbage collection resource leaks major problem large scale java applications study ibm customers ee business software revealed production systems frequently crash memory leaks 
+avoid unpredictable crashes operators resort preventive rebooting software rejuvenation 
+largest financial companies reboot ee servers daily recover memory network sockets file descriptors section show rb rejuvenation effective jvm restart preventing leak induced failures cheaper 
+wrote server side rejuvenation service periodically checks amount memory available jvm drops bytes recovery service microreboots components rolling fashion available memory exceeds threshold ejbs reached jvm restarted 
+production systems monitor number additional system parameters number file descriptors cpu utilization lock graphs identifying deadlocks rejuvenation service knowledge components need order reclaim memory 
+builds list components components service remembers memory released rb 
+list kept sorted descending order released memory time memory runs low rejuvenation service components expected release memory re sorting list needed 
+induce memory leaks components stateless session ejb called frequently workload item entity ejb part 
+choose leak rates allow keep experiment minutes 
+available mem mb timeline minutes available memory 
+inject kb invocation leak item kb invocation leak 
+set gbyte heap mb mb 
+show free memory varies worst case scenario initial list components components leaking memory 
+round interval timeline ebid ends rebooted pieces 
+time leaked memory item second list candidate components reordered accordingly improving efficiency subsequent 
+second time reached microrebooting sufficient bring available memory threshold 
+third rejuvenation item require rejuvenation fourth rb sufficient 
+repeating experiment rejuvenation jvm restarts resulted total requests failed minute interval 
+rbs requests failed order magnitude improvement taw dropped zero 
+commonly argument motivate software rejuvenation turns unplanned total downtime planned total downtime turn planned total downtime planned partial downtime 
+limitations recovery microreboot may appear rbs introduce classes problems interruption component state update improper reclamation component external resources delay needed full reboot 
+impact shared state 
+state updates atomic databases ssm distinction rbs process restarts state perspective 
+case non atomic updates state shared components challenging microrebooting component may leave state inconsistent components share 
+jvm restart hand reboots components simultaneously give opportunity see inconsistent state 
+ee best practices documents discourage sharing state passing components static variables believe requirement enforced suitably modified jit compiler 
+alternatively runtime detects unsafe state sharing practices disable rbs application question 
+jvm restart refresh components discards volatile shared state regardless inconsistent rbs allow state persist 
+crash system state survives recovery components resides state store assumes responsibility data consistency 
+order accomplish dedicated state repositories need apis sufficiently high level allow repository repair objects manages detect corruption 
+faults inconsistencies application generic checkpoint recovery unix 
+logical limit applications stateless recovery involves microrebooting processing components repairing data state stores 
+interaction external resources 
+component circumvents jboss acquires external resource application server aware microreboot ing may leak resource way jvm jboss restart 
+example experimentally verified ejb directly open connection database jboss transaction service acquire database lock share connection ejb prior releasing lock keep database connection open rb db session stays alive 
+database release lock db session times 
+case jvm restart resulting termination underlying tcp connection operating system cause immediate termination db session release lock 
+jboss knew acquired db session properly free session case rb 
+example contrived violates ee programming practices illustrates need application components obtain resources exclusively facilities provided platform 
+delaying full reboot 
+state gets segregated application effective reboot scrubbing data 
+implementation rb data maintained application server behalf application database connection pool various caches 
+microreboots generally recover problems occurring layers application application server jvm require full jvm restart 
+full process restart required poor failure diagnosis may result rbs 
+discussed section failure localization needs precise microreboots jvm restarts 
+recursive policy microrebooting progressively larger groups components eventually restart jvm done better diagnosis 
+case rbs add small additional cost total recovery cost 
+generalizing prototype ee applications microreboot friendly require minimal changes take advantage rb enabled application server 
+experience ee applications learned biggest challenges making session state handling application logic ensuring persistent state updated transactions 
+rest done prototype server leveraged ee applications 
+feel ee easier write application model amenable state externalization component isolation hope see microreboot support types systems 
+section describe design aspects deserve consideration extensions 
+isolation property systems critical partitioning system fine grain isolated components 
+partitioning system specific task frameworks ee net help 
+component isolation ee enforced lower level hardware mechanisms case separate process address spaces consequently bugs java virtual machine application server result state corruption crossing component boundaries 
+depending system stronger levels isolation may warranted achieved processes virtual machines 
+dependencies components need minimized dense dependency graph increases size recovery groups making rbs take longer disruptive 
+workload microreboots thrive workloads consisting fine grain independent requests system faced long running operations individual components periodically keep cost rbs low keeping mind associated risk persistent faults 
+vein requests need sufficiently self contained fresh instance component pick request continue processing previous instance left 
+resources java offer explicit memory release lease allocation best call system garbage collector rb 
+form resource reclamation complete amount time independent size memory traditional operating systems 
+believe efficient support microreboots requires time resource reclamation mechanism allow microreboots synchronously clean resources 
+related major themes reboot recovery minimizing recovery time reducing disruption recovery 
+section discuss small sample related themes 
+separation control data key reboot recovery 
+ways isolate subsystems processes virtual machines microkernels protection domains 
+isolated processing components appeared pre ee transaction processing monitors piece system functionality doing clients writing transaction log separate process communicating ipc rpc 
+session state managed memory dedicated component 
+architecture scale component process approach provided better isolation monolithic architectures amenable microrebooting 
+baker observed emphasizing fast recovery crash prevention potential improve availability described ways build distributed file systems recover quickly crashes 
+design recovery box safeguards metadata memory recovery warm reboot 
+provide components general framework reduces impact crash speeds recovery 
+internet services focused reducing functional disruption associated recovering transient failure 
+failover clusters canonical example brewer proposed dq principle way understand partial failure multi node service mapped decrease queries served second decrease data returned query 
+research systems embraced approach reducing downtime recovering sub system levels 
+example nooks isolates drivers lightweight protection domains inside operating system kernel driver fails restarted affecting rest kernel 
+farsite peerto peer file system restructured collection crash components recovered rebooting 
+systems provide examples systems lend credibility belief non ee systems structured effective 
+employing reboot recovery mean root causes failures identified fixed 
+rebooting simply provides separation concerns diagnosis recovery consistent observation prerequisite 
+attempting recover reboot failure reboot entails risk longer disruptive reboot place hurting availability 
+completely separating process recovery data recovery delegating specialized state stores enabled microreboots achieve process recovery 
+experiments microreboots cured majority failures empirically observed cause downtime deployed internet services 
+compared process restart recovery microrebooting order magnitude faster disruptive clusters 
+regardless fault systems attempt microreboot recovery take long costs little 
+skipping node failover clusters microrebooting faulty node improve availability commonly fail reboot node approach 
+microreboot recovery achieve higher levels availability false positive rates fault detection high 
+microreboots able reclaim memory leaks prototype application shutting improving availability order magnitude 
+significant limitation developing bug free software certain size 
+accepting bugs fact argue structuring systems cheap reboot recovery provides promising path dependable large scale software 
+acknowledgments david cheriton colleagues recovery oriented computing project early feedback 
+indebted shepherd jason anonymous osdi reviewers kim keeton adam martin rinard weimer patiently helping improve 
+adya bolosky castro douceur howell lorch theimer wattenhofer 
+farsite federated available reliable storage incompletely trusted environment 
+proc 
+th symposium operating systems design implementation boston ma 
+baker sullivan 
+recovery box fast recovery provide high availability unix environment 
+proc 
+summer usenix technical conference san antonio tx 
+barnes 
+ee application servers market overview 
+meta group march 
+bhatti 
+integrating quality web server design 
+proc 
+th international www conference amsterdam holland 
+brewer 
+lessons giant scale services 
+ieee internet computing july 
+sastry 
+fig prototype tool online verification recovery mechanisms 
+workshop self healing adaptive self managed systems new york ny 
+
+framework testing faulttolerance systems including os network aspects 
+proc 
+ieee high assurance system engineering symposium boca raton fl 
+candea fox 
+recursive turning reboot scalpel 
+proc 
+th workshop hot topics operating systems germany 
+candea fox 
+crash software 
+proc 
+th workshop hot topics operating systems hawaii 
+zwaenepoel 
+performance scalability ejb applications 
+proc 
+th conference object oriented programming systems languages applications seattle wa 
+chen zheng lloyd jordan brewer 
+failure diagnosis decision trees 
+proc 
+intl 
+conference autonomic computing new york ny 
+chou 
+fault tolerance 
+ieee computer 
+chou 
+personal communication 
+oracle 
+cohen jacobs 
+personal comm 
+oracle 
+
+personal comm 
+sun microsystems 
+information obtained agreement prohibits disclosure name may 
+garfinkel pfaff chow rosenblum boneh 
+terra virtual machine platform trusted computing 
+proc 
+th acm symposium operating systems principles bolton landing ny 
+gettys mogul frystyk masinter leach berners lee 
+hypertext transfer protocol 
+internet rfc june 
+gray 
+computers done 
+proc 
+th symp 
+reliability distributed software database systems los angeles ca 
+huang fulton 
+software rejuvenation analysis module applications 
+proc 
+th international symposium fault tolerant computing pasadena ca 
+jboss web page 
+www jboss org 
+keynote systems 
+www keynote com 
+lefebvre 
+cnn com facing world crisis 
+talk th usenix systems administration conference 
+levine 
+personal communication 
+com 
+liedtke 
+real microkernels 
+communications acm 
+ling fox 
+session state soft state 
+proc 
+st symposium networked systems design implementation san francisco ca 
+lowell chandra chen 
+exploring failure transparency limits generic recovery 
+proc 
+th symposium operating systems design implementation san diego ca 
+
+personal communication 
+
+
+personal comm 
+bea systems 
+microsoft 
+microsoft net framework 
+microsoft press redmond wa 
+miller 
+response time man computer conversational transactions 
+proc 
+afips fall joint computer conference volume 
+mitchell 
+ibm research 
+personal comm 
+mitchell 
+automated lightweight tool diagnosing memory leaks large java applications 
+proc 
+th european conf 
+object oriented programming darmstadt germany 
+murphy gent 
+measuring system software reliability automated data collection process 
+quality reliability engineering intl 
+pal 
+personal communication 
+yahoo 
+reimer 
+ibm research 
+personal comm 
+rubis project web page 
+rubis org 
+smith 
+tpc benchmarking commerce solution 
+transaction processing council 
+sullivan chillarege 
+software defects impact system availability study field failures operating systems 
+proc 
+st international symposium fault tolerant computing montr canada 
+sun microsystems 
+java sun com ee 
+swift bershad levy 
+improving reliability commodity operating systems 
+proc 
+th acm symposium operating systems principles bolton landing ny 
+iyer 
+checkpointing multithreaded applications 
+proc 
+ieee intl 
+line testing workshop 
+wood 
+software reliability customer view 
+ieee computer aug 
+research bulletin need speed ii apr 
