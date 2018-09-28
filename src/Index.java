@@ -118,8 +118,6 @@ public class Index {
 
 			File blockDir = new File(dataDirname, block.getName());
 			File[] filelist = blockDir.listFiles();
-
-			Map<Integer, List<Integer>> docMap = new HashMap<>();  /** Modified */
 			HashMap<Integer, PostingList> postingListHashMap = new HashMap<>(); /** Modified */
 
 			/* For each file */
@@ -129,7 +127,6 @@ public class Index {
 				 // use pre-increment to ensure docID > 0
                 int docId = ++docIdCounter;
                 docDict.put(fileName, docId);
-                docMap.put(docDict.get(fileName), new ArrayList<>()); /** Modified */
 				BufferedReader reader = new BufferedReader(new FileReader(file));
 				String line;
 				while ((line = reader.readLine()) != null) {
@@ -223,7 +220,7 @@ public class Index {
 			ArrayList<PostingList> postingListArrayList_1 = new ArrayList<>();
 			ArrayList<PostingList> postingListArrayList_2 = new ArrayList<>();
 			ArrayList<PostingList> postingListArrayList_Combined = new ArrayList<>();
-			
+
 
 			PostingList postingList ;
 			while ((postingList = index.readPosting(channel_1)) != null){

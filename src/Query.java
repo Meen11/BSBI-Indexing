@@ -98,7 +98,7 @@ public class Query {
 	}
     
 	public List<Integer> retrieve(String query) throws IOException
-	{	if(!running) 
+	{	if(!running)
 		{
 			System.err.println("Error: Query service must be initiated");
 		}
@@ -110,7 +110,7 @@ public class Query {
 		 *
 		 */
 
-		List<Integer> list = new ArrayList<>();
+		ArrayList<Integer> list = new ArrayList<>();
 
 		String[] tokens = query.trim().split("\\s+");
 
@@ -121,8 +121,8 @@ public class Query {
 				}
 			}
 		}
-		Collections.sort(list);
-//		System.out.println(list);
+
+		list = sortingArray(list);
 
 		if (list.isEmpty()) return null;
 
@@ -139,14 +139,26 @@ public class Query {
 			return  postingListArrayList.get(0).getList();
 		}
 		else {
-			for (int i=1; i<postingListArrayList.size(); i++) {
-				for (Integer docID: postingListArrayList.get(i).getList()){
-					if (postingListArrayList.get(i-1).getList().contains(docID)) docID_set.add(docID);
-				}
+			HashSet<Integer> setofDOC = new HashSet<>();
+			int c=0;
+			for (PostingList postingList: postingListArrayList){
+				setofDOC.addAll(postingList.getList());
 			}
+			ArrayList<Integer> docIDs = new ArrayList<>(setofDOC);
+			docIDs = sortingArray(docIDs);
+
+			for (Integer docID: docIDs){
+				int check = 1;
+				for (PostingList postingList: postingListArrayList){
+					if (!postingList.getList().contains(docID)) check = 0;
+				}
+				if (check==1) docID_set.add(docID);
+			}
+
 		}
 		ArrayList<Integer> docID_list = new ArrayList<>(docID_set);
 		docID_list = sortingArray(docID_list);
+
 
 		return docID_list;
 	}
