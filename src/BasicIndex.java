@@ -2,7 +2,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-
+/**Ravikan Thanapanaphruekkul 5988046
+ * Pranpariya Sakarin 5988202
+ * Pawin Sudjaidee 5988222
+ * */
 
 public class BasicIndex implements BaseIndex {
 

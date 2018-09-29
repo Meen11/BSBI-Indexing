@@ -2,6 +2,12 @@ import java.io.*;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
+
+/**Ravikan Thanapanaphruekkul 5988046
+ * Pranpariya Sakarin 5988202
+ * Pawin Sudjaidee 5988222
+ * */
+
 public class Index {
 
 	// Term id -> (position in index file, doc frequency) dictionary
@@ -40,7 +46,6 @@ public class Index {
 		 *	 
 		 */
 		index.writePosting(fc, posting);
-		
 	}
 	
 
@@ -142,13 +147,13 @@ public class Index {
 							termDict.put(token, wordIdCounter);
 							//System.out.println(token+" "+wordIdCounter);
 						}
-						if (!postingListHashMap.containsKey(termDict.get(token))) {  /**Creating postingList*/
+						if (!postingListHashMap.containsKey(termDict.get(token))) {  /**Creating postingList if there is none*/
 							postingListHashMap.put(termDict.get(token), new PostingList(termDict.get(token)));
-							if (!postingListHashMap.get(termDict.get(token)).getList().contains(docDict.get(fileName)))
+							if (!postingListHashMap.get(termDict.get(token)).getList().contains(docDict.get(fileName))) /**Add docID into postinglist*/
 							postingListHashMap.get(termDict.get(token)).getList().add(docDict.get(fileName));
 						}
 						else {
-							if (!postingListHashMap.get(termDict.get(token)).getList().contains(docDict.get(fileName)))
+							if (!postingListHashMap.get(termDict.get(token)).getList().contains(docDict.get(fileName))) /**Add docID into postinglist*/
 								postingListHashMap.get(termDict.get(token)).getList().add(docDict.get(fileName));
 						}
 					}
@@ -157,8 +162,7 @@ public class Index {
 				reader.close();
 			}
 
-			/** Sorting ArrayList of postingList*/
-			ArrayList<PostingList> lists_posting = new ArrayList<>(postingListHashMap.values());
+			ArrayList<PostingList> lists_posting = new ArrayList<>(postingListHashMap.values());/** Sorting ArrayList of postingList*/
 			lists_posting = sortingArray(lists_posting);
 
 			/* Sort and output */
@@ -176,9 +180,7 @@ public class Index {
 
 			FileChannel channel = bfc.getChannel();
 
-//			System.out.println(filelist);
-			for (PostingList postingList: lists_posting){
-//				System.out.println(postingList.getTermId());
+			for (PostingList postingList: lists_posting){		/**Writing all the postinglist into the file*/
 				writePosting(channel, postingList);
 			}
 			bfc.close();
@@ -223,17 +225,17 @@ public class Index {
 
 
 			PostingList postingList ;
-			while ((postingList = index.readPosting(channel_1)) != null){
+			while ((postingList = index.readPosting(channel_1)) != null){		/**Reading all the postinglist to the arraylist of postinglist*/
 				postingListArrayList_1.add(postingList);
 			}
 //			System.out.println("read 1");
 
-			while ((postingList = index.readPosting(channel_2)) != null){
+			while ((postingList = index.readPosting(channel_2)) != null){		/**Reading all the postinglist to the arraylist of postinglist*/
 				postingListArrayList_2.add(postingList);
 			}
 //			System.out.println("read 2");
 
-			while (true){
+			while (true){				/**Merging the road two arraylist of postinglist  in the new merged arraylist of postinglist*/
 				if (postingListArrayList_1.isEmpty() && postingListArrayList_2.isEmpty()) break;
 				else {
 
@@ -291,7 +293,7 @@ public class Index {
 				}
 			}
 
-			for (PostingList comPosting: postingListArrayList_Combined){
+			for (PostingList comPosting: postingListArrayList_Combined){			/**Writing the merged postinglist in the arraylist of merged postinglist into the file*/
 				Pair<Long,Integer> pairDoc;
 				pairDoc = new Pair<>(channel_mf.position(), comPosting.getList().size());
 				postingDict.put(comPosting.getTermId(),pairDoc);
@@ -366,7 +368,7 @@ public class Index {
 		runIndexer(className, root, output);
 	}
 
-	public static ArrayList<PostingList> sortingArray(ArrayList<PostingList> postingLists){
+	public static ArrayList<PostingList> sortingArray(ArrayList<PostingList> postingLists){				/**The method for sorting*/
 
 		int n = postingLists.size();
 		for(int i=0; i < n; i++){

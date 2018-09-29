@@ -4,6 +4,11 @@ import java.io.*;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
+/**Ravikan Thanapanaphruekkul 5988046
+ * Pranpariya Sakarin 5988202
+ * Pawin Sudjaidee 5988222
+ * */
+
 public class Query {
 
 	// Term id -> position in index file
@@ -117,14 +122,14 @@ public class Query {
 		for (String termID: termDict.keySet()){
 			for (String token: tokens){
 				if (token.equals(termID)){
-					list.add(termDict.get(termID));
+					list.add(termDict.get(termID));				/**Adding the extracted termID to the arraylist*/
 				}
 			}
 		}
 
-		list = sortingArray(list);
+		list = sortingArray(list);		/**Sorting the arraylist of termID*/
 
-		if (list.isEmpty()) return null;
+		if (list.isEmpty()) return null;	/**If there is no match word in termDict, it will return null*/
 
 		FileChannel fc = indexFile.getChannel();
 		HashSet<Integer> docID_set = new HashSet<>();
@@ -132,15 +137,14 @@ public class Query {
 		ArrayList<PostingList> postingListArrayList = new ArrayList<>();
 
 		for (Integer integer: list){
-			postingListArrayList.add(readPosting(fc, integer));
+			postingListArrayList.add(readPosting(fc, integer));			/**Reading all the postinglist existing in the arraylist of termID from the file*/
 		}
 
-		if (postingListArrayList.size() == 1){
+		if (postingListArrayList.size() == 1){					/**If there is just one postinglist, then return the docID list of it*/
 			return  postingListArrayList.get(0).getList();
 		}
-		else {
+		else {															/**If there is more than one arraylist, do a intersectizing*/
 			HashSet<Integer> setofDOC = new HashSet<>();
-			int c=0;
 			for (PostingList postingList: postingListArrayList){
 				setofDOC.addAll(postingList.getList());
 			}
@@ -154,10 +158,9 @@ public class Query {
 				}
 				if (check==1) docID_set.add(docID);
 			}
-
 		}
 		ArrayList<Integer> docID_list = new ArrayList<>(docID_set);
-		docID_list = sortingArray(docID_list);
+		docID_list = sortingArray(docID_list);							/**Sorting docID*/
 
 
 		return docID_list;
@@ -185,19 +188,15 @@ public class Query {
         if (res==null){
         	return "no results found";
 		}else {
-
-//			System.out.println(res);
-
 			StringBuilder output = new StringBuilder("");
 
 			for (Integer docID : res) {
 				for (Integer docID_dic : docDict.keySet()) {
 					if (docID == docID_dic) {
-						output.append(docDict.get(docID_dic) + "\n");
+						output.append(docDict.get(docID_dic) + "\n");		/**Appending all the filename into one single string*/
 					}
 				}
 			}
-//			System.out.println(output);
 			return output.toString();
 		}
     }
@@ -247,7 +246,7 @@ public class Query {
 		}
 	}
 
-	public static ArrayList<Integer> sortingArray(ArrayList<Integer> list){
+	public static ArrayList<Integer> sortingArray(ArrayList<Integer> list){		/**The method for sorting*/
 
 		int n = list.size();
 		for(int i=0; i < n; i++){
